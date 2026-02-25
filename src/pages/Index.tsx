@@ -61,7 +61,6 @@ export default function Index() {
 
       <SalesSection
         tickets={tickets.data ?? []}
-        deals={deals.data ?? []}
         goals={goals.data ?? []}
         allTimeTickets={allTimeTickets.data ?? []}
       />
