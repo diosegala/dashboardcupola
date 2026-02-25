@@ -12,6 +12,7 @@ import {
   useEmailCampaigns,
   useSiteAnalytics,
   useGoals,
+  useAllTimeTicketSales,
   type DateRange,
 } from "@/hooks/useDashboardData";
 
@@ -24,8 +25,9 @@ export default function Index() {
   const emailCampaigns = useEmailCampaigns(range);
   const siteAnalytics = useSiteAnalytics(range);
   const goals = useGoals();
+  const allTimeTickets = useAllTimeTicketSales();
 
-  const isLoading = tickets.isLoading || deals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || goals.isLoading;
+  const isLoading = tickets.isLoading || deals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || goals.isLoading || allTimeTickets.isLoading;
 
   if (isLoading) {
     return (
@@ -61,6 +63,7 @@ export default function Index() {
         tickets={tickets.data ?? []}
         deals={deals.data ?? []}
         goals={goals.data ?? []}
+        allTimeTickets={allTimeTickets.data ?? []}
       />
 
       <Separator />

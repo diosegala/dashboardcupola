@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Ticket, DollarSign, TrendingUp, Trophy, Handshake } from "lucide-react";
+import { Ticket, DollarSign, TrendingUp, Trophy, Handshake, Award } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { TicketsByDayChart } from "./charts/TicketsByDayChart";
 import { TicketsByTypeChart } from "./charts/TicketsByTypeChart";
@@ -12,11 +12,15 @@ interface SalesSectionProps {
   tickets: any[];
   deals: any[];
   goals: any[];
+  allTimeTickets?: any[];
 }
 
-export function SalesSection({ tickets, deals, goals }: SalesSectionProps) {
+export function SalesSection({ tickets, deals, goals, allTimeTickets = [] }: SalesSectionProps) {
   const totalTickets = useMemo(() => tickets.reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
   const totalRevenue = useMemo(() => tickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [tickets]);
+
+  const allTimeTotalTickets = useMemo(() => allTimeTickets.reduce((s, t) => s + (t.quantity || 0), 0), [allTimeTickets]);
+  const allTimeTotalRevenue = useMemo(() => allTimeTickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [allTimeTickets]);
   const avgTicket = totalTickets > 0 ? totalRevenue / totalTickets : 0;
 
   const wonDeals = useMemo(() => deals.filter((d) => d.status === "won"), [deals]);
@@ -40,6 +44,22 @@ export function SalesSection({ tickets, deals, goals }: SalesSectionProps) {
   return (
     <section className="space-y-6">
       <h2 className="text-xl font-semibold">Vendas</h2>
+
+      <div className="grid gap-4 md:grid-cols-2">
+        <MetricCard
+          title="Ingressos Vendidos (acumulado)"
+          value={allTimeTotalTickets}
+          icon={Award}
+          description="Total de todos os tempos"
+        />
+        <MetricCard
+          title="Receita Total (acumulado)"
+          value={allTimeTotalRevenue}
+          icon={Award}
+          prefix="R$ "
+          description="Total de todos os tempos"
+        />
+      </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard

@@ -91,6 +91,19 @@ export function useSiteAnalytics(range: DateRange) {
   });
 }
 
+export function useAllTimeTicketSales() {
+  return useQuery({
+    queryKey: ["ticket_sales_all_time"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ticket_sales")
+        .select("quantity, total_price");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export function useGoals() {
   return useQuery({
     queryKey: ["goals"],
