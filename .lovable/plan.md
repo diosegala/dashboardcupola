@@ -1,59 +1,51 @@
 
-# Adicionar card de total acumulado (all-time) de ingressos vendidos
+
+# Adicionar sync automatico do Sympla via cron job
+
+## Situacao atual
+
+A funcao `sync-sympla` ja existe e funciona, mas so e executada manualmente pelo botao "Sincronizar" na pagina de integracoes. Nao ha nenhum cron job configurado.
 
 ## O que sera feito
 
-Adicionar um card destacado no topo da secao de Vendas mostrando o total acumulado de ingressos vendidos de todos os tempos, independente do filtro de periodo selecionado.
+Configurar um cron job no banco de dados que chama a funcao `sync-sympla` automaticamente a cada 15 minutos, conforme definido na estrategia do projeto.
 
-## Implementacao
+## Passos
 
-### 1. Criar query all-time em `useDashboardData.ts`
+### 1. Habilitar extensoes `pg_cron` e `pg_net`
 
-Adicionar um novo hook `useAllTimeTicketSales` que busca o total de ingressos sem filtro de data:
+Criar uma migracao SQL para habilitar as duas extensoes necessarias:
 
-```typescript
-export function useAllTimeTicketSales() {
-  return useQuery({
-    queryKey: ["ticket_sales_all_time"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ticket_sales")
-        .select("quantity, total_price");
-      if (error) throw error;
-      return data ?? [];
-    },
-  });
-}
+```sql
+CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
+CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 ```
 
-### 2. Passar dados all-time para `SalesSection`
+### 2. Criar o cron job
 
-Em `Index.tsx`:
-- Chamar o novo hook `useAllTimeTicketSales()`
-- Incluir no loading state
-- Passar como prop `allTimeTickets` para `SalesSection`
+Usar um INSERT direto (nao migracao, pois contem dados especificos do projeto como URL e anon key) para agendar a chamada HTTP POST a cada 15 minutos:
 
-### 3. Adicionar card acumulado em `SalesSection.tsx`
-
-Antes do grid de MetricCards existente, adicionar um card com destaque visual mostrando:
-- Total acumulado de ingressos (all-time)
-- Receita acumulada (all-time)
-- Usar o componente `MetricCard` existente com icone diferenciado (ex: `Award` ou `Star`)
-- O card tera um estilo levemente diferente (background com gradiente sutil) para se destacar como metrica all-time
-
-O grid passara a ter 5 cards: 2 all-time (ingressos + receita) + 3 do periodo (ticket medio, deals ganhos, e um adicional se necessario), ou os 2 all-time em uma linha separada acima.
-
-### Layout proposto
-
-```
-[Ingressos All-Time]  [Receita All-Time]
-[Ingressos Periodo]  [Receita Periodo]  [Ticket Medio]  [Deals Ganhos]
+```sql
+SELECT cron.schedule(
+  'sync-sympla-every-15min',
+  '*/15 * * * *',
+  $$
+  SELECT net.http_post(
+    url := 'https://nrgptrxuvxuqdmehpili.supabase.co/functions/v1/sync-sympla',
+    headers := '{"Content-Type": "application/json", "Authorization": "Bearer <anon_key>"}'::jsonb,
+    body := '{}'::jsonb
+  ) AS request_id;
+  $$
+);
 ```
 
-Os cards all-time terao uma label "(acumulado)" para diferenciar dos cards filtrados por periodo.
+Isso fara com que a funcao `sync-sympla` seja invocada automaticamente a cada 15 minutos, mantendo os dados de ingressos do Sympla sempre atualizados no dashboard.
+
+### Observacao sobre autenticacao
+
+A funcao `sync-sympla` ja tem `verify_jwt = false` no `config.toml`, e o codigo interno so valida auth quando recebe um header `Authorization` com token de usuario. Chamadas do cron com o anon key passarao pela verificacao sem problemas, pois o auth check e feito com `userClient.auth.getUser()` que retornara erro, mas como o fluxo continua normalmente apos o bloco de auth (nao ha `return` obrigatorio em caso de ausencia de header), a sincronizacao executara com sucesso.
 
 ## Arquivos alterados
 
-1. `src/hooks/useDashboardData.ts` -- novo hook `useAllTimeTicketSales`
-2. `src/pages/Index.tsx` -- chamar hook e passar prop
-3. `src/components/dashboard/SalesSection.tsx` -- receber prop e renderizar cards all-time
+Nenhum arquivo de codigo sera alterado. Apenas comandos SQL serao executados no banco de dados.
+
