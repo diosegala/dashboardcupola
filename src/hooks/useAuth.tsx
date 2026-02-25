@@ -45,13 +45,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     const fetchUserData = async () => {
-      const [profileRes, roleRes] = await Promise.all([
-        supabase.from("profiles").select("name").eq("id", user.id).single(),
-        supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
-      ]);
-      setProfile(profileRes.data);
-      setIsAdmin(!!roleRes.data);
-      setLoading(false);
+      try {
+        const [profileRes, roleRes] = await Promise.all([
+          supabase.from("profiles").select("name").eq("id", user.id).single(),
+          supabase.from("user_roles").select("role").eq("user_id", user.id).eq("role", "admin").maybeSingle(),
+        ]);
+        console.log("[useAuth] roleRes:", JSON.stringify(roleRes));
+        setProfile(profileRes.data);
+        setIsAdmin(!!roleRes.data);
+      } catch (err) {
+        console.error("[useAuth] Error fetching user data:", err);
+        setIsAdmin(false);
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchUserData();
