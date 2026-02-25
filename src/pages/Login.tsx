@@ -1,5 +1,7 @@
 import { useState } from "react";
+import { useNavigate, Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,11 +10,16 @@ import { useToast } from "@/hooks/use-toast";
 import { LayoutDashboard } from "lucide-react";
 
 export default function Login() {
+  const { user, loading: authLoading } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+
+  if (authLoading) return null;
+  if (user) return <Navigate to="/" replace />;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,11 +31,10 @@ export default function Login() {
 
     if (error) {
       toast({ variant: "destructive", title: "Erro", description: error.message });
-    } else if (isSignUp) {
-      toast({ title: "Conta criada!", description: "Você já pode acessar o dashboard." });
+      setLoading(false);
+    } else {
+      navigate("/");
     }
-
-    setLoading(false);
   };
 
   return (
