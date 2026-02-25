@@ -1,45 +1,47 @@
 
 
-# Corrigir acesso admin nos cards de integração + fix sync-sympla
+# Corrigir versao da API Sympla + acesso admin nos cards
 
-## Problema identificado
+## Problema principal
 
-Os botões de toggle (ativo/inativo), "Credenciais" e "Sincronizar" ficam desabilitados porque a propriedade `isAdmin` retorna `false` no frontend, mesmo com o papel `admin` configurado corretamente no banco.
+A Edge Function `sync-sympla` usa a URL base `https://api.sympla.com.br/public/v3/` mas a documentacao oficial da Sympla indica que a versao correta e **v1.5.1** (`https://api.sympla.com.br/public/v1.5.1/`). Isso causa o erro "Event not found" (code 11) porque a v3 nao reconhece o event_id.
 
-A causa mais provável é uma condição de corrida (race condition) no `useAuth`: a consulta ao `user_roles` pode falhar silenciosamente ou retornar `null` antes da sessão estar totalmente estabelecida, fazendo `isAdmin` permanecer `false`.
+## Problema secundario
 
-## Correções
+Os botoes de toggle, credenciais e sincronizar ficam desabilitados no frontend porque `isAdmin` pode retornar `false` devido a uma race condition no `useAuth.tsx`.
 
-### 1. Tornar a consulta de role mais robusta em `useAuth.tsx`
+## Correcoes
 
-- Adicionar tratamento de erro na consulta ao `user_roles` (se a promise rejeitar, `isAdmin` fica `false` silenciosamente sem sequer tentar)
-- Garantir que a consulta ao banco só executa depois que a sessão está confirmada (aguardar o `onAuthStateChange` antes de consultar roles)
-- Adicionar um `console.log` temporario para debug do valor retornado pela query de role
+### 1. Atualizar URL base da API Sympla na Edge Function
 
-### 2. Adicionar `.trim()` nos secrets da Edge Function `sync-sympla`
+No arquivo `supabase/functions/sync-sympla/index.ts`, alterar a URL de:
+```
+https://api.sympla.com.br/public/v3/events/${eventId}/participants
+```
+Para:
+```
+https://api.sympla.com.br/public/v1.5.1/events/${eventId}/participants
+```
 
-- Aplicar `.trim()` em `apiToken` e `eventId` para remover possíveis espaços/quebras de linha nos valores dos secrets
-- Adicionar log do `eventId` e primeiros caracteres do token para diagnóstico
+Tambem adicionar log da URL completa para facilitar debug futuro.
 
-### 3. Redesplegar `sync-sympla`
+### 2. Verificar e corrigir `useAuth.tsx`
 
-- Deploy da função atualizada e teste via curl
+Verificar o estado atual do hook `useAuth` para garantir que a consulta de role e robusta e nao falha silenciosamente. Os logs do console ja mostram `roleRes: {"data":{"role":"admin"}}`, entao o backend esta correto. Se `isAdmin` ainda retorna `false` na UI, o problema esta em como o estado e propagado apos o fetch.
 
-## Detalhes técnicos
+### 3. Redesplegar e testar
 
-### Arquivo: `src/hooks/useAuth.tsx`
+- Deploy da funcao atualizada
+- Teste via curl para confirmar que a sincronizacao funciona com a v1.5.1
 
-Alterar o `useEffect` que busca role para:
-- Usar `try/catch` ao redor do `Promise.all`
-- Logar resultado da query de roles no console para debugging
-- Caso `profileRes` falhe, não bloquear a verificação de `isAdmin`
+## Detalhes tecnicos
 
 ### Arquivo: `supabase/functions/sync-sympla/index.ts`
+- Linha 79: trocar `v3` por `v1.5.1` na URL base
+- Adicionar log da URL completa sendo chamada
 
-- Adicionar `.trim()` nos valores de `apiToken` e `eventId`
-- Adicionar `console.log("Sync sympla - eventId:", eventId, "token prefix:", apiToken.slice(0,8))` para diagnóstico nos logs
+### Arquivo: `src/hooks/useAuth.tsx`
+- Investigar se `isAdmin` esta sendo setado corretamente apos o fetch da role (os logs mostram que o fetch retorna `admin`, mas a UI pode nao estar reagindo)
 
-### Nenhuma migração de banco necessária
-
-O schema e as políticas RLS estão corretos. O problema é exclusivamente no frontend (race condition no carregamento do papel admin).
+### Nenhuma migracao de banco necessaria
 
