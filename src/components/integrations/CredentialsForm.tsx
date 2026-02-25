@@ -22,23 +22,23 @@ const FIELDS: Record<string, FieldDef[]> = {
     { key: "api_token", label: "API Token", type: "text" },
     { key: "domain", label: "Domínio (ex: company)", type: "text" },
   ],
-  "meta-ads": [
+  meta: [
     { key: "access_token", label: "Access Token", type: "text" },
     { key: "ad_account_id", label: "Ad Account ID", type: "text" },
   ],
-  "google-ads": [
+  google_ads: [
     { key: "client_id", label: "Client ID", type: "text" },
     { key: "client_secret", label: "Client Secret", type: "text" },
     { key: "refresh_token", label: "Refresh Token", type: "text" },
     { key: "developer_token", label: "Developer Token", type: "text" },
     { key: "customer_id", label: "Customer ID", type: "text" },
   ],
-  "rd-station": [
+  rd_station: [
     { key: "client_id", label: "Client ID", type: "text" },
     { key: "client_secret", label: "Client Secret", type: "text" },
     { key: "refresh_token", label: "Refresh Token", type: "text" },
   ],
-  "google-analytics": [
+  google_analytics: [
     { key: "property_id", label: "Property ID", type: "text" },
     { key: "service_account_json", label: "Service Account JSON", type: "textarea" },
   ],

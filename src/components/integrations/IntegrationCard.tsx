@@ -13,19 +13,19 @@ import { CredentialsForm } from "./CredentialsForm";
 const ICONS: Record<string, React.ElementType> = {
   sympla: Ticket,
   pipedrive: PieChart,
-  "meta-ads": Megaphone,
-  "google-ads": BarChart3,
-  "rd-station": Mail,
-  "google-analytics": Globe,
+  meta: Megaphone,
+  google_ads: BarChart3,
+  rd_station: Mail,
+  google_analytics: Globe,
 };
 
 const LABELS: Record<string, string> = {
   sympla: "Sympla",
   pipedrive: "Pipedrive",
-  "meta-ads": "Meta Ads",
-  "google-ads": "Google Ads",
-  "rd-station": "RD Station",
-  "google-analytics": "Google Analytics",
+  meta: "Meta Ads",
+  google_ads: "Google Ads",
+  rd_station: "RD Station",
+  google_analytics: "Google Analytics",
 };
 
 interface Props {
@@ -53,11 +53,10 @@ export function IntegrationCard({ integration, isAdmin, onToggle, onSync, onSave
               {label}
             </CardTitle>
             <Badge
-              variant={isSyncing ? "default" : isError ? "destructive" : "secondary"}
+              variant={isSyncing ? "default" : isError ? "destructive" : integration.is_active ? "default" : "secondary"}
               className={isSyncing ? "animate-pulse bg-yellow-500 text-yellow-950" : ""}
             >
-              {isSyncing ? "Sincronizando..." : isError ? "Erro" : "Inativo"}
-              {integration.is_active && !isSyncing && !isError && "Ativo"}
+              {isSyncing ? "Sincronizando..." : isError ? "Erro" : integration.is_active ? "Ativo" : "Inativo"}
             </Badge>
           </div>
         </CardHeader>
