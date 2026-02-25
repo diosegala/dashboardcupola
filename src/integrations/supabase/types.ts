@@ -1,0 +1,507 @@
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
+  public: {
+    Tables: {
+      ad_metrics: {
+        Row: {
+          ad_set_id: string | null
+          ad_set_name: string | null
+          campaign_id: string | null
+          campaign_name: string | null
+          clicks: number | null
+          conversions: number | null
+          cpc: number | null
+          cpm: number | null
+          ctr: number | null
+          date: string
+          id: string
+          impressions: number | null
+          source: string
+          spend: number | null
+          synced_at: string
+        }
+        Insert: {
+          ad_set_id?: string | null
+          ad_set_name?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          clicks?: number | null
+          conversions?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          ctr?: number | null
+          date: string
+          id?: string
+          impressions?: number | null
+          source: string
+          spend?: number | null
+          synced_at?: string
+        }
+        Update: {
+          ad_set_id?: string | null
+          ad_set_name?: string | null
+          campaign_id?: string | null
+          campaign_name?: string | null
+          clicks?: number | null
+          conversions?: number | null
+          cpc?: number | null
+          cpm?: number | null
+          ctr?: number | null
+          date?: string
+          id?: string
+          impressions?: number | null
+          source?: string
+          spend?: number | null
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      deals: {
+        Row: {
+          created_at_source: string | null
+          currency: string | null
+          id: string
+          lost_at: string | null
+          owner_name: string | null
+          pipedrive_deal_id: string
+          stage_id: string | null
+          stage_name: string | null
+          status: string | null
+          synced_at: string
+          title: string | null
+          value: number | null
+          won_at: string | null
+        }
+        Insert: {
+          created_at_source?: string | null
+          currency?: string | null
+          id?: string
+          lost_at?: string | null
+          owner_name?: string | null
+          pipedrive_deal_id: string
+          stage_id?: string | null
+          stage_name?: string | null
+          status?: string | null
+          synced_at?: string
+          title?: string | null
+          value?: number | null
+          won_at?: string | null
+        }
+        Update: {
+          created_at_source?: string | null
+          currency?: string | null
+          id?: string
+          lost_at?: string | null
+          owner_name?: string | null
+          pipedrive_deal_id?: string
+          stage_id?: string | null
+          stage_name?: string | null
+          status?: string | null
+          synced_at?: string
+          title?: string | null
+          value?: number | null
+          won_at?: string | null
+        }
+        Relationships: []
+      }
+      email_campaigns: {
+        Row: {
+          click_rate: number | null
+          id: string
+          name: string | null
+          open_rate: number | null
+          rd_campaign_id: string
+          sent_at: string | null
+          subject: string | null
+          synced_at: string
+          total_clicked: number | null
+          total_opened: number | null
+          total_sent: number | null
+          unsubscribes: number | null
+        }
+        Insert: {
+          click_rate?: number | null
+          id?: string
+          name?: string | null
+          open_rate?: number | null
+          rd_campaign_id: string
+          sent_at?: string | null
+          subject?: string | null
+          synced_at?: string
+          total_clicked?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          unsubscribes?: number | null
+        }
+        Update: {
+          click_rate?: number | null
+          id?: string
+          name?: string | null
+          open_rate?: number | null
+          rd_campaign_id?: string
+          sent_at?: string | null
+          subject?: string | null
+          synced_at?: string
+          total_clicked?: number | null
+          total_opened?: number | null
+          total_sent?: number | null
+          unsubscribes?: number | null
+        }
+        Relationships: []
+      }
+      goals: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          label: string
+          metric_key: string
+          period_end: string
+          period_start: string
+          target_value: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          label: string
+          metric_key: string
+          period_end: string
+          period_start: string
+          target_value: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          label?: string
+          metric_key?: string
+          period_end?: string
+          period_start?: string
+          target_value?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      integrations: {
+        Row: {
+          created_at: string
+          credentials: Json | null
+          error_message: string | null
+          id: string
+          is_active: boolean
+          last_synced_at: string | null
+          name: string
+          sync_status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          credentials?: Json | null
+          error_message?: string | null
+          id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          name: string
+          sync_status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          credentials?: Json | null
+          error_message?: string | null
+          id?: string
+          is_active?: boolean
+          last_synced_at?: string | null
+          name?: string
+          sync_status?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          id: string
+          name: string | null
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          name?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string | null
+        }
+        Relationships: []
+      }
+      site_analytics: {
+        Row: {
+          avg_session_duration: number | null
+          bounce_rate: number | null
+          date: string
+          id: string
+          new_users: number | null
+          pageviews: number | null
+          sessions: number | null
+          synced_at: string
+          top_pages: Json | null
+          traffic_sources: Json | null
+          users: number | null
+        }
+        Insert: {
+          avg_session_duration?: number | null
+          bounce_rate?: number | null
+          date: string
+          id?: string
+          new_users?: number | null
+          pageviews?: number | null
+          sessions?: number | null
+          synced_at?: string
+          top_pages?: Json | null
+          traffic_sources?: Json | null
+          users?: number | null
+        }
+        Update: {
+          avg_session_duration?: number | null
+          bounce_rate?: number | null
+          date?: string
+          id?: string
+          new_users?: number | null
+          pageviews?: number | null
+          sessions?: number | null
+          synced_at?: string
+          top_pages?: Json | null
+          traffic_sources?: Json | null
+          users?: number | null
+        }
+        Relationships: []
+      }
+      ticket_sales: {
+        Row: {
+          buyer_email: string | null
+          buyer_name: string | null
+          event_id: string | null
+          id: string
+          quantity: number
+          sold_at: string | null
+          status: string | null
+          sympla_order_id: string
+          synced_at: string
+          ticket_type: string | null
+          ticket_type_id: string | null
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          buyer_email?: string | null
+          buyer_name?: string | null
+          event_id?: string | null
+          id?: string
+          quantity?: number
+          sold_at?: string | null
+          status?: string | null
+          sympla_order_id: string
+          synced_at?: string
+          ticket_type?: string | null
+          ticket_type_id?: string | null
+          total_price?: number
+          unit_price?: number
+        }
+        Update: {
+          buyer_email?: string | null
+          buyer_name?: string | null
+          event_id?: string | null
+          id?: string
+          quantity?: number
+          sold_at?: string | null
+          status?: string | null
+          sympla_order_id?: string
+          synced_at?: string
+          ticket_type?: string | null
+          ticket_type_id?: string | null
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
+    }
+    Enums: {
+      app_role: "admin" | "viewer"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      app_role: ["admin", "viewer"],
+    },
+  },
+} as const
