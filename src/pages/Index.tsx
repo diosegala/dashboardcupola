@@ -56,7 +56,11 @@ export default function Index() {
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Visão geral de vendas e marketing — Cupola Summit</p>
         </div>
-        <PeriodSelector range={range} onChange={setRange} />
+        <PeriodSelector
+          range={range}
+          onChange={setRange}
+          onSelectAllTime={() => setRange({ from: new Date(2020, 0, 1), to: new Date() })}
+        />
       </div>
 
       <SalesSection
