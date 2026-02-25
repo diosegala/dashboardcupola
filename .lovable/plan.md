@@ -1,47 +1,59 @@
 
+# Adicionar card de total acumulado (all-time) de ingressos vendidos
 
-# Corrigir versao da API Sympla + acesso admin nos cards
+## O que sera feito
 
-## Problema principal
+Adicionar um card destacado no topo da secao de Vendas mostrando o total acumulado de ingressos vendidos de todos os tempos, independente do filtro de periodo selecionado.
 
-A Edge Function `sync-sympla` usa a URL base `https://api.sympla.com.br/public/v3/` mas a documentacao oficial da Sympla indica que a versao correta e **v1.5.1** (`https://api.sympla.com.br/public/v1.5.1/`). Isso causa o erro "Event not found" (code 11) porque a v3 nao reconhece o event_id.
+## Implementacao
 
-## Problema secundario
+### 1. Criar query all-time em `useDashboardData.ts`
 
-Os botoes de toggle, credenciais e sincronizar ficam desabilitados no frontend porque `isAdmin` pode retornar `false` devido a uma race condition no `useAuth.tsx`.
+Adicionar um novo hook `useAllTimeTicketSales` que busca o total de ingressos sem filtro de data:
 
-## Correcoes
-
-### 1. Atualizar URL base da API Sympla na Edge Function
-
-No arquivo `supabase/functions/sync-sympla/index.ts`, alterar a URL de:
+```typescript
+export function useAllTimeTicketSales() {
+  return useQuery({
+    queryKey: ["ticket_sales_all_time"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ticket_sales")
+        .select("quantity, total_price");
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
 ```
-https://api.sympla.com.br/public/v3/events/${eventId}/participants
+
+### 2. Passar dados all-time para `SalesSection`
+
+Em `Index.tsx`:
+- Chamar o novo hook `useAllTimeTicketSales()`
+- Incluir no loading state
+- Passar como prop `allTimeTickets` para `SalesSection`
+
+### 3. Adicionar card acumulado em `SalesSection.tsx`
+
+Antes do grid de MetricCards existente, adicionar um card com destaque visual mostrando:
+- Total acumulado de ingressos (all-time)
+- Receita acumulada (all-time)
+- Usar o componente `MetricCard` existente com icone diferenciado (ex: `Award` ou `Star`)
+- O card tera um estilo levemente diferente (background com gradiente sutil) para se destacar como metrica all-time
+
+O grid passara a ter 5 cards: 2 all-time (ingressos + receita) + 3 do periodo (ticket medio, deals ganhos, e um adicional se necessario), ou os 2 all-time em uma linha separada acima.
+
+### Layout proposto
+
 ```
-Para:
+[Ingressos All-Time]  [Receita All-Time]
+[Ingressos Periodo]  [Receita Periodo]  [Ticket Medio]  [Deals Ganhos]
 ```
-https://api.sympla.com.br/public/v1.5.1/events/${eventId}/participants
-```
 
-Tambem adicionar log da URL completa para facilitar debug futuro.
+Os cards all-time terao uma label "(acumulado)" para diferenciar dos cards filtrados por periodo.
 
-### 2. Verificar e corrigir `useAuth.tsx`
+## Arquivos alterados
 
-Verificar o estado atual do hook `useAuth` para garantir que a consulta de role e robusta e nao falha silenciosamente. Os logs do console ja mostram `roleRes: {"data":{"role":"admin"}}`, entao o backend esta correto. Se `isAdmin` ainda retorna `false` na UI, o problema esta em como o estado e propagado apos o fetch.
-
-### 3. Redesplegar e testar
-
-- Deploy da funcao atualizada
-- Teste via curl para confirmar que a sincronizacao funciona com a v1.5.1
-
-## Detalhes tecnicos
-
-### Arquivo: `supabase/functions/sync-sympla/index.ts`
-- Linha 79: trocar `v3` por `v1.5.1` na URL base
-- Adicionar log da URL completa sendo chamada
-
-### Arquivo: `src/hooks/useAuth.tsx`
-- Investigar se `isAdmin` esta sendo setado corretamente apos o fetch da role (os logs mostram que o fetch retorna `admin`, mas a UI pode nao estar reagindo)
-
-### Nenhuma migracao de banco necessaria
-
+1. `src/hooks/useDashboardData.ts` -- novo hook `useAllTimeTicketSales`
+2. `src/pages/Index.tsx` -- chamar hook e passar prop
+3. `src/components/dashboard/SalesSection.tsx` -- receber prop e renderizar cards all-time
