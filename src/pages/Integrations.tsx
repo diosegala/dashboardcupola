@@ -6,7 +6,9 @@ import { toast } from "sonner";
 
 export default function Integrations() {
   const { integrations, isLoading, updateIntegration, syncIntegration } = useIntegrations();
-  const { isAdmin } = useAuth();
+  const { isAdmin, loading } = useAuth();
+
+  console.log("[Integrations] isAdmin:", isAdmin, "authLoading:", loading);
 
   const handleToggle = (id: string, active: boolean) => {
     updateIntegration.mutate({ id, updates: { is_active: active } });
