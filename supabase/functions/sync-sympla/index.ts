@@ -48,8 +48,9 @@ Deno.serve(async (req) => {
 
     // 2. Get credentials (DB priority, then env fallback)
     const creds = (integration.credentials as Record<string, string>) ?? {};
-    const apiToken = creds.api_token || Deno.env.get("SYMPLA_API_TOKEN");
-    const eventId = creds.event_id || Deno.env.get("SYMPLA_EVENT_ID");
+    const apiToken = (creds.api_token || Deno.env.get("SYMPLA_API_TOKEN") || "").trim();
+    const eventId = (creds.event_id || Deno.env.get("SYMPLA_EVENT_ID") || "").trim();
+    console.log("sync-sympla - eventId:", eventId, "token prefix:", apiToken.slice(0, 8) + "...");
 
     if (!apiToken || !eventId) {
       await supabase
