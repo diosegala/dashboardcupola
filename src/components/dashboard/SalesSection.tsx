@@ -1,30 +1,25 @@
 import { useMemo } from "react";
-import { Ticket, DollarSign, TrendingUp, Trophy, Handshake, Award } from "lucide-react";
+import { Ticket, DollarSign, TrendingUp, Trophy, Award } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { TicketsByDayChart } from "./charts/TicketsByDayChart";
 import { TicketsByTypeChart } from "./charts/TicketsByTypeChart";
-import { DealsFunnelChart } from "./charts/DealsFunnelChart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { findGoal } from "@/hooks/useDashboardData";
 
 interface SalesSectionProps {
   tickets: any[];
-  deals: any[];
   goals: any[];
   allTimeTickets?: any[];
 }
 
-export function SalesSection({ tickets, deals, goals, allTimeTickets = [] }: SalesSectionProps) {
+export function SalesSection({ tickets, goals, allTimeTickets = [] }: SalesSectionProps) {
   const totalTickets = useMemo(() => tickets.reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
   const totalRevenue = useMemo(() => tickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [tickets]);
 
   const allTimeTotalTickets = useMemo(() => allTimeTickets.reduce((s, t) => s + (t.quantity || 0), 0), [allTimeTickets]);
   const allTimeTotalRevenue = useMemo(() => allTimeTickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [allTimeTickets]);
   const avgTicket = totalTickets > 0 ? totalRevenue / totalTickets : 0;
-
-  const wonDeals = useMemo(() => deals.filter((d) => d.status === "won"), [deals]);
-  const wonDealsValue = useMemo(() => wonDeals.reduce((s, d) => s + Number(d.value || 0), 0), [wonDeals]);
 
   const top5Types = useMemo(() => {
     const map = new Map<string, number>();
@@ -39,7 +34,6 @@ export function SalesSection({ tickets, deals, goals, allTimeTickets = [] }: Sal
 
   const ticketsGoal = findGoal(goals, "tickets_sold");
   const revenueGoal = findGoal(goals, "revenue");
-  const dealsGoal = findGoal(goals, "deals_won");
 
   return (
     <section className="space-y-6">
@@ -61,7 +55,7 @@ export function SalesSection({ tickets, deals, goals, allTimeTickets = [] }: Sal
         />
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <MetricCard
           title="Ingressos Vendidos"
           value={totalTickets}
@@ -81,12 +75,6 @@ export function SalesSection({ tickets, deals, goals, allTimeTickets = [] }: Sal
           icon={TrendingUp}
           prefix="R$ "
           description="Valor médio por ingresso"
-        />
-        <MetricCard
-          title="Deals Ganhos"
-          value={wonDeals.length}
-          icon={Handshake}
-          goal={dealsGoal?.target_value}
         />
       </div>
 
@@ -125,8 +113,6 @@ export function SalesSection({ tickets, deals, goals, allTimeTickets = [] }: Sal
         <TicketsByTypeChart tickets={tickets} />
       </div>
 
-      {/* Deals funnel */}
-      <DealsFunnelChart deals={deals} />
     </section>
   );
 }
