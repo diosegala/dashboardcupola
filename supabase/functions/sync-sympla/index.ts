@@ -75,10 +75,9 @@ Deno.serve(async (req) => {
     let hasNext = true;
 
     while (hasNext) {
-      const data = await fetchWithRetry(
-        `https://api.sympla.com.br/public/v3/events/${eventId}/participants?page=${page}&page_size=200`,
-        apiToken
-      );
+      const url = `https://api.sympla.com.br/public/v1.5.1/events/${eventId}/participants?page=${page}&page_size=200`;
+      console.log("sync-sympla - fetching:", url);
+      const data = await fetchWithRetry(url, apiToken);
       if (data.data) {
         allParticipants.push(...data.data);
       }
