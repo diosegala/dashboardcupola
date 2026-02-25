@@ -1,51 +1,33 @@
 
 
-# Adicionar sync automatico do Sympla via cron job
-
-## Situacao atual
-
-A funcao `sync-sympla` ja existe e funciona, mas so e executada manualmente pelo botao "Sincronizar" na pagina de integracoes. Nao ha nenhum cron job configurado.
+# Adicionar botao "Todo o periodo" ao lado do seletor de datas
 
 ## O que sera feito
 
-Configurar um cron job no banco de dados que chama a funcao `sync-sympla` automaticamente a cada 15 minutos, conforme definido na estrategia do projeto.
+Adicionar um botao "Todo o periodo" ao lado do seletor de calendario no dashboard. Ao clicar, o filtro de datas sera expandido para cobrir desde a data mais antiga dos dados ate hoje, mostrando todas as metricas sem restricao de periodo.
 
-## Passos
+## Implementacao
 
-### 1. Habilitar extensoes `pg_cron` e `pg_net`
+### 1. Atualizar `PeriodSelector.tsx`
 
-Criar uma migracao SQL para habilitar as duas extensoes necessarias:
+- Adicionar uma nova prop `onSelectAllTime` (callback sem argumentos)
+- Renderizar um botao com icone `Infinity` (do lucide-react) ao lado do botao de calendario existente, com texto "Todo periodo"
+- Ao clicar, chama `onSelectAllTime()`
+- Os dois botoes ficam lado a lado num flex container
 
-```sql
-CREATE EXTENSION IF NOT EXISTS pg_cron WITH SCHEMA pg_catalog;
-CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
+### 2. Atualizar `Index.tsx`
+
+- Criar uma funcao `handleAllTime` que define o range como `{ from: new Date(2020, 0, 1), to: new Date() }` (data suficientemente antiga para cobrir todos os dados)
+- Passar essa funcao como prop `onSelectAllTime` para o `PeriodSelector`
+
+## Layout
+
+```text
+[Dashboard title]          [ Todo periodo ]  [ 01 fev - 28 fev 2026 ]
 ```
-
-### 2. Criar o cron job
-
-Usar um INSERT direto (nao migracao, pois contem dados especificos do projeto como URL e anon key) para agendar a chamada HTTP POST a cada 15 minutos:
-
-```sql
-SELECT cron.schedule(
-  'sync-sympla-every-15min',
-  '*/15 * * * *',
-  $$
-  SELECT net.http_post(
-    url := 'https://nrgptrxuvxuqdmehpili.supabase.co/functions/v1/sync-sympla',
-    headers := '{"Content-Type": "application/json", "Authorization": "Bearer <anon_key>"}'::jsonb,
-    body := '{}'::jsonb
-  ) AS request_id;
-  $$
-);
-```
-
-Isso fara com que a funcao `sync-sympla` seja invocada automaticamente a cada 15 minutos, mantendo os dados de ingressos do Sympla sempre atualizados no dashboard.
-
-### Observacao sobre autenticacao
-
-A funcao `sync-sympla` ja tem `verify_jwt = false` no `config.toml`, e o codigo interno so valida auth quando recebe um header `Authorization` com token de usuario. Chamadas do cron com o anon key passarao pela verificacao sem problemas, pois o auth check e feito com `userClient.auth.getUser()` que retornara erro, mas como o fluxo continua normalmente apos o bloco de auth (nao ha `return` obrigatorio em caso de ausencia de header), a sincronizacao executara com sucesso.
 
 ## Arquivos alterados
 
-Nenhum arquivo de codigo sera alterado. Apenas comandos SQL serao executados no banco de dados.
+1. `src/components/dashboard/PeriodSelector.tsx` -- nova prop e botao
+2. `src/pages/Index.tsx` -- handler e passagem da prop
 
