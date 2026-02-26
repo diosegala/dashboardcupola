@@ -1,9 +1,10 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Eye, MousePointerClick, Wallet, BarChart3, Mail, Globe, Users, FileText } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
 import { SessionsByDayChart } from "./charts/SessionsByDayChart";
 import { findGoal } from "@/hooks/useDashboardData";
+import { CampaignFilter, type Campaign } from "./CampaignFilter";
 
 interface MarketingSectionProps {
   adMetrics: any[];
@@ -13,11 +14,42 @@ interface MarketingSectionProps {
 }
 
 export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goals }: MarketingSectionProps) {
-  const meta = useMemo(() => adMetrics.filter((a) => a.source === "meta"), [adMetrics]);
+  const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
+
+  // Extract unique campaigns from meta ads
+  const campaigns: Campaign[] = useMemo(() => {
+    const map = new Map<string, string>();
+    adMetrics
+      .filter((a) => a.source === "meta" && a.campaign_id)
+      .forEach((a) => {
+        if (!map.has(a.campaign_id)) {
+          map.set(a.campaign_id, a.campaign_name || a.campaign_id);
+        }
+      });
+    return Array.from(map.entries()).map(([campaign_id, campaign_name]) => ({
+      campaign_id,
+      campaign_name,
+    }));
+  }, [adMetrics]);
+
+  // Filtered meta metrics (apply campaign filter)
+  const meta = useMemo(() => {
+    const metaAll = adMetrics.filter((a) => a.source === "meta");
+    if (selectedCampaigns.length === 0) return metaAll;
+    return metaAll.filter((a) => selectedCampaigns.includes(a.campaign_id));
+  }, [adMetrics, selectedCampaigns]);
+
   const google = useMemo(() => adMetrics.filter((a) => a.source === "google_ads"), [adMetrics]);
 
   const sum = (arr: any[], key: string) => arr.reduce((s, r) => s + Number(r[key] || 0), 0);
   const avg = (arr: any[], key: string) => arr.length > 0 ? sum(arr, key) / arr.length : 0;
+
+  // Build filtered adMetrics for charts (replace meta rows with filtered ones)
+  const filteredAdMetrics = useMemo(() => {
+    if (selectedCampaigns.length === 0) return adMetrics;
+    const nonMeta = adMetrics.filter((a) => a.source !== "meta");
+    return [...nonMeta, ...meta];
+  }, [adMetrics, meta, selectedCampaigns]);
 
   // Site totals
   const siteTotals = useMemo(() => ({
@@ -37,7 +69,14 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
 
   return (
     <section className="space-y-6">
-      <h2 className="text-xl font-semibold">Marketing</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <h2 className="text-xl font-semibold">Marketing</h2>
+        <CampaignFilter
+          campaigns={campaigns}
+          selected={selectedCampaigns}
+          onChange={setSelectedCampaigns}
+        />
+      </div>
 
       {/* Meta Ads */}
       <div>
@@ -85,7 +124,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
 
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <ClicksByDayChart adMetrics={adMetrics} />
+        <ClicksByDayChart adMetrics={filteredAdMetrics} />
         <SessionsByDayChart siteAnalytics={siteAnalytics} />
       </div>
     </section>
