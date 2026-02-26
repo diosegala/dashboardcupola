@@ -85,7 +85,7 @@ Deno.serve(async (req) => {
 
     while (true) {
       const params = new URLSearchParams({
-        fields: "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,ctr,cpc,cpm,conversions",
+        fields: "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,ctr,cpc,cpm",
         level: "adset",
         time_increment: "1",
         time_range: timeRange,
@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
       date: r.date_start,
       campaign_id: r.campaign_id ?? null,
       campaign_name: r.campaign_name ?? null,
-      ad_set_id: r.adset_id ?? null,
+      ad_set_id: r.adset_id ?? "",
       ad_set_name: r.adset_name ?? null,
       impressions: parseInt(r.impressions ?? "0") || 0,
       clicks: parseInt(r.clicks ?? "0") || 0,
