@@ -34,9 +34,7 @@ const FIELDS: Record<string, FieldDef[]> = {
     { key: "customer_id", label: "Customer ID", type: "text" },
   ],
   rd_station: [
-    { key: "client_id", label: "Client ID", type: "text" },
-    { key: "client_secret", label: "Client Secret", type: "text" },
-    { key: "refresh_token", label: "Refresh Token", type: "text" },
+    { key: "api_token", label: "API Token (Token Privado)", type: "text" },
   ],
   google_analytics: [
     { key: "property_id", label: "Property ID", type: "text" },
