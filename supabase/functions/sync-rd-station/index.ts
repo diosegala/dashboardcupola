@@ -97,18 +97,20 @@ Deno.serve(async (req) => {
     // 5. Fetch email campaigns from RD Station Marketing API v2 with pagination
     const allEmails: any[] = [];
     let page = 1;
-    const pageSize = 50;
+    const pageSize = 25;
 
     const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-    const fetchWithRetry = async (url: string, headers: Record<string, string>, maxRetries = 3) => {
+    const fetchWithRetry = async (url: string, headers: Record<string, string>, maxRetries = 5) => {
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        if (attempt > 0) {
+          const waitMs = Math.min(30 + attempt * 15, 90) * 1000;
+          console.log(`sync-rd-station - retry ${attempt}, waiting ${waitMs / 1000}s`);
+          await delay(waitMs);
+        }
         const res = await fetch(url, { headers });
         if (res.status === 429) {
-          const retryAfter = parseInt(res.headers.get("Retry-After") || "10", 10);
-          const waitMs = Math.max(retryAfter, 5 + attempt * 5) * 1000;
-          console.log(`sync-rd-station - rate limited (attempt ${attempt + 1}), waiting ${waitMs / 1000}s`);
-          await delay(waitMs);
+          console.log(`sync-rd-station - rate limited (attempt ${attempt + 1})`);
           continue;
         }
         return res;
@@ -145,7 +147,7 @@ Deno.serve(async (req) => {
       page++;
       if (page > 50) break;
       // Throttle between pages to avoid 429
-      await delay(2000);
+      await delay(5000);
     }
 
     console.log(`sync-rd-station - total emails fetched: ${allEmails.length}`);
