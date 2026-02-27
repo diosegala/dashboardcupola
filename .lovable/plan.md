@@ -1,10 +1,23 @@
 
 
-# Limitar tabelas de origem ao Top 10
+# Trocar tabelas por graficos de barras horizontais (Top 10 origens)
 
 ## Mudanca
-Adicionar `.slice(0, 10)` no array `sorted` dentro do `SourceBreakdownTable`, exibindo apenas as 10 origens com maior valor da metrica selecionada.
+Substituir a visualizacao em tabela do componente `SourceBreakdownTable` por um grafico de barras horizontais usando Recharts (ja instalado no projeto).
 
 ## Detalhe tecnico
-Na linha 32 do `SourceBreakdownTable.tsx`, apos o `.sort()`, encadear `.slice(0, 10)` para cortar o array. Isso se aplica automaticamente as 4 tabelas (Sessoes, Conversoes, Tempo de Engajamento, Taxa de Rejeicao por Origem) pois todas usam o mesmo componente.
+No arquivo `src/components/dashboard/SourceBreakdownTable.tsx`:
+
+- Remover imports de Table e substituir por imports do Recharts (`BarChart`, `Bar`, `XAxis`, `YAxis`, `Tooltip`, `ResponsiveContainer`, `Cell`)
+- Manter a mesma interface de props (nao precisa alterar `MarketingSection`)
+- Renderizar um `BarChart` com `layout="vertical"`:
+  - YAxis mostrando os nomes das origens (truncados se necessario)
+  - XAxis mostrando os valores
+  - Barras horizontais com cores do tema
+  - Tooltip formatado com a funcao `formatValue`
+- Manter o Card wrapper com titulo
+- Manter o estado vazio ("Sem dados") quando nao houver dados
+- Altura fixa proporcional ao numero de itens (ex: 40px por barra)
+
+Nenhum outro arquivo precisa ser alterado pois a interface do componente permanece a mesma.
 
