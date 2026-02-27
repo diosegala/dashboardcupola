@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
       WHERE segments.date DURING LAST_30_DAYS
     `.trim();
 
-    const searchUrl = `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:searchStream`;
+    const searchUrl = `https://googleads.googleapis.com/v23/customers/${customerId}/googleAds:searchStream`;
     console.log("sync-google-ads - calling:", searchUrl);
 
     const searchHeaders: Record<string, string> = {
