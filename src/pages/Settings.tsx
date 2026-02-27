@@ -10,8 +10,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Shield, Eye, Loader2 } from "lucide-react";
+import { UserPlus, Shield, Eye, Loader2, Mail, Trash2 } from "lucide-react";
 
 function useUsers() {
   return useQuery({
@@ -39,11 +44,38 @@ function useUsers() {
   });
 }
 
+function useManageUser() {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (body: { action: string; user_id: string; role?: string }) => {
+      const { data, error } = await supabase.functions.invoke("manage-user", { body });
+      if (error) throw new Error(error.message);
+      if (data?.error) throw new Error(data.error);
+      return data;
+    },
+    onSuccess: (_, variables) => {
+      const messages: Record<string, string> = {
+        update_role: "Função atualizada com sucesso",
+        resend_invite: "Convite reenviado com sucesso",
+        delete_user: "Usuário excluído com sucesso",
+      };
+      toast({ title: messages[variables.action] ?? "Sucesso" });
+      queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
+    },
+    onError: (err: Error) => {
+      toast({ variant: "destructive", title: "Erro", description: err.message });
+    },
+  });
+}
+
 export default function Settings() {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, loading: authLoading, user: currentUser } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: users, isLoading: usersLoading } = useUsers();
+  const manageMutation = useManageUser();
 
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<string>("viewer");
@@ -78,6 +110,8 @@ export default function Settings() {
     if (!isValidEmail) return;
     inviteMutation.mutate({ email: email.trim().toLowerCase(), role });
   };
+
+  const isSelf = (userId: string) => currentUser?.id === userId;
 
   return (
     <div className="space-y-6">
@@ -148,20 +182,98 @@ export default function Settings() {
                   <TableHead>Nome</TableHead>
                   <TableHead>Função</TableHead>
                   <TableHead>Desde</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {users?.map((u) => (
                   <TableRow key={u.id}>
-                    <TableCell className="font-medium">{u.name ?? "—"}</TableCell>
+                    <TableCell className="font-medium">
+                      {u.name ?? "—"}
+                      {isSelf(u.id) && (
+                        <Badge variant="outline" className="ml-2 text-xs">você</Badge>
+                      )}
+                    </TableCell>
                     <TableCell>
-                      <Badge variant={u.role === "admin" ? "default" : "secondary"} className="gap-1">
-                        {u.role === "admin" ? <Shield className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                        {u.role}
-                      </Badge>
+                      <Select
+                        value={u.role}
+                        disabled={isSelf(u.id) || manageMutation.isPending}
+                        onValueChange={(newRole) =>
+                          manageMutation.mutate({ action: "update_role", user_id: u.id, role: newRole })
+                        }
+                      >
+                        <SelectTrigger className="w-28 h-8">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="viewer">
+                            <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> Viewer</span>
+                          </SelectItem>
+                          <SelectItem value="admin">
+                            <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> Admin</span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(u.created_at).toLocaleDateString("pt-BR")}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8"
+                              disabled={manageMutation.isPending}
+                              onClick={() =>
+                                manageMutation.mutate({ action: "resend_invite", user_id: u.id })
+                              }
+                            >
+                              <Mail className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Reenviar convite</TooltipContent>
+                        </Tooltip>
+
+                        <AlertDialog>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-destructive hover:text-destructive"
+                                  disabled={isSelf(u.id) || manageMutation.isPending}
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                            </TooltipTrigger>
+                            <TooltipContent>Excluir usuário</TooltipContent>
+                          </Tooltip>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Excluir usuário</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja excluir <strong>{u.name ?? u.id}</strong>? Esta ação não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                onClick={() =>
+                                  manageMutation.mutate({ action: "delete_user", user_id: u.id })
+                                }
+                              >
+                                Excluir
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
