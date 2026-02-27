@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Index from "./pages/Index";
 import Goals from "./pages/Goals";
 import Integrations from "./pages/Integrations";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
               <Route path="/" element={<Index />} />
               <Route path="/goals" element={<Goals />} />
               <Route path="/integrations" element={<Integrations />} />
+              <Route path="/settings" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
           </Routes>
