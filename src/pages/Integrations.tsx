@@ -1,3 +1,4 @@
+import { Navigate } from "react-router-dom";
 import { useIntegrations } from "@/hooks/useIntegrations";
 import { useAuth } from "@/hooks/useAuth";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
@@ -8,7 +9,9 @@ export default function Integrations() {
   const { integrations, isLoading, updateIntegration, syncIntegration } = useIntegrations();
   const { isAdmin, loading } = useAuth();
 
-  console.log("[Integrations] isAdmin:", isAdmin, "authLoading:", loading);
+  if (!loading && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
 
   const handleToggle = (id: string, active: boolean) => {
     updateIntegration.mutate({ id, updates: { is_active: active } });
@@ -32,11 +35,6 @@ export default function Integrations() {
         <p className="text-muted-foreground">
           Configure as integrações com Sympla, Pipedrive, Meta Ads e mais
         </p>
-        {!isAdmin && (
-          <p className="text-xs text-muted-foreground mt-1">
-            Você tem acesso de visualização. Apenas administradores podem editar configurações.
-          </p>
-        )}
       </div>
 
       {isLoading ? (
