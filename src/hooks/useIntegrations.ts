@@ -44,7 +44,7 @@ export function useIntegrations() {
 
   const syncIntegration = useMutation({
     mutationFn: async (name: string) => {
-      const fnName = `sync-${name}`;
+      const fnName = `sync-${name.replace(/_/g, "-")}`;
       const { error } = await supabase.functions.invoke(fnName);
       if (error) throw error;
     },
