@@ -101,29 +101,31 @@ Deno.serve(async (req) => {
 
     const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+    const fetchWithRetry = async (url: string, headers: Record<string, string>, maxRetries = 3) => {
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        const res = await fetch(url, { headers });
+        if (res.status === 429) {
+          const retryAfter = parseInt(res.headers.get("Retry-After") || "10", 10);
+          const waitMs = Math.max(retryAfter, 5 + attempt * 5) * 1000;
+          console.log(`sync-rd-station - rate limited (attempt ${attempt + 1}), waiting ${waitMs / 1000}s`);
+          await delay(waitMs);
+          continue;
+        }
+        return res;
+      }
+      throw new Error("RD Station API rate limit exceeded after retries");
+    };
+
+    const apiHeaders = {
+      "Authorization": `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    };
+
     while (true) {
       const url = `https://api.rd.services/platform/emails?page_size=${pageSize}&page=${page}`;
       console.log(`sync-rd-station - fetching page ${page}`);
 
-      let res = await fetch(url, {
-        headers: {
-          "Authorization": `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      // Handle rate limiting with retry
-      if (res.status === 429) {
-        const retryAfter = parseInt(res.headers.get("Retry-After") || "5", 10);
-        console.log(`sync-rd-station - rate limited, waiting ${retryAfter}s`);
-        await delay(retryAfter * 1000);
-        res = await fetch(url, {
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
-        });
-      }
+      const res = await fetchWithRetry(url, apiHeaders);
 
       if (!res.ok) {
         const text = await res.text();
@@ -142,8 +144,8 @@ Deno.serve(async (req) => {
       if ((Array.isArray(emails) ? emails.length : 0) < pageSize) break;
       page++;
       if (page > 50) break;
-      // Throttle to avoid 429
-      await delay(1000);
+      // Throttle between pages to avoid 429
+      await delay(2000);
     }
 
     console.log(`sync-rd-station - total emails fetched: ${allEmails.length}`);
