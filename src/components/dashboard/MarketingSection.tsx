@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { Eye, MousePointerClick, Wallet, BarChart3, Mail, Globe, Users, FileText } from "lucide-react";
+import { Eye, MousePointerClick, Wallet, BarChart3, Mail, Globe, Users, FileText, Target } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
 import { SessionsByDayChart } from "./charts/SessionsByDayChart";
+import { SourceBreakdownTable } from "./SourceBreakdownTable";
 import { findGoal } from "@/hooks/useDashboardData";
 import { CampaignFilter, type Campaign } from "./CampaignFilter";
 
@@ -55,9 +56,35 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
   const siteTotals = useMemo(() => ({
     sessions: sum(siteAnalytics, "sessions"),
     users: sum(siteAnalytics, "users"),
-    newUsers: sum(siteAnalytics, "new_users"),
+    conversions: sum(siteAnalytics, "conversions"),
     pageviews: sum(siteAnalytics, "pageviews"),
   }), [siteAnalytics]);
+
+  // Aggregate traffic_sources across all days in the period
+  const aggregatedSources = useMemo(() => {
+    const map = new Map<string, { sessions: number; conversions: number; totalEngTime: number; totalBounceRate: number; count: number }>();
+    for (const day of siteAnalytics) {
+      const sources = day.traffic_sources as any[] | null;
+      if (!Array.isArray(sources)) continue;
+      for (const s of sources) {
+        const ch = s.channel || "(unknown)";
+        const existing = map.get(ch) || { sessions: 0, conversions: 0, totalEngTime: 0, totalBounceRate: 0, count: 0 };
+        existing.sessions += Number(s.sessions || 0);
+        existing.conversions += Number(s.conversions || 0);
+        existing.totalEngTime += Number(s.avg_engagement_time || 0);
+        existing.totalBounceRate += Number(s.bounce_rate || 0);
+        existing.count += 1;
+        map.set(ch, existing);
+      }
+    }
+    return Array.from(map.entries()).map(([channel, v]) => ({
+      channel,
+      sessions: v.sessions,
+      conversions: v.conversions,
+      avg_engagement_time: v.count > 0 ? v.totalEngTime / v.count : 0,
+      bounce_rate: v.count > 0 ? v.totalBounceRate / v.count : 0,
+    }));
+  }, [siteAnalytics]);
 
   // Email totals
   const emailTotals = useMemo(() => ({
@@ -117,8 +144,25 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits")?.target_value} />
           <MetricCard title="Usuários" value={siteTotals.users} icon={Users} description="Total de usuários" />
-          <MetricCard title="Novos Usuários" value={siteTotals.newUsers} icon={Users} description="Primeiro acesso" />
+          <MetricCard title="Conversões" value={siteTotals.conversions} icon={Target} description="Key events do GA4" />
           <MetricCard title="Pageviews" value={siteTotals.pageviews} icon={FileText} description="Visualizações de página" />
+        </div>
+        {/* Source breakdown tables */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-4">
+          <SourceBreakdownTable title="Sessões por Origem" data={aggregatedSources} metricKey="sessions" />
+          <SourceBreakdownTable title="Conversões por Origem" data={aggregatedSources} metricKey="conversions" />
+          <SourceBreakdownTable
+            title="Tempo Médio de Engajamento"
+            data={aggregatedSources}
+            metricKey="avg_engagement_time"
+            formatValue={(v) => `${Math.round(v)}s`}
+          />
+          <SourceBreakdownTable
+            title="Taxa de Rejeição"
+            data={aggregatedSources}
+            metricKey="bounce_rate"
+            formatValue={(v) => `${(v * 100).toFixed(1)}%`}
+          />
         </div>
       </div>
 

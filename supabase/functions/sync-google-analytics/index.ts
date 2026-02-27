@@ -191,7 +191,7 @@ Deno.serve(async (req) => {
 
     const dateRange = { startDate, endDate };
 
-    // 6. Fetch main metrics (by day)
+    // 6. Fetch main metrics (by day) — now includes conversions
     console.log("sync-google-analytics - fetching daily metrics");
     const metricsReport = await runReport(propertyId, accessToken, {
       dateRanges: [dateRange],
@@ -203,6 +203,7 @@ Deno.serve(async (req) => {
         { name: "screenPageViews" },
         { name: "bounceRate" },
         { name: "averageSessionDuration" },
+        { name: "conversions" },
       ],
     });
 
@@ -221,24 +222,40 @@ Deno.serve(async (req) => {
       views: parseInt(r.metricValues?.[0]?.value ?? "0"),
     }));
 
-    // 8. Fetch traffic sources (aggregated over period)
-    console.log("sync-google-analytics - fetching traffic sources");
+    // 8. Fetch traffic sources with expanded metrics (by day + channel)
+    console.log("sync-google-analytics - fetching traffic sources by day");
     const sourcesReport = await runReport(propertyId, accessToken, {
       dateRanges: [dateRange],
-      dimensions: [{ name: "sessionDefaultChannelGroup" }],
-      metrics: [{ name: "sessions" }],
-      orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+      dimensions: [{ name: "date" }, { name: "sessionDefaultChannelGroup" }],
+      metrics: [
+        { name: "sessions" },
+        { name: "conversions" },
+        { name: "averageSessionDuration" },
+        { name: "bounceRate" },
+      ],
+      orderBys: [{ dimension: { dimensionName: "date" } }],
+      limit: 10000,
     });
 
-    const trafficSources = (sourcesReport.rows ?? []).map((r: any) => ({
-      channel: r.dimensionValues?.[0]?.value ?? "",
-      sessions: parseInt(r.metricValues?.[0]?.value ?? "0"),
-    }));
+    // Group traffic sources by date
+    const sourcesByDate = new Map<string, any[]>();
+    for (const r of sourcesReport.rows ?? []) {
+      const rawDate = r.dimensionValues?.[0]?.value ?? "";
+      const dateKey = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
+      const entry = {
+        channel: r.dimensionValues?.[1]?.value ?? "",
+        sessions: parseInt(r.metricValues?.[0]?.value ?? "0"),
+        conversions: parseInt(r.metricValues?.[1]?.value ?? "0"),
+        avg_engagement_time: parseFloat(r.metricValues?.[2]?.value ?? "0"),
+        bounce_rate: parseFloat(r.metricValues?.[3]?.value ?? "0"),
+      };
+      if (!sourcesByDate.has(dateKey)) sourcesByDate.set(dateKey, []);
+      sourcesByDate.get(dateKey)!.push(entry);
+    }
 
     // 9. Build upsert rows
     const rows = (metricsReport.rows ?? []).map((r: any) => {
       const rawDate = r.dimensionValues?.[0]?.value ?? "";
-      // GA4 returns date as YYYYMMDD
       const dateFormatted = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
       const vals = r.metricValues ?? [];
       return {
@@ -249,8 +266,9 @@ Deno.serve(async (req) => {
         pageviews: parseInt(vals[3]?.value ?? "0"),
         bounce_rate: parseFloat(vals[4]?.value ?? "0"),
         avg_session_duration: parseFloat(vals[5]?.value ?? "0"),
+        conversions: parseInt(vals[6]?.value ?? "0"),
         top_pages: topPages,
-        traffic_sources: trafficSources,
+        traffic_sources: sourcesByDate.get(dateFormatted) ?? [],
         synced_at: new Date().toISOString(),
       };
     });

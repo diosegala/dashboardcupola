@@ -1,0 +1,1 @@
+ALTER TABLE public.site_analytics ADD COLUMN conversions integer DEFAULT 0;
