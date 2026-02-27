@@ -6,6 +6,28 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+async function getAccessToken(clientId: string, clientSecret: string, refreshToken: string): Promise<string> {
+  const res = await fetch("https://api.rd.services/auth/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+    }),
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`RD Station OAuth token refresh failed ${res.status}: ${text.slice(0, 500)}`);
+  }
+
+  const data = await res.json();
+
+  // Return new access token; optionally store new refresh_token if rotated
+  return data.access_token;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -46,16 +68,18 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Get credentials
+    // 2. Get OAuth credentials
     const creds = (integration.credentials as Record<string, string>) ?? {};
-    const apiToken = (creds.api_token || "").trim();
+    const clientId = (creds.client_id || "").trim();
+    const clientSecret = (creds.client_secret || "").trim();
+    const refreshToken = (creds.refresh_token || "").trim();
 
-    if (!apiToken) {
+    if (!clientId || !clientSecret || !refreshToken) {
       await supabase
         .from("integrations")
-        .update({ sync_status: "error", error_message: "Credencial ausente (api_token)" })
+        .update({ sync_status: "error", error_message: "Credenciais OAuth ausentes (client_id, client_secret ou refresh_token)" })
         .eq("id", integration.id);
-      return new Response(JSON.stringify({ error: "Missing api_token" }), {
+      return new Response(JSON.stringify({ error: "Missing OAuth credentials" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -67,7 +91,10 @@ Deno.serve(async (req) => {
       .update({ sync_status: "syncing", error_message: null })
       .eq("id", integration.id);
 
-    // 4. Fetch email campaigns from RD Station Marketing API v2 with pagination
+    // 4. Get access token via OAuth refresh
+    const accessToken = await getAccessToken(clientId, clientSecret, refreshToken);
+
+    // 5. Fetch email campaigns from RD Station Marketing API v2 with pagination
     const allEmails: any[] = [];
     let page = 1;
     const pageSize = 50;
@@ -78,7 +105,7 @@ Deno.serve(async (req) => {
 
       const res = await fetch(url, {
         headers: {
-          "Authorization": `Bearer ${apiToken}`,
+          "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
       });
@@ -97,16 +124,14 @@ Deno.serve(async (req) => {
         break;
       }
 
-      // Stop if we got fewer than page_size (last page)
       if ((Array.isArray(emails) ? emails.length : 0) < pageSize) break;
       page++;
-      // Safety limit
       if (page > 50) break;
     }
 
     console.log(`sync-rd-station - total emails fetched: ${allEmails.length}`);
 
-    // 5. Map and upsert into email_campaigns
+    // 6. Map and upsert into email_campaigns
     const rows = allEmails.map((e: any) => ({
       rd_campaign_id: String(e.id ?? e.campaign_id ?? e.rd_campaign_id),
       name: e.name ?? e.title ?? null,
@@ -121,7 +146,6 @@ Deno.serve(async (req) => {
       synced_at: new Date().toISOString(),
     }));
 
-    // Batch upsert in chunks
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
       const { error } = await supabase
@@ -130,7 +154,7 @@ Deno.serve(async (req) => {
       if (error) throw error;
     }
 
-    // 6. Success
+    // 7. Success
     await supabase
       .from("integrations")
       .update({ sync_status: "idle", last_synced_at: new Date().toISOString(), error_message: null })
