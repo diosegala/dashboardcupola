@@ -78,8 +78,11 @@ Deno.serve(async (req) => {
     const assignedRole = role === "admin" ? "admin" : "viewer";
 
     // Invite user via Admin API
+    const siteUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "").replace("https://", "");
+    const redirectTo = `https://dashboardcupola.lovable.app/set-password`;
+
     const { data: inviteData, error: inviteError } =
-      await adminClient.auth.admin.inviteUserByEmail(trimmedEmail);
+      await adminClient.auth.admin.inviteUserByEmail(trimmedEmail, { redirectTo });
 
     if (inviteError) {
       console.error("Invite error:", inviteError);
