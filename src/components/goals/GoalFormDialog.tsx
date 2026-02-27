@@ -1,0 +1,175 @@
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
+import { format } from "date-fns";
+import { CalendarIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { METRIC_OPTIONS } from "@/lib/goalMetrics";
+
+const goalSchema = z.object({
+  label: z.string().trim().min(1, "Nome é obrigatório").max(100),
+  metric_key: z.string().min(1, "Métrica é obrigatória"),
+  target_value: z.coerce.number().positive("Valor deve ser maior que 0"),
+  period_start: z.date({ required_error: "Data inicial é obrigatória" }),
+  period_end: z.date({ required_error: "Data final é obrigatória" }),
+}).refine((d) => d.period_end >= d.period_start, {
+  message: "Data final deve ser após a data inicial",
+  path: ["period_end"],
+});
+
+export type GoalFormValues = z.infer<typeof goalSchema>;
+
+interface GoalFormDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSubmit: (values: GoalFormValues) => void;
+  defaultValues?: Partial<GoalFormValues>;
+  isSubmitting?: boolean;
+}
+
+export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, isSubmitting }: GoalFormDialogProps) {
+  const form = useForm<GoalFormValues>({
+    resolver: zodResolver(goalSchema),
+    defaultValues: {
+      label: "",
+      metric_key: "",
+      target_value: 0,
+      ...defaultValues,
+    },
+  });
+
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        label: defaultValues?.label ?? "",
+        metric_key: defaultValues?.metric_key ?? "",
+        target_value: defaultValues?.target_value ?? 0,
+        period_start: defaultValues?.period_start,
+        period_end: defaultValues?.period_end,
+      });
+    }
+  }, [open, defaultValues]);
+
+  const grouped = METRIC_OPTIONS.reduce((acc, m) => {
+    if (!acc[m.category]) acc[m.category] = [];
+    acc[m.category].push(m);
+    return acc;
+  }, {} as Record<string, { key: string; label: string; category: string }[]>);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[480px]">
+        <DialogHeader>
+          <DialogTitle>{defaultValues?.label ? "Editar Meta" : "Nova Meta"}</DialogTitle>
+        </DialogHeader>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="label">Nome</Label>
+            <Input id="label" placeholder="Ex: Ingressos Q1" {...form.register("label")} />
+            {form.formState.errors.label && (
+              <p className="text-sm text-destructive">{form.formState.errors.label.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label>Métrica</Label>
+            <Select value={form.watch("metric_key")} onValueChange={(v) => form.setValue("metric_key", v, { shouldValidate: true })}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione a métrica" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(grouped).map(([cat, items]) => (
+                  <SelectGroup key={cat}>
+                    <SelectLabel>{cat}</SelectLabel>
+                    {items.map((m) => (
+                      <SelectItem key={m.key} value={m.key}>{m.label}</SelectItem>
+                    ))}
+                  </SelectGroup>
+                ))}
+              </SelectContent>
+            </Select>
+            {form.formState.errors.metric_key && (
+              <p className="text-sm text-destructive">{form.formState.errors.metric_key.message}</p>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="target_value">Valor-alvo</Label>
+            <Input id="target_value" type="number" step="any" {...form.register("target_value")} />
+            {form.formState.errors.target_value && (
+              <p className="text-sm text-destructive">{form.formState.errors.target_value.message}</p>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <DatePickerField
+              label="Início"
+              value={form.watch("period_start")}
+              onChange={(d) => form.setValue("period_start", d!, { shouldValidate: true })}
+              error={form.formState.errors.period_start?.message}
+            />
+            <DatePickerField
+              label="Fim"
+              value={form.watch("period_end")}
+              onChange={(d) => form.setValue("period_end", d!, { shouldValidate: true })}
+              error={form.formState.errors.period_end?.message}
+            />
+          </div>
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+            <Button type="submit" disabled={isSubmitting}>
+              {isSubmitting ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function DatePickerField({ label, value, onChange, error }: { label: string; value?: Date; onChange: (d: Date | undefined) => void; error?: string }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}>
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? format(value, "dd/MM/yyyy") : "Selecione"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="p-3 pointer-events-auto" />
+        </PopoverContent>
+      </Popover>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </div>
+  );
+}
