@@ -29,7 +29,7 @@ export function SourceBreakdownTable({
   metricKey,
   formatValue = (v) => v.toLocaleString("pt-BR"),
 }: SourceBreakdownTableProps) {
-  const sorted = [...data].sort((a, b) => b[metricKey] - a[metricKey]);
+  const sorted = [...data].sort((a, b) => b[metricKey] - a[metricKey]).slice(0, 10);
 
   return (
     <Card>
