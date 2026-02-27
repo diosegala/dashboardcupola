@@ -1,12 +1,12 @@
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 
 interface SourceData {
   source: string;
@@ -30,6 +30,7 @@ export function SourceBreakdownTable({
   formatValue = (v) => v.toLocaleString("pt-BR"),
 }: SourceBreakdownTableProps) {
   const sorted = [...data].sort((a, b) => b[metricKey] - a[metricKey]).slice(0, 10);
+  const chartHeight = Math.max(sorted.length * 40, 80);
 
   return (
     <Card>
@@ -37,32 +38,33 @@ export function SourceBreakdownTable({
         <CardTitle className="text-sm font-medium">{title}</CardTitle>
       </CardHeader>
       <CardContent className="pt-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Origem</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {sorted.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={2} className="text-center text-muted-foreground">
-                  Sem dados
-                </TableCell>
-              </TableRow>
-            ) : (
-              sorted.map((row) => (
-                <TableRow key={row.source}>
-                  <TableCell className="font-medium">{row.source}</TableCell>
-                  <TableCell className="text-right">
-                    {formatValue(row[metricKey])}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
+        {sorted.length === 0 ? (
+          <p className="text-center text-muted-foreground text-sm py-4">Sem dados</p>
+        ) : (
+          <ResponsiveContainer width="100%" height={chartHeight}>
+            <BarChart data={sorted} layout="vertical" margin={{ left: 0, right: 12, top: 0, bottom: 0 }}>
+              <XAxis type="number" hide />
+              <YAxis
+                dataKey="source"
+                type="category"
+                width={110}
+                tick={{ fontSize: 12 }}
+                tickFormatter={(v: string) => (v.length > 15 ? v.slice(0, 14) + "…" : v)}
+              />
+              <Tooltip
+                formatter={(value: number) => [formatValue(value), ""]}
+                labelStyle={{ fontWeight: 600 }}
+                contentStyle={{ borderRadius: 8, border: "1px solid hsl(var(--border))", background: "hsl(var(--popover))", color: "hsl(var(--popover-foreground))" }}
+              />
+              <Bar
+                dataKey={metricKey as string}
+                fill="hsl(var(--primary))"
+                radius={[0, 4, 4, 0]}
+                barSize={20}
+              />
+            </BarChart>
+          </ResponsiveContainer>
+        )}
       </CardContent>
     </Card>
   );
