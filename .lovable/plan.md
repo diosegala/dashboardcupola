@@ -1,35 +1,43 @@
 
-# Filtro por Campanha no Dashboard de Marketing
+
+# Implementação da Integração Google Ads
 
 ## Resumo
-Adicionar um seletor de campanhas na secao de Marketing do dashboard, permitindo filtrar todas as metricas e graficos por uma ou mais campanhas ativas do Meta Ads. Atualmente existem 19 campanhas distintas no banco de dados.
-
-## O que muda para o usuario
-- Um novo dropdown "Todas as campanhas" aparecera acima dos cards de Meta Ads
-- Ao selecionar uma ou mais campanhas, os cards de metricas (impressoes, cliques, gasto, CTR) e o grafico "Cliques por Dia" serao filtrados para mostrar apenas dados daquelas campanhas
-- Opcao "Todas as campanhas" para voltar a visao consolidada
+Criar a Edge Function `sync-google-ads` que autentica via OAuth2, busca métricas da API do Google Ads e grava na tabela `ad_metrics` com `source = 'google_ads'`. Também corrigir o mapeamento de nome no hook para que o botão "Sincronizar" funcione corretamente.
 
 ## Etapas
 
-### 1. Criar componente CampaignFilter
-Novo arquivo: `src/components/dashboard/CampaignFilter.tsx`
-- Dropdown multi-select usando Popover + Checkbox (componentes ja disponiveis no projeto)
-- Recebe lista de campanhas disponiveis (extraidas dos dados ja carregados em `adMetrics`)
-- Retorna array de `campaign_id` selecionados (ou vazio = todas)
+### 1. Criar Edge Function `sync-google-ads`
+Arquivo: `supabase/functions/sync-google-ads/index.ts`
 
-### 2. Atualizar MarketingSection
-- Adicionar estado `selectedCampaigns` (array de campaign_id)
-- Extrair lista unica de campanhas a partir de `adMetrics` (campo `campaign_name` + `campaign_id`)
-- Renderizar o `CampaignFilter` ao lado do titulo "Marketing"
-- Filtrar `adMetrics` pelos campaign_ids selecionados antes de calcular totais e passar para os graficos
-- O filtro se aplica somente a secao Meta Ads (e ao grafico de cliques para a linha Meta)
+Seguindo o padrão do `sync-meta`:
+- Ler credenciais (`client_id`, `client_secret`, `refresh_token`, `developer_token`, `customer_id`) da tabela `integrations`
+- Obter access_token via OAuth2 refresh (POST `https://oauth2.googleapis.com/token`)
+- Chamar Google Ads REST API v18 (`searchStream`) com GAQL query para últimos 30 dias no nível ad_group
+- Converter `cost_micros`, `average_cpc`, `average_cpm` dividindo por 1.000.000
+- Upsert na `ad_metrics` com `source = 'google_ads'`
+- Retry com backoff exponencial
+- Atualizar `sync_status` e `last_synced_at`
 
-### 3. Nenhuma mudanca no backend
-Os dados de `campaign_id` e `campaign_name` ja sao sincronizados e armazenados na tabela `ad_metrics`. O filtro sera 100% no frontend, usando os dados ja carregados.
+### 2. Corrigir mapeamento de nome no hook
+Arquivo: `src/hooks/useIntegrations.ts`
 
-## Detalhes tecnicos
+O hook monta `sync-${name}`, que para `google_ads` gera `sync-google_ads` (com underscore). A Edge Function se chama `sync-google-ads` (com hífen). Correção:
+```typescript
+const fnName = `sync-${name.replace(/_/g, "-")}`;
+```
 
-- O filtro opera sobre os dados ja em memoria (array `adMetrics`), sem queries adicionais ao banco
-- Campanhas serao listadas em ordem alfabetica com o nome da campanha como label
-- Quando nenhuma campanha esta selecionada, o comportamento e identico ao atual (mostra tudo)
-- O componente usara `Popover` + `Command` (cmdk) para permitir busca rapida entre as campanhas, dado que ha muitas (19+)
+### 3. Configurar cron job (15 min)
+Migração SQL para agendar `sync-google-ads` a cada 15 minutos via `cron.schedule` + `net.http_post`.
+
+### 4. Nenhuma outra mudança no frontend
+- MarketingSection já exibe dados de `source === "google_ads"` (Impressões, Cliques, Gasto, Conversões)
+- CredentialsForm já tem os 5 campos configurados
+- IntegrationCard já suporta a integração
+
+## Credenciais necessárias (já orientado acima)
+1. Developer Token - Centro de API do Google Ads
+2. Customer ID - número XXX-XXX-XXXX do Google Ads (sem hífens)
+3. Client ID e Client Secret - Google Cloud Console, credenciais OAuth 2.0
+4. Refresh Token - via OAuth 2.0 Playground com scope `https://www.googleapis.com/auth/adwords`
+
