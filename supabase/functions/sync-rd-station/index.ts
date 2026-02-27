@@ -23,8 +23,6 @@ async function getAccessToken(clientId: string, clientSecret: string, refreshTok
   }
 
   const data = await res.json();
-
-  // Return new access token; optionally store new refresh_token if rotated
   return data.access_token;
 }
 
@@ -54,7 +52,6 @@ Deno.serve(async (req) => {
   }
 
   try {
-    // 1. Get integration record
     const { data: integration } = await supabase
       .from("integrations")
       .select("*")
@@ -68,7 +65,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 2. Get OAuth credentials
     const creds = (integration.credentials as Record<string, string>) ?? {};
     const clientId = (creds.client_id || "").trim();
     const clientSecret = (creds.client_secret || "").trim();
@@ -85,49 +81,54 @@ Deno.serve(async (req) => {
       });
     }
 
-    // 3. Set status to syncing
     await supabase
       .from("integrations")
       .update({ sync_status: "syncing", error_message: null })
       .eq("id", integration.id);
 
-    // 4. Get access token via OAuth refresh
     const accessToken = await getAccessToken(clientId, clientSecret, refreshToken);
 
-    // 5. Fetch email campaigns from RD Station Marketing API v2 with pagination
     const allEmails: any[] = [];
     let page = 1;
     const pageSize = 25;
-
     const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-    const fetchWithRetry = async (url: string, headers: Record<string, string>, maxRetries = 5) => {
-      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    // Returns response or null if permanently rate limited
+    const fetchWithRetry = async (url: string): Promise<Response | null> => {
+      for (let attempt = 0; attempt < 3; attempt++) {
         if (attempt > 0) {
-          const waitMs = Math.min(30 + attempt * 15, 90) * 1000;
+          const waitMs = (30 + attempt * 30) * 1000;
           console.log(`sync-rd-station - retry ${attempt}, waiting ${waitMs / 1000}s`);
           await delay(waitMs);
         }
-        const res = await fetch(url, { headers });
+        const res = await fetch(url, {
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
         if (res.status === 429) {
           console.log(`sync-rd-station - rate limited (attempt ${attempt + 1})`);
+          await res.text();
           continue;
         }
         return res;
       }
-      throw new Error("RD Station API rate limit exceeded after retries");
+      return null;
     };
 
-    const apiHeaders = {
-      "Authorization": `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-    };
+    let rateLimited = false;
 
     while (true) {
       const url = `https://api.rd.services/platform/emails?page_size=${pageSize}&page=${page}`;
       console.log(`sync-rd-station - fetching page ${page}`);
 
-      const res = await fetchWithRetry(url, apiHeaders);
+      const res = await fetchWithRetry(url);
+
+      if (!res) {
+        rateLimited = true;
+        break;
+      }
 
       if (!res.ok) {
         const text = await res.text();
@@ -146,13 +147,12 @@ Deno.serve(async (req) => {
       if ((Array.isArray(emails) ? emails.length : 0) < pageSize) break;
       page++;
       if (page > 50) break;
-      // Throttle between pages to avoid 429
       await delay(5000);
     }
 
-    console.log(`sync-rd-station - total emails fetched: ${allEmails.length}`);
+    console.log(`sync-rd-station - total emails fetched: ${allEmails.length}, rateLimited: ${rateLimited}`);
 
-    // 6. Map and upsert into email_campaigns
+    // Upsert whatever we got (even partial)
     const rows = allEmails.map((e: any) => ({
       rd_campaign_id: String(e.id ?? e.campaign_id ?? e.rd_campaign_id),
       name: e.name ?? e.title ?? null,
@@ -175,14 +175,33 @@ Deno.serve(async (req) => {
       if (error) throw error;
     }
 
-    // 7. Success
+    // If rate limited and got nothing, report error
+    if (rateLimited && rows.length === 0) {
+      await supabase
+        .from("integrations")
+        .update({ sync_status: "error", error_message: "Rate limit do RD Station atingido. Tente novamente em alguns minutos." })
+        .eq("id", integration.id);
+      return new Response(
+        JSON.stringify({ error: "Rate limit atingido. Tente novamente em alguns minutos." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const statusMsg = rateLimited
+      ? `Sincronização parcial: ${rows.length} campanhas salvas. Rate limit atingido.`
+      : null;
+
     await supabase
       .from("integrations")
-      .update({ sync_status: "idle", last_synced_at: new Date().toISOString(), error_message: null })
+      .update({
+        sync_status: "idle",
+        last_synced_at: new Date().toISOString(),
+        error_message: statusMsg,
+      })
       .eq("id", integration.id);
 
     return new Response(
-      JSON.stringify({ success: true, campaigns: rows.length }),
+      JSON.stringify({ success: true, campaigns: rows.length, partial: rateLimited }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
