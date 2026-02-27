@@ -1,23 +1,10 @@
 
 
-# Alterar agrupamento de Canal para Origem nas tabelas do GA4
+# Limitar tabelas de origem ao Top 10
 
-## Problema
-A Edge Function `sync-google-analytics` usa a dimensao `sessionDefaultChannelGroup` do GA4, que retorna canais como "Organic Search", "Direct", "Paid Search". O correto para o dashboard e usar `sessionSource`, que retorna origens como "google", "facebook", "(direct)", "bing".
+## Mudanca
+Adicionar `.slice(0, 10)` no array `sorted` dentro do `SourceBreakdownTable`, exibindo apenas as 10 origens com maior valor da metrica selecionada.
 
-## Mudancas
-
-### 1. Edge Function `sync-google-analytics`
-- Trocar a dimensao `sessionDefaultChannelGroup` por `sessionSource` na chamada de traffic sources (linha 229)
-- Renomear o campo `channel` para `source` no objeto salvo no JSONB `traffic_sources`
-
-### 2. Frontend `MarketingSection.tsx`
-- Atualizar a agregacao de `traffic_sources` para usar o campo `source` em vez de `channel`
-- Ajustar o label de fallback de `(unknown)` para fontes sem nome
-
-### 3. Frontend `SourceBreakdownTable.tsx`
-- Verificar se o componente usa o campo `channel` para exibir o nome da linha e atualizar para `source`
-
-### Observacao
-Apos o deploy, sera necessario re-sincronizar o Google Analytics para que os dados sejam regravados com a nova dimensao de origem.
+## Detalhe tecnico
+Na linha 32 do `SourceBreakdownTable.tsx`, apos o `.sort()`, encadear `.slice(0, 10)` para cortar o array. Isso se aplica automaticamente as 4 tabelas (Sessoes, Conversoes, Tempo de Engajamento, Taxa de Rejeicao por Origem) pois todas usam o mesmo componente.
 
