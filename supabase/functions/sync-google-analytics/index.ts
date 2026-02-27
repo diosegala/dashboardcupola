@@ -226,7 +226,7 @@ Deno.serve(async (req) => {
     console.log("sync-google-analytics - fetching traffic sources by day");
     const sourcesReport = await runReport(propertyId, accessToken, {
       dateRanges: [dateRange],
-      dimensions: [{ name: "date" }, { name: "sessionDefaultChannelGroup" }],
+      dimensions: [{ name: "date" }, { name: "sessionSource" }],
       metrics: [
         { name: "sessions" },
         { name: "conversions" },
@@ -243,7 +243,7 @@ Deno.serve(async (req) => {
       const rawDate = r.dimensionValues?.[0]?.value ?? "";
       const dateKey = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
       const entry = {
-        channel: r.dimensionValues?.[1]?.value ?? "",
+        source: r.dimensionValues?.[1]?.value ?? "",
         sessions: parseInt(r.metricValues?.[0]?.value ?? "0"),
         conversions: parseInt(r.metricValues?.[1]?.value ?? "0"),
         avg_engagement_time: parseFloat(r.metricValues?.[2]?.value ?? "0"),

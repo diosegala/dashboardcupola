@@ -9,7 +9,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface SourceData {
-  channel: string;
+  source: string;
   sessions: number;
   conversions: number;
   avg_engagement_time: number;
@@ -19,7 +19,7 @@ interface SourceData {
 interface SourceBreakdownTableProps {
   title: string;
   data: SourceData[];
-  metricKey: keyof Omit<SourceData, "channel">;
+  metricKey: keyof Omit<SourceData, "source">;
   formatValue?: (value: number) => string;
 }
 
@@ -53,8 +53,8 @@ export function SourceBreakdownTable({
               </TableRow>
             ) : (
               sorted.map((row) => (
-                <TableRow key={row.channel}>
-                  <TableCell className="font-medium">{row.channel}</TableCell>
+                <TableRow key={row.source}>
+                  <TableCell className="font-medium">{row.source}</TableCell>
                   <TableCell className="text-right">
                     {formatValue(row[metricKey])}
                   </TableCell>

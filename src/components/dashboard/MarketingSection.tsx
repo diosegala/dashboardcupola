@@ -67,18 +67,18 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
       const sources = day.traffic_sources as any[] | null;
       if (!Array.isArray(sources)) continue;
       for (const s of sources) {
-        const ch = s.channel || "(unknown)";
-        const existing = map.get(ch) || { sessions: 0, conversions: 0, totalEngTime: 0, totalBounceRate: 0, count: 0 };
+        const src = s.source || s.channel || "(unknown)";
+        const existing = map.get(src) || { sessions: 0, conversions: 0, totalEngTime: 0, totalBounceRate: 0, count: 0 };
         existing.sessions += Number(s.sessions || 0);
         existing.conversions += Number(s.conversions || 0);
         existing.totalEngTime += Number(s.avg_engagement_time || 0);
         existing.totalBounceRate += Number(s.bounce_rate || 0);
         existing.count += 1;
-        map.set(ch, existing);
+        map.set(src, existing);
       }
     }
-    return Array.from(map.entries()).map(([channel, v]) => ({
-      channel,
+    return Array.from(map.entries()).map(([source, v]) => ({
+      source,
       sessions: v.sessions,
       conversions: v.conversions,
       avg_engagement_time: v.count > 0 ? v.totalEngTime / v.count : 0,
