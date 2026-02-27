@@ -9,5 +9,8 @@ verify_jwt = false
 [functions.sync-google-ads]
 verify_jwt = false
 
+[functions.sync-rd-station]
+verify_jwt = false
+
 [functions.invite-user]
 verify_jwt = false
