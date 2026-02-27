@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
     const refreshToken = (creds.refresh_token || "").trim();
     const developerToken = (creds.developer_token || "").trim();
     const customerId = (creds.customer_id || "").trim().replace(/-/g, "");
+    const managerCustomerId = (creds.manager_customer_id || "").trim().replace(/-/g, "");
 
     if (!clientId || !clientSecret || !refreshToken || !developerToken || !customerId) {
       await supabase
@@ -111,14 +112,21 @@ Deno.serve(async (req) => {
       WHERE segments.date DURING LAST_30_DAYS
     `.trim();
 
-    const searchUrl = `https://googleads.googleapis.com/v18/customers/${customerId}/googleAds:searchStream`;
+    const searchUrl = `https://googleads.googleapis.com/v19/customers/${customerId}/googleAds:searchStream`;
+    console.log("sync-google-ads - calling:", searchUrl);
+
+    const searchHeaders: Record<string, string> = {
+      "Authorization": `Bearer ${accessToken}`,
+      "developer-token": developerToken,
+      "Content-Type": "application/json",
+    };
+    if (managerCustomerId) {
+      searchHeaders["login-customer-id"] = managerCustomerId;
+    }
+
     const searchRes = await fetchWithRetry(searchUrl, {
       method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "developer-token": developerToken,
-        "Content-Type": "application/json",
-      },
+      headers: searchHeaders,
       body: JSON.stringify({ query: gaqlQuery }),
     });
 
