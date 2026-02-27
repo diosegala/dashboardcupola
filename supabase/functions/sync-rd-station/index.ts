@@ -99,16 +99,31 @@ Deno.serve(async (req) => {
     let page = 1;
     const pageSize = 50;
 
+    const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
     while (true) {
       const url = `https://api.rd.services/platform/emails?page_size=${pageSize}&page=${page}`;
       console.log(`sync-rd-station - fetching page ${page}`);
 
-      const res = await fetch(url, {
+      let res = await fetch(url, {
         headers: {
           "Authorization": `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
       });
+
+      // Handle rate limiting with retry
+      if (res.status === 429) {
+        const retryAfter = parseInt(res.headers.get("Retry-After") || "5", 10);
+        console.log(`sync-rd-station - rate limited, waiting ${retryAfter}s`);
+        await delay(retryAfter * 1000);
+        res = await fetch(url, {
+          headers: {
+            "Authorization": `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+        });
+      }
 
       if (!res.ok) {
         const text = await res.text();
@@ -127,6 +142,8 @@ Deno.serve(async (req) => {
       if ((Array.isArray(emails) ? emails.length : 0) < pageSize) break;
       page++;
       if (page > 50) break;
+      // Throttle to avoid 429
+      await delay(1000);
     }
 
     console.log(`sync-rd-station - total emails fetched: ${allEmails.length}`);
