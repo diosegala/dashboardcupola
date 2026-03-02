@@ -79,14 +79,14 @@ Deno.serve(async (req) => {
     // Ensure ad_account_id has act_ prefix
     const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
-    // 5. Fetch insights with pagination
+    // 5. Fetch insights at CAMPAIGN level with actions
     const allRows: any[] = [];
     let afterCursor: string | null = null;
 
     while (true) {
       const params = new URLSearchParams({
-        fields: "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,ctr,cpc,cpm",
-        level: "adset",
+        fields: "campaign_id,campaign_name,impressions,clicks,spend,ctr,cpc,cpm,actions",
+        level: "campaign",
         time_increment: "1",
         time_range: timeRange,
         limit: "500",
@@ -109,29 +109,40 @@ Deno.serve(async (req) => {
     }
 
     // 6. Map and upsert
-    const rows = allRows.map((r: any) => ({
-      source: "meta",
-      date: r.date_start,
-      campaign_id: r.campaign_id ?? null,
-      campaign_name: r.campaign_name ?? null,
-      ad_set_id: r.adset_id ?? "",
-      ad_set_name: r.adset_name ?? null,
-      impressions: parseInt(r.impressions ?? "0") || 0,
-      clicks: parseInt(r.clicks ?? "0") || 0,
-      spend: parseFloat(r.spend ?? "0") || 0,
-      ctr: parseFloat(r.ctr ?? "0") || 0,
-      cpc: parseFloat(r.cpc ?? "0") || 0,
-      cpm: parseFloat(r.cpm ?? "0") || 0,
-      conversions: parseInt(r.conversions ?? "0") || 0,
-      synced_at: new Date().toISOString(),
-    }));
+    const rows = allRows.map((r: any) => {
+      const actions: any[] = r.actions || [];
+      const linkClicks = parseInt(actions.find((a: any) => a.action_type === "link_click")?.value || "0") || 0;
+      const purchaseCount = parseInt(actions.find((a: any) => a.action_type === "purchase")?.value || "0") || 0;
+      const impressions = parseInt(r.impressions ?? "0") || 0;
+      const totalClicks = parseInt(r.clicks ?? "0") || 0;
+      const spendVal = parseFloat(r.spend ?? "0") || 0;
+
+      return {
+        source: "meta",
+        date: r.date_start,
+        campaign_id: r.campaign_id ?? null,
+        campaign_name: r.campaign_name ?? null,
+        ad_set_id: null,
+        ad_set_name: null,
+        impressions,
+        clicks: totalClicks,
+        link_clicks: linkClicks,
+        purchases: purchaseCount,
+        spend: spendVal,
+        ctr: impressions > 0 ? (linkClicks / impressions) * 100 : 0,
+        cpc: linkClicks > 0 ? spendVal / linkClicks : 0,
+        cpm: parseFloat(r.cpm ?? "0") || 0,
+        conversions: purchaseCount,
+        synced_at: new Date().toISOString(),
+      };
+    });
 
     // Batch upsert in chunks of 500
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
       const { error } = await supabase
         .from("ad_metrics")
-        .upsert(chunk, { onConflict: "source,date,ad_set_id" });
+        .upsert(chunk, { onConflict: "source,date,campaign_id" });
       if (error) throw error;
     }
 
