@@ -158,8 +158,13 @@ Deno.serve(async (req) => {
 
     console.log(`sync-rd-station - total emails fetched: ${allEmails.length}, rateLimited: ${rateLimited}`);
 
-    // Upsert whatever we got
-    const rows = allEmails.map((e: any) => ({
+    // Deduplicate by rd_campaign_id before upsert
+    const dedupMap = new Map<string, any>();
+    for (const e of allEmails) {
+      const key = String(e.id ?? e.campaign_id ?? e.rd_campaign_id);
+      dedupMap.set(key, e);
+    }
+    const rows = Array.from(dedupMap.values()).map((e: any) => ({
       rd_campaign_id: String(e.id ?? e.campaign_id ?? e.rd_campaign_id),
       name: e.name ?? e.title ?? null,
       subject: e.subject ?? null,
