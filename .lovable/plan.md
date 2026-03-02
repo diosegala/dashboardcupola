@@ -1,40 +1,34 @@
 
 
-# Corrigir sincronização do RD Station travada
+# Reduzir frequencia do cron do RD Station e adicionar cooldown
 
-## Problema identificado
+## Problema
 
-A integração do RD Station está com status "syncing" preso desde 27/02 por dois motivos:
+O cron do RD Station executa a cada 15 minutos, mas o rate limit da API do RD Station tem uma janela mais longa. Os logs mostram que a maioria das execucoes recebe 429 na primeira pagina e retorna 0 campanhas. Isso gera ruido nos logs e chamadas desnecessarias.
 
-1. **Timeout do edge function**: Os retries do rate limit esperam 30-90 segundos, mas edge functions possuem timeout de ~60 segundos. A função "morre" antes de conseguir atualizar o status de volta.
-2. **Sem cron job configurado**: Diferente das outras integrações, o RD Station não tem agendamento automático. Quando o status ficou travado em "syncing", nenhuma nova tentativa foi disparada.
+## Solucao
 
-## Plano de correção
+### 1. Alterar frequencia do cron de 15 para 60 minutos
+Executar uma migration SQL para atualizar o cron job existente:
+```text
+cron.unschedule('sync-rd-station-every-15min')
+cron.schedule('sync-rd-station-every-60min', '0 * * * *', ...)
+```
 
-### 1. Resetar o status travado no banco
-Executar uma migration para atualizar o status de "syncing" para "idle", liberando a integração.
+### 2. Adicionar cooldown na edge function
+No inicio da funcao, antes de fazer qualquer chamada a API, verificar `last_synced_at`. Se a ultima sincronizacao bem-sucedida foi ha menos de 30 minutos, pular a execucao (retornar `skipped: true`). Isso evita chamadas desnecessarias quando o cron dispara logo apos uma sync parcial ou completa.
 
-### 2. Reescrever a lógica de retry da edge function
-- Remover delays longos (30-90s) que excedem o timeout
-- Usar retry rápido: no máximo 2 tentativas com delay de 2-3 segundos
-- Se receber 429, parar imediatamente e salvar o que já foi coletado (sincronização parcial)
-- Reduzir pageSize para 10 para diminuir chance de rate limit
-
-### 3. Adicionar verificacao de status travado
-No inicio da funcao, se o status for "syncing" e o `updated_at` for mais antigo que 5 minutos, resetar automaticamente para "idle" antes de iniciar.
-
-### 4. Criar cron job para o RD Station
-Adicionar agendamento a cada 15 minutos, igual as demais integrações.
+### 3. Resetar status atual se necessario
+Verificar e resetar o status da integracao se estiver em estado de erro por rate limit.
 
 ## Detalhes tecnicos
 
 ### Migration SQL
-- UPDATE integrations SET sync_status = 'idle', error_message = 'Reset: status travado' WHERE name = 'rd_station' AND sync_status = 'syncing'
-- Criar cron job: `SELECT cron.schedule('sync-rd-station-every-15min', '*/15 * * * *', ...)`
+- Remover cron `sync-rd-station-every-15min`
+- Criar cron `sync-rd-station-every-60min` com schedule `0 * * * *`
 
 ### Edge function (sync-rd-station/index.ts)
-- Adicionar check de staleness no inicio (se syncing por mais de 5min, resetar)
-- Retry: max 2 tentativas, delay de 2s entre elas
-- Se 429: parar paginacao, salvar dados parciais, retornar status "idle" com mensagem informativa
-- Garantir que o bloco catch sempre atualiza o status para "error"
+- Adicionar check de cooldown apos carregar a integracao:
+  - Se `last_synced_at` existe e tem menos de 30 minutos, retornar `{ skipped: true, reason: "Recently synced" }`
+- Manter toda a logica existente de staleness check, retry e dedup
 
