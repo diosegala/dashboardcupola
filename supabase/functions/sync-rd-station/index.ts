@@ -40,23 +40,6 @@ async function fetchWithRetry(url: string, accessToken: string): Promise<Respons
   return null;
 }
 
-async function fetchCampaignAnalytics(campaignId: string, accessToken: string): Promise<Record<string, number> | null> {
-  try {
-    const url = `https://api.rd.services/platform/analytics/emails/${campaignId}`;
-    const res = await fetchWithRetry(url, accessToken);
-    if (!res) return null;
-    if (!res.ok) {
-      const text = await res.text();
-      console.warn(`sync-rd-station - analytics for ${campaignId} failed ${res.status}: ${text.slice(0, 200)}`);
-      return null;
-    }
-    return await res.json();
-  } catch (err: any) {
-    console.warn(`sync-rd-station - analytics error for ${campaignId}: ${err.message}`);
-    return null;
-  }
-}
-
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -107,11 +90,10 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Staleness check: auto-reset if stuck syncing for > 5 min
+    // Staleness check
     if (integration.sync_status === "syncing") {
       const updatedAt = new Date(integration.updated_at).getTime();
       if (updatedAt < Date.now() - 5 * 60 * 1000) {
-        console.log("sync-rd-station - resetting stale syncing status");
         await supabase.from("integrations").update({ sync_status: "idle", error_message: "Auto-reset: status travado" }).eq("id", integration.id);
       } else {
         return new Response(JSON.stringify({ skipped: true, reason: "Already syncing" }), {
@@ -126,7 +108,7 @@ Deno.serve(async (req) => {
     const refreshToken = (creds.refresh_token || "").trim();
 
     if (!clientId || !clientSecret || !refreshToken) {
-      await supabase.from("integrations").update({ sync_status: "error", error_message: "Credenciais OAuth ausentes (client_id, client_secret ou refresh_token)" }).eq("id", integration.id);
+      await supabase.from("integrations").update({ sync_status: "error", error_message: "Credenciais OAuth ausentes" }).eq("id", integration.id);
       return new Response(JSON.stringify({ error: "Missing OAuth credentials" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -137,106 +119,66 @@ Deno.serve(async (req) => {
 
     const accessToken = await getAccessToken(clientId, clientSecret, refreshToken);
 
-    // Step 1: Fetch campaign list from /platform/emails
-    const allEmails: any[] = [];
-    let page = 1;
-    const pageSize = 10;
-    let rateLimited = false;
+    // Use analytics endpoint as primary source — it has all metrics
+    const endDate = new Date().toISOString().split("T")[0];
+    const startDate = "2021-08-01";
+    const analyticsUrl = `https://api.rd.services/platform/analytics/emails?start_date=${startDate}&end_date=${endDate}`;
 
-    while (true) {
-      const url = `https://api.rd.services/platform/emails?page_size=${pageSize}&page=${page}`;
-      console.log(`sync-rd-station - fetching emails page ${page}`);
-      const res = await fetchWithRetry(url, accessToken);
+    console.log("sync-rd-station - fetching analytics data");
+    const res = await fetchWithRetry(analyticsUrl, accessToken);
 
-      if (!res) { rateLimited = true; break; }
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(`RD Station API ${res.status}: ${text.slice(0, 500)}`);
-      }
-
-      const data = await res.json();
-      const emails = data.items ?? data.emails ?? data;
-
-      if (Array.isArray(emails) && emails.length > 0) {
-        allEmails.push(...emails);
-      } else {
-        break;
-      }
-
-      if (emails.length < pageSize) break;
-      page++;
-      if (page > 50) break;
-      await delay(1500);
+    if (!res) {
+      await supabase.from("integrations").update({ sync_status: "error", error_message: "Rate limit do RD Station atingido." }).eq("id", integration.id);
+      return new Response(JSON.stringify({ error: "Rate limit atingido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    console.log(`sync-rd-station - total emails fetched: ${allEmails.length}`);
-
-    // Deduplicate
-    const dedupMap = new Map<string, any>();
-    for (const e of allEmails) {
-      const key = String(e.id ?? e.campaign_id ?? e.rd_campaign_id);
-      dedupMap.set(key, e);
-    }
-    const uniqueCampaigns = Array.from(dedupMap.values());
-
-    // Step 2: Fetch analytics for each campaign
-    console.log(`sync-rd-station - fetching analytics for ${uniqueCampaigns.length} campaigns`);
-    const analyticsMap = new Map<string, Record<string, number>>();
-
-    for (const campaign of uniqueCampaigns) {
-      const campaignId = String(campaign.id ?? campaign.campaign_id ?? campaign.rd_campaign_id);
-      const analytics = await fetchCampaignAnalytics(campaignId, accessToken);
-      if (analytics) {
-        analyticsMap.set(campaignId, analytics);
-      }
-      await delay(1500); // Throttle to avoid rate limits
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`RD Station Analytics API ${res.status}: ${text.slice(0, 500)}`);
     }
 
-    console.log(`sync-rd-station - analytics fetched for ${analyticsMap.size} campaigns`);
+    const data = await res.json();
+    const emailItems = data.emails ?? [];
+    console.log(`sync-rd-station - analytics returned ${emailItems.length} campaigns`);
 
-    // Step 3: Build rows merging campaign metadata + analytics
-    const rows = uniqueCampaigns.map((e: any) => {
-      const campaignId = String(e.id ?? e.campaign_id ?? e.rd_campaign_id);
-      const stats = analyticsMap.get(campaignId);
-
-      const totalSent = stats?.contacts_count ?? e.total_sent ?? e.sent ?? e.contacts_count ?? 0;
-      const totalOpened = stats?.email_opened_count ?? e.total_opened ?? e.opened ?? 0;
-      const totalClicked = stats?.email_clicked_count ?? e.total_clicked ?? e.clicked ?? 0;
-      const unsubscribes = stats?.email_unsubscribed_count ?? e.unsubscribes ?? e.unsubscribed ?? 0;
+    // Map analytics data directly to email_campaigns rows
+    const rows = emailItems.map((item: any) => {
+      const totalSent = item.contacts_count ?? 0;
+      const totalOpened = item.email_opened_count ?? 0;
+      const totalClicked = item.email_clicked_count ?? 0;
 
       return {
-        rd_campaign_id: campaignId,
-        name: e.name ?? e.title ?? null,
-        subject: e.subject ?? null,
-        sent_at: e.sent_at ?? e.send_at ?? e.delivered_at ?? null,
+        rd_campaign_id: String(item.campaign_id),
+        name: item.campaign_name ?? null,
+        subject: null,
+        sent_at: item.send_at ?? null,
         total_sent: totalSent,
         total_opened: totalOpened,
         total_clicked: totalClicked,
         open_rate: totalSent > 0 ? totalOpened / totalSent : 0,
         click_rate: totalSent > 0 ? totalClicked / totalSent : 0,
-        unsubscribes: unsubscribes,
+        unsubscribes: item.email_unsubscribed_count ?? 0,
         synced_at: new Date().toISOString(),
       };
     });
 
-    // Step 4: Upsert
+    // Upsert in chunks
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
       const { error } = await supabase.from("email_campaigns").upsert(chunk, { onConflict: "rd_campaign_id" });
       if (error) throw error;
     }
 
-    if (rateLimited && rows.length === 0) {
-      await supabase.from("integrations").update({ sync_status: "error", error_message: "Rate limit do RD Station atingido. Tente novamente em alguns minutos." }).eq("id", integration.id);
-      return new Response(JSON.stringify({ error: "Rate limit atingido." }), { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } });
-    }
+    console.log(`sync-rd-station - upserted ${rows.length} campaigns`);
 
-    const statusMsg = rateLimited ? `Sincronização parcial: ${rows.length} campanhas salvas. Rate limit atingido.` : null;
-
-    await supabase.from("integrations").update({ sync_status: "idle", last_synced_at: new Date().toISOString(), error_message: statusMsg }).eq("id", integration.id);
+    await supabase.from("integrations").update({
+      sync_status: "idle",
+      last_synced_at: new Date().toISOString(),
+      error_message: null,
+    }).eq("id", integration.id);
 
     return new Response(
-      JSON.stringify({ success: true, campaigns: rows.length, analytics_fetched: analyticsMap.size, partial: rateLimited }),
+      JSON.stringify({ success: true, campaigns: rows.length }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
