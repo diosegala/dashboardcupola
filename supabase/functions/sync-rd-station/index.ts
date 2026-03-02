@@ -58,6 +58,18 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- Cooldown: skip if last successful sync was < 30 min ago ---
+    if (integration.last_synced_at) {
+      const lastSynced = new Date(integration.last_synced_at).getTime();
+      const thirtyMinAgo = Date.now() - 30 * 60 * 1000;
+      if (lastSynced > thirtyMinAgo) {
+        console.log("sync-rd-station - skipping, recently synced");
+        return new Response(JSON.stringify({ skipped: true, reason: "Recently synced" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // --- Staleness check: auto-reset if stuck syncing for > 5 min ---
     if (integration.sync_status === "syncing") {
       const updatedAt = new Date(integration.updated_at).getTime();
