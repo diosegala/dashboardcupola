@@ -108,12 +108,28 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
       {/* Meta Ads */}
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Meta Ads</h3>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Impressões" value={sum(meta, "impressions")} icon={Eye} goal={findGoal(goals, "meta_impressions")?.target_value} />
-          <MetricCard title="Cliques" value={sum(meta, "clicks")} icon={MousePointerClick} goal={findGoal(goals, "meta_clicks")?.target_value} />
-          <MetricCard title="Gasto" value={sum(meta, "spend").toFixed(2)} icon={Wallet} prefix="R$ " description="Investimento no período" />
-          <MetricCard title="CTR Médio" value={`${avg(meta, "ctr").toFixed(2)}%`} icon={BarChart3} description="Taxa de cliques média" />
-        </div>
+        {(() => {
+          const totalImpressions = sum(meta, "impressions");
+          const totalLinkClicks = sum(meta, "link_clicks");
+          const totalSpend = sum(meta, "spend");
+          const totalPurchases = sum(meta, "purchases");
+          const uniqueCampaigns = new Set(meta.filter(m => m.campaign_id).map(m => m.campaign_id)).size;
+          const cpc = totalLinkClicks > 0 ? totalSpend / totalLinkClicks : 0;
+          const ctr = totalImpressions > 0 ? (totalLinkClicks / totalImpressions) * 100 : 0;
+          const conversionRate = totalLinkClicks > 0 ? (totalPurchases / totalLinkClicks) * 100 : 0;
+
+          return (
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+              <MetricCard title="Campanhas" value={uniqueCampaigns} icon={BarChart3} description="Campanhas ativas no período" />
+              <MetricCard title="Impressões" value={totalImpressions} icon={Eye} goal={findGoal(goals, "meta_impressions")?.target_value} />
+              <MetricCard title="Cliques no Link" value={totalLinkClicks} icon={MousePointerClick} goal={findGoal(goals, "meta_link_clicks")?.target_value} />
+              <MetricCard title="CPC" value={`R$ ${cpc.toFixed(2)}`} icon={Wallet} description="Custo por clique no link" />
+              <MetricCard title="CTR" value={`${ctr.toFixed(2)}%`} icon={BarChart3} description="Cliques no link / Impressões" />
+              <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases")?.target_value} />
+              <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate")?.target_value} description="Compras / Cliques no link" />
+            </div>
+          );
+        })()}
       </div>
 
       {/* Google Ads */}

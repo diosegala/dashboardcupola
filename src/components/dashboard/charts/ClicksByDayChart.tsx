@@ -15,7 +15,7 @@ export function ClicksByDayChart({ adMetrics }: ClicksByDayChartProps) {
       const day = a.date;
       if (!map.has(day)) map.set(day, { meta: 0, google: 0 });
       const entry = map.get(day)!;
-      if (a.source === "meta") entry.meta += a.clicks || 0;
+      if (a.source === "meta") entry.meta += a.link_clicks || a.clicks || 0;
       else entry.google += a.clicks || 0;
     });
     return Array.from(map.entries())
