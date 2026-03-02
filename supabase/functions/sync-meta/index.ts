@@ -79,33 +79,55 @@ Deno.serve(async (req) => {
     // Ensure ad_account_id has act_ prefix
     const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
-    // 5. Fetch insights at CAMPAIGN level with actions
+    // 5. Fetch insights at CAMPAIGN level with actions (fallback without actions if Meta returns error)
     const allRows: any[] = [];
-    let afterCursor: string | null = null;
+    let useActions = true;
 
-    while (true) {
-      const params = new URLSearchParams({
-        fields: "campaign_id,campaign_name,impressions,clicks,spend,ctr,cpc,cpm,actions",
-        level: "campaign",
-        time_increment: "1",
-        time_range: timeRange,
-        limit: "500",
-      });
-      if (afterCursor) params.set("after", afterCursor);
+    for (const attempt of [0, 1]) {
+      if (attempt === 1 && useActions) break; // no need for second attempt
+      allRows.length = 0;
+      let afterCursor: string | null = null;
 
-      const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
-      console.log("sync-meta - fetching:", url.replace(accessToken, "***"));
+      const fieldsStr = useActions
+        ? "campaign_id,campaign_name,impressions,clicks,spend,ctr,cpc,cpm,actions"
+        : "campaign_id,campaign_name,impressions,clicks,spend,ctr,cpc,cpm";
 
-      const data = await fetchWithRetry(url, accessToken);
+      while (true) {
+        const params = new URLSearchParams({
+          fields: fieldsStr,
+          level: "campaign",
+          time_increment: "1",
+          time_range: timeRange,
+          limit: "500",
+        });
+        if (afterCursor) params.set("after", afterCursor);
 
-      if (data.data && data.data.length > 0) {
-        allRows.push(...data.data);
+        const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
+        console.log("sync-meta - fetching:", url.replace(accessToken, "***"));
+
+        try {
+          const data = await fetchWithRetry(url, accessToken);
+
+          if (data.data && data.data.length > 0) {
+            allRows.push(...data.data);
+          }
+
+          afterCursor = data.paging?.cursors?.after ?? null;
+          const hasNext = !!data.paging?.next;
+          if (!hasNext) break;
+        } catch (err: any) {
+          // If actions field causes error, retry without it
+          if (useActions && attempt === 0) {
+            console.warn("sync-meta - actions field failed, retrying without it:", err.message);
+            useActions = false;
+            break;
+          }
+          throw err;
+        }
       }
 
-      // Check pagination
-      afterCursor = data.paging?.cursors?.after ?? null;
-      const hasNext = !!data.paging?.next;
-      if (!hasNext) break;
+      if (!useActions && attempt === 0) continue; // retry loop without actions
+      break;
     }
 
     // 6. Map and upsert
