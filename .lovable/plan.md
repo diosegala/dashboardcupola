@@ -1,31 +1,51 @@
 
 
-# Corrigir conflito de indices duplicados na tabela ad_metrics
+# Corrigir sincronizacao de metricas do RD Station
 
 ## Problema
 
-A tabela `ad_metrics` tem **3 indices unicos** que se sobrepoem. A migration anterior criou o novo indice `(source, date, campaign_id)` mas nao removeu os antigos:
+A funcao `sync-rd-station` usa apenas o endpoint `/platform/emails` que retorna somente metadados das campanhas (nome, id, data de envio). As estatisticas de engajamento (enviados, aberturas, cliques) vem de um endpoint separado: `/platform/analytics/emails`.
 
-- `ad_metrics_source_date_adset` -- (source, date, ad_set_id)
-- `ad_metrics_source_campaign_id_ad_set_id_date_key` -- (source, campaign_id, ad_set_id, date)
-- `ad_metrics_source_date_campaign_id_idx` -- (source, date, campaign_id) (novo)
+Por isso, todos os campos `total_sent`, `total_opened`, `total_clicked`, `open_rate`, `click_rate` estao zerados no banco.
 
-Quando o sync-meta faz upsert com `onConflict: "source,date,campaign_id"`, o Postgres resolve o conflito nesse indice, mas a linha resultante pode violar um dos outros dois indices antigos, gerando o erro.
+## Dados disponiveis na API de Analytics do RD Station
+
+O endpoint `GET /platform/analytics/emails` retorna por campanha:
+- `contacts_count` (total de contatos/enviados)
+- `email_delivered_count`
+- `email_bounced_count`
+- `email_opened_count` (aberturas unicas)
+- `email_clicked_count` (cliques unicos)
+- `email_dropped_count`
+- `email_unsubscribed_count`
+
+**Importante:** Essa API so retorna dados a partir de agosto de 2021, e no plano Pro tem limite dos ultimos 45 dias.
 
 ## Solucao
 
-### Migration SQL
-Remover os dois indices antigos que nao sao mais necessarios:
+### Atualizar a edge function `sync-rd-station/index.ts`
 
-```text
-DROP INDEX IF EXISTS ad_metrics_source_date_adset;
-DROP INDEX IF EXISTS ad_metrics_source_campaign_id_ad_set_id_date_key;
-```
+Apos buscar a lista de campanhas em `/platform/emails`, fazer uma segunda chamada ao endpoint `/platform/analytics/emails` para obter as estatisticas de cada campanha. O fluxo sera:
 
-### Atualizar sync-google-ads
-O Google Ads tambem usa `onConflict: "source,date,ad_set_id"` referenciando o indice antigo. Precisa ser atualizado para usar `"source,date,campaign_id"` e garantir que os dados populem corretamente `campaign_id`. Tambem precisa popular `link_clicks` e `purchases` (com default 0) para compatibilidade.
+1. Buscar lista de campanhas via `/platform/emails` (ja existente)
+2. Para cada campanha (ou em lote), buscar estatisticas via `/platform/analytics/emails/{campaign_id}`
+3. Mapear os campos corretamente:
+   - `contacts_count` -> `total_sent`
+   - `email_opened_count` -> `total_opened`
+   - `email_clicked_count` -> `total_clicked`
+   - `email_unsubscribed_count` -> `unsubscribes`
+   - Calcular `open_rate` = opened / sent
+   - Calcular `click_rate` = clicked / sent
+4. Respeitar rate limits com delays entre chamadas individuais
+
+### Cuidados
+
+- Adicionar throttle (delay de 1-2s) entre cada chamada de estatisticas para evitar 429
+- Tratar campanhas sem estatisticas disponibilizadas (manter zeros)
+- Manter o fallback: se a API de analytics falhar, salvar a campanha sem metricas em vez de abortar tudo
 
 ### Arquivos alterados
-- Migration SQL (nova) -- drop dos indices antigos
-- `supabase/functions/sync-google-ads/index.ts` -- atualizar onConflict para `source,date,campaign_id`
+- `supabase/functions/sync-rd-station/index.ts`
+
+Nenhuma alteracao de banco necessaria -- as colunas ja existem.
 
