@@ -1,34 +1,67 @@
 
 
-# Reduzir frequencia do cron do RD Station e adicionar cooldown
+# Atualizar Meta Ads: metricas solicitadas pelo marketing
 
 ## Problema
 
-O cron do RD Station executa a cada 15 minutos, mas o rate limit da API do RD Station tem uma janela mais longa. Os logs mostram que a maioria das execucoes recebe 429 na primeira pagina e retorna 0 campanhas. Isso gera ruido nos logs e chamadas desnecessarias.
+O dashboard atual mostra metricas basicas do Meta (impressoes, cliques totais, gasto, CTR). O time de marketing precisa de metricas mais especificas: cliques no link, conversoes/compras do pixel, e taxa de conversao -- dados que vem do campo `actions` da API do Meta, que nao esta sendo consultado.
 
-## Solucao
+## O que muda
 
-### 1. Alterar frequencia do cron de 15 para 60 minutos
-Executar uma migration SQL para atualizar o cron job existente:
-```text
-cron.unschedule('sync-rd-station-every-15min')
-cron.schedule('sync-rd-station-every-60min', '0 * * * *', ...)
-```
+### 1. Adicionar colunas no banco de dados
+Criar duas novas colunas na tabela `ad_metrics`:
+- `link_clicks` (integer, default 0) -- cliques no link especificamente
+- `purchases` (integer, default 0) -- conversoes de compra do pixel
 
-### 2. Adicionar cooldown na edge function
-No inicio da funcao, antes de fazer qualquer chamada a API, verificar `last_synced_at`. Se a ultima sincronizacao bem-sucedida foi ha menos de 30 minutos, pular a execucao (retornar `skipped: true`). Isso evita chamadas desnecessarias quando o cron dispara logo apos uma sync parcial ou completa.
+Tambem precisamos trocar o indice unico de `(source, date, ad_set_id)` para `(source, date, campaign_id)` pois os dados passam a ser agregados por campanha.
 
-### 3. Resetar status atual se necessario
-Verificar e resetar o status da integracao se estiver em estado de erro por rate limit.
+### 2. Atualizar a edge function sync-meta
+- Mudar `level` de "adset" para "campaign"
+- Adicionar `actions` ao campo `fields` da API
+- Extrair `link_click` e `purchase` do array `actions` retornado
+- Usar `campaign_id` como chave do upsert em vez de `ad_set_id`
+- Calcular CPC (spend / link_clicks) e CTR (link_clicks / impressions) com base nos cliques no link
+
+### 3. Atualizar o dashboard (MarketingSection)
+Trocar os 4 cards atuais do Meta por 7 cards alinhados com o pedido:
+
+| Card | Dado |
+|------|------|
+| Campanhas | contagem de campaign_ids unicos |
+| Impressoes | soma de impressions |
+| Cliques no Link | soma de link_clicks |
+| CPC | gasto total / cliques no link |
+| CTR | cliques no link / impressoes |
+| Compras (Pixel) | soma de purchases |
+| Taxa de Conversao | compras / cliques no link |
+
+### 4. Atualizar opcoes de metas (goalMetrics)
+Adicionar novas opcoes: `meta_link_clicks`, `meta_purchases`, `meta_conversion_rate`.
 
 ## Detalhes tecnicos
 
 ### Migration SQL
-- Remover cron `sync-rd-station-every-15min`
-- Criar cron `sync-rd-station-every-60min` com schedule `0 * * * *`
+```text
+ALTER TABLE ad_metrics ADD COLUMN link_clicks integer DEFAULT 0;
+ALTER TABLE ad_metrics ADD COLUMN purchases integer DEFAULT 0;
+DROP INDEX IF EXISTS ad_metrics_source_date_ad_set_id_idx;
+CREATE UNIQUE INDEX ad_metrics_source_date_campaign_id_idx 
+  ON ad_metrics (source, date, campaign_id);
+```
 
-### Edge function (sync-rd-station/index.ts)
-- Adicionar check de cooldown apos carregar a integracao:
-  - Se `last_synced_at` existe e tem menos de 30 minutos, retornar `{ skipped: true, reason: "Recently synced" }`
-- Manter toda a logica existente de staleness check, retry e dedup
+### Edge function (sync-meta/index.ts)
+- fields: adicionar `actions`
+- level: `campaign`
+- Parser de actions:
+```text
+link_clicks = actions.find(a => a.action_type === 'link_click')?.value || 0
+purchases = actions.find(a => a.action_type === 'purchase')?.value || 0
+```
+- onConflict: `source,date,campaign_id`
+
+### Arquivos alterados
+- `supabase/functions/sync-meta/index.ts`
+- `src/components/dashboard/MarketingSection.tsx`
+- `src/lib/goalMetrics.ts`
+- Migration SQL (nova)
 
