@@ -16,6 +16,7 @@ interface MarketingSectionProps {
 
 export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goals }: MarketingSectionProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
+  const [selectedEmailCampaigns, setSelectedEmailCampaigns] = useState<string[]>([]);
 
   // Extract unique campaigns from meta ads
   const campaigns: Campaign[] = useMemo(() => {
@@ -32,6 +33,26 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
       campaign_name,
     }));
   }, [adMetrics]);
+
+  // Extract unique email campaigns
+  const emailCampaignOptions: Campaign[] = useMemo(() => {
+    const map = new Map<string, string>();
+    emailCampaigns.forEach((c) => {
+      if (c.rd_campaign_id && !map.has(c.rd_campaign_id)) {
+        map.set(c.rd_campaign_id, c.name || c.rd_campaign_id);
+      }
+    });
+    return Array.from(map.entries()).map(([campaign_id, campaign_name]) => ({
+      campaign_id,
+      campaign_name,
+    }));
+  }, [emailCampaigns]);
+
+  // Filtered email campaigns
+  const filteredEmailCampaigns = useMemo(() => {
+    if (selectedEmailCampaigns.length === 0) return emailCampaigns;
+    return emailCampaigns.filter((c) => selectedEmailCampaigns.includes(c.rd_campaign_id));
+  }, [emailCampaigns, selectedEmailCampaigns]);
 
   // Filtered meta metrics (apply campaign filter)
   const meta = useMemo(() => {
@@ -86,13 +107,13 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
     }));
   }, [siteAnalytics]);
 
-  // Email totals
+  // Email totals (use filtered)
   const emailTotals = useMemo(() => ({
-    sent: emailCampaigns.length,
-    openRate: avg(emailCampaigns, "open_rate") * 100,
-    clickRate: avg(emailCampaigns, "click_rate") * 100,
-    leads: sum(emailCampaigns, "total_clicked"),
-  }), [emailCampaigns]);
+    sent: filteredEmailCampaigns.length,
+    openRate: avg(filteredEmailCampaigns, "open_rate") * 100,
+    clickRate: avg(filteredEmailCampaigns, "click_rate") * 100,
+    leads: sum(filteredEmailCampaigns, "total_clicked"),
+  }), [filteredEmailCampaigns]);
 
   return (
     <section className="space-y-6">
@@ -145,7 +166,14 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
 
       {/* RD Station */}
       <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">RD Station</h3>
+        <div className="flex items-center gap-3 mb-3">
+          <h3 className="text-sm font-medium text-muted-foreground">RD Station</h3>
+          <CampaignFilter
+            campaigns={emailCampaignOptions}
+            selected={selectedEmailCampaigns}
+            onChange={setSelectedEmailCampaigns}
+          />
+        </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard title="Campanhas Enviadas" value={emailTotals.sent} icon={Mail} description="No período selecionado" />
           <MetricCard title="Taxa de Abertura" value={`${emailTotals.openRate.toFixed(1)}%`} icon={Mail} goal={findGoal(goals, "email_open_rate")?.target_value} />
