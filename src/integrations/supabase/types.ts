@@ -28,6 +28,8 @@ export type Database = {
           date: string
           id: string
           impressions: number | null
+          link_clicks: number | null
+          purchases: number | null
           source: string
           spend: number | null
           synced_at: string
@@ -45,6 +47,8 @@ export type Database = {
           date: string
           id?: string
           impressions?: number | null
+          link_clicks?: number | null
+          purchases?: number | null
           source: string
           spend?: number | null
           synced_at?: string
@@ -62,6 +66,8 @@ export type Database = {
           date?: string
           id?: string
           impressions?: number | null
+          link_clicks?: number | null
+          purchases?: number | null
           source?: string
           spend?: number | null
           synced_at?: string
