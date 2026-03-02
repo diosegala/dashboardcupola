@@ -10,20 +10,13 @@ async function getAccessToken(clientId: string, clientSecret: string, refreshTok
   const res = await fetch("https://api.rd.services/auth/token", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-    }),
+    body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, refresh_token: refreshToken }),
   });
-
   if (!res.ok) {
     const text = await res.text();
     throw new Error(`RD Station OAuth token refresh failed ${res.status}: ${text.slice(0, 500)}`);
   }
-
-  const data = await res.json();
-  return data.access_token;
+  return (await res.json()).access_token;
 }
 
 Deno.serve(async (req) => {
@@ -65,6 +58,24 @@ Deno.serve(async (req) => {
       });
     }
 
+    // --- Staleness check: auto-reset if stuck syncing for > 5 min ---
+    if (integration.sync_status === "syncing") {
+      const updatedAt = new Date(integration.updated_at).getTime();
+      const fiveMinAgo = Date.now() - 5 * 60 * 1000;
+      if (updatedAt < fiveMinAgo) {
+        console.log("sync-rd-station - resetting stale syncing status");
+        await supabase
+          .from("integrations")
+          .update({ sync_status: "idle", error_message: "Auto-reset: status travado" })
+          .eq("id", integration.id);
+      } else {
+        // Still actively syncing, skip this run
+        return new Response(JSON.stringify({ skipped: true, reason: "Already syncing" }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     const creds = (integration.credentials as Record<string, string>) ?? {};
     const clientId = (creds.client_id || "").trim();
     const clientSecret = (creds.client_secret || "").trim();
@@ -90,22 +101,19 @@ Deno.serve(async (req) => {
 
     const allEmails: any[] = [];
     let page = 1;
-    const pageSize = 25;
+    const pageSize = 10;
     const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+    let rateLimited = false;
 
-    // Returns response or null if permanently rate limited
+    // Fast retry: max 2 attempts, 2s delay
     const fetchWithRetry = async (url: string): Promise<Response | null> => {
-      for (let attempt = 0; attempt < 3; attempt++) {
+      for (let attempt = 0; attempt < 2; attempt++) {
         if (attempt > 0) {
-          const waitMs = (30 + attempt * 30) * 1000;
-          console.log(`sync-rd-station - retry ${attempt}, waiting ${waitMs / 1000}s`);
-          await delay(waitMs);
+          console.log("sync-rd-station - retry after 2s");
+          await delay(2000);
         }
         const res = await fetch(url, {
-          headers: {
-            "Authorization": `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
-          },
+          headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
         });
         if (res.status === 429) {
           console.log(`sync-rd-station - rate limited (attempt ${attempt + 1})`);
@@ -117,8 +125,6 @@ Deno.serve(async (req) => {
       return null;
     };
 
-    let rateLimited = false;
-
     while (true) {
       const url = `https://api.rd.services/platform/emails?page_size=${pageSize}&page=${page}`;
       console.log(`sync-rd-station - fetching page ${page}`);
@@ -127,7 +133,7 @@ Deno.serve(async (req) => {
 
       if (!res) {
         rateLimited = true;
-        break;
+        break; // Stop fetching, save what we have
       }
 
       if (!res.ok) {
@@ -144,15 +150,15 @@ Deno.serve(async (req) => {
         break;
       }
 
-      if ((Array.isArray(emails) ? emails.length : 0) < pageSize) break;
+      if (emails.length < pageSize) break;
       page++;
       if (page > 50) break;
-      await delay(5000);
+      await delay(1500); // Throttle between pages
     }
 
     console.log(`sync-rd-station - total emails fetched: ${allEmails.length}, rateLimited: ${rateLimited}`);
 
-    // Upsert whatever we got (even partial)
+    // Upsert whatever we got
     const rows = allEmails.map((e: any) => ({
       rd_campaign_id: String(e.id ?? e.campaign_id ?? e.rd_campaign_id),
       name: e.name ?? e.title ?? null,
@@ -169,13 +175,10 @@ Deno.serve(async (req) => {
 
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
-      const { error } = await supabase
-        .from("email_campaigns")
-        .upsert(chunk, { onConflict: "rd_campaign_id" });
+      const { error } = await supabase.from("email_campaigns").upsert(chunk, { onConflict: "rd_campaign_id" });
       if (error) throw error;
     }
 
-    // If rate limited and got nothing, report error
     if (rateLimited && rows.length === 0) {
       await supabase
         .from("integrations")
@@ -193,11 +196,7 @@ Deno.serve(async (req) => {
 
     await supabase
       .from("integrations")
-      .update({
-        sync_status: "idle",
-        last_synced_at: new Date().toISOString(),
-        error_message: statusMsg,
-      })
+      .update({ sync_status: "idle", last_synced_at: new Date().toISOString(), error_message: statusMsg })
       .eq("id", integration.id);
 
     return new Response(
@@ -206,12 +205,10 @@ Deno.serve(async (req) => {
     );
   } catch (err: any) {
     console.error("sync-rd-station error:", err);
-
     await supabase
       .from("integrations")
       .update({ sync_status: "error", error_message: err.message?.slice(0, 500) })
       .eq("name", "rd_station");
-
     return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
