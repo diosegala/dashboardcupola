@@ -89,8 +89,8 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
   // Email totals
   const emailTotals = useMemo(() => ({
     sent: emailCampaigns.length,
-    openRate: avg(emailCampaigns, "open_rate"),
-    clickRate: avg(emailCampaigns, "click_rate"),
+    openRate: avg(emailCampaigns, "open_rate") * 100,
+    clickRate: avg(emailCampaigns, "click_rate") * 100,
     leads: sum(emailCampaigns, "total_clicked"),
   }), [emailCampaigns]);
 
