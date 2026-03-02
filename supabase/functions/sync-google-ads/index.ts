@@ -142,29 +142,54 @@ Deno.serve(async (req) => {
     console.log(`sync-google-ads - fetched ${allResults.length} rows`);
 
     // 6. Map and upsert
-    const rows = allResults.map((r: any) => ({
-      source: "google_ads",
-      date: r.segments?.date ?? null,
-      campaign_id: r.campaign?.id ? String(r.campaign.id) : null,
-      campaign_name: r.campaign?.name ?? null,
-      ad_set_id: r.adGroup?.id ? String(r.adGroup.id) : "",
-      ad_set_name: r.adGroup?.name ?? null,
-      impressions: parseInt(r.metrics?.impressions ?? "0") || 0,
-      clicks: parseInt(r.metrics?.clicks ?? "0") || 0,
-      spend: (parseInt(r.metrics?.costMicros ?? "0") || 0) / 1_000_000,
-      ctr: parseFloat(r.metrics?.ctr ?? "0") || 0,
-      cpc: (parseInt(r.metrics?.averageCpc ?? "0") || 0) / 1_000_000,
-      cpm: (parseInt(r.metrics?.averageCpm ?? "0") || 0) / 1_000_000,
-      conversions: Math.round(parseFloat(r.metrics?.conversions ?? "0") || 0),
-      synced_at: new Date().toISOString(),
-    }));
+    // Aggregate by campaign (sum ad groups for same campaign+date)
+    const aggMap = new Map<string, any>();
+    for (const r of allResults) {
+      const date = r.segments?.date ?? null;
+      const campaignId = r.campaign?.id ? String(r.campaign.id) : null;
+      const key = `${date}_${campaignId}`;
+
+      if (!aggMap.has(key)) {
+        aggMap.set(key, {
+          source: "google_ads",
+          date,
+          campaign_id: campaignId,
+          campaign_name: r.campaign?.name ?? null,
+          ad_set_id: null,
+          ad_set_name: null,
+          impressions: 0,
+          clicks: 0,
+          link_clicks: 0,
+          purchases: 0,
+          spend: 0,
+          ctr: 0,
+          cpc: 0,
+          cpm: 0,
+          conversions: 0,
+          synced_at: new Date().toISOString(),
+        });
+      }
+      const agg = aggMap.get(key)!;
+      agg.impressions += parseInt(r.metrics?.impressions ?? "0") || 0;
+      agg.clicks += parseInt(r.metrics?.clicks ?? "0") || 0;
+      agg.spend += (parseInt(r.metrics?.costMicros ?? "0") || 0) / 1_000_000;
+      agg.conversions += Math.round(parseFloat(r.metrics?.conversions ?? "0") || 0);
+    }
+
+    // Compute derived metrics
+    const rows = Array.from(aggMap.values()).map((row) => {
+      row.ctr = row.impressions > 0 ? (row.clicks / row.impressions) * 100 : 0;
+      row.cpc = row.clicks > 0 ? row.spend / row.clicks : 0;
+      row.cpm = row.impressions > 0 ? (row.spend / row.impressions) * 1000 : 0;
+      return row;
+    });
 
     // Batch upsert in chunks of 500
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
       const { error } = await supabase
         .from("ad_metrics")
-        .upsert(chunk, { onConflict: "source,date,ad_set_id" });
+        .upsert(chunk, { onConflict: "source,date,campaign_id" });
       if (error) throw error;
     }
 

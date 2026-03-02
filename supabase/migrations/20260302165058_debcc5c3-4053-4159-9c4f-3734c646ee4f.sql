@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS ad_metrics_source_date_adset;
+ALTER TABLE ad_metrics DROP CONSTRAINT IF EXISTS ad_metrics_source_campaign_id_ad_set_id_date_key;
