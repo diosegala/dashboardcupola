@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Eye, MousePointerClick, Wallet, BarChart3, Mail, Globe, Users, FileText, Target } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
@@ -110,9 +111,11 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
   // Email totals (use filtered)
   const emailTotals = useMemo(() => ({
     sent: filteredEmailCampaigns.length,
+    totalSent: sum(filteredEmailCampaigns, "total_sent"),
+    totalOpened: sum(filteredEmailCampaigns, "total_opened"),
+    totalClicked: sum(filteredEmailCampaigns, "total_clicked"),
     openRate: avg(filteredEmailCampaigns, "open_rate") * 100,
     clickRate: avg(filteredEmailCampaigns, "click_rate") * 100,
-    leads: sum(filteredEmailCampaigns, "total_clicked"),
   }), [filteredEmailCampaigns]);
 
   return (
@@ -175,10 +178,28 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
           />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Campanhas Enviadas" value={emailTotals.sent} icon={Mail} description="No período selecionado" />
+          <MetricCard title="Campanhas Enviadas" value={emailTotals.sent} icon={Mail} description={`${emailTotals.totalSent.toLocaleString("pt-BR")} leads alcançados`} />
           <MetricCard title="Taxa de Abertura" value={`${emailTotals.openRate.toFixed(1)}%`} icon={Mail} goal={findGoal(goals, "email_open_rate")?.target_value} />
           <MetricCard title="Taxa de Clique" value={`${emailTotals.clickRate.toFixed(1)}%`} icon={MousePointerClick} goal={findGoal(goals, "email_click_rate")?.target_value} />
-          <MetricCard title="Leads (Cliques)" value={emailTotals.leads} icon={Users} goal={findGoal(goals, "leads")?.target_value} />
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium text-muted-foreground">Leads Engajados</CardTitle>
+              <Users className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-baseline gap-4">
+                <div>
+                  <span className="text-2xl font-bold">{emailTotals.totalOpened.toLocaleString("pt-BR")}</span>
+                  <span className="text-xs text-muted-foreground ml-1">abriram</span>
+                </div>
+                <div>
+                  <span className="text-2xl font-bold">{emailTotals.totalClicked.toLocaleString("pt-BR")}</span>
+                  <span className="text-xs text-muted-foreground ml-1">clicaram</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">Leads únicos por ação</p>
+            </CardContent>
+          </Card>
         </div>
       </div>
 
