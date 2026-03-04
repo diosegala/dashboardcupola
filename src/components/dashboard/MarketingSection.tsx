@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { Eye, MousePointerClick, Wallet, BarChart3, Mail, Globe, Users, FileText, Target } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
@@ -187,17 +188,17 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="flex items-baseline gap-4">
-                <div>
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Abriram</span>
                   <span className="text-2xl font-bold">{emailTotals.totalOpened.toLocaleString("pt-BR")}</span>
-                  <span className="text-xs text-muted-foreground ml-1">abriram</span>
                 </div>
-                <div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Clicaram</span>
                   <span className="text-2xl font-bold">{emailTotals.totalClicked.toLocaleString("pt-BR")}</span>
-                  <span className="text-xs text-muted-foreground ml-1">clicaram</span>
                 </div>
               </div>
-              <p className="text-xs text-muted-foreground mt-1">Leads únicos por ação</p>
             </CardContent>
           </Card>
         </div>
