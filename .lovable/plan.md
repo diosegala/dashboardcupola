@@ -1,27 +1,28 @@
 
 
-# Ajustar cards do RD Station no dashboard
+# Ajustar card "Leads Engajados" para layout em linhas
 
-## O que sera feito
+Substituir o layout `grid grid-cols-2` com divisor vertical por duas linhas empilhadas com um `<Separator />` horizontal entre elas.
 
-1. **Card "Campanhas Enviadas"** — adicionar o total de leads (soma de `total_sent`) como informacao secundaria abaixo do numero de campanhas. Exemplo: "42 campanhas" com descricao "1.250 leads alcancados".
+## Alteração em `src/components/dashboard/MarketingSection.tsx`
 
-2. **Novo card "Leads Engajados"** — exibir dois numeros no mesmo card: total de leads que abriram (`total_opened`) e total que clicaram (`total_clicked`). Substituir o card atual "Leads (Cliques)".
+Trocar o conteúdo do `<CardContent>` do card "Leads Engajados" por:
 
-## Alteracoes
+```tsx
+<CardContent>
+  <div className="space-y-3">
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-muted-foreground">Abriram</span>
+      <span className="text-2xl font-bold">{emailTotals.totalOpened.toLocaleString("pt-BR")}</span>
+    </div>
+    <Separator />
+    <div className="flex items-center justify-between">
+      <span className="text-sm text-muted-foreground">Clicaram</span>
+      <span className="text-2xl font-bold">{emailTotals.totalClicked.toLocaleString("pt-BR")}</span>
+    </div>
+  </div>
+</CardContent>
+```
 
-### `src/components/dashboard/MarketingSection.tsx`
-
-- Adicionar `totalSent`, `totalOpened` e `totalClicked` ao objeto `emailTotals` (somas de `total_sent`, `total_opened`, `total_clicked` das campanhas filtradas).
-- No card "Campanhas Enviadas": mudar `description` para mostrar o total de leads que receberam (ex: `${emailTotals.totalSent.toLocaleString("pt-BR")} leads alcançados`).
-- Substituir o card "Leads (Cliques)" por um card customizado (inline, sem criar componente novo) que mostra dois valores: "Abriram: X" e "Clicaram: Y" dentro do mesmo `<Card>`, mantendo o mesmo estilo visual.
-- Remover o card "Taxa de Abertura" e "Taxa de Clique" separados? **Nao** — manter as taxas como estao e adicionar o card de leads engajados como quinto card, ou substituir "Leads (Cliques)" pelo novo card duplo.
-
-### Layout final dos cards RD Station (4 cards):
-1. **Campanhas Enviadas** — valor: numero de campanhas, descricao: "X leads alcançados"
-2. **Taxa de Abertura** — sem mudanca
-3. **Taxa de Clique** — sem mudanca
-4. **Leads Engajados** — card customizado com dois valores: aberturas e cliques
-
-Nenhuma alteracao de banco ou edge function necessaria.
+Cada linha mostra o label à esquerda e o valor à direita, separados por uma linha horizontal. Adicionar import do `Separator` se ainda não estiver importado.
 
