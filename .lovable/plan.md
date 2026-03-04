@@ -1,21 +1,27 @@
 
-# Adicionar filtro de campanhas de e-mail (RD Station)
+
+# Ajustar cards do RD Station no dashboard
 
 ## O que sera feito
 
-Reutilizar o componente `CampaignFilter` ja existente para permitir filtrar campanhas de e-mail do RD Station, exatamente como ja funciona para o Meta Ads. O filtro ficara ao lado do titulo "RD Station".
+1. **Card "Campanhas Enviadas"** — adicionar o total de leads (soma de `total_sent`) como informacao secundaria abaixo do numero de campanhas. Exemplo: "42 campanhas" com descricao "1.250 leads alcancados".
+
+2. **Novo card "Leads Engajados"** — exibir dois numeros no mesmo card: total de leads que abriram (`total_opened`) e total que clicaram (`total_clicked`). Substituir o card atual "Leads (Cliques)".
 
 ## Alteracoes
 
-### 1. `src/components/dashboard/MarketingSection.tsx`
+### `src/components/dashboard/MarketingSection.tsx`
 
-- Adicionar um novo estado `selectedEmailCampaigns` (array de `rd_campaign_id`).
-- Extrair a lista de campanhas de e-mail unicas a partir de `emailCampaigns` (mapeando `rd_campaign_id` como `campaign_id` e `name` como `campaign_name`).
-- Criar um `filteredEmailCampaigns` com `useMemo`: se nenhuma campanha estiver selecionada, mostrar todas; caso contrario, filtrar por `rd_campaign_id`.
-- Recalcular `emailTotals` usando `filteredEmailCampaigns` em vez de `emailCampaigns`.
-- Adicionar um segundo `CampaignFilter` ao lado do titulo "RD Station", passando as campanhas de e-mail e o estado de selecao.
-- Mover o layout da secao RD Station para ter um header com `<h3>` + `<CampaignFilter>` lado a lado (mesmo padrao flexbox usado no Meta Ads no topo).
+- Adicionar `totalSent`, `totalOpened` e `totalClicked` ao objeto `emailTotals` (somas de `total_sent`, `total_opened`, `total_clicked` das campanhas filtradas).
+- No card "Campanhas Enviadas": mudar `description` para mostrar o total de leads que receberam (ex: `${emailTotals.totalSent.toLocaleString("pt-BR")} leads alcançados`).
+- Substituir o card "Leads (Cliques)" por um card customizado (inline, sem criar componente novo) que mostra dois valores: "Abriram: X" e "Clicaram: Y" dentro do mesmo `<Card>`, mantendo o mesmo estilo visual.
+- Remover o card "Taxa de Abertura" e "Taxa de Clique" separados? **Nao** — manter as taxas como estao e adicionar o card de leads engajados como quinto card, ou substituir "Leads (Cliques)" pelo novo card duplo.
 
-### Nenhuma alteracao de banco ou edge function necessaria
+### Layout final dos cards RD Station (4 cards):
+1. **Campanhas Enviadas** — valor: numero de campanhas, descricao: "X leads alcançados"
+2. **Taxa de Abertura** — sem mudanca
+3. **Taxa de Clique** — sem mudanca
+4. **Leads Engajados** — card customizado com dois valores: aberturas e cliques
 
-O componente `CampaignFilter` ja e generico o suficiente -- aceita `campaign_id` e `campaign_name`, entao basta mapear os campos do RD Station para essa interface.
+Nenhuma alteracao de banco ou edge function necessaria.
+
