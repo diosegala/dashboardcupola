@@ -3,6 +3,7 @@ import { Ticket, DollarSign, TrendingUp, Trophy, Award } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { TicketsByDayChart } from "./charts/TicketsByDayChart";
 import { TicketsByTypeChart } from "./charts/TicketsByTypeChart";
+import { YearOverYearChart } from "./charts/YearOverYearChart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
@@ -11,10 +12,13 @@ interface SalesSectionProps {
   tickets: any[];
   goals: any[];
   allTimeTickets?: any[];
+  allEventsTickets?: any[];
+  currentEventId?: string;
+  previousEventId?: string;
   range: DateRange;
 }
 
-export function SalesSection({ tickets, goals, allTimeTickets = [], range }: SalesSectionProps) {
+export function SalesSection({ tickets, goals, allTimeTickets = [], allEventsTickets = [], currentEventId = "", previousEventId = "", range }: SalesSectionProps) {
   const totalTickets = useMemo(() => tickets.reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
   const totalRevenue = useMemo(() => tickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [tickets]);
 
@@ -113,6 +117,15 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range }: Sal
         <TicketsByDayChart tickets={tickets} />
         <TicketsByTypeChart tickets={tickets} />
       </div>
+
+      {/* Year-over-year comparison */}
+      {previousEventId && currentEventId && (
+        <YearOverYearChart
+          tickets={allEventsTickets}
+          currentEventId={currentEventId}
+          previousEventId={previousEventId}
+        />
+      )}
 
     </section>
   );
