@@ -115,10 +115,33 @@ export function useGoals() {
   });
 }
 
-export function findGoal(goals: any[], metricKey: string, currentDate: Date = new Date()) {
-  const today = fmt(currentDate);
-  const matching = goals
-    .filter((g: any) => g.metric_key === metricKey && g.period_start <= today && g.period_end >= today)
-    .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-  return matching[0] ?? null;
+export function findGoal(goals: any[], metricKey: string, range: DateRange) {
+  const rangeFrom = fmt(range.from);
+  const rangeTo = fmt(range.to);
+
+  const overlapping = goals.filter(
+    (g: any) => g.metric_key === metricKey && g.period_start <= rangeTo && g.period_end >= rangeFrom
+  );
+
+  if (overlapping.length === 0) return null;
+
+  const scored = overlapping.map((g: any) => {
+    const gStart = new Date(g.period_start).getTime();
+    const gEnd = new Date(g.period_end).getTime();
+    const rStart = range.from.getTime();
+    const rEnd = range.to.getTime();
+    const overlapStart = Math.max(gStart, rStart);
+    const overlapEnd = Math.min(gEnd, rEnd);
+    const overlapDays = Math.max(0, overlapEnd - overlapStart);
+    const goalDays = gEnd - gStart || 1;
+    const rangeDays = rEnd - rStart || 1;
+    const score = overlapDays / Math.max(goalDays, rangeDays);
+    return { goal: g, score };
+  });
+
+  scored.sort(
+    (a, b) => b.score - a.score || new Date(b.goal.created_at).getTime() - new Date(a.goal.created_at).getTime()
+  );
+
+  return scored[0]?.goal ?? null;
 }

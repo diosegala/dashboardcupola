@@ -63,6 +63,7 @@ export default function Index() {
         tickets={tickets.data ?? []}
         goals={goals.data ?? []}
         allTimeTickets={allTimeTickets.data ?? []}
+        range={range}
       />
 
       <Separator />
@@ -72,6 +73,7 @@ export default function Index() {
         emailCampaigns={emailCampaigns.data ?? []}
         siteAnalytics={siteAnalytics.data ?? []}
         goals={goals.data ?? []}
+        range={range}
       />
     </div>
   );
