@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Eye, MousePointerClick, Wallet, BarChart3, Mail, Globe, Users, FileText, Target } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
 import { SessionsByDayChart } from "./charts/SessionsByDayChart";
@@ -19,6 +20,8 @@ interface MarketingSectionProps {
 export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goals }: MarketingSectionProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [selectedEmailCampaigns, setSelectedEmailCampaigns] = useState<string[]>([]);
+  const [compareA, setCompareA] = useState<string | null>(null);
+  const [compareB, setCompareB] = useState<string | null>(null);
 
   // Extract unique campaigns from meta ads
   const campaigns: Campaign[] = useMemo(() => {
@@ -201,6 +204,72 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Comparador de Campanhas */}
+        <div className="mt-4">
+          <h4 className="text-sm font-medium text-muted-foreground mb-3">Comparar Campanhas</h4>
+          <div className="grid gap-4 md:grid-cols-2">
+            {[{ value: compareA, setter: setCompareA, label: "Campanha A" }, { value: compareB, setter: setCompareB, label: "Campanha B" }].map(({ value, setter, label }) => {
+              const campaign = value ? emailCampaigns.filter((c) => c.rd_campaign_id === value) : [];
+              const data = campaign.length > 0
+                ? {
+                    name: campaign[0].name || value,
+                    totalSent: campaign.reduce((s: number, c: any) => s + Number(c.total_sent || 0), 0),
+                    totalOpened: campaign.reduce((s: number, c: any) => s + Number(c.total_opened || 0), 0),
+                    totalClicked: campaign.reduce((s: number, c: any) => s + Number(c.total_clicked || 0), 0),
+                    openRate: (campaign.reduce((s: number, c: any) => s + Number(c.open_rate || 0), 0) / campaign.length) * 100,
+                    clickRate: (campaign.reduce((s: number, c: any) => s + Number(c.click_rate || 0), 0) / campaign.length) * 100,
+                  }
+                : null;
+
+              return (
+                <Card key={label}>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">{label}</CardTitle>
+                    <Select value={value ?? ""} onValueChange={(v) => setter(v)}>
+                      <SelectTrigger className="mt-1">
+                        <SelectValue placeholder="Selecione uma campanha" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {emailCampaignOptions.map((opt) => (
+                          <SelectItem key={opt.campaign_id} value={opt.campaign_id}>
+                            {opt.campaign_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </CardHeader>
+                  {data && (
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Enviados</span>
+                          <span className="text-2xl font-bold">{data.totalSent.toLocaleString("pt-BR")}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Abriram</span>
+                          <div className="text-right">
+                            <span className="text-2xl font-bold">{data.totalOpened.toLocaleString("pt-BR")}</span>
+                            <span className="text-xs text-muted-foreground ml-1">({data.openRate.toFixed(1)}%)</span>
+                          </div>
+                        </div>
+                        <Separator />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Clicaram</span>
+                          <div className="text-right">
+                            <span className="text-2xl font-bold">{data.totalClicked.toLocaleString("pt-BR")}</span>
+                            <span className="text-xs text-muted-foreground ml-1">({data.clickRate.toFixed(1)}%)</span>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  )}
+                </Card>
+              );
+            })}
+          </div>
         </div>
       </div>
 
