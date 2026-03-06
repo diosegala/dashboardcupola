@@ -7,7 +7,7 @@ import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
 import { SessionsByDayChart } from "./charts/SessionsByDayChart";
 import { SourceBreakdownTable } from "./SourceBreakdownTable";
-import { findGoal } from "@/hooks/useDashboardData";
+import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { CampaignFilter, type Campaign } from "./CampaignFilter";
 
 interface MarketingSectionProps {
@@ -15,9 +15,10 @@ interface MarketingSectionProps {
   emailCampaigns: any[];
   siteAnalytics: any[];
   goals: any[];
+  range: DateRange;
 }
 
-export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goals }: MarketingSectionProps) {
+export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goals, range }: MarketingSectionProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [selectedEmailCampaigns, setSelectedEmailCampaigns] = useState<string[]>([]);
   const [compareA, setCompareA] = useState<string | null>(null);
@@ -149,12 +150,12 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
           return (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <MetricCard title="Campanhas" value={uniqueCampaigns} icon={BarChart3} description="Campanhas ativas no período" />
-              <MetricCard title="Impressões" value={totalImpressions} icon={Eye} goal={findGoal(goals, "meta_impressions")?.target_value} />
-              <MetricCard title="Cliques no Link" value={totalLinkClicks} icon={MousePointerClick} goal={findGoal(goals, "meta_link_clicks")?.target_value} />
+              <MetricCard title="Impressões" value={totalImpressions} icon={Eye} goal={findGoal(goals, "meta_impressions", range)?.target_value} />
+              <MetricCard title="Cliques no Link" value={totalLinkClicks} icon={MousePointerClick} goal={findGoal(goals, "meta_link_clicks", range)?.target_value} />
               <MetricCard title="CPC" value={`R$ ${cpc.toFixed(2)}`} icon={Wallet} description="Custo por clique no link" />
               <MetricCard title="CTR" value={`${ctr.toFixed(2)}%`} icon={BarChart3} description="Cliques no link / Impressões" />
-              <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases")?.target_value} />
-              <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate")?.target_value} description="Compras / Cliques no link" />
+              <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases", range)?.target_value} />
+              <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate", range)?.target_value} description="Compras / Cliques no link" />
             </div>
           );
         })()}
@@ -164,8 +165,8 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Google Ads</h3>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Impressões" value={sum(google, "impressions")} icon={Eye} goal={findGoal(goals, "google_impressions")?.target_value} />
-          <MetricCard title="Cliques" value={sum(google, "clicks")} icon={MousePointerClick} goal={findGoal(goals, "google_clicks")?.target_value} />
+          <MetricCard title="Impressões" value={sum(google, "impressions")} icon={Eye} goal={findGoal(goals, "google_impressions", range)?.target_value} />
+          <MetricCard title="Cliques" value={sum(google, "clicks")} icon={MousePointerClick} goal={findGoal(goals, "google_clicks", range)?.target_value} />
           <MetricCard title="Gasto" value={sum(google, "spend").toFixed(2)} icon={Wallet} prefix="R$ " description="Investimento no período" />
           <MetricCard title="Conversões" value={sum(google, "conversions")} icon={BarChart3} description="Total de conversões" />
         </div>
@@ -183,8 +184,8 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard title="Campanhas Enviadas" value={emailTotals.sent} icon={Mail} description={`${emailTotals.totalSent.toLocaleString("pt-BR")} leads alcançados`} />
-          <MetricCard title="Taxa de Abertura" value={`${emailTotals.openRate.toFixed(1)}%`} icon={Mail} goal={findGoal(goals, "email_open_rate")?.target_value} />
-          <MetricCard title="Taxa de Clique" value={`${emailTotals.clickRate.toFixed(1)}%`} icon={MousePointerClick} goal={findGoal(goals, "email_click_rate")?.target_value} />
+          <MetricCard title="Taxa de Abertura" value={`${emailTotals.openRate.toFixed(1)}%`} icon={Mail} goal={findGoal(goals, "email_open_rate", range)?.target_value} />
+          <MetricCard title="Taxa de Clique" value={`${emailTotals.clickRate.toFixed(1)}%`} icon={MousePointerClick} goal={findGoal(goals, "email_click_rate", range)?.target_value} />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Leads Engajados</CardTitle>
@@ -277,7 +278,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Site (Google Analytics)</h3>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits")?.target_value} />
+          <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits", range)?.target_value} />
           <MetricCard title="Usuários" value={siteTotals.users} icon={Users} description="Total de usuários" />
           <MetricCard title="Conversões" value={siteTotals.conversions} icon={Target} description="Key events do GA4" />
           <MetricCard title="Pageviews" value={siteTotals.pageviews} icon={FileText} description="Visualizações de página" />

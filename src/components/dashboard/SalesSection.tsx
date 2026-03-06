@@ -5,15 +5,16 @@ import { TicketsByDayChart } from "./charts/TicketsByDayChart";
 import { TicketsByTypeChart } from "./charts/TicketsByTypeChart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { findGoal } from "@/hooks/useDashboardData";
+import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 
 interface SalesSectionProps {
   tickets: any[];
   goals: any[];
   allTimeTickets?: any[];
+  range: DateRange;
 }
 
-export function SalesSection({ tickets, goals, allTimeTickets = [] }: SalesSectionProps) {
+export function SalesSection({ tickets, goals, allTimeTickets = [], range }: SalesSectionProps) {
   const totalTickets = useMemo(() => tickets.reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
   const totalRevenue = useMemo(() => tickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [tickets]);
 
@@ -32,8 +33,8 @@ export function SalesSection({ tickets, goals, allTimeTickets = [] }: SalesSecti
       .slice(0, 5);
   }, [tickets]);
 
-  const ticketsGoal = findGoal(goals, "tickets_sold");
-  const revenueGoal = findGoal(goals, "revenue");
+  const ticketsGoal = findGoal(goals, "tickets_sold", range);
+  const revenueGoal = findGoal(goals, "revenue", range);
 
   return (
     <section className="space-y-6">
