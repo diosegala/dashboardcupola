@@ -1,4 +1,4 @@
-import { format, subDays, subMonths, startOfMonth, endOfMonth } from "date-fns";
+import { format, subDays, subMonths, startOfMonth, endOfMonth, startOfWeek, endOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -15,6 +15,7 @@ interface PeriodSelectorProps {
 
 const presets: { label: string; getRange: () => DateRange }[] = [
   { label: "Últimos 7 dias", getRange: () => ({ from: subDays(new Date(), 6), to: new Date() }) },
+  { label: "Esta semana", getRange: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
   { label: "Últimos 30 dias", getRange: () => ({ from: subDays(new Date(), 29), to: new Date() }) },
   { label: "Este mês", getRange: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
   { label: "Mês passado", getRange: () => { const prev = subMonths(new Date(), 1); return { from: startOfMonth(prev), to: endOfMonth(prev) }; } },
