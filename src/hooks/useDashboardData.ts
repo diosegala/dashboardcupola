@@ -104,6 +104,39 @@ export function useAllTimeTicketSales() {
   });
 }
 
+export function useTicketSalesAllEvents() {
+  return useQuery({
+    queryKey: ["ticket_sales_all_events"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ticket_sales")
+        .select("quantity, sold_at, event_id")
+        .order("sold_at", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
+export function useSymplaEventIds() {
+  return useQuery({
+    queryKey: ["sympla_event_ids"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("integrations")
+        .select("credentials")
+        .eq("name", "sympla")
+        .single();
+      if (error) throw error;
+      const creds = (data?.credentials as Record<string, string>) ?? {};
+      return {
+        currentEventId: creds.event_id || "",
+        previousEventId: creds.previous_event_id || "",
+      };
+    },
+  });
+}
+
 export function useGoals() {
   return useQuery({
     queryKey: ["goals"],

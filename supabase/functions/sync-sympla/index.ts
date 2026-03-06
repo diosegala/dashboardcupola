@@ -49,7 +49,18 @@ Deno.serve(async (req) => {
     // 2. Get credentials (DB priority, then env fallback)
     const creds = (integration.credentials as Record<string, string>) ?? {};
     const apiToken = (creds.api_token || Deno.env.get("SYMPLA_API_TOKEN") || "").trim();
-    const eventId = (creds.event_id || Deno.env.get("SYMPLA_EVENT_ID") || "").trim();
+    const defaultEventId = (creds.event_id || Deno.env.get("SYMPLA_EVENT_ID") || "").trim();
+
+    // Check if a specific event_id was passed in the request body
+    let bodyEventId = "";
+    try {
+      const body = await req.json();
+      bodyEventId = (body?.event_id || "").trim();
+    } catch {
+      // no body or invalid JSON — use default
+    }
+
+    const eventId = bodyEventId || defaultEventId;
     console.log("sync-sympla - eventId:", eventId, "token prefix:", apiToken.slice(0, 8) + "...");
 
     if (!apiToken || !eventId) {
