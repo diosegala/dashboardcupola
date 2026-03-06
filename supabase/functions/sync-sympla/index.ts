@@ -96,21 +96,26 @@ Deno.serve(async (req) => {
       page++;
     }
 
-    // 5. Upsert each participant as individual ticket
-    const rows = allParticipants.map((p: any) => ({
-      sympla_order_id: String(p.id), // participant id = unique per ticket
-      ticket_type: p.ticket_name ?? p.ticket_title ?? null,
-      ticket_type_id: p.ticket_number ? String(p.ticket_number) : null,
-      quantity: 1,
-      unit_price: parseFloat(p.ticket_sale_price ?? "0") || 0,
-      total_price: parseFloat(p.ticket_sale_price ?? "0") || 0,
-      buyer_name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null,
-      buyer_email: p.email ?? null,
-      sold_at: p.order_approved_date || p.order_date || null,
-      status: mapStatus(p.order_status),
-      event_id: eventId,
-      synced_at: new Date().toISOString(),
-    }));
+    // 5. Upsert each participant as individual ticket (deduplicate by sympla_order_id)
+    const rowMap = new Map<string, any>();
+    allParticipants.forEach((p: any) => {
+      const key = String(p.id);
+      rowMap.set(key, {
+        sympla_order_id: key,
+        ticket_type: p.ticket_name ?? p.ticket_title ?? null,
+        ticket_type_id: p.ticket_number ? String(p.ticket_number) : null,
+        quantity: 1,
+        unit_price: parseFloat(p.ticket_sale_price ?? "0") || 0,
+        total_price: parseFloat(p.ticket_sale_price ?? "0") || 0,
+        buyer_name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null,
+        buyer_email: p.email ?? null,
+        sold_at: p.order_approved_date || p.order_date || null,
+        status: mapStatus(p.order_status),
+        event_id: eventId,
+        synced_at: new Date().toISOString(),
+      });
+    });
+    const rows = Array.from(rowMap.values());
 
     // Batch upsert in chunks of 500
     for (let i = 0; i < rows.length; i += 500) {
