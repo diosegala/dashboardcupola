@@ -16,7 +16,8 @@ interface FieldDef {
 const FIELDS: Record<string, FieldDef[]> = {
   sympla: [
     { key: "api_token", label: "API Token (s_token)", type: "text" },
-    { key: "event_id", label: "Event ID", type: "text" },
+    { key: "event_id", label: "Event ID (evento atual)", type: "text" },
+    { key: "previous_event_id", label: "Event ID (evento anterior - comparação ano a ano)", type: "text" },
   ],
   pipedrive: [
     { key: "api_token", label: "API Token", type: "text" },
