@@ -27,7 +27,7 @@ export default function Index() {
   const emailCampaigns = useEmailCampaigns(range);
   const siteAnalytics = useSiteAnalytics(range);
   const goals = useGoals();
-  const allTimeTickets = useAllTimeTicketSales();
+  const allTimeTickets = useAllTimeTicketSales(symplaIds.data?.currentEventId ?? "");
   const allEventsTickets = useTicketSalesAllEvents();
   const symplaIds = useSymplaEventIds();
 
