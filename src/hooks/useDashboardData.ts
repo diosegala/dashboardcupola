@@ -95,11 +95,21 @@ export function useAllTimeTicketSales() {
   return useQuery({
     queryKey: ["ticket_sales_all_time"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("ticket_sales")
-        .select("quantity, total_price");
-      if (error) throw error;
-      return data ?? [];
+      const all: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      while (true) {
+        const { data, error } = await supabase
+          .from("ticket_sales")
+          .select("quantity, total_price")
+          .range(from, from + pageSize - 1);
+        if (error) throw error;
+        if (!data || data.length === 0) break;
+        all.push(...data);
+        if (data.length < pageSize) break;
+        from += pageSize;
+      }
+      return all;
     },
   });
 }
