@@ -116,30 +116,6 @@ export function useAllTimeTicketSales(eventId: string) {
   });
 }
 
-export function useTicketSalesAllEvents() {
-  return useQuery({
-    queryKey: ["ticket_sales_all_events"],
-    queryFn: async () => {
-      const all: any[] = [];
-      let from = 0;
-      const pageSize = 1000;
-      while (true) {
-        const { data, error } = await supabase
-          .from("ticket_sales")
-          .select("quantity, sold_at, event_id")
-          .order("sold_at", { ascending: true })
-          .range(from, from + pageSize - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        all.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
-      }
-      return all;
-    },
-  });
-}
-
 export function useSymplaEventIds() {
   return useQuery({
     queryKey: ["sympla_event_ids"],
@@ -153,7 +129,6 @@ export function useSymplaEventIds() {
       const creds = (data?.credentials as Record<string, string>) ?? {};
       return {
         currentEventId: creds.event_id || "",
-        previousEventId: creds.previous_event_id || "",
       };
     },
   });
