@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from "recharts";
 import { BarChart3 } from "lucide-react";
 import { format, addDays } from "date-fns";
 
@@ -10,14 +10,16 @@ interface YearOverYearChartProps {
   previousEventId: string;
 }
 
-interface WeekData {
-  week: number;
+interface RelativeWeekData {
+  relativeWeek: number; // 1-based global week
+  relativeMonth: number; // 1-based month (every 4 weeks)
+  weekInMonth: number; // 1-4
   total: number;
   weekStart: Date;
   weekEnd: Date;
 }
 
-function groupByRelativeWeek(tickets: any[]): WeekData[] {
+function groupByRelativeWeek(tickets: any[]): RelativeWeekData[] {
   if (tickets.length === 0) return [];
 
   const sorted = [...tickets]
@@ -43,15 +45,26 @@ function groupByRelativeWeek(tickets: any[]): WeekData[] {
 
   return Array.from(weekMap.entries())
     .sort((a, b) => a[0] - b[0])
-    .map(([week, d]) => ({ week, total: d.total, weekStart: d.weekStart, weekEnd: d.weekEnd }));
+    .map(([week, d]) => ({
+      relativeWeek: week,
+      relativeMonth: Math.ceil(week / 4),
+      weekInMonth: ((week - 1) % 4) + 1,
+      total: d.total,
+      weekStart: d.weekStart,
+      weekEnd: d.weekEnd,
+    }));
 }
 
 function fmtDate(d: Date) {
   return format(d, "dd/MM/yy");
 }
 
+function fmtDateShort(d: Date) {
+  return format(d, "dd/MM");
+}
+
 export function YearOverYearChart({ tickets, currentEventId, previousEventId }: YearOverYearChartProps) {
-  const chartData = useMemo(() => {
+  const { chartData, monthBoundaries } = useMemo(() => {
     const currentTickets = tickets.filter((t) => t.event_id === currentEventId);
     const previousTickets = tickets.filter((t) => t.event_id === previousEventId);
 
@@ -59,18 +72,23 @@ export function YearOverYearChart({ tickets, currentEventId, previousEventId }: 
     const previousWeeks = groupByRelativeWeek(previousTickets);
 
     const maxWeek = Math.max(
-      currentWeeks.length > 0 ? currentWeeks[currentWeeks.length - 1].week : 0,
-      previousWeeks.length > 0 ? previousWeeks[previousWeeks.length - 1].week : 0
+      currentWeeks.length > 0 ? currentWeeks[currentWeeks.length - 1].relativeWeek : 0,
+      previousWeeks.length > 0 ? previousWeeks[previousWeeks.length - 1].relativeWeek : 0
     );
 
-    if (maxWeek === 0) return [];
+    if (maxWeek === 0) return { chartData: [], monthBoundaries: [] };
 
-    const currentMap = new Map(currentWeeks.map((w) => [w.week, w]));
-    const previousMap = new Map(previousWeeks.map((w) => [w.week, w]));
+    const currentMap = new Map(currentWeeks.map((w) => [w.relativeWeek, w]));
+    const previousMap = new Map(previousWeeks.map((w) => [w.relativeWeek, w]));
 
-    const data = [];
+    const data: any[] = [];
+    const boundaries: { index: number; label: string }[] = [];
     let lastCurrent = 0;
     let lastPrevious = 0;
+    let lastMonth = 0;
+
+    const maxCurrentWeek = currentWeeks.length > 0 ? currentWeeks[currentWeeks.length - 1].relativeWeek : 0;
+    const maxPreviousWeek = previousWeeks.length > 0 ? previousWeeks[previousWeeks.length - 1].relativeWeek : 0;
 
     for (let w = 1; w <= maxWeek; w++) {
       if (currentMap.has(w)) lastCurrent = currentMap.get(w)!.total;
@@ -79,56 +97,93 @@ export function YearOverYearChart({ tickets, currentEventId, previousEventId }: 
       const cw = currentMap.get(w);
       const pw = previousMap.get(w);
 
-      // Build label from current event dates, fallback to previous
-      const ref = cw || pw;
-      const label = ref
-        ? `${fmtDate(ref.weekStart)} - ${fmtDate(ref.weekEnd)}`
-        : `Sem ${w}`;
+      const relativeMonth = Math.ceil(w / 4);
+      const weekInMonth = ((w - 1) % 4) + 1;
+
+      // Track month boundaries for reference lines
+      if (relativeMonth !== lastMonth) {
+        boundaries.push({ index: w, label: `Mês ${relativeMonth}` });
+        lastMonth = relativeMonth;
+      }
+
+      const weekLabel = `S${weekInMonth}`;
 
       data.push({
-        week: label,
+        weekLabel,
         weekNum: w,
-        current: cw || w <= (currentWeeks.length > 0 ? currentWeeks[currentWeeks.length - 1].week : 0) ? lastCurrent : null,
-        previous: pw || w <= (previousWeeks.length > 0 ? previousWeeks[previousWeeks.length - 1].week : 0) ? lastPrevious : null,
-        currentDates: cw ? `${fmtDate(cw.weekStart)} - ${fmtDate(cw.weekEnd)}` : null,
-        previousDates: pw ? `${fmtDate(pw.weekStart)} - ${fmtDate(pw.weekEnd)}` : null,
+        relativeMonth,
+        weekInMonth,
+        monthLabel: `Mês ${relativeMonth}`,
+        current: w <= maxCurrentWeek ? lastCurrent : null,
+        previous: w <= maxPreviousWeek ? lastPrevious : null,
+        currentDates: cw ? `${fmtDateShort(cw.weekStart)} - ${fmtDateShort(cw.weekEnd)}` : null,
+        previousDates: pw ? `${fmtDateShort(pw.weekStart)} - ${fmtDateShort(pw.weekEnd)}` : null,
+        currentDatesFull: cw ? `${fmtDate(cw.weekStart)} - ${fmtDate(cw.weekEnd)}` : null,
+        previousDatesFull: pw ? `${fmtDate(pw.weekStart)} - ${fmtDate(pw.weekEnd)}` : null,
+        isFirstOfMonth: weekInMonth === 1,
       });
     }
 
-    return data;
+    return { chartData: data, monthBoundaries: boundaries };
   }, [tickets, currentEventId, previousEventId]);
 
   if (chartData.length === 0) {
     return null;
   }
 
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (!active || !payload || payload.length === 0) return null;
     const d = payload[0]?.payload;
     return (
       <div
-        style={{
-          backgroundColor: "hsl(var(--card))",
-          borderColor: "hsl(var(--border))",
-          borderWidth: 1,
-          borderStyle: "solid",
-          borderRadius: 8,
-          padding: "8px 12px",
-          color: "hsl(var(--foreground))",
-        }}
+        className="rounded-lg border bg-card p-3 text-card-foreground shadow-md"
       >
-        <p className="text-sm font-medium mb-1">Semana {d?.weekNum}</p>
+        <p className="text-sm font-semibold mb-2">
+          {d?.monthLabel} — Semana {d?.weekInMonth}
+        </p>
         {d?.current != null && (
-          <p className="text-sm" style={{ color: "hsl(var(--primary))" }}>
-            Atual: {d.current} {d.currentDates && `(${d.currentDates})`}
-          </p>
+          <div className="flex items-center gap-2 text-sm mb-1">
+            <span className="inline-block w-3 h-0.5 bg-primary rounded" />
+            <span>
+              Atual: <strong>{d.current.toLocaleString("pt-BR")}</strong>
+              {d.currentDatesFull && (
+                <span className="text-muted-foreground ml-1">({d.currentDatesFull})</span>
+              )}
+            </span>
+          </div>
         )}
         {d?.previous != null && (
-          <p className="text-sm" style={{ color: "hsl(var(--muted-foreground))" }}>
-            Anterior: {d.previous} {d.previousDates && `(${d.previousDates})`}
-          </p>
+          <div className="flex items-center gap-2 text-sm">
+            <span className="inline-block w-3 h-0.5 border-t-2 border-dashed border-muted-foreground rounded" />
+            <span>
+              Anterior: <strong>{d.previous.toLocaleString("pt-BR")}</strong>
+              {d.previousDatesFull && (
+                <span className="text-muted-foreground ml-1">({d.previousDatesFull})</span>
+              )}
+            </span>
+          </div>
         )}
       </div>
+    );
+  };
+
+  // Custom tick for the month axis - only render on first week of each month
+  const MonthTick = ({ x, y, payload, index }: any) => {
+    const d = chartData[index];
+    if (!d || !d.isFirstOfMonth) return null;
+    
+    // Calculate width: 4 weeks worth of space (or remaining weeks)
+    return (
+      <text
+        x={x}
+        y={y + 12}
+        textAnchor="start"
+        className="fill-muted-foreground"
+        fontSize={11}
+        fontWeight={600}
+      >
+        {d.monthLabel}
+      </text>
     );
   };
 
@@ -141,22 +196,50 @@ export function YearOverYearChart({ tickets, currentEventId, previousEventId }: 
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <ResponsiveContainer width="100%" height={320}>
-          <LineChart data={chartData}>
+        <ResponsiveContainer width="100%" height={380}>
+          <LineChart data={chartData} margin={{ bottom: 30, left: 10, right: 10 }}>
             <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+            
+            {/* Month reference lines */}
+            {monthBoundaries.slice(1).map((b) => (
+              <ReferenceLine
+                key={b.index}
+                x={chartData[b.index - 1]?.weekLabel}
+                stroke="hsl(var(--border))"
+                strokeDasharray="2 2"
+                xAxisId="week"
+              />
+            ))}
+
+            {/* Week labels (S1, S2, S3, S4) */}
             <XAxis
-              dataKey="week"
+              xAxisId="week"
+              dataKey="weekLabel"
               tick={{ fontSize: 10 }}
               className="fill-muted-foreground"
-              angle={-30}
-              textAnchor="end"
-              height={60}
-              interval={Math.max(0, Math.floor(chartData.length / 10))}
+              tickLine={false}
+              axisLine={false}
+              height={20}
+              interval={0}
             />
+
+            {/* Month labels */}
+            <XAxis
+              xAxisId="month"
+              dataKey="weekLabel"
+              tick={<MonthTick />}
+              tickLine={false}
+              axisLine={false}
+              height={25}
+              interval={0}
+              orientation="bottom"
+            />
+
             <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
             <Tooltip content={<CustomTooltip />} />
             <Legend />
             <Line
+              xAxisId="week"
               type="monotone"
               dataKey="current"
               name="Evento Atual"
@@ -166,6 +249,7 @@ export function YearOverYearChart({ tickets, currentEventId, previousEventId }: 
               connectNulls
             />
             <Line
+              xAxisId="week"
               type="monotone"
               dataKey="previous"
               name="Evento Anterior"
