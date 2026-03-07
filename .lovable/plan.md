@@ -1,48 +1,30 @@
 
 
-# Comparador de Campanhas RD Station
+# Corrigir gráfico comparativo ano a ano
 
-## Ideia
+## Problemas identificados
 
-Adicionar uma seção de comparação lado a lado abaixo dos cards atuais do RD Station. Dois painéis horizontais, cada um com seu próprio seletor de campanha (seleção única), exibindo os mesmos indicadores para permitir comparação direta.
+1. **Apenas uma linha aparece**: A query `useTicketSalesAllEvents` retorna no máximo 1000 linhas (limite padrão do Supabase), mas existem 4037 registros no total (3448 do evento anterior + 589 do atual). O evento anterior é retornado primeiro (ordered by `sold_at`), consumindo as 1000 linhas, e o evento atual fica sem dados — ou vice-versa.
 
-## Layout
-
-```text
-┌─── RD Station ──────────────────────────────────────────────────┐
-│ [filtro multi-campanha existente - sem mudança]                 │
-│ [cards agregados existentes - sem mudança]                      │
-│                                                                 │
-│ ── Comparar Campanhas ──────────────────────────────────────    │
-│                                                                 │
-│ ┌─ Campanha A ────────────────┐  ┌─ Campanha B ──────────────┐ │
-│ │ [seletor campanha única ▼]  │  │ [seletor campanha única ▼]│ │
-│ │                             │  │                            │ │
-│ │ Enviados: 1.250             │  │ Enviados: 890              │ │
-│ │ Abriram:  400 (32.0%)       │  │ Abriram:  310 (34.8%)     │ │
-│ │ Clicaram: 85  (6.8%)        │  │ Clicaram: 72  (8.1%)      │ │
-│ └─────────────────────────────┘  └────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
+2. **Labels do eixo X**: Atualmente mostra "Sem 1", "Sem 2", etc. O usuário quer ver o intervalo de datas real de cada semana (ex: "04/11 - 10/11").
 
 ## Alterações
 
-### `src/components/dashboard/MarketingSection.tsx`
+### 1. `src/hooks/useDashboardData.ts` — corrigir limite de 1000 linhas
 
-1. **Novo estado**: dois states para a campanha selecionada em cada lado (`compareA` e `compareB`, tipo `string | null`).
+Na função `useTicketSalesAllEvents`, adicionar paginação ou usar `range()` para buscar todos os registros. A abordagem mais simples: fazer duas queries separadas (uma por event_id) e combinar os resultados, ou usar `.range(0, 10000)` para garantir que todos os dados sejam retornados.
 
-2. **Seletor de campanha única**: reutilizar um `<Select>` simples (do shadcn) com as opções de `emailCampaignOptions`. Cada lado tem seu próprio select. Placeholder: "Selecione uma campanha".
+### 2. `src/components/dashboard/charts/YearOverYearChart.tsx` — labels com datas
 
-3. **Painel de comparação**: um `grid grid-cols-1 md:grid-cols-2 gap-4` abaixo dos cards existentes, só visível quando pelo menos uma campanha estiver selecionada em qualquer lado. Cada lado é um `<Card>` que mostra:
-   - Nome da campanha (título do card)
-   - Total enviados (`total_sent`)
-   - Abriram (`total_opened`) com taxa de abertura
-   - Clicaram (`total_clicked`) com taxa de clique
-   - Layout em linhas com `<Separator />` entre métricas (mesmo padrão do card Leads Engajados)
+Alterar `groupByRelativeWeek` para retornar também as datas de início e fim de cada semana relativa. No eixo X, exibir no formato "dd/MM - dd/MM" (ex: "04/11 - 10/11") em vez de "Sem 1".
 
-4. **Lookup**: para cada lado, filtrar `emailCampaigns` pelo `rd_campaign_id` selecionado e somar os valores (uma campanha pode ter múltiplos registros).
+Cada ponto do gráfico terá um label como:
+- Evento Atual: "16/05 - 22/05"  
+- Evento Anterior: "04/11 - 10/11"
 
-### Nenhuma alteração de banco de dados necessária.
+Como as datas reais são diferentes entre os eventos, o label do eixo X mostrará a semana relativa com as datas de **ambos** os eventos no tooltip, e o eixo X mostrará "Sem 1 (dd/MM)", usando as datas do evento atual como referência principal.
 
-Arquivo editado: apenas `src/components/dashboard/MarketingSection.tsx`.
+### Arquivos editados
+- `src/hooks/useDashboardData.ts`
+- `src/components/dashboard/charts/YearOverYearChart.tsx`
 
