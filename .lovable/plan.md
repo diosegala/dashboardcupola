@@ -1,48 +1,43 @@
 
 
-# Comparador de Campanhas RD Station
+# Comparação Ano a Ano — Eixo X por Mês e Semana
 
-## Ideia
+## Problema
 
-Adicionar uma seção de comparação lado a lado abaixo dos cards atuais do RD Station. Dois painéis horizontais, cada um com seu próprio seletor de campanha (seleção única), exibindo os mesmos indicadores para permitir comparação direta.
+As semanas relativas (Sem 1, Sem 2...) ou datas absolutas não funcionam bem como eixo X porque as datas dos dois eventos não coincidem. O gráfico fica confuso e difícil de ler.
 
-## Layout
+## Solução proposta: Eixo X com dois níveis — Mês + Semana do mês
+
+Usar um eixo X hierárquico com **"S1", "S2", "S3", "S4"** (semanas dentro do mês) agrupadas sob rótulos de mês (**"Jan", "Fev", "Mar"...**). Cada evento terá seu próprio "calendário relativo" começando no Mês 1 / Semana 1 a partir da primeira venda.
 
 ```text
-┌─── RD Station ──────────────────────────────────────────────────┐
-│ [filtro multi-campanha existente - sem mudança]                 │
-│ [cards agregados existentes - sem mudança]                      │
-│                                                                 │
-│ ── Comparar Campanhas ──────────────────────────────────────    │
-│                                                                 │
-│ ┌─ Campanha A ────────────────┐  ┌─ Campanha B ──────────────┐ │
-│ │ [seletor campanha única ▼]  │  │ [seletor campanha única ▼]│ │
-│ │                             │  │                            │ │
-│ │ Enviados: 1.250             │  │ Enviados: 890              │ │
-│ │ Abriram:  400 (32.0%)       │  │ Abriram:  310 (34.8%)     │ │
-│ │ Clicaram: 85  (6.8%)        │  │ Clicaram: 72  (8.1%)      │ │
-│ └─────────────────────────────┘  └────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+Eixo X:
+  S1 S2 S3 S4 | S1 S2 S3 S4 | S1 S2 S3 S4 | ...
+     Mês 1    |    Mês 2    |    Mês 3    | ...
 ```
+
+O tooltip ao passar o mouse mostrará as datas reais de cada evento para aquela semana:
+- **Evento Atual:** 450 ingressos (12/05 - 18/05/2026)
+- **Evento Anterior:** 380 ingressos (08/11 - 14/11/2025)
+
+Assim o usuário compara ritmo de vendas no mesmo "momento relativo" da jornada de vendas (mês 3, semana 2 = ambos estavam no mesmo estágio).
 
 ## Alterações
 
-### `src/components/dashboard/MarketingSection.tsx`
+### 1. `src/components/dashboard/charts/YearOverYearChart.tsx`
 
-1. **Novo estado**: dois states para a campanha selecionada em cada lado (`compareA` e `compareB`, tipo `string | null`).
+- Alterar `groupByRelativeWeek` para calcular **mês relativo** e **semana dentro do mês** a partir da primeira venda
+- Cada ponto terá: `monthLabel` ("Mês 1", "Mês 2"...), `weekInMonth` (S1-S4/S5), `total` acumulado, `weekStart`/`weekEnd` reais
+- Usar **dois eixos XAxis** no Recharts:
+  - XAxis principal: `xAxisId="week"` com labels "S1", "S2", etc.
+  - XAxis secundário: `xAxisId="month"` com labels "Mês 1", "Mês 2", etc. (usando `ReferenceLine` ou um segundo `XAxis` com `tick` customizado que só renderiza na primeira semana de cada mês)
+- Tooltip customizado mostrando datas reais de ambos os eventos
+- Manter as duas linhas (atual sólida, anterior tracejada)
 
-2. **Seletor de campanha única**: reutilizar um `<Select>` simples (do shadcn) com as opções de `emailCampaignOptions`. Cada lado tem seu próprio select. Placeholder: "Selecione uma campanha".
+### Detalhes técnicos
 
-3. **Painel de comparação**: um `grid grid-cols-1 md:grid-cols-2 gap-4` abaixo dos cards existentes, só visível quando pelo menos uma campanha estiver selecionada em qualquer lado. Cada lado é um `<Card>` que mostra:
-   - Nome da campanha (título do card)
-   - Total enviados (`total_sent`)
-   - Abriram (`total_opened`) com taxa de abertura
-   - Clicaram (`total_clicked`) com taxa de clique
-   - Layout em linhas com `<Separator />` entre métricas (mesmo padrão do card Leads Engajados)
+Recharts suporta múltiplos `XAxis` com `xAxisId`. O eixo de mês usará um tick customizado que só renderiza o label na primeira semana de cada mês, criando o efeito de agrupamento visual. Separadores verticais sutis marcarão a transição entre meses.
 
-4. **Lookup**: para cada lado, filtrar `emailCampaigns` pelo `rd_campaign_id` selecionado e somar os valores (uma campanha pode ter múltiplos registros).
-
-### Nenhuma alteração de banco de dados necessária.
-
-Arquivo editado: apenas `src/components/dashboard/MarketingSection.tsx`.
+### Arquivos editados
+- `src/components/dashboard/charts/YearOverYearChart.tsx`
 
