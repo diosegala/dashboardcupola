@@ -21,6 +21,7 @@ import {
 export default function Index() {
   const [range, setRange] = useState<DateRange>(getDefaultRange);
 
+  const symplaIds = useSymplaEventIds();
   const tickets = useTicketSales(range);
   const deals = useDeals(range);
   const adMetrics = useAdMetrics(range);
@@ -29,7 +30,6 @@ export default function Index() {
   const goals = useGoals();
   const allTimeTickets = useAllTimeTicketSales(symplaIds.data?.currentEventId ?? "");
   const allEventsTickets = useTicketSalesAllEvents();
-  const symplaIds = useSymplaEventIds();
 
   const isLoading = tickets.isLoading || deals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || goals.isLoading || allTimeTickets.isLoading;
 
