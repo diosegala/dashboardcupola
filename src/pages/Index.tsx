@@ -13,7 +13,6 @@ import {
   useSiteAnalytics,
   useGoals,
   useAllTimeTicketSales,
-  useTicketSalesAllEvents,
   useSymplaEventIds,
   type DateRange,
 } from "@/hooks/useDashboardData";
@@ -29,9 +28,8 @@ export default function Index() {
   const siteAnalytics = useSiteAnalytics(range);
   const goals = useGoals();
   const allTimeTickets = useAllTimeTicketSales(symplaIds.data?.currentEventId ?? "");
-  const allEventsTickets = useTicketSalesAllEvents();
 
-  const isLoading = tickets.isLoading || deals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || goals.isLoading || allTimeTickets.isLoading;
+  const isLoading = symplaIds.isLoading || tickets.isLoading || deals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || goals.isLoading || allTimeTickets.isLoading;
 
   if (isLoading) {
     return (
@@ -67,9 +65,6 @@ export default function Index() {
         tickets={tickets.data ?? []}
         goals={goals.data ?? []}
         allTimeTickets={allTimeTickets.data ?? []}
-        allEventsTickets={allEventsTickets.data ?? []}
-        currentEventId={symplaIds.data?.currentEventId ?? ""}
-        previousEventId={symplaIds.data?.previousEventId ?? ""}
         range={range}
       />
 
