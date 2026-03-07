@@ -91,9 +91,10 @@ export function useSiteAnalytics(range: DateRange) {
   });
 }
 
-export function useAllTimeTicketSales() {
+export function useAllTimeTicketSales(eventId: string) {
   return useQuery({
-    queryKey: ["ticket_sales_all_time"],
+    queryKey: ["ticket_sales_all_time", eventId],
+    enabled: !!eventId,
     queryFn: async () => {
       const all: any[] = [];
       let from = 0;
@@ -102,6 +103,7 @@ export function useAllTimeTicketSales() {
         const { data, error } = await supabase
           .from("ticket_sales")
           .select("quantity, total_price")
+          .eq("event_id", eventId)
           .range(from, from + pageSize - 1);
         if (error) throw error;
         if (!data || data.length === 0) break;
