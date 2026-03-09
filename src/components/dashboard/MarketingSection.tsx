@@ -161,16 +161,6 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
         })()}
       </div>
 
-      {/* Google Ads */}
-      <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">Google Ads</h3>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Impressões" value={sum(google, "impressions")} icon={Eye} goal={findGoal(goals, "google_impressions", range)?.target_value} />
-          <MetricCard title="Cliques" value={sum(google, "clicks")} icon={MousePointerClick} goal={findGoal(goals, "google_clicks", range)?.target_value} />
-          <MetricCard title="Gasto" value={sum(google, "spend").toFixed(2)} icon={Wallet} prefix="R$ " description="Investimento no período" />
-          <MetricCard title="Conversões" value={sum(google, "conversions")} icon={BarChart3} description="Total de conversões" />
-        </div>
-      </div>
 
       {/* RD Station */}
       <div>
