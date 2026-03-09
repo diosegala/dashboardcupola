@@ -88,9 +88,10 @@ Deno.serve(async (req) => {
       allRows.length = 0;
       let afterCursor: string | null = null;
 
+      const baseFields = "campaign_id,campaign_name,impressions,clicks,spend,cpm,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
       const fieldsStr = useActions
-        ? "campaign_id,campaign_name,impressions,clicks,spend,ctr,cpc,cpm,actions"
-        : "campaign_id,campaign_name,impressions,clicks,spend,ctr,cpc,cpm";
+        ? `${baseFields},actions`
+        : baseFields;
 
       while (true) {
         const params = new URLSearchParams({
@@ -133,11 +134,15 @@ Deno.serve(async (req) => {
     // 6. Map and upsert
     const rows = allRows.map((r: any) => {
       const actions: any[] = r.actions || [];
-      const linkClicks = parseInt(actions.find((a: any) => a.action_type === "link_click")?.value || "0") || 0;
       const purchaseCount = parseInt(actions.find((a: any) => a.action_type === "purchase")?.value || "0") || 0;
       const impressions = parseInt(r.impressions ?? "0") || 0;
       const totalClicks = parseInt(r.clicks ?? "0") || 0;
       const spendVal = parseFloat(r.spend ?? "0") || 0;
+
+      // Use inline fields (more reliable than actions array)
+      const linkClicks = parseInt(r.inline_link_clicks ?? "0") || 0;
+      const ctr = parseFloat(r.inline_link_click_ctr ?? "0") || 0;
+      const cpc = parseFloat(r.cost_per_inline_link_click ?? "0") || 0;
 
       return {
         source: "meta",
@@ -151,8 +156,8 @@ Deno.serve(async (req) => {
         link_clicks: linkClicks,
         purchases: purchaseCount,
         spend: spendVal,
-        ctr: impressions > 0 ? (linkClicks / impressions) * 100 : 0,
-        cpc: linkClicks > 0 ? spendVal / linkClicks : 0,
+        ctr,
+        cpc,
         cpm: parseFloat(r.cpm ?? "0") || 0,
         conversions: purchaseCount,
         synced_at: new Date().toISOString(),

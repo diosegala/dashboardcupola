@@ -67,7 +67,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
     return metaAll.filter((a) => selectedCampaigns.includes(a.campaign_id));
   }, [adMetrics, selectedCampaigns]);
 
-  const google = useMemo(() => adMetrics.filter((a) => a.source === "google_ads"), [adMetrics]);
+  
 
   const sum = (arr: any[], key: string) => arr.reduce((s, r) => s + Number(r[key] || 0), 0);
   const avg = (arr: any[], key: string) => arr.length > 0 ? sum(arr, key) / arr.length : 0;
@@ -161,16 +161,6 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
         })()}
       </div>
 
-      {/* Google Ads */}
-      <div>
-        <h3 className="text-sm font-medium text-muted-foreground mb-3">Google Ads</h3>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Impressões" value={sum(google, "impressions")} icon={Eye} goal={findGoal(goals, "google_impressions", range)?.target_value} />
-          <MetricCard title="Cliques" value={sum(google, "clicks")} icon={MousePointerClick} goal={findGoal(goals, "google_clicks", range)?.target_value} />
-          <MetricCard title="Gasto" value={sum(google, "spend").toFixed(2)} icon={Wallet} prefix="R$ " description="Investimento no período" />
-          <MetricCard title="Conversões" value={sum(google, "conversions")} icon={BarChart3} description="Total de conversões" />
-        </div>
-      </div>
 
       {/* RD Station */}
       <div>
