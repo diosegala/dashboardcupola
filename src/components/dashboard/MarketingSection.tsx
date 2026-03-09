@@ -67,7 +67,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
     return metaAll.filter((a) => selectedCampaigns.includes(a.campaign_id));
   }, [adMetrics, selectedCampaigns]);
 
-  const google = useMemo(() => adMetrics.filter((a) => a.source === "google_ads"), [adMetrics]);
+  
 
   const sum = (arr: any[], key: string) => arr.reduce((s, r) => s + Number(r[key] || 0), 0);
   const avg = (arr: any[], key: string) => arr.length > 0 ? sum(arr, key) / arr.length : 0;
