@@ -88,9 +88,10 @@ Deno.serve(async (req) => {
       allRows.length = 0;
       let afterCursor: string | null = null;
 
+      const baseFields = "campaign_id,campaign_name,impressions,clicks,spend,cpm,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
       const fieldsStr = useActions
-        ? "campaign_id,campaign_name,impressions,clicks,spend,ctr,cpc,cpm,actions"
-        : "campaign_id,campaign_name,impressions,clicks,spend,ctr,cpc,cpm";
+        ? `${baseFields},actions`
+        : baseFields;
 
       while (true) {
         const params = new URLSearchParams({
