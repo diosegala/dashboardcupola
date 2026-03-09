@@ -1,48 +1,30 @@
 
 
-# Comparador de Campanhas RD Station
+# Duas melhorias no Dashboard
 
-## Ideia
+## 1. Remover Google Ads do dashboard
 
-Adicionar uma seção de comparação lado a lado abaixo dos cards atuais do RD Station. Dois painéis horizontais, cada um com seu próprio seletor de campanha (seleção única), exibindo os mesmos indicadores para permitir comparação direta.
+O bloco "Google Ads" na `MarketingSection` e a linha "Google Ads" no gráfico `ClicksByDayChart` serão removidos.
 
-## Layout
+**Arquivos:**
+- `src/components/dashboard/MarketingSection.tsx` — remover bloco Google Ads (linhas 164-173) e variável `google` (linha 70)
+- `src/components/dashboard/charts/ClicksByDayChart.tsx` — remover a linha Google Ads do gráfico, renomear título para "Cliques por Dia (Meta Ads)", remover a separação meta/google no `useMemo`
 
-```text
-┌─── RD Station ──────────────────────────────────────────────────┐
-│ [filtro multi-campanha existente - sem mudança]                 │
-│ [cards agregados existentes - sem mudança]                      │
-│                                                                 │
-│ ── Comparar Campanhas ──────────────────────────────────────    │
-│                                                                 │
-│ ┌─ Campanha A ────────────────┐  ┌─ Campanha B ──────────────┐ │
-│ │ [seletor campanha única ▼]  │  │ [seletor campanha única ▼]│ │
-│ │                             │  │                            │ │
-│ │ Enviados: 1.250             │  │ Enviados: 890              │ │
-│ │ Abriram:  400 (32.0%)       │  │ Abriram:  310 (34.8%)     │ │
-│ │ Clicaram: 85  (6.8%)        │  │ Clicaram: 72  (8.1%)      │ │
-│ └─────────────────────────────┘  └────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
+## 2. Corrigir métricas do Meta Ads (link_clicks, CPC, CTR, purchases)
 
-## Alterações
+**Diagnóstico:** Os dados no banco mostram `link_clicks=0`, `ctr=0`, `cpc=0`, `purchases=0` para todos os registros Meta. O log da edge function mostra que o campo `actions` da API Meta está retornando erro transiente ("Service temporarily unavailable"), então o fallback executa sem `actions` e esses campos ficam zerados.
 
-### `src/components/dashboard/MarketingSection.tsx`
+**Solução:** A Meta API oferece campos dedicados que **não dependem** do array `actions`:
+- `inline_link_clicks` → cliques no link
+- `inline_link_click_ctr` → CTR de link clicks
+- `cost_per_inline_link_click` → CPC de link clicks
 
-1. **Novo estado**: dois states para a campanha selecionada em cada lado (`compareA` e `compareB`, tipo `string | null`).
+Esses campos são mais confiáveis que extrair de `actions`. Para `purchases`, manteremos a tentativa via `actions` como bonus, mas os campos inline garantem que link_clicks/CPC/CTR sempre funcionem.
 
-2. **Seletor de campanha única**: reutilizar um `<Select>` simples (do shadcn) com as opções de `emailCampaignOptions`. Cada lado tem seu próprio select. Placeholder: "Selecione uma campanha".
+**Arquivo:** `supabase/functions/sync-meta/index.ts`
+- Adicionar `inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click` aos campos requisitados (tanto na versão com actions quanto sem)
+- No mapeamento (linha 134-159): usar `r.inline_link_clicks` para link_clicks, `r.inline_link_click_ctr` para CTR, `r.cost_per_inline_link_click` para CPC
+- Manter `actions` para extrair purchases quando disponível
 
-3. **Painel de comparação**: um `grid grid-cols-1 md:grid-cols-2 gap-4` abaixo dos cards existentes, só visível quando pelo menos uma campanha estiver selecionada em qualquer lado. Cada lado é um `<Card>` que mostra:
-   - Nome da campanha (título do card)
-   - Total enviados (`total_sent`)
-   - Abriram (`total_opened`) com taxa de abertura
-   - Clicaram (`total_clicked`) com taxa de clique
-   - Layout em linhas com `<Separator />` entre métricas (mesmo padrão do card Leads Engajados)
-
-4. **Lookup**: para cada lado, filtrar `emailCampaigns` pelo `rd_campaign_id` selecionado e somar os valores (uma campanha pode ter múltiplos registros).
-
-### Nenhuma alteração de banco de dados necessária.
-
-Arquivo editado: apenas `src/components/dashboard/MarketingSection.tsx`.
+Após o deploy, será necessário re-sincronizar a integração Meta para popular os dados corretos.
 
