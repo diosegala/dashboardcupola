@@ -16,6 +16,7 @@ interface PeriodSelectorProps {
 const presets: { label: string; getRange: () => DateRange }[] = [
   { label: "Últimos 7 dias", getRange: () => ({ from: subDays(new Date(), 6), to: new Date() }) },
   { label: "Esta semana", getRange: () => ({ from: startOfWeek(new Date(), { weekStartsOn: 1 }), to: endOfWeek(new Date(), { weekStartsOn: 1 }) }) },
+  { label: "Semana passada", getRange: () => { const prev = subDays(startOfWeek(new Date(), { weekStartsOn: 1 }), 7); return { from: prev, to: endOfWeek(prev, { weekStartsOn: 1 }) }; } },
   { label: "Últimos 30 dias", getRange: () => ({ from: subDays(new Date(), 29), to: new Date() }) },
   { label: "Este mês", getRange: () => ({ from: startOfMonth(new Date()), to: endOfMonth(new Date()) }) },
   { label: "Mês passado", getRange: () => { const prev = subMonths(new Date(), 1); return { from: startOfMonth(prev), to: endOfMonth(prev) }; } },
