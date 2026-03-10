@@ -115,6 +115,8 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range }: Sal
         <TicketsByTypeChart tickets={tickets} />
       </div>
 
+      <TicketsByWeekdayChart tickets={allTimeTickets} />
+
     </section>
   );
 }
