@@ -102,7 +102,7 @@ export function useAllTimeTicketSales(eventId: string) {
       while (true) {
         const { data, error } = await supabase
           .from("ticket_sales")
-          .select("quantity, total_price")
+          .select("quantity, total_price, sold_at")
           .eq("event_id", eventId)
           .range(from, from + pageSize - 1);
         if (error) throw error;
