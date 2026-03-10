@@ -3,6 +3,7 @@ import { Ticket, DollarSign, TrendingUp, Trophy, Award } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { TicketsByDayChart } from "./charts/TicketsByDayChart";
 import { TicketsByTypeChart } from "./charts/TicketsByTypeChart";
+import { TicketsByWeekdayChart } from "./charts/TicketsByWeekdayChart";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
@@ -113,6 +114,8 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range }: Sal
         <TicketsByDayChart tickets={tickets} />
         <TicketsByTypeChart tickets={tickets} />
       </div>
+
+      <TicketsByWeekdayChart tickets={allTimeTickets} />
 
     </section>
   );
