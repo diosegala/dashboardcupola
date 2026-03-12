@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate, Navigate } from "react-router-dom";
+import { useNavigate, Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -57,6 +57,11 @@ export default function Login() {
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Carregando..." : "Entrar"}
             </Button>
+            <div className="text-center">
+              <Link to="/forgot-password" className="text-sm text-muted-foreground hover:text-foreground">
+                Esqueceu sua senha?
+              </Link>
+            </div>
           </form>
         </CardContent>
       </Card>
