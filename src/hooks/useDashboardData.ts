@@ -134,6 +134,21 @@ export function useSymplaEventIds() {
   });
 }
 
+export function useGa4Events(range: DateRange) {
+  return useQuery({
+    queryKey: ["ga4_events", fmt(range.from), fmt(range.to)],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ga4_events")
+        .select("*")
+        .gte("date", fmt(range.from))
+        .lte("date", fmt(range.to));
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+}
+
 export function useGoals() {
   return useQuery({
     queryKey: ["goals"],
