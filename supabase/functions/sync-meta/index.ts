@@ -222,6 +222,53 @@ Deno.serve(async (req) => {
   }
 });
 
+type FetchAllInsightsRowsParams = {
+  accountId: string;
+  accessToken: string;
+  fields: string;
+  baseParams: Record<string, string>;
+  logLabel: string;
+};
+
+async function fetchAllInsightsRows({
+  accountId,
+  accessToken,
+  fields,
+  baseParams,
+  logLabel,
+}: FetchAllInsightsRowsParams): Promise<any[]> {
+  const rows: any[] = [];
+  let afterCursor: string | null = null;
+
+  while (true) {
+    const params = new URLSearchParams({ ...baseParams, fields });
+    if (afterCursor) params.set("after", afterCursor);
+
+    const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
+    console.log(`sync-meta - request (${logLabel}):`, url);
+
+    const data = await fetchWithRetry(url, accessToken);
+    if (Array.isArray(data.data) && data.data.length > 0) {
+      rows.push(...data.data);
+    }
+
+    afterCursor = data.paging?.cursors?.after ?? null;
+    if (!data.paging?.next) break;
+  }
+
+  return rows;
+}
+
+function isRecoverableMetaActionsError(err: unknown): boolean {
+  const message = err instanceof Error ? err.message : String(err);
+
+  return (
+    message.includes("Meta API 500") ||
+    message.includes('"error_subcode":99') ||
+    message.includes('"code":1')
+  );
+}
+
 async function fetchWithRetry(url: string, token: string, retries = 3): Promise<any> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
