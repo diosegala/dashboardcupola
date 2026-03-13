@@ -10,6 +10,7 @@ import { ConversionFunnelChart } from "./charts/ConversionFunnelChart";
 import { DemandGenTable } from "./charts/DemandGenTable";
 import { DemandGenByDayChart } from "./charts/DemandGenByDayChart";
 import { SourceBreakdownTable } from "./SourceBreakdownTable";
+import { SourceBreakdownDataTable } from "./SourceBreakdownDataTable";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { CampaignFilter, type Campaign } from "./CampaignFilter";
 
