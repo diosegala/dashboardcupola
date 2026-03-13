@@ -69,130 +69,85 @@ Deno.serve(async (req) => {
       .update({ sync_status: "syncing", error_message: null })
       .eq("id", integration.id);
 
-    // 4. Build date range (last 30 days)
-    const now = new Date();
-    const since = new Date(now);
-    since.setDate(since.getDate() - 30);
-    const formatDate = (d: Date) => d.toISOString().split("T")[0];
-    const timeRange = JSON.stringify({ since: formatDate(since), until: formatDate(now) });
-
     // Ensure ad_account_id has act_ prefix
     const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
-    // 5. Fetch insights — TWO separate requests:
-    //    A) Base metrics (inline fields, always reliable)
-    //    B) Actions only (may fail with 500, handled independently)
+    // 4. Single unified request — fields include actions and action_values
+    const fields = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,actions,action_values";
 
-    const baseFields = "campaign_id,campaign_name,impressions,clicks,spend,cpm,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
-
-    // --- Request A: base metrics ---
-    const baseRows: any[] = [];
+    const allRows: any[] = [];
     let afterCursor: string | null = null;
+
     while (true) {
       const params = new URLSearchParams({
-        fields: baseFields,
-        level: "campaign",
-        time_increment: "1",
-        time_range: timeRange,
+        fields,
+        level: "adset",
+        date_preset: "last_30d",
         limit: "500",
       });
       if (afterCursor) params.set("after", afterCursor);
 
       const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
-      console.log("sync-meta - fetching base:", url.replace(accessToken, "***"));
+      // Log full URL with masked token for debugging
+      console.log("sync-meta - request:", url);
       const data = await fetchWithRetry(url, accessToken);
 
       if (data.data && data.data.length > 0) {
-        baseRows.push(...data.data);
+        allRows.push(...data.data);
       }
       afterCursor = data.paging?.cursors?.after ?? null;
       if (!data.paging?.next) break;
     }
 
-    // --- Request B: actions (separate, with retry, non-fatal) ---
-    const actionsMap = new Map<string, any[]>(); // key = "campaign_id|date"
-    try {
-      let actionsCursor: string | null = null;
-      while (true) {
-        const params = new URLSearchParams({
-          fields: "campaign_id,actions",
-          level: "campaign",
-          time_increment: "1",
-          time_range: timeRange,
-          limit: "500",
-        });
-        if (actionsCursor) params.set("after", actionsCursor);
+    console.log(`sync-meta - fetched ${allRows.length} rows at adset level`);
 
-        const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
-        console.log("sync-meta - fetching actions:", url.replace(accessToken, "***"));
-        const data = await fetchWithRetry(url, accessToken, 3);
-
-        if (data.data) {
-          // Log all unique action_types for discovery (especially for remarketing_qualified)
-          const allTypes = new Set<string>();
-          for (const row of data.data) {
-            const actions: any[] = row.actions || [];
-            for (const a of actions) {
-              allTypes.add(a.action_type);
-            }
-            const key = `${row.campaign_id}|${row.date_start}`;
-            actionsMap.set(key, actions);
-          }
-          if (allTypes.size > 0) {
-            console.log("sync-meta - ALL action_types found:", JSON.stringify([...allTypes].sort()));
-          }
-        }
-
-        actionsCursor = data.paging?.cursors?.after ?? null;
-        if (!data.paging?.next) break;
+    // 5. Log all unique action_types for discovery
+    const allActionTypes = new Set<string>();
+    for (const r of allRows) {
+      for (const a of (r.actions || [])) {
+        allActionTypes.add(a.action_type);
       }
-      console.log(`sync-meta - actions fetched successfully for ${actionsMap.size} campaign-day combos`);
-    } catch (err: any) {
-      console.warn("sync-meta - actions request failed (non-fatal), continuing without actions:", err.message);
+    }
+    if (allActionTypes.size > 0) {
+      console.log("sync-meta - ALL action_types found:", JSON.stringify([...allActionTypes].sort()));
     }
 
-    // 6. Map and upsert
-    const rows = baseRows.map((r: any) => {
-      const key = `${r.campaign_id}|${r.date_start}`;
-      const actions: any[] = actionsMap.get(key) || [];
+    // 6. Map rows for upsert
+    const findAction = (actions: any[], type: string) =>
+      parseInt(actions.find((a: any) => a.action_type === type)?.value || "0") || 0;
 
-      const findAction = (type: string) =>
-        parseInt(actions.find((a: any) => a.action_type === type)?.value || "0") || 0;
+    const rows = allRows.map((r: any) => {
+      const actions: any[] = r.actions || [];
 
-      const purchaseCount = findAction("purchase");
-      const messagesCount = findAction("onsite_conversion.messaging_conversation_started_7d");
-      const addToCartCount = findAction("add_to_cart");
+      const linkClicks = findAction(actions, "link_click");
+      const purchaseCount = findAction(actions, "purchase");
+      const messagesCount = findAction(actions, "onsite_conversion.messaging_conversation_started_7d");
+      const addToCartCount = findAction(actions, "add_to_cart");
+      const leadCount = findAction(actions, "lead");
 
-      // Remarketing Qualificado: try common custom conversion patterns
-      // Log will help identify the exact action_type
+      // Remarketing Qualificado: search for custom conversions
       let remarketing = 0;
       for (const a of actions) {
         const t = a.action_type || "";
-        if (
-          t.includes("remarketing") ||
-          t.includes("offsite_conversion.custom")
-        ) {
+        if (t.includes("remarketing") || t.includes("offsite_conversion.custom")) {
           console.log(`sync-meta - potential remarketing action: ${t} = ${a.value}`);
-          // For now, accumulate all custom conversions — we'll refine after seeing logs
         }
       }
 
       const impressions = parseInt(r.impressions ?? "0") || 0;
       const totalClicks = parseInt(r.clicks ?? "0") || 0;
       const spendVal = parseFloat(r.spend ?? "0") || 0;
-
-      // Use inline fields (more reliable than actions array)
-      const linkClicks = parseInt(r.inline_link_clicks ?? "0") || 0;
-      const ctr = parseFloat(r.inline_link_click_ctr ?? "0") || 0;
-      const cpc = parseFloat(r.cost_per_inline_link_click ?? "0") || 0;
+      const cpmVal = impressions > 0 ? (spendVal / impressions) * 1000 : 0;
+      const ctrVal = impressions > 0 ? (linkClicks / impressions) * 100 : 0;
+      const cpcVal = linkClicks > 0 ? spendVal / linkClicks : 0;
 
       return {
         source: "meta",
         date: r.date_start,
         campaign_id: r.campaign_id ?? null,
         campaign_name: r.campaign_name ?? null,
-        ad_set_id: null,
-        ad_set_name: null,
+        ad_set_id: r.adset_id ?? null,
+        ad_set_name: r.adset_name ?? null,
         impressions,
         clicks: totalClicks,
         link_clicks: linkClicks,
@@ -201,31 +156,31 @@ Deno.serve(async (req) => {
         add_to_cart: addToCartCount,
         remarketing_qualified: remarketing,
         spend: spendVal,
-        ctr,
-        cpc,
-        cpm: parseFloat(r.cpm ?? "0") || 0,
-        conversions: purchaseCount,
+        ctr: ctrVal,
+        cpc: cpcVal,
+        cpm: cpmVal,
+        conversions: purchaseCount + leadCount,
         synced_at: new Date().toISOString(),
       };
     });
 
-    // Batch upsert in chunks of 500
+    // 7. Batch upsert in chunks of 500
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
       const { error } = await supabase
         .from("ad_metrics")
-        .upsert(chunk, { onConflict: "source,date,campaign_id" });
+        .upsert(chunk, { onConflict: "source,date,campaign_id,ad_set_id" });
       if (error) throw error;
     }
 
-    // 7. Success
+    // 8. Success
     await supabase
       .from("integrations")
       .update({ sync_status: "idle", last_synced_at: new Date().toISOString(), error_message: null })
       .eq("id", integration.id);
 
     return new Response(
-      JSON.stringify({ success: true, rows: rows.length, actionsAvailable: actionsMap.size > 0 }),
+      JSON.stringify({ success: true, rows: rows.length, actionTypesFound: [...allActionTypes] }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
