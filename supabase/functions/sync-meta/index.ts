@@ -100,7 +100,8 @@ Deno.serve(async (req) => {
       if (!data.paging?.next) break;
     }
 
-    console.log(`sync-meta - fetched ${allRows.length} rows at adset level`);
+    const dates = allRows.map((r: any) => r.date_start).filter(Boolean).sort();
+    console.log(`sync-meta - fetched ${allRows.length} rows at adset level, date range: ${dates[0] || "N/A"} → ${dates[dates.length - 1] || "N/A"}`);
 
     // 5. Log all unique action_types for discovery
     const allActionTypes = new Set<string>();
