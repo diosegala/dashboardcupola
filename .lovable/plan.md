@@ -1,48 +1,53 @@
 
 
-# Comparador de Campanhas RD Station
+# Solução Definitiva: Sync Meta com Actions dia a dia
 
-## Ideia
+## Problema atual
 
-Adicionar uma seção de comparação lado a lado abaixo dos cards atuais do RD Station. Dois painéis horizontais, cada um com seu próprio seletor de campanha (seleção única), exibindo os mesmos indicadores para permitir comparação direta.
+A Meta API falha consistentemente (error 1504044 "Service temporarily unavailable") quando pedimos o campo `actions` com `time_increment=1` + `level=adset` + `date_preset=last_30d` numa única requisição. É muita carga de processamento no lado da Meta. O fallback atual remove `actions` da requisição e grava tudo com zeros.
 
-## Layout
+## Solução
+
+Dividir a requisição em **chamadas individuais por dia** (30 chamadas separadas). Cada chamada cobre 1 dia apenas, com `actions` incluso. Isso reduz drasticamente a carga no servidor da Meta e é o padrão recomendado para contas com muitos adsets.
 
 ```text
-┌─── RD Station ──────────────────────────────────────────────────┐
-│ [filtro multi-campanha existente - sem mudança]                 │
-│ [cards agregados existentes - sem mudança]                      │
-│                                                                 │
-│ ── Comparar Campanhas ──────────────────────────────────────    │
-│                                                                 │
-│ ┌─ Campanha A ────────────────┐  ┌─ Campanha B ──────────────┐ │
-│ │ [seletor campanha única ▼]  │  │ [seletor campanha única ▼]│ │
-│ │                             │  │                            │ │
-│ │ Enviados: 1.250             │  │ Enviados: 890              │ │
-│ │ Abriram:  400 (32.0%)       │  │ Abriram:  310 (34.8%)     │ │
-│ │ Clicaram: 85  (6.8%)        │  │ Clicaram: 72  (8.1%)      │ │
-│ └─────────────────────────────┘  └────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+Antes (1 requisição pesada):
+  GET insights?date_preset=last_30d&time_increment=1&fields=...actions...
+  → Meta retorna erro 1504044
+
+Depois (30 requisições leves):
+  Dia 1: GET insights?time_range={"since":"2026-02-11","until":"2026-02-11"}&fields=...actions...  ✓
+  Dia 2: GET insights?time_range={"since":"2026-02-12","until":"2026-02-12"}&fields=...actions...  ✓
+  ...
+  Dia 30: GET insights?time_range={"since":"2026-03-12","until":"2026-03-12"}&fields=...actions... ✓
 ```
+
+Se um dia específico falhar, salvamos as métricas básicas daquele dia (sem actions) e tentamos novamente os dias que falharam no final. Os dias que conseguiram actions são salvos completos.
 
 ## Alterações
 
-### `src/components/dashboard/MarketingSection.tsx`
+### `supabase/functions/sync-meta/index.ts` (reescrita da lógica de fetch)
 
-1. **Novo estado**: dois states para a campanha selecionada em cada lado (`compareA` e `compareB`, tipo `string | null`).
+1. **Gerar array de 30 datas** (últimos 30 dias)
+2. **Para cada dia**: fazer requisição individual com `time_range={"since":"YYYY-MM-DD","until":"YYYY-MM-DD"}` e campos simplificados conforme pedido:
+   - `fields=campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,actions,action_values,inline_link_clicks`
+   - `level=adset`
+   - Sem `action_types` (filtrar server-side)
+3. **Extrair actions server-side**: do array `actions`, pegar `link_click`, `purchase`, `onsite_conversion.messaging_conversation_started_7d`, `add_to_cart`, `offsite_conversion.fb_pixel_custom`, `lead`
+4. **Se um dia falhar**: buscar sem `actions` para esse dia (métricas básicas), marcar como parcial
+5. **Retry dos dias parciais**: ao final, tentar novamente os dias que falharam (1 tentativa extra)
+6. **Persistência**: deletar `source='meta'` e inserir tudo de uma vez (mesmo padrão atual)
+7. **Registrar status**: se houve dias parciais, salvar `error_message` com aviso ("X dias sem dados de conversão") sem marcar como erro
 
-2. **Seletor de campanha única**: reutilizar um `<Select>` simples (do shadcn) com as opções de `emailCampaignOptions`. Cada lado tem seu próprio select. Placeholder: "Selecione uma campanha".
+### `src/components/dashboard/MarketingSection.tsx` (sem mudança funcional)
 
-3. **Painel de comparação**: um `grid grid-cols-1 md:grid-cols-2 gap-4` abaixo dos cards existentes, só visível quando pelo menos uma campanha estiver selecionada em qualquer lado. Cada lado é um `<Card>` que mostra:
-   - Nome da campanha (título do card)
-   - Total enviados (`total_sent`)
-   - Abriram (`total_opened`) com taxa de abertura
-   - Clicaram (`total_clicked`) com taxa de clique
-   - Layout em linhas com `<Separator />` entre métricas (mesmo padrão do card Leads Engajados)
+O aviso de "Sem dados de Meta" já existe. Nenhuma alteração necessária no frontend pois os dados chegarão nos mesmos campos.
 
-4. **Lookup**: para cada lado, filtrar `emailCampaigns` pelo `rd_campaign_id` selecionado e somar os valores (uma campanha pode ter múltiplos registros).
+### Sem alteração de banco de dados.
 
-### Nenhuma alteração de banco de dados necessária.
+## Resultado esperado
 
-Arquivo editado: apenas `src/components/dashboard/MarketingSection.tsx`.
+- Purchases, messages, add_to_cart, remarketing populados corretamente nos cards
+- Se a Meta falhar em dias específicos, os outros dias ainda terão dados completos
+- Logs claros mostrando quais dias tiveram actions e quais não
 
