@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
 import { SessionsByDayChart } from "./charts/SessionsByDayChart";
+import { ConversionFunnelChart } from "./charts/ConversionFunnelChart";
 import { SourceBreakdownTable } from "./SourceBreakdownTable";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { CampaignFilter, type Campaign } from "./CampaignFilter";
@@ -14,6 +15,7 @@ interface MarketingSectionProps {
   adMetrics: any[];
   emailCampaigns: any[];
   siteAnalytics: any[];
+  ga4Events: any[];
   goals: any[];
   range: DateRange;
 }
