@@ -147,7 +147,7 @@ Deno.serve(async (req) => {
         purchases: purchaseCount,
         messages: messagesCount,
         add_to_cart: addToCartCount,
-        remarketing_qualified: remarketing,
+        remarketing_qualified: remarketingCount,
         spend: spendVal,
         ctr: ctrVal,
         cpc: cpcVal,
