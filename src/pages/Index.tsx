@@ -11,6 +11,7 @@ import {
   useAdMetrics,
   useEmailCampaigns,
   useSiteAnalytics,
+  useGa4Events,
   useGoals,
   useAllTimeTicketSales,
   useSymplaEventIds,
