@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Eye, MousePointerClick, Wallet, BarChart3, Mail, Globe, Users, FileText, Target } from "lucide-react";
+import { Eye, MousePointerClick, Wallet, BarChart3, Mail, Globe, Users, FileText, Target, MessageCircle, ShoppingCart, Crosshair } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
@@ -146,6 +146,9 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           const totalLinkClicks = sum(meta, "link_clicks");
           const totalSpend = sum(meta, "spend");
           const totalPurchases = sum(meta, "purchases");
+          const totalMessages = sum(meta, "messages");
+          const totalAddToCart = sum(meta, "add_to_cart");
+          const totalRemarketing = sum(meta, "remarketing_qualified");
           const uniqueCampaigns = new Set(meta.filter(m => m.campaign_id).map(m => m.campaign_id)).size;
           const cpc = totalLinkClicks > 0 ? totalSpend / totalLinkClicks : 0;
           const ctr = totalImpressions > 0 ? (totalLinkClicks / totalImpressions) * 100 : 0;
@@ -160,6 +163,9 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
               <MetricCard title="CTR" value={`${ctr.toFixed(2)}%`} icon={BarChart3} description="Cliques no link / Impressões" />
               <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases", range)?.target_value} />
               <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate", range)?.target_value} description="Compras / Cliques no link" />
+              <MetricCard title="Mensagens" value={totalMessages} icon={MessageCircle} description="Conversas iniciadas via anúncio" />
+              <MetricCard title="Adição de Carrinho" value={totalAddToCart} icon={ShoppingCart} description="Eventos add_to_cart do Pixel" />
+              <MetricCard title="Remarketing Qualificado" value={totalRemarketing} icon={Crosshair} description="Conversão customizada" />
             </div>
           );
         })()}
