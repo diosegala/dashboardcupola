@@ -20,7 +20,7 @@ interface MarketingSectionProps {
   range: DateRange;
 }
 
-export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goals, range }: MarketingSectionProps) {
+export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range }: MarketingSectionProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [selectedEmailCampaigns, setSelectedEmailCampaigns] = useState<string[]>([]);
   const [compareA, setCompareA] = useState<string | null>(null);
