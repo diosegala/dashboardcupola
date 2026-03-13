@@ -1,48 +1,58 @@
 
 
-# Comparador de Campanhas RD Station
+# Funil de Conversão do Site (GA4 Events)
 
-## Ideia
+## O que será feito
 
-Adicionar uma seção de comparação lado a lado abaixo dos cards atuais do RD Station. Dois painéis horizontais, cada um com seu próprio seletor de campanha (seleção única), exibindo os mesmos indicadores para permitir comparação direta.
+Buscar os eventos `page_view`, `view_item`, `add_to_cart`, `begin_checkout` e `purchase` do GA4, armazená-los no banco e exibir uma visualização em etapas com barras proporcionais (como no print de referência do GA4).
 
-## Layout
+## Etapas
 
-```text
-┌─── RD Station ──────────────────────────────────────────────────┐
-│ [filtro multi-campanha existente - sem mudança]                 │
-│ [cards agregados existentes - sem mudança]                      │
-│                                                                 │
-│ ── Comparar Campanhas ──────────────────────────────────────    │
-│                                                                 │
-│ ┌─ Campanha A ────────────────┐  ┌─ Campanha B ──────────────┐ │
-│ │ [seletor campanha única ▼]  │  │ [seletor campanha única ▼]│ │
-│ │                             │  │                            │ │
-│ │ Enviados: 1.250             │  │ Enviados: 890              │ │
-│ │ Abriram:  400 (32.0%)       │  │ Abriram:  310 (34.8%)     │ │
-│ │ Clicaram: 85  (6.8%)        │  │ Clicaram: 72  (8.1%)      │ │
-│ └─────────────────────────────┘  └────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+### 1. Nova tabela `ga4_events`
+
+```sql
+CREATE TABLE public.ga4_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  date date NOT NULL,
+  event_name text NOT NULL,
+  event_count integer DEFAULT 0,
+  synced_at timestamptz DEFAULT now(),
+  UNIQUE(date, event_name)
+);
+
+ALTER TABLE public.ga4_events ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Authenticated can view ga4_events"
+  ON public.ga4_events FOR SELECT TO authenticated USING (true);
 ```
 
-## Alterações
+### 2. Expandir `sync-google-analytics/index.ts`
 
-### `src/components/dashboard/MarketingSection.tsx`
+Adicionar um novo `runReport` que busca:
+- Dimensões: `date`, `eventName`
+- Métrica: `eventCount`
+- Filtro: apenas os 5 eventos de interesse
 
-1. **Novo estado**: dois states para a campanha selecionada em cada lado (`compareA` e `compareB`, tipo `string | null`).
+Upsert dos resultados na tabela `ga4_events`.
 
-2. **Seletor de campanha única**: reutilizar um `<Select>` simples (do shadcn) com as opções de `emailCampaignOptions`. Cada lado tem seu próprio select. Placeholder: "Selecione uma campanha".
+### 3. Novo hook `useGa4Events(range)` em `useDashboardData.ts`
 
-3. **Painel de comparação**: um `grid grid-cols-1 md:grid-cols-2 gap-4` abaixo dos cards existentes, só visível quando pelo menos uma campanha estiver selecionada em qualquer lado. Cada lado é um `<Card>` que mostra:
-   - Nome da campanha (título do card)
-   - Total enviados (`total_sent`)
-   - Abriram (`total_opened`) com taxa de abertura
-   - Clicaram (`total_clicked`) com taxa de clique
-   - Layout em linhas com `<Separator />` entre métricas (mesmo padrão do card Leads Engajados)
+Query simples à tabela `ga4_events` filtrando pelo período selecionado.
 
-4. **Lookup**: para cada lado, filtrar `emailCampaigns` pelo `rd_campaign_id` selecionado e somar os valores (uma campanha pode ter múltiplos registros).
+### 4. Novo componente `src/components/dashboard/charts/ConversionFunnelChart.tsx`
 
-### Nenhuma alteração de banco de dados necessária.
+Visualização em etapas (como no print):
+- 5 colunas lado a lado: page_view → view_item → add_to_cart → begin_checkout → purchase
+- Cada coluna com uma barra proporcional ao total do evento
+- Percentual de conversão entre etapas (ex: "33.8%" entre etapa 1 e 2)
+- Taxa de abandono abaixo de cada barra
+- Estilo similar ao print: barras azuis, labels de etapa no topo
 
-Arquivo editado: apenas `src/components/dashboard/MarketingSection.tsx`.
+### 5. Integrar no `MarketingSection.tsx`
+
+Renderizar o `ConversionFunnelChart` na seção "Site (Google Analytics)", acima dos cards de métricas atuais.
+
+### 6. Passar dados do `Index.tsx`
+
+Adicionar `useGa4Events(range)` no Index e passar para MarketingSection.
 
