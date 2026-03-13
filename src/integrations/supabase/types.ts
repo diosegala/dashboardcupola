@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           ad_set_id: string | null
           ad_set_name: string | null
+          add_to_cart: number | null
           campaign_id: string | null
           campaign_name: string | null
           clicks: number | null
@@ -29,7 +30,9 @@ export type Database = {
           id: string
           impressions: number | null
           link_clicks: number | null
+          messages: number | null
           purchases: number | null
+          remarketing_qualified: number | null
           source: string
           spend: number | null
           synced_at: string
@@ -37,6 +40,7 @@ export type Database = {
         Insert: {
           ad_set_id?: string | null
           ad_set_name?: string | null
+          add_to_cart?: number | null
           campaign_id?: string | null
           campaign_name?: string | null
           clicks?: number | null
@@ -48,7 +52,9 @@ export type Database = {
           id?: string
           impressions?: number | null
           link_clicks?: number | null
+          messages?: number | null
           purchases?: number | null
+          remarketing_qualified?: number | null
           source: string
           spend?: number | null
           synced_at?: string
@@ -56,6 +62,7 @@ export type Database = {
         Update: {
           ad_set_id?: string | null
           ad_set_name?: string | null
+          add_to_cart?: number | null
           campaign_id?: string | null
           campaign_name?: string | null
           clicks?: number | null
@@ -67,7 +74,9 @@ export type Database = {
           id?: string
           impressions?: number | null
           link_clicks?: number | null
+          messages?: number | null
           purchases?: number | null
+          remarketing_qualified?: number | null
           source?: string
           spend?: number | null
           synced_at?: string
