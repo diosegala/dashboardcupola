@@ -257,16 +257,6 @@ async function fetchAllInsightsRows({
   return rows;
 }
 
-function isRecoverableMetaActionsError(err: unknown): boolean {
-  const message = err instanceof Error ? err.message : String(err);
-
-  return (
-    message.includes("Meta API 500") ||
-    message.includes('"error_subcode":99') ||
-    message.includes('"code":1')
-  );
-}
-
 async function fetchWithRetry(url: string, token: string, retries = 3): Promise<any> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
