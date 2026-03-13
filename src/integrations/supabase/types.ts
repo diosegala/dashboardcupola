@@ -16,10 +16,10 @@ export type Database = {
     Tables: {
       ad_metrics: {
         Row: {
-          ad_set_id: string | null
+          ad_set_id: string
           ad_set_name: string | null
           add_to_cart: number | null
-          campaign_id: string | null
+          campaign_id: string
           campaign_name: string | null
           clicks: number | null
           conversions: number | null
@@ -38,10 +38,10 @@ export type Database = {
           synced_at: string
         }
         Insert: {
-          ad_set_id?: string | null
+          ad_set_id?: string
           ad_set_name?: string | null
           add_to_cart?: number | null
-          campaign_id?: string | null
+          campaign_id?: string
           campaign_name?: string | null
           clicks?: number | null
           conversions?: number | null
@@ -60,10 +60,10 @@ export type Database = {
           synced_at?: string
         }
         Update: {
-          ad_set_id?: string | null
+          ad_set_id?: string
           ad_set_name?: string | null
           add_to_cart?: number | null
-          campaign_id?: string | null
+          campaign_id?: string
           campaign_name?: string | null
           clicks?: number | null
           conversions?: number | null
