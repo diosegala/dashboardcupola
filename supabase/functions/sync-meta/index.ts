@@ -95,8 +95,6 @@ Deno.serve(async (req) => {
         logLabel: "with_actions",
       });
     } catch (err) {
-      if (!isRecoverableMetaActionsError(err)) throw err;
-
       usedFallbackWithoutActions = true;
       console.warn(
         "sync-meta - actions request failed, retrying without actions:",
