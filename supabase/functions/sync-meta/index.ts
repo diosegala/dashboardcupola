@@ -125,14 +125,7 @@ Deno.serve(async (req) => {
       const addToCartCount = findAction(actions, "add_to_cart");
       const leadCount = findAction(actions, "lead");
 
-      // Remarketing Qualificado: search for custom conversions
-      let remarketing = 0;
-      for (const a of actions) {
-        const t = a.action_type || "";
-        if (t.includes("remarketing") || t.includes("offsite_conversion.custom")) {
-          console.log(`sync-meta - potential remarketing action: ${t} = ${a.value}`);
-        }
-      }
+      const remarketingCount = findAction(actions, "offsite_conversion.fb_pixel_custom");
 
       const impressions = parseInt(r.impressions ?? "0") || 0;
       const totalClicks = parseInt(r.clicks ?? "0") || 0;
