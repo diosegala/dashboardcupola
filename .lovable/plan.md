@@ -1,48 +1,39 @@
 
+Diagnóstico rápido (confirmado)
+- A sincronização do Meta está funcionando (logs mostram `success: true`, `rows: 32`).
+- O problema é de recorte de data: os registros gravados em `ad_metrics` ficaram todos com `date = 2026-02-11`.
+- O dashboard consulta `ad_metrics` por período (ex.: março: `date >= 2026-03-01` e `<= 2026-03-31`), então retorna `[]` e os cards ficam vazios.
 
-# Comparador de Campanhas RD Station
+Causa raiz
+- Na função `supabase/functions/sync-meta/index.ts`, a chamada ao Insights usa `date_preset=last_30d` sem granularidade diária.
+- Assim, a API retorna dados agregados do período com um único `date_start` (início da janela), que caiu em fevereiro.
 
-## Ideia
+Plano de implementação
+1. Ajustar granularidade da coleta Meta (arquivo `supabase/functions/sync-meta/index.ts`)
+- Adicionar `time_increment=1` na query de Insights para receber 1 linha por dia/adset.
+- Manter `level=adset`, `actions` e mapeamentos atuais (`purchase`, `onsite_conversion.messaging_conversation_started_7d`, `add_to_cart`, `offsite_conversion.fb_pixel_custom`).
 
-Adicionar uma seção de comparação lado a lado abaixo dos cards atuais do RD Station. Dois painéis horizontais, cada um com seu próprio seletor de campanha (seleção única), exibindo os mesmos indicadores para permitir comparação direta.
+2. Manter estratégia de limpeza + carga completa
+- Preservar o fluxo atual: deletar `source='meta'` e inserir lote novo.
+- Com `time_increment=1`, os registros passam a cobrir vários dias dentro da janela e voltam a casar com os filtros do dashboard.
 
-## Layout
+3. Melhorar observabilidade (mesmo arquivo)
+- Logar intervalo efetivo inserido (`min(date_start)` / `max(date_start)`) e quantidade total de linhas.
+- Isso facilita diagnosticar rapidamente quando o período do dashboard não bate com o período sincronizado.
 
-```text
-┌─── RD Station ──────────────────────────────────────────────────┐
-│ [filtro multi-campanha existente - sem mudança]                 │
-│ [cards agregados existentes - sem mudança]                      │
-│                                                                 │
-│ ── Comparar Campanhas ──────────────────────────────────────    │
-│                                                                 │
-│ ┌─ Campanha A ────────────────┐  ┌─ Campanha B ──────────────┐ │
-│ │ [seletor campanha única ▼]  │  │ [seletor campanha única ▼]│ │
-│ │                             │  │                            │ │
-│ │ Enviados: 1.250             │  │ Enviados: 890              │ │
-│ │ Abriram:  400 (32.0%)       │  │ Abriram:  310 (34.8%)     │ │
-│ │ Clicaram: 85  (6.8%)        │  │ Clicaram: 72  (8.1%)      │ │
-│ └─────────────────────────────┘  └────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
-```
+4. Melhorar feedback no frontend (arquivo `src/components/dashboard/MarketingSection.tsx`)
+- Quando `meta.length === 0`, exibir aviso explícito: “Sem dados de Meta no período selecionado” (em vez de parecer erro silencioso nos cards).
+- Mantém os cards, mas com contexto claro para o usuário.
 
-## Alterações
+Validação após implementação
+- Executar sincronização manual do Meta.
+- Conferir no banco se existem linhas `source='meta'` dentro do mês atual (não apenas um único dia antigo).
+- Recarregar dashboard e validar que os cards de Compras, Mensagens, Adição de Carrinho e Remarketing Qualificado voltam a exibir valores.
+- Validar também o gráfico “Cliques por Dia” com múltiplos pontos de data (não apenas 1 data agregada).
 
-### `src/components/dashboard/MarketingSection.tsx`
-
-1. **Novo estado**: dois states para a campanha selecionada em cada lado (`compareA` e `compareB`, tipo `string | null`).
-
-2. **Seletor de campanha única**: reutilizar um `<Select>` simples (do shadcn) com as opções de `emailCampaignOptions`. Cada lado tem seu próprio select. Placeholder: "Selecione uma campanha".
-
-3. **Painel de comparação**: um `grid grid-cols-1 md:grid-cols-2 gap-4` abaixo dos cards existentes, só visível quando pelo menos uma campanha estiver selecionada em qualquer lado. Cada lado é um `<Card>` que mostra:
-   - Nome da campanha (título do card)
-   - Total enviados (`total_sent`)
-   - Abriram (`total_opened`) com taxa de abertura
-   - Clicaram (`total_clicked`) com taxa de clique
-   - Layout em linhas com `<Separator />` entre métricas (mesmo padrão do card Leads Engajados)
-
-4. **Lookup**: para cada lado, filtrar `emailCampaigns` pelo `rd_campaign_id` selecionado e somar os valores (uma campanha pode ter múltiplos registros).
-
-### Nenhuma alteração de banco de dados necessária.
-
-Arquivo editado: apenas `src/components/dashboard/MarketingSection.tsx`.
-
+Detalhes técnicos
+- Arquivo principal: `supabase/functions/sync-meta/index.ts`
+  - `URLSearchParams`: incluir `time_increment: "1"`.
+  - Manter `date: r.date_start` no mapeamento.
+- Arquivo de UX: `src/components/dashboard/MarketingSection.tsx`
+  - Condicional de empty state para `meta.length === 0`.
