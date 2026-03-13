@@ -1,48 +1,60 @@
 
 
-# Comparador de Campanhas RD Station
+# Meta Ads — Novas métricas e correção de compras (Plano Revisado)
 
-## Ideia
+## Análise
 
-Adicionar uma seção de comparação lado a lado abaixo dos cards atuais do RD Station. Dois painéis horizontais, cada um com seu próprio seletor de campanha (seleção única), exibindo os mesmos indicadores para permitir comparação direta.
+Confirmado que o `actions` retorna `{"action_type": "purchase", "value": "12"}` — o código atual já extrai corretamente pelo `action_type === "purchase"`. O problema é que o campo `actions` causa erro 500 na API do Meta (code 1, subcode 99), e o fallback descarta todas as actions, zerando compras e impedindo as novas métricas.
 
-## Layout
+Da documentação do Meta Pixel, os standard events relevantes são:
+- **Purchase** → `action_type: "purchase"`
+- **AddToCart** → `action_type: "add_to_cart"`
+- **Mensagens** → `action_type: "onsite_conversion.messaging_conversation_started_7d"`
+- **Remarketing Qualificado** → Conversão customizada, aparece como `offsite_conversion.custom.<ID>`. Precisamos descobrir o ID.
 
-```text
-┌─── RD Station ──────────────────────────────────────────────────┐
-│ [filtro multi-campanha existente - sem mudança]                 │
-│ [cards agregados existentes - sem mudança]                      │
-│                                                                 │
-│ ── Comparar Campanhas ──────────────────────────────────────    │
-│                                                                 │
-│ ┌─ Campanha A ────────────────┐  ┌─ Campanha B ──────────────┐ │
-│ │ [seletor campanha única ▼]  │  │ [seletor campanha única ▼]│ │
-│ │                             │  │                            │ │
-│ │ Enviados: 1.250             │  │ Enviados: 890              │ │
-│ │ Abriram:  400 (32.0%)       │  │ Abriram:  310 (34.8%)     │ │
-│ │ Clicaram: 85  (6.8%)        │  │ Clicaram: 72  (8.1%)      │ │
-│ └─────────────────────────────┘  └────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+## Etapas
+
+### 1. Migração — adicionar colunas em `ad_metrics`
+
+```sql
+ALTER TABLE public.ad_metrics
+  ADD COLUMN IF NOT EXISTS messages integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS add_to_cart integer DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS remarketing_qualified integer DEFAULT 0;
 ```
 
-## Alterações
+### 2. Corrigir o fetch de `actions` no `sync-meta/index.ts`
 
-### `src/components/dashboard/MarketingSection.tsx`
+O problema: quando `actions` é incluído junto com os outros campos, a API retorna 500. A solução é fazer **duas requests separadas**:
+1. Request principal: campos inline (impressions, clicks, spend, etc.) — já funciona
+2. Request secundária: apenas `actions` — com retry e tratamento de erro independente
 
-1. **Novo estado**: dois states para a campanha selecionada em cada lado (`compareA` e `compareB`, tipo `string | null`).
+Isso garante que as métricas base sempre são salvas, e as actions são adicionadas quando disponíveis.
 
-2. **Seletor de campanha única**: reutilizar um `<Select>` simples (do shadcn) com as opções de `emailCampaignOptions`. Cada lado tem seu próprio select. Placeholder: "Selecione uma campanha".
+Além disso, **logar todos os `action_type` únicos** encontrados para que possamos identificar o action_type exato do "Remarketing Qualificado" (conversão customizada).
 
-3. **Painel de comparação**: um `grid grid-cols-1 md:grid-cols-2 gap-4` abaixo dos cards existentes, só visível quando pelo menos uma campanha estiver selecionada em qualquer lado. Cada lado é um `<Card>` que mostra:
-   - Nome da campanha (título do card)
-   - Total enviados (`total_sent`)
-   - Abriram (`total_opened`) com taxa de abertura
-   - Clicaram (`total_clicked`) com taxa de clique
-   - Layout em linhas com `<Separator />` entre métricas (mesmo padrão do card Leads Engajados)
+### 3. Extrair novas métricas das actions
 
-4. **Lookup**: para cada lado, filtrar `emailCampaigns` pelo `rd_campaign_id` selecionado e somar os valores (uma campanha pode ter múltiplos registros).
+```typescript
+const actions: any[] = r.actions || [];
+const findAction = (type: string) => 
+  parseInt(actions.find(a => a.action_type === type)?.value || "0") || 0;
 
-### Nenhuma alteração de banco de dados necessária.
+const purchases = findAction("purchase");
+const messages = findAction("onsite_conversion.messaging_conversation_started_7d");
+const addToCart = findAction("add_to_cart");
+// Remarketing: logar todos os types para descobrir o ID correto
+// Inicialmente tentar buscar por substring "remarketing" nos action_types
+```
 
-Arquivo editado: apenas `src/components/dashboard/MarketingSection.tsx`.
+### 4. Atualizar `MarketingSection.tsx`
+
+Adicionar 3 novos MetricCards na seção Meta Ads:
+- **Mensagens** — total do campo `messages`
+- **Adição de Carrinho** — total do campo `add_to_cart`
+- **Remarketing Qualificado** — total do campo `remarketing_qualified`
+
+### Observação sobre Remarketing Qualificado
+
+Conversões customizadas no Meta aparecem como `offsite_conversion.custom.<ID_NUMÉRICO>`. Sem saber o ID exato, vou implementar um **log de todos os action_types** encontrados durante o sync. Após a próxima sincronização, poderemos ver nos logs qual é o action_type correto e mapear para a coluna `remarketing_qualified`.
 
