@@ -72,65 +72,97 @@ Deno.serve(async (req) => {
     // Ensure ad_account_id has act_ prefix
     const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
-    // 4. Fetch insights with resilience: try with actions first, then fallback without actions on known Meta instability
-    const baseParams = {
-      level: "adset",
-      date_preset: "last_30d",
-      time_increment: "1",
-      limit: "500",
-    };
-
-    const fieldsWithActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,actions,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
-    const fieldsWithoutActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
-
-    let usedFallbackWithoutActions = false;
-    let allRows: any[] = [];
-
-    try {
-      allRows = await fetchAllInsightsRows({
-        accountId,
-        accessToken,
-        fields: fieldsWithActions,
-        baseParams,
-        logLabel: "with_actions",
-      });
-    } catch (err) {
-      usedFallbackWithoutActions = true;
-      console.warn(
-        "sync-meta - actions request failed, retrying without actions:",
-        err instanceof Error ? err.message : String(err),
-      );
-
-      allRows = await fetchAllInsightsRows({
-        accountId,
-        accessToken,
-        fields: fieldsWithoutActions,
-        baseParams,
-        logLabel: "without_actions",
-      });
+    // 4. Generate last 30 days array
+    const dates: string[] = [];
+    const today = new Date();
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      dates.push(d.toISOString().slice(0, 10));
     }
 
-    const dates = allRows.map((r: any) => r.date_start).filter(Boolean).sort();
-    console.log(
-      `sync-meta - fetched ${allRows.length} rows at adset level, date range: ${dates[0] || "N/A"} → ${dates[dates.length - 1] || "N/A"}${usedFallbackWithoutActions ? " (fallback without actions)" : ""}`,
-    );
+    const fieldsWithActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,actions,action_values,inline_link_clicks";
+    const fieldsWithoutActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,inline_link_clicks";
 
-    // 5. Log all unique action_types for discovery
+    // 5. Fetch day by day
+    const allRows: any[] = [];
+    const failedDays: string[] = [];
+    const partialDays: string[] = [];
     const allActionTypes = new Set<string>();
-    for (const r of allRows) {
-      for (const a of (r.actions || [])) {
-        allActionTypes.add(a.action_type);
+
+    for (const date of dates) {
+      try {
+        const rows = await fetchDayInsights({
+          accountId,
+          accessToken,
+          fields: fieldsWithActions,
+          date,
+        });
+        // Track action types
+        for (const r of rows) {
+          for (const a of (r.actions || [])) {
+            allActionTypes.add(a.action_type);
+          }
+        }
+        allRows.push(...rows);
+        console.log(`sync-meta - day ${date}: ${rows.length} rows with actions ✓`);
+      } catch (err) {
+        console.warn(`sync-meta - day ${date} failed with actions: ${err instanceof Error ? err.message.slice(0, 150) : String(err)}`);
+        failedDays.push(date);
+      }
+
+      // Small delay between requests to avoid rate limiting
+      await new Promise((r) => setTimeout(r, 300));
+    }
+
+    // 6. Retry failed days once more with actions
+    const stillFailedDays: string[] = [];
+    for (const date of failedDays) {
+      try {
+        await new Promise((r) => setTimeout(r, 1000));
+        const rows = await fetchDayInsights({
+          accountId,
+          accessToken,
+          fields: fieldsWithActions,
+          date,
+        });
+        for (const r of rows) {
+          for (const a of (r.actions || [])) {
+            allActionTypes.add(a.action_type);
+          }
+        }
+        allRows.push(...rows);
+        console.log(`sync-meta - day ${date}: retry succeeded with actions ✓`);
+      } catch (_err) {
+        stillFailedDays.push(date);
       }
     }
-    if (allActionTypes.size > 0) {
-      console.log("sync-meta - ALL action_types found:", JSON.stringify([...allActionTypes].sort()));
+
+    // 7. For still-failed days, fetch without actions (basic metrics only)
+    for (const date of stillFailedDays) {
+      try {
+        await new Promise((r) => setTimeout(r, 500));
+        const rows = await fetchDayInsights({
+          accountId,
+          accessToken,
+          fields: fieldsWithoutActions,
+          date,
+        });
+        allRows.push(...rows);
+        partialDays.push(date);
+        console.log(`sync-meta - day ${date}: ${rows.length} rows WITHOUT actions (partial)`);
+      } catch (err) {
+        console.error(`sync-meta - day ${date}: completely failed: ${err instanceof Error ? err.message.slice(0, 150) : String(err)}`);
+      }
     }
 
-    // 6. Map rows for upsert
+    console.log(`sync-meta - total: ${allRows.length} rows, ${partialDays.length} partial days, action_types: ${JSON.stringify([...allActionTypes].sort())}`);
+
+    // 8. Map rows
     const findAction = (actions: any[], type: string) =>
       parseInt(actions.find((a: any) => a.action_type === type)?.value || "0") || 0;
 
-    const rows = allRows.map((r: any) => {
+    const mappedRows = allRows.map((r: any) => {
       const actions: any[] = r.actions || [];
 
       const inlineLinkClicks = parseInt(r.inline_link_clicks ?? "0") || 0;
@@ -141,7 +173,6 @@ Deno.serve(async (req) => {
       const messagesCount = findAction(actions, "onsite_conversion.messaging_conversation_started_7d");
       const addToCartCount = findAction(actions, "add_to_cart");
       const leadCount = findAction(actions, "lead");
-
       const remarketingCount = findAction(actions, "offsite_conversion.fb_pixel_custom");
 
       const impressions = parseInt(r.impressions ?? "0") || 0;
@@ -154,7 +185,7 @@ Deno.serve(async (req) => {
       return {
         source: "meta",
         date: r.date_start,
-        campaign_id: r.campaign_id ?? null,
+        campaign_id: r.campaign_id ?? "",
         campaign_name: r.campaign_name ?? null,
         ad_set_id: r.adset_id || "",
         ad_set_name: r.adset_name ?? null,
@@ -174,34 +205,40 @@ Deno.serve(async (req) => {
       };
     });
 
-    // 7. Delete old meta data before inserting fresh data
+    // 9. Delete old meta data and insert fresh
     const { error: delError } = await supabase
       .from("ad_metrics")
       .delete()
       .eq("source", "meta");
     if (delError) throw delError;
 
-    // 8. Batch insert in chunks of 500
-    for (let i = 0; i < rows.length; i += 500) {
-      const chunk = rows.slice(i, i + 500);
-      const { error } = await supabase
-        .from("ad_metrics")
-        .insert(chunk);
+    for (let i = 0; i < mappedRows.length; i += 500) {
+      const chunk = mappedRows.slice(i, i + 500);
+      const { error } = await supabase.from("ad_metrics").insert(chunk);
       if (error) throw error;
     }
 
-    // 8. Success
+    // 10. Update integration status
+    const errorMsg = partialDays.length > 0
+      ? `Sync parcial: ${partialDays.length} dia(s) sem dados de conversão (${partialDays.join(", ")})`
+      : null;
+
     await supabase
       .from("integrations")
-      .update({ sync_status: "idle", last_synced_at: new Date().toISOString(), error_message: null })
+      .update({
+        sync_status: "idle",
+        last_synced_at: new Date().toISOString(),
+        error_message: errorMsg,
+      })
       .eq("id", integration.id);
 
     return new Response(
       JSON.stringify({
         success: true,
-        rows: rows.length,
+        rows: mappedRows.length,
         actionTypesFound: [...allActionTypes],
-        usedFallbackWithoutActions,
+        partialDays,
+        totalDays: dates.length,
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
@@ -220,32 +257,35 @@ Deno.serve(async (req) => {
   }
 });
 
-type FetchAllInsightsRowsParams = {
-  accountId: string;
-  accessToken: string;
-  fields: string;
-  baseParams: Record<string, string>;
-  logLabel: string;
-};
-
-async function fetchAllInsightsRows({
+// Fetch insights for a single day
+async function fetchDayInsights({
   accountId,
   accessToken,
   fields,
-  baseParams,
-  logLabel,
-}: FetchAllInsightsRowsParams): Promise<any[]> {
+  date,
+}: {
+  accountId: string;
+  accessToken: string;
+  fields: string;
+  date: string;
+}): Promise<any[]> {
   const rows: any[] = [];
   let afterCursor: string | null = null;
 
+  const timeRange = JSON.stringify({ since: date, until: date });
+
   while (true) {
-    const params = new URLSearchParams({ ...baseParams, fields });
+    const params = new URLSearchParams({
+      level: "adset",
+      fields,
+      time_range: timeRange,
+      limit: "500",
+    });
     if (afterCursor) params.set("after", afterCursor);
 
     const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
-    console.log(`sync-meta - request (${logLabel}):`, url);
-
     const data = await fetchWithRetry(url, accessToken);
+
     if (Array.isArray(data.data) && data.data.length > 0) {
       rows.push(...data.data);
     }
@@ -257,7 +297,7 @@ async function fetchAllInsightsRows({
   return rows;
 }
 
-async function fetchWithRetry(url: string, token: string, retries = 3): Promise<any> {
+async function fetchWithRetry(url: string, token: string, retries = 2): Promise<any> {
   for (let attempt = 0; attempt < retries; attempt++) {
     try {
       const res = await fetch(`${url}&access_token=${token}`);
