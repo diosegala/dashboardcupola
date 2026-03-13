@@ -72,32 +72,44 @@ Deno.serve(async (req) => {
     // Ensure ad_account_id has act_ prefix
     const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
-    // 4. Single unified request — fields include actions and action_values
-    const fields = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,actions,action_values";
+    // 4. Fetch insights with resilience: try with actions first, then fallback without actions on known Meta instability
+    const baseParams = {
+      level: "adset",
+      date_preset: "last_30d",
+      time_increment: "1",
+      limit: "500",
+    };
 
-    const allRows: any[] = [];
-    let afterCursor: string | null = null;
+    const fieldsWithActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,actions,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
+    const fieldsWithoutActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
 
-    while (true) {
-      const params = new URLSearchParams({
-        fields,
-        level: "adset",
-        date_preset: "last_30d",
-        time_increment: "1",
-        limit: "500",
+    let usedFallbackWithoutActions = false;
+    let allRows: any[] = [];
+
+    try {
+      allRows = await fetchAllInsightsRows({
+        accountId,
+        accessToken,
+        fields: fieldsWithActions,
+        baseParams,
+        logLabel: "with_actions",
       });
-      if (afterCursor) params.set("after", afterCursor);
+    } catch (err) {
+      if (!isRecoverableMetaActionsError(err)) throw err;
 
-      const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
-      // Log full URL with masked token for debugging
-      console.log("sync-meta - request:", url);
-      const data = await fetchWithRetry(url, accessToken);
+      usedFallbackWithoutActions = true;
+      console.warn(
+        "sync-meta - actions request failed, retrying without actions:",
+        err instanceof Error ? err.message : String(err),
+      );
 
-      if (data.data && data.data.length > 0) {
-        allRows.push(...data.data);
-      }
-      afterCursor = data.paging?.cursors?.after ?? null;
-      if (!data.paging?.next) break;
+      allRows = await fetchAllInsightsRows({
+        accountId,
+        accessToken,
+        fields: fieldsWithoutActions,
+        baseParams,
+        logLabel: "without_actions",
+      });
     }
 
     const dates = allRows.map((r: any) => r.date_start).filter(Boolean).sort();
