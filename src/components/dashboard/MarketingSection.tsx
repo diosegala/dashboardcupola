@@ -7,6 +7,7 @@ import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
 import { SessionsByDayChart } from "./charts/SessionsByDayChart";
 import { ConversionFunnelChart } from "./charts/ConversionFunnelChart";
+import { DemandGenTable } from "./charts/DemandGenTable";
 import { SourceBreakdownTable } from "./SourceBreakdownTable";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { CampaignFilter, type Campaign } from "./CampaignFilter";
@@ -271,6 +272,9 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Site (Google Analytics)</h3>
         <div className="mb-4">
           <ConversionFunnelChart ga4Events={ga4Events} />
+        </div>
+        <div className="mb-4">
+          <DemandGenTable ga4Events={ga4Events} />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits", range)?.target_value} />
