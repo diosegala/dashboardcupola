@@ -199,7 +199,12 @@ Deno.serve(async (req) => {
       .eq("id", integration.id);
 
     return new Response(
-      JSON.stringify({ success: true, rows: rows.length, actionTypesFound: [...allActionTypes] }),
+      JSON.stringify({
+        success: true,
+        rows: rows.length,
+        actionTypesFound: [...allActionTypes],
+        usedFallbackWithoutActions,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
