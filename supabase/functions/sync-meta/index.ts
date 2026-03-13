@@ -135,7 +135,10 @@ Deno.serve(async (req) => {
     const rows = allRows.map((r: any) => {
       const actions: any[] = r.actions || [];
 
-      const linkClicks = findAction(actions, "link_click");
+      const inlineLinkClicks = parseInt(r.inline_link_clicks ?? "0") || 0;
+      const linkClicksFromActions = findAction(actions, "link_click");
+      const linkClicks = linkClicksFromActions > 0 ? linkClicksFromActions : inlineLinkClicks;
+
       const purchaseCount = findAction(actions, "purchase");
       const messagesCount = findAction(actions, "onsite_conversion.messaging_conversation_started_7d");
       const addToCartCount = findAction(actions, "add_to_cart");
