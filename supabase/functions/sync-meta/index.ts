@@ -83,6 +83,7 @@ Deno.serve(async (req) => {
         fields,
         level: "adset",
         date_preset: "last_30d",
+        time_increment: "1",
         limit: "500",
       });
       if (afterCursor) params.set("after", afterCursor);
