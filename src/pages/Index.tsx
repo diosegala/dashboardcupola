@@ -11,6 +11,7 @@ import {
   useAdMetrics,
   useEmailCampaigns,
   useSiteAnalytics,
+  useGa4Events,
   useGoals,
   useAllTimeTicketSales,
   useSymplaEventIds,
@@ -26,10 +27,11 @@ export default function Index() {
   const adMetrics = useAdMetrics(range);
   const emailCampaigns = useEmailCampaigns(range);
   const siteAnalytics = useSiteAnalytics(range);
+  const ga4Events = useGa4Events(range);
   const goals = useGoals();
   const allTimeTickets = useAllTimeTicketSales(symplaIds.data?.currentEventId ?? "");
 
-  const isLoading = symplaIds.isLoading || tickets.isLoading || deals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || goals.isLoading || allTimeTickets.isLoading;
+  const isLoading = symplaIds.isLoading || tickets.isLoading || deals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading || goals.isLoading || allTimeTickets.isLoading;
 
   if (isLoading) {
     return (
@@ -74,6 +76,7 @@ export default function Index() {
         adMetrics={adMetrics.data ?? []}
         emailCampaigns={emailCampaigns.data ?? []}
         siteAnalytics={siteAnalytics.data ?? []}
+        ga4Events={ga4Events.data ?? []}
         goals={goals.data ?? []}
         range={range}
       />

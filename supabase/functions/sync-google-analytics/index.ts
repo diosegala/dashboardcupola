@@ -275,12 +275,48 @@ Deno.serve(async (req) => {
 
     console.log("sync-google-analytics - upserting", rows.length, "rows");
 
-    // 10. Upsert
+    // 10. Upsert site_analytics
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
       const { error } = await supabase
         .from("site_analytics")
         .upsert(chunk, { onConflict: "date" });
+      if (error) throw error;
+    }
+
+    // 10b. Fetch GA4 funnel events
+    const funnelEventNames = ["page_view", "view_item", "add_to_cart", "begin_checkout", "purchase"];
+    console.log("sync-google-analytics - fetching funnel events");
+    const eventsReport = await runReport(propertyId, accessToken, {
+      dateRanges: [dateRange],
+      dimensions: [{ name: "date" }, { name: "eventName" }],
+      metrics: [{ name: "eventCount" }],
+      dimensionFilter: {
+        filter: {
+          fieldName: "eventName",
+          inListFilter: { values: funnelEventNames },
+        },
+      },
+      limit: 10000,
+    });
+
+    const eventRows = (eventsReport.rows ?? []).map((r: any) => {
+      const rawDate = r.dimensionValues?.[0]?.value ?? "";
+      const dateFormatted = `${rawDate.slice(0, 4)}-${rawDate.slice(4, 6)}-${rawDate.slice(6, 8)}`;
+      return {
+        date: dateFormatted,
+        event_name: r.dimensionValues?.[1]?.value ?? "",
+        event_count: parseInt(r.metricValues?.[0]?.value ?? "0"),
+        synced_at: new Date().toISOString(),
+      };
+    });
+
+    console.log("sync-google-analytics - upserting", eventRows.length, "event rows");
+    for (let i = 0; i < eventRows.length; i += 500) {
+      const chunk = eventRows.slice(i, i + 500);
+      const { error } = await supabase
+        .from("ga4_events")
+        .upsert(chunk, { onConflict: "date,event_name" });
       if (error) throw error;
     }
 

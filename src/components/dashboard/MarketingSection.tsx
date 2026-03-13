@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
 import { SessionsByDayChart } from "./charts/SessionsByDayChart";
+import { ConversionFunnelChart } from "./charts/ConversionFunnelChart";
 import { SourceBreakdownTable } from "./SourceBreakdownTable";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { CampaignFilter, type Campaign } from "./CampaignFilter";
@@ -14,11 +15,12 @@ interface MarketingSectionProps {
   adMetrics: any[];
   emailCampaigns: any[];
   siteAnalytics: any[];
+  ga4Events: any[];
   goals: any[];
   range: DateRange;
 }
 
-export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goals, range }: MarketingSectionProps) {
+export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range }: MarketingSectionProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [selectedEmailCampaigns, setSelectedEmailCampaigns] = useState<string[]>([]);
   const [compareA, setCompareA] = useState<string | null>(null);
@@ -267,6 +269,9 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, goa
       {/* Site */}
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Site (Google Analytics)</h3>
+        <div className="mb-4">
+          <ConversionFunnelChart ga4Events={ga4Events} />
+        </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits", range)?.target_value} />
           <MetricCard title="Usuários" value={siteTotals.users} icon={Users} description="Total de usuários" />
