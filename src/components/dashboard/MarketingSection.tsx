@@ -7,6 +7,7 @@ import { MetricCard } from "./MetricCard";
 import { ClicksByDayChart } from "./charts/ClicksByDayChart";
 import { SessionsByDayChart } from "./charts/SessionsByDayChart";
 import { ConversionFunnelChart } from "./charts/ConversionFunnelChart";
+import { DemandGenTable } from "./charts/DemandGenTable";
 import { SourceBreakdownTable } from "./SourceBreakdownTable";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { CampaignFilter, type Campaign } from "./CampaignFilter";

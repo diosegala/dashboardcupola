@@ -285,7 +285,7 @@ Deno.serve(async (req) => {
     }
 
     // 10b. Fetch GA4 funnel events
-    const funnelEventNames = ["page_view", "view_item", "add_to_cart", "begin_checkout", "purchase"];
+    const funnelEventNames = ["page_view", "view_item", "add_to_cart", "begin_checkout", "purchase", "botao_sympla", "botao_tabela", "mais_infos_tp_mobile"];
     console.log("sync-google-analytics - fetching funnel events");
     const eventsReport = await runReport(propertyId, accessToken, {
       dateRanges: [dateRange],
