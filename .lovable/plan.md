@@ -1,38 +1,48 @@
 
 
-# Métricas do Meta em Branco — Dados Antigos Sem Actions
+# Comparador de Campanhas RD Station
 
-## Diagnóstico
+## Ideia
 
-Os dados na tabela `ad_metrics` foram sincronizados **antes** da correção que extrai actions (purchases, messages, add_to_cart, remarketing_qualified). Todos os registros atuais mostram esses campos como 0.
+Adicionar uma seção de comparação lado a lado abaixo dos cards atuais do RD Station. Dois painéis horizontais, cada um com seu próprio seletor de campanha (seleção única), exibindo os mesmos indicadores para permitir comparação direta.
 
-Além disso, os registros antigos têm `ad_set_id: ""` (sincronizados no nível campaign), enquanto uma nova sincronização criará registros com `ad_set_id` preenchido (nível adset). Isso resultaria em **duplicação** — registros antigos com 0s + registros novos com dados reais — distorcendo os totais.
+## Layout
 
-## Solução
-
-Duas mudanças no `sync-meta/index.ts`:
-
-1. **Limpar dados antigos antes do upsert** — adicionar um `DELETE` dos registros `source = 'meta'` antes de inserir os novos dados. Isso garante que não haja duplicação entre os formatos antigo (campaign-level, ad_set_id vazio) e novo (adset-level, ad_set_id preenchido).
-
-2. **Trocar upsert por insert** — como os dados antigos são deletados primeiro, não há necessidade de `onConflict`. Usar `insert` simples em chunks.
-
-### Código
-
-No trecho após o fetch e antes do batch insert:
-```typescript
-// Delete old meta data before inserting fresh data
-const { error: delError } = await supabase
-  .from("ad_metrics")
-  .delete()
-  .eq("source", "meta");
-if (delError) throw delError;
+```text
+┌─── RD Station ──────────────────────────────────────────────────┐
+│ [filtro multi-campanha existente - sem mudança]                 │
+│ [cards agregados existentes - sem mudança]                      │
+│                                                                 │
+│ ── Comparar Campanhas ──────────────────────────────────────    │
+│                                                                 │
+│ ┌─ Campanha A ────────────────┐  ┌─ Campanha B ──────────────┐ │
+│ │ [seletor campanha única ▼]  │  │ [seletor campanha única ▼]│ │
+│ │                             │  │                            │ │
+│ │ Enviados: 1.250             │  │ Enviados: 890              │ │
+│ │ Abriram:  400 (32.0%)       │  │ Abriram:  310 (34.8%)     │ │
+│ │ Clicaram: 85  (6.8%)        │  │ Clicaram: 72  (8.1%)      │ │
+│ └─────────────────────────────┘  └────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-Depois, trocar `.upsert(chunk, { onConflict: ... })` por `.insert(chunk)`.
+## Alterações
 
-Isso resolve tanto o problema dos dados zerados quanto elimina definitivamente o erro de `ON CONFLICT`.
+### `src/components/dashboard/MarketingSection.tsx`
 
-### Após a mudança
+1. **Novo estado**: dois states para a campanha selecionada em cada lado (`compareA` e `compareB`, tipo `string | null`).
 
-O usuário precisa rodar uma nova sincronização do Meta para popular os dados corretos.
+2. **Seletor de campanha única**: reutilizar um `<Select>` simples (do shadcn) com as opções de `emailCampaignOptions`. Cada lado tem seu próprio select. Placeholder: "Selecione uma campanha".
+
+3. **Painel de comparação**: um `grid grid-cols-1 md:grid-cols-2 gap-4` abaixo dos cards existentes, só visível quando pelo menos uma campanha estiver selecionada em qualquer lado. Cada lado é um `<Card>` que mostra:
+   - Nome da campanha (título do card)
+   - Total enviados (`total_sent`)
+   - Abriram (`total_opened`) com taxa de abertura
+   - Clicaram (`total_clicked`) com taxa de clique
+   - Layout em linhas com `<Separator />` entre métricas (mesmo padrão do card Leads Engajados)
+
+4. **Lookup**: para cada lado, filtrar `emailCampaigns` pelo `rd_campaign_id` selecionado e somar os valores (uma campanha pode ter múltiplos registros).
+
+### Nenhuma alteração de banco de dados necessária.
+
+Arquivo editado: apenas `src/components/dashboard/MarketingSection.tsx`.
 
