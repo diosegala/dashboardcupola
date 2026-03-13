@@ -141,6 +141,9 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
       {/* Meta Ads */}
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Meta Ads</h3>
+        {meta.length === 0 && (
+          <p className="text-sm text-muted-foreground mb-4">Sem dados de Meta no período selecionado.</p>
+        )}
         {(() => {
           const totalImpressions = sum(meta, "impressions");
           const totalLinkClicks = sum(meta, "link_clicks");
