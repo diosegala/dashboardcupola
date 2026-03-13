@@ -146,7 +146,7 @@ Deno.serve(async (req) => {
         date: r.date_start,
         campaign_id: r.campaign_id ?? null,
         campaign_name: r.campaign_name ?? null,
-        ad_set_id: r.adset_id ?? null,
+        ad_set_id: r.adset_id || "",
         ad_set_name: r.adset_name ?? null,
         impressions,
         clicks: totalClicks,

@@ -1,0 +1,2 @@
+DROP INDEX IF EXISTS public.ad_metrics_source_date_campaign_adset_idx;
+CREATE UNIQUE INDEX ad_metrics_source_date_campaign_adset_idx ON public.ad_metrics USING btree (source, date, campaign_id, COALESCE(ad_set_id, ''));
