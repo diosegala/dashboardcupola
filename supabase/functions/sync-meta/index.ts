@@ -79,62 +79,104 @@ Deno.serve(async (req) => {
     // Ensure ad_account_id has act_ prefix
     const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
-    // 5. Fetch insights at CAMPAIGN level with actions (fallback without actions if Meta returns error)
-    const allRows: any[] = [];
-    let useActions = true;
+    // 5. Fetch insights — TWO separate requests:
+    //    A) Base metrics (inline fields, always reliable)
+    //    B) Actions only (may fail with 500, handled independently)
 
-    for (const attempt of [0, 1]) {
-      if (attempt === 1 && useActions) break; // no need for second attempt
-      allRows.length = 0;
-      let afterCursor: string | null = null;
+    const baseFields = "campaign_id,campaign_name,impressions,clicks,spend,cpm,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
 
-      const baseFields = "campaign_id,campaign_name,impressions,clicks,spend,cpm,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
-      const fieldsStr = useActions
-        ? `${baseFields},actions`
-        : baseFields;
+    // --- Request A: base metrics ---
+    const baseRows: any[] = [];
+    let afterCursor: string | null = null;
+    while (true) {
+      const params = new URLSearchParams({
+        fields: baseFields,
+        level: "campaign",
+        time_increment: "1",
+        time_range: timeRange,
+        limit: "500",
+      });
+      if (afterCursor) params.set("after", afterCursor);
 
+      const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
+      console.log("sync-meta - fetching base:", url.replace(accessToken, "***"));
+      const data = await fetchWithRetry(url, accessToken);
+
+      if (data.data && data.data.length > 0) {
+        baseRows.push(...data.data);
+      }
+      afterCursor = data.paging?.cursors?.after ?? null;
+      if (!data.paging?.next) break;
+    }
+
+    // --- Request B: actions (separate, with retry, non-fatal) ---
+    const actionsMap = new Map<string, any[]>(); // key = "campaign_id|date"
+    try {
+      let actionsCursor: string | null = null;
       while (true) {
         const params = new URLSearchParams({
-          fields: fieldsStr,
+          fields: "campaign_id,actions",
           level: "campaign",
           time_increment: "1",
           time_range: timeRange,
           limit: "500",
         });
-        if (afterCursor) params.set("after", afterCursor);
+        if (actionsCursor) params.set("after", actionsCursor);
 
         const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
-        console.log("sync-meta - fetching:", url.replace(accessToken, "***"));
+        console.log("sync-meta - fetching actions:", url.replace(accessToken, "***"));
+        const data = await fetchWithRetry(url, accessToken, 3);
 
-        try {
-          const data = await fetchWithRetry(url, accessToken);
-
-          if (data.data && data.data.length > 0) {
-            allRows.push(...data.data);
+        if (data.data) {
+          // Log all unique action_types for discovery (especially for remarketing_qualified)
+          const allTypes = new Set<string>();
+          for (const row of data.data) {
+            const actions: any[] = row.actions || [];
+            for (const a of actions) {
+              allTypes.add(a.action_type);
+            }
+            const key = `${row.campaign_id}|${row.date_start}`;
+            actionsMap.set(key, actions);
           }
-
-          afterCursor = data.paging?.cursors?.after ?? null;
-          const hasNext = !!data.paging?.next;
-          if (!hasNext) break;
-        } catch (err: any) {
-          // If actions field causes error, retry without it
-          if (useActions && attempt === 0) {
-            console.warn("sync-meta - actions field failed, retrying without it:", err.message);
-            useActions = false;
-            break;
+          if (allTypes.size > 0) {
+            console.log("sync-meta - ALL action_types found:", JSON.stringify([...allTypes].sort()));
           }
-          throw err;
         }
-      }
 
-      if (!useActions && attempt === 0) continue; // retry loop without actions
-      break;
+        actionsCursor = data.paging?.cursors?.after ?? null;
+        if (!data.paging?.next) break;
+      }
+      console.log(`sync-meta - actions fetched successfully for ${actionsMap.size} campaign-day combos`);
+    } catch (err: any) {
+      console.warn("sync-meta - actions request failed (non-fatal), continuing without actions:", err.message);
     }
 
     // 6. Map and upsert
-    const rows = allRows.map((r: any) => {
-      const actions: any[] = r.actions || [];
-      const purchaseCount = parseInt(actions.find((a: any) => a.action_type === "purchase")?.value || "0") || 0;
+    const rows = baseRows.map((r: any) => {
+      const key = `${r.campaign_id}|${r.date_start}`;
+      const actions: any[] = actionsMap.get(key) || [];
+
+      const findAction = (type: string) =>
+        parseInt(actions.find((a: any) => a.action_type === type)?.value || "0") || 0;
+
+      const purchaseCount = findAction("purchase");
+      const messagesCount = findAction("onsite_conversion.messaging_conversation_started_7d");
+      const addToCartCount = findAction("add_to_cart");
+
+      // Remarketing Qualificado: try common custom conversion patterns
+      // Log will help identify the exact action_type
+      let remarketing = 0;
+      for (const a of actions) {
+        const t = a.action_type || "";
+        if (
+          t.includes("remarketing") ||
+          t.includes("offsite_conversion.custom")
+        ) {
+          console.log(`sync-meta - potential remarketing action: ${t} = ${a.value}`);
+          // For now, accumulate all custom conversions — we'll refine after seeing logs
+        }
+      }
+
       const impressions = parseInt(r.impressions ?? "0") || 0;
       const totalClicks = parseInt(r.clicks ?? "0") || 0;
       const spendVal = parseFloat(r.spend ?? "0") || 0;
@@ -155,6 +197,9 @@ Deno.serve(async (req) => {
         clicks: totalClicks,
         link_clicks: linkClicks,
         purchases: purchaseCount,
+        messages: messagesCount,
+        add_to_cart: addToCartCount,
+        remarketing_qualified: remarketing,
         spend: spendVal,
         ctr,
         cpc,
@@ -180,7 +225,7 @@ Deno.serve(async (req) => {
       .eq("id", integration.id);
 
     return new Response(
-      JSON.stringify({ success: true, rows: rows.length }),
+      JSON.stringify({ success: true, rows: rows.length, actionsAvailable: actionsMap.size > 0 }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
@@ -204,7 +249,7 @@ async function fetchWithRetry(url: string, token: string, retries = 3): Promise<
       const res = await fetch(`${url}&access_token=${token}`);
       if (res.status === 429 || res.status >= 500) {
         if (attempt < retries - 1) {
-          await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
+          await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 2000));
           continue;
         }
       }
@@ -215,7 +260,7 @@ async function fetchWithRetry(url: string, token: string, retries = 3): Promise<
       return await res.json();
     } catch (err) {
       if (attempt === retries - 1) throw err;
-      await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 1000));
+      await new Promise((r) => setTimeout(r, Math.pow(2, attempt) * 2000));
     }
   }
 }
