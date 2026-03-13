@@ -72,36 +72,48 @@ Deno.serve(async (req) => {
     // Ensure ad_account_id has act_ prefix
     const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
-    // 4. Single unified request — fields include actions and action_values
-    const fields = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,actions,action_values";
+    // 4. Fetch insights with resilience: try with actions first, then fallback without actions on known Meta instability
+    const baseParams = {
+      level: "adset",
+      date_preset: "last_30d",
+      time_increment: "1",
+      limit: "500",
+    };
 
-    const allRows: any[] = [];
-    let afterCursor: string | null = null;
+    const fieldsWithActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,actions,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
+    const fieldsWithoutActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,inline_link_clicks,inline_link_click_ctr,cost_per_inline_link_click";
 
-    while (true) {
-      const params = new URLSearchParams({
-        fields,
-        level: "adset",
-        date_preset: "last_30d",
-        time_increment: "1",
-        limit: "500",
+    let usedFallbackWithoutActions = false;
+    let allRows: any[] = [];
+
+    try {
+      allRows = await fetchAllInsightsRows({
+        accountId,
+        accessToken,
+        fields: fieldsWithActions,
+        baseParams,
+        logLabel: "with_actions",
       });
-      if (afterCursor) params.set("after", afterCursor);
+    } catch (err) {
+      usedFallbackWithoutActions = true;
+      console.warn(
+        "sync-meta - actions request failed, retrying without actions:",
+        err instanceof Error ? err.message : String(err),
+      );
 
-      const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
-      // Log full URL with masked token for debugging
-      console.log("sync-meta - request:", url);
-      const data = await fetchWithRetry(url, accessToken);
-
-      if (data.data && data.data.length > 0) {
-        allRows.push(...data.data);
-      }
-      afterCursor = data.paging?.cursors?.after ?? null;
-      if (!data.paging?.next) break;
+      allRows = await fetchAllInsightsRows({
+        accountId,
+        accessToken,
+        fields: fieldsWithoutActions,
+        baseParams,
+        logLabel: "without_actions",
+      });
     }
 
     const dates = allRows.map((r: any) => r.date_start).filter(Boolean).sort();
-    console.log(`sync-meta - fetched ${allRows.length} rows at adset level, date range: ${dates[0] || "N/A"} → ${dates[dates.length - 1] || "N/A"}`);
+    console.log(
+      `sync-meta - fetched ${allRows.length} rows at adset level, date range: ${dates[0] || "N/A"} → ${dates[dates.length - 1] || "N/A"}${usedFallbackWithoutActions ? " (fallback without actions)" : ""}`,
+    );
 
     // 5. Log all unique action_types for discovery
     const allActionTypes = new Set<string>();
@@ -121,7 +133,10 @@ Deno.serve(async (req) => {
     const rows = allRows.map((r: any) => {
       const actions: any[] = r.actions || [];
 
-      const linkClicks = findAction(actions, "link_click");
+      const inlineLinkClicks = parseInt(r.inline_link_clicks ?? "0") || 0;
+      const linkClicksFromActions = findAction(actions, "link_click");
+      const linkClicks = linkClicksFromActions > 0 ? linkClicksFromActions : inlineLinkClicks;
+
       const purchaseCount = findAction(actions, "purchase");
       const messagesCount = findAction(actions, "onsite_conversion.messaging_conversation_started_7d");
       const addToCartCount = findAction(actions, "add_to_cart");
@@ -182,7 +197,12 @@ Deno.serve(async (req) => {
       .eq("id", integration.id);
 
     return new Response(
-      JSON.stringify({ success: true, rows: rows.length, actionTypesFound: [...allActionTypes] }),
+      JSON.stringify({
+        success: true,
+        rows: rows.length,
+        actionTypesFound: [...allActionTypes],
+        usedFallbackWithoutActions,
+      }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
@@ -199,6 +219,43 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+type FetchAllInsightsRowsParams = {
+  accountId: string;
+  accessToken: string;
+  fields: string;
+  baseParams: Record<string, string>;
+  logLabel: string;
+};
+
+async function fetchAllInsightsRows({
+  accountId,
+  accessToken,
+  fields,
+  baseParams,
+  logLabel,
+}: FetchAllInsightsRowsParams): Promise<any[]> {
+  const rows: any[] = [];
+  let afterCursor: string | null = null;
+
+  while (true) {
+    const params = new URLSearchParams({ ...baseParams, fields });
+    if (afterCursor) params.set("after", afterCursor);
+
+    const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
+    console.log(`sync-meta - request (${logLabel}):`, url);
+
+    const data = await fetchWithRetry(url, accessToken);
+    if (Array.isArray(data.data) && data.data.length > 0) {
+      rows.push(...data.data);
+    }
+
+    afterCursor = data.paging?.cursors?.after ?? null;
+    if (!data.paging?.next) break;
+  }
+
+  return rows;
+}
 
 async function fetchWithRetry(url: string, token: string, retries = 3): Promise<any> {
   for (let attempt = 0; attempt < retries; attempt++) {
