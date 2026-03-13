@@ -300,13 +300,13 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-4">
           <SourceBreakdownTable title="Sessões por Origem" data={aggregatedSources} metricKey="sessions" />
           <SourceBreakdownTable title="Conversões por Origem" data={aggregatedSources} metricKey="conversions" />
-          <SourceBreakdownTable
+          <SourceBreakdownDataTable
             title="Tempo Médio de Engajamento"
             data={aggregatedSources}
             metricKey="avg_engagement_time"
             formatValue={(v) => `${Math.round(v)}s`}
           />
-          <SourceBreakdownTable
+          <SourceBreakdownDataTable
             title="Taxa de Rejeição"
             data={aggregatedSources}
             metricKey="bounce_rate"
