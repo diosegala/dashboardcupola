@@ -157,12 +157,19 @@ Deno.serve(async (req) => {
       };
     });
 
-    // 7. Batch upsert in chunks of 500
+    // 7. Delete old meta data before inserting fresh data
+    const { error: delError } = await supabase
+      .from("ad_metrics")
+      .delete()
+      .eq("source", "meta");
+    if (delError) throw delError;
+
+    // 8. Batch insert in chunks of 500
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
       const { error } = await supabase
         .from("ad_metrics")
-        .upsert(chunk, { onConflict: "source,date,campaign_id,ad_set_id" });
+        .insert(chunk);
       if (error) throw error;
     }
 
