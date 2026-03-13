@@ -167,6 +167,30 @@ export type Database = {
         }
         Relationships: []
       }
+      ga4_events: {
+        Row: {
+          date: string
+          event_count: number | null
+          event_name: string
+          id: string
+          synced_at: string | null
+        }
+        Insert: {
+          date: string
+          event_count?: number | null
+          event_name: string
+          id?: string
+          synced_at?: string | null
+        }
+        Update: {
+          date?: string
+          event_count?: number | null
+          event_name?: string
+          id?: string
+          synced_at?: string | null
+        }
+        Relationships: []
+      }
       goals: {
         Row: {
           created_at: string
