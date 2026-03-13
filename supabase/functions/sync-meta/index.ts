@@ -113,7 +113,9 @@ Deno.serve(async (req) => {
     }
 
     const dates = allRows.map((r: any) => r.date_start).filter(Boolean).sort();
-    console.log(`sync-meta - fetched ${allRows.length} rows at adset level, date range: ${dates[0] || "N/A"} → ${dates[dates.length - 1] || "N/A"}`);
+    console.log(
+      `sync-meta - fetched ${allRows.length} rows at adset level, date range: ${dates[0] || "N/A"} → ${dates[dates.length - 1] || "N/A"}${usedFallbackWithoutActions ? " (fallback without actions)" : ""}`,
+    );
 
     // 5. Log all unique action_types for discovery
     const allActionTypes = new Set<string>();
