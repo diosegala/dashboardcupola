@@ -76,6 +76,7 @@ export default function Index() {
         adMetrics={adMetrics.data ?? []}
         emailCampaigns={emailCampaigns.data ?? []}
         siteAnalytics={siteAnalytics.data ?? []}
+        ga4Events={ga4Events.data ?? []}
         goals={goals.data ?? []}
         range={range}
       />
