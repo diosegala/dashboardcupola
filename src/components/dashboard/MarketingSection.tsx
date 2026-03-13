@@ -269,6 +269,9 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
       {/* Site */}
       <div>
         <h3 className="text-sm font-medium text-muted-foreground mb-3">Site (Google Analytics)</h3>
+        <div className="mb-4">
+          <ConversionFunnelChart ga4Events={ga4Events} />
+        </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits", range)?.target_value} />
           <MetricCard title="Usuários" value={siteTotals.users} icon={Users} description="Total de usuários" />
