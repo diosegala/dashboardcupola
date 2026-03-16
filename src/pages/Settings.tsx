@@ -97,6 +97,11 @@ export default function Settings() {
 
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<string>("viewer");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const filteredUsers = users?.filter((u) =>
+    statusFilter === "all" ? true : statusFilter === "active" ? !!u.email_confirmed_at : !u.email_confirmed_at
+  );
 
   const inviteMutation = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: string }) => {
