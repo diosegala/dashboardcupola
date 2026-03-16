@@ -97,6 +97,11 @@ export default function Settings() {
 
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<string>("viewer");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+
+  const filteredUsers = users?.filter((u) =>
+    statusFilter === "all" ? true : statusFilter === "active" ? !!u.email_confirmed_at : !u.email_confirmed_at
+  );
 
   const inviteMutation = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: string }) => {
@@ -189,6 +194,19 @@ export default function Settings() {
           <CardDescription>Lista de usuários cadastrados no sistema</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="flex items-center gap-2 mb-4">
+            <Label htmlFor="status-filter" className="text-sm text-muted-foreground whitespace-nowrap">Filtrar por status:</Label>
+            <Select value={statusFilter} onValueChange={setStatusFilter}>
+              <SelectTrigger id="status-filter" className="w-36 h-8">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos</SelectItem>
+                <SelectItem value="active">Ativos</SelectItem>
+                <SelectItem value="pending">Pendentes</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           {usersLoading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
@@ -206,7 +224,7 @@ export default function Settings() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.map((u) => (
+                {filteredUsers?.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">
                       {u.name ?? "—"}
