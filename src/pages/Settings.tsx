@@ -224,7 +224,7 @@ export default function Settings() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {users?.map((u) => (
+                {filteredUsers?.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">
                       {u.name ?? "—"}
