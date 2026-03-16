@@ -52,7 +52,24 @@ Deno.serve(async (req) => {
       return jsonResponse({ error: "Apenas administradores podem gerenciar usuários" }, 403);
     }
 
-    const { action, user_id, role } = await req.json();
+    const body = await req.json();
+    const { action, user_id, role } = body;
+
+    // === LIST USERS ===
+    if (action === "list_users") {
+      const { data: listData, error: listError } = await adminClient.auth.admin.listUsers({ perPage: 1000 });
+      if (listError) {
+        console.error("list_users error:", listError);
+        return jsonResponse({ error: listError.message }, 400);
+      }
+      const users = (listData?.users ?? []).map((u) => ({
+        id: u.id,
+        email: u.email,
+        email_confirmed_at: u.email_confirmed_at ?? null,
+        last_sign_in_at: u.last_sign_in_at ?? null,
+      }));
+      return jsonResponse({ users });
+    }
 
     if (!action || !user_id) {
       return jsonResponse({ error: "action e user_id são obrigatórios" }, 400);
