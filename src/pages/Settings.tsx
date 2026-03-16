@@ -199,6 +199,8 @@ export default function Settings() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Função</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Último login</TableHead>
                   <TableHead>Desde</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -232,6 +234,25 @@ export default function Settings() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      {u.email_confirmed_at ? (
+                        <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-xs gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> Ativo
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-700 hover:bg-yellow-500/30 text-xs gap-1">
+                          <Clock className="h-3 w-3" /> Pendente
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {u.last_sign_in_at
+                        ? new Date(u.last_sign_in_at).toLocaleDateString("pt-BR", {
+                            day: "2-digit", month: "2-digit", year: "numeric",
+                            hour: "2-digit", minute: "2-digit",
+                          })
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(u.created_at).toLocaleDateString("pt-BR")}
