@@ -18,27 +18,45 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useToast } from "@/hooks/use-toast";
 import { UserPlus, Shield, Eye, Loader2, Mail, Trash2 } from "lucide-react";
 
+interface UserWithAuth {
+  id: string;
+  name: string | null;
+  created_at: string;
+  role: string;
+  email_confirmed_at: string | null;
+  last_sign_in_at: string | null;
+}
+
 function useUsers() {
   return useQuery({
     queryKey: ["users-with-roles"],
-    queryFn: async () => {
-      const [profilesRes, rolesRes] = await Promise.all([
+    queryFn: async (): Promise<UserWithAuth[]> => {
+      const [profilesRes, rolesRes, authRes] = await Promise.all([
         supabase.from("profiles").select("id, name, created_at"),
         supabase.from("user_roles").select("user_id, role"),
+        supabase.functions.invoke("manage-user", { body: { action: "list_users" } }),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;
+      if (authRes.error) throw new Error(authRes.error.message);
+      if (authRes.data?.error) throw new Error(authRes.data.error);
 
       const rolesMap = new Map<string, string>();
       for (const r of rolesRes.data) {
         rolesMap.set(r.user_id, r.role);
       }
 
+      const authUsers: Array<{ id: string; email_confirmed_at: string | null; last_sign_in_at: string | null }> =
+        authRes.data?.users ?? [];
+      const authMap = new Map(authUsers.map((u) => [u.id, u]));
+
       return profilesRes.data.map((p) => ({
         id: p.id,
         name: p.name,
         created_at: p.created_at,
         role: rolesMap.get(p.id) ?? "viewer",
+        email_confirmed_at: authMap.get(p.id)?.email_confirmed_at ?? null,
+        last_sign_in_at: authMap.get(p.id)?.last_sign_in_at ?? null,
       }));
     },
   });
