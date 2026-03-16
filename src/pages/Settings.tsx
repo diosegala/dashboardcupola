@@ -16,29 +16,47 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Shield, Eye, Loader2, Mail, Trash2 } from "lucide-react";
+import { UserPlus, Shield, Eye, Loader2, Mail, Trash2, CheckCircle2, Clock } from "lucide-react";
+
+interface UserWithAuth {
+  id: string;
+  name: string | null;
+  created_at: string;
+  role: string;
+  email_confirmed_at: string | null;
+  last_sign_in_at: string | null;
+}
 
 function useUsers() {
   return useQuery({
     queryKey: ["users-with-roles"],
-    queryFn: async () => {
-      const [profilesRes, rolesRes] = await Promise.all([
+    queryFn: async (): Promise<UserWithAuth[]> => {
+      const [profilesRes, rolesRes, authRes] = await Promise.all([
         supabase.from("profiles").select("id, name, created_at"),
         supabase.from("user_roles").select("user_id, role"),
+        supabase.functions.invoke("manage-user", { body: { action: "list_users" } }),
       ]);
       if (profilesRes.error) throw profilesRes.error;
       if (rolesRes.error) throw rolesRes.error;
+      if (authRes.error) throw new Error(authRes.error.message);
+      if (authRes.data?.error) throw new Error(authRes.data.error);
 
       const rolesMap = new Map<string, string>();
       for (const r of rolesRes.data) {
         rolesMap.set(r.user_id, r.role);
       }
 
+      const authUsers: Array<{ id: string; email_confirmed_at: string | null; last_sign_in_at: string | null }> =
+        authRes.data?.users ?? [];
+      const authMap = new Map(authUsers.map((u) => [u.id, u]));
+
       return profilesRes.data.map((p) => ({
         id: p.id,
         name: p.name,
         created_at: p.created_at,
         role: rolesMap.get(p.id) ?? "viewer",
+        email_confirmed_at: authMap.get(p.id)?.email_confirmed_at ?? null,
+        last_sign_in_at: authMap.get(p.id)?.last_sign_in_at ?? null,
       }));
     },
   });
@@ -181,6 +199,8 @@ export default function Settings() {
                 <TableRow>
                   <TableHead>Nome</TableHead>
                   <TableHead>Função</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Último login</TableHead>
                   <TableHead>Desde</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
@@ -214,6 +234,25 @@ export default function Settings() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                    </TableCell>
+                    <TableCell>
+                      {u.email_confirmed_at ? (
+                        <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-xs gap-1">
+                          <CheckCircle2 className="h-3 w-3" /> Ativo
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-700 hover:bg-yellow-500/30 text-xs gap-1">
+                          <Clock className="h-3 w-3" /> Pendente
+                        </Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground text-sm">
+                      {u.last_sign_in_at
+                        ? new Date(u.last_sign_in_at).toLocaleDateString("pt-BR", {
+                            day: "2-digit", month: "2-digit", year: "numeric",
+                            hour: "2-digit", minute: "2-digit",
+                          })
+                        : "—"}
                     </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {new Date(u.created_at).toLocaleDateString("pt-BR")}
