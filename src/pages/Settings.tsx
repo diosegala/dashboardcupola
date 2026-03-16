@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
-import { UserPlus, Shield, Eye, Loader2, Mail, Trash2 } from "lucide-react";
+import { UserPlus, Shield, Eye, Loader2, Mail, Trash2, CheckCircle2, Clock } from "lucide-react";
 
 interface UserWithAuth {
   id: string;
