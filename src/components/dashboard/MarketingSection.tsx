@@ -161,6 +161,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           return (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <MetricCard title="Campanhas" value={uniqueCampaigns} icon={BarChart3} description="Campanhas ativas no período" />
+              <MetricCard title="Investimento" value={`R$ ${totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`} icon={Wallet} goal={findGoal(goals, "meta_spend", range)?.target_value} prefix="R$ " description="Total investido no período" />
               <MetricCard title="Impressões" value={totalImpressions} icon={Eye} goal={findGoal(goals, "meta_impressions", range)?.target_value} />
               <MetricCard title="Cliques no Link" value={totalLinkClicks} icon={MousePointerClick} goal={findGoal(goals, "meta_link_clicks", range)?.target_value} />
               <MetricCard title="CPC" value={`R$ ${cpc.toFixed(2)}`} icon={Wallet} description="Custo por clique no link" />
