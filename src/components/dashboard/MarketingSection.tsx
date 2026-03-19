@@ -229,6 +229,8 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
                 ? {
                     name: campaign[0].name || value,
                     totalSent: campaign.reduce((s: number, c: any) => s + Number(c.total_sent || 0), 0),
+                    totalDelivered: campaign.reduce((s: number, c: any) => s + Number(c.total_delivered || 0), 0),
+                    totalBounced: campaign.reduce((s: number, c: any) => s + Number(c.total_bounced || 0), 0),
                     totalOpened: campaign.reduce((s: number, c: any) => s + Number(c.total_opened || 0), 0),
                     totalClicked: campaign.reduce((s: number, c: any) => s + Number(c.total_clicked || 0), 0),
                     openRate: (campaign.reduce((s: number, c: any) => s + Number(c.open_rate || 0), 0) / campaign.length) * 100,
