@@ -122,6 +122,8 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
   const emailTotals = useMemo(() => ({
     sent: filteredEmailCampaigns.length,
     totalSent: sum(filteredEmailCampaigns, "total_sent"),
+    totalDelivered: sum(filteredEmailCampaigns, "total_delivered"),
+    totalBounced: sum(filteredEmailCampaigns, "total_bounced"),
     totalOpened: sum(filteredEmailCampaigns, "total_opened"),
     totalClicked: sum(filteredEmailCampaigns, "total_clicked"),
     openRate: avg(filteredEmailCampaigns, "open_rate") * 100,
@@ -188,7 +190,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Campanhas Enviadas" value={emailTotals.sent} icon={Mail} description={`${emailTotals.totalSent.toLocaleString("pt-BR")} leads alcançados`} />
+          <MetricCard title="Campanhas Enviadas" value={emailTotals.sent} icon={Mail} description={`${emailTotals.totalDelivered.toLocaleString("pt-BR")} entregues de ${emailTotals.totalSent.toLocaleString("pt-BR")} enviados`} />
           <MetricCard title="Taxa de Abertura" value={`${emailTotals.openRate.toFixed(1)}%`} icon={Mail} goal={findGoal(goals, "email_open_rate", range)?.target_value} />
           <MetricCard title="Taxa de Clique" value={`${emailTotals.clickRate.toFixed(1)}%`} icon={MousePointerClick} goal={findGoal(goals, "email_click_rate", range)?.target_value} />
           <Card>
@@ -207,6 +209,11 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
                   <span className="text-sm text-muted-foreground">Clicaram</span>
                   <span className="text-2xl font-bold">{emailTotals.totalClicked.toLocaleString("pt-BR")}</span>
                 </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Bounced</span>
+                  <span className="text-2xl font-bold">{emailTotals.totalBounced.toLocaleString("pt-BR")}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -222,6 +229,8 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
                 ? {
                     name: campaign[0].name || value,
                     totalSent: campaign.reduce((s: number, c: any) => s + Number(c.total_sent || 0), 0),
+                    totalDelivered: campaign.reduce((s: number, c: any) => s + Number(c.total_delivered || 0), 0),
+                    totalBounced: campaign.reduce((s: number, c: any) => s + Number(c.total_bounced || 0), 0),
                     totalOpened: campaign.reduce((s: number, c: any) => s + Number(c.total_opened || 0), 0),
                     totalClicked: campaign.reduce((s: number, c: any) => s + Number(c.total_clicked || 0), 0),
                     openRate: (campaign.reduce((s: number, c: any) => s + Number(c.open_rate || 0), 0) / campaign.length) * 100,
@@ -255,6 +264,11 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
                         </div>
                         <Separator />
                         <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Entregues</span>
+                          <span className="text-2xl font-bold">{data.totalDelivered.toLocaleString("pt-BR")}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Abriram</span>
                           <div className="text-right">
                             <span className="text-2xl font-bold">{data.totalOpened.toLocaleString("pt-BR")}</span>
@@ -268,6 +282,11 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
                             <span className="text-2xl font-bold">{data.totalClicked.toLocaleString("pt-BR")}</span>
                             <span className="text-xs text-muted-foreground ml-1">({data.clickRate.toFixed(1)}%)</span>
                           </div>
+                        </div>
+                        <Separator />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Bounced</span>
+                          <span className="text-2xl font-bold">{data.totalBounced.toLocaleString("pt-BR")}</span>
                         </div>
                       </div>
                     </CardContent>

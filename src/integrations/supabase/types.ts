@@ -139,9 +139,13 @@ export type Database = {
           open_rate: number | null
           rd_campaign_id: string
           sent_at: string | null
+          spam_reported: number | null
           subject: string | null
           synced_at: string
+          total_bounced: number | null
           total_clicked: number | null
+          total_delivered: number | null
+          total_dropped: number | null
           total_opened: number | null
           total_sent: number | null
           unsubscribes: number | null
@@ -153,9 +157,13 @@ export type Database = {
           open_rate?: number | null
           rd_campaign_id: string
           sent_at?: string | null
+          spam_reported?: number | null
           subject?: string | null
           synced_at?: string
+          total_bounced?: number | null
           total_clicked?: number | null
+          total_delivered?: number | null
+          total_dropped?: number | null
           total_opened?: number | null
           total_sent?: number | null
           unsubscribes?: number | null
@@ -167,9 +175,13 @@ export type Database = {
           open_rate?: number | null
           rd_campaign_id?: string
           sent_at?: string | null
+          spam_reported?: number | null
           subject?: string | null
           synced_at?: string
+          total_bounced?: number | null
           total_clicked?: number | null
+          total_delivered?: number | null
+          total_dropped?: number | null
           total_opened?: number | null
           total_sent?: number | null
           unsubscribes?: number | null
