@@ -144,8 +144,15 @@ Deno.serve(async (req) => {
     // Map analytics data directly to email_campaigns rows
     const rows = emailItems.map((item: any) => {
       const totalSent = item.contacts_count ?? 0;
+      const totalDelivered = item.email_delivered_count ?? 0;
+      const totalBounced = item.email_bounced_count ?? 0;
+      const totalDropped = item.email_dropped_count ?? 0;
       const totalOpened = item.email_opened_count ?? 0;
       const totalClicked = item.email_clicked_count ?? 0;
+      const spamReported = item.email_spam_reported_count ?? 0;
+
+      // Use delivered as denominator to align with RD Station UI reports
+      const base = totalDelivered > 0 ? totalDelivered : totalSent;
 
       return {
         rd_campaign_id: String(item.campaign_id),
@@ -153,11 +160,15 @@ Deno.serve(async (req) => {
         subject: null,
         sent_at: item.send_at ?? null,
         total_sent: totalSent,
+        total_delivered: totalDelivered,
+        total_bounced: totalBounced,
+        total_dropped: totalDropped,
         total_opened: totalOpened,
         total_clicked: totalClicked,
-        open_rate: totalSent > 0 ? totalOpened / totalSent : 0,
-        click_rate: totalSent > 0 ? totalClicked / totalSent : 0,
+        open_rate: base > 0 ? totalOpened / base : 0,
+        click_rate: base > 0 ? totalClicked / base : 0,
         unsubscribes: item.email_unsubscribed_count ?? 0,
+        spam_reported: spamReported,
         synced_at: new Date().toISOString(),
       };
     });

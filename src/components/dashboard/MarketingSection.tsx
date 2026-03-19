@@ -122,6 +122,8 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
   const emailTotals = useMemo(() => ({
     sent: filteredEmailCampaigns.length,
     totalSent: sum(filteredEmailCampaigns, "total_sent"),
+    totalDelivered: sum(filteredEmailCampaigns, "total_delivered"),
+    totalBounced: sum(filteredEmailCampaigns, "total_bounced"),
     totalOpened: sum(filteredEmailCampaigns, "total_opened"),
     totalClicked: sum(filteredEmailCampaigns, "total_clicked"),
     openRate: avg(filteredEmailCampaigns, "open_rate") * 100,
