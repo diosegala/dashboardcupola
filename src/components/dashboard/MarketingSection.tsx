@@ -190,7 +190,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Campanhas Enviadas" value={emailTotals.sent} icon={Mail} description={`${emailTotals.totalSent.toLocaleString("pt-BR")} leads alcançados`} />
+          <MetricCard title="Campanhas Enviadas" value={emailTotals.sent} icon={Mail} description={`${emailTotals.totalDelivered.toLocaleString("pt-BR")} entregues de ${emailTotals.totalSent.toLocaleString("pt-BR")} enviados`} />
           <MetricCard title="Taxa de Abertura" value={`${emailTotals.openRate.toFixed(1)}%`} icon={Mail} goal={findGoal(goals, "email_open_rate", range)?.target_value} />
           <MetricCard title="Taxa de Clique" value={`${emailTotals.clickRate.toFixed(1)}%`} icon={MousePointerClick} goal={findGoal(goals, "email_click_rate", range)?.target_value} />
           <Card>
