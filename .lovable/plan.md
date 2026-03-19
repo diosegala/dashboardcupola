@@ -1,30 +1,22 @@
 
 
-# Adicionar métrica de Investimento (Spend) do Meta Ads
+# Corrigir R$ duplicado no card de Investimento
 
-## O que muda
+## Problema
 
-Adicionar um novo `MetricCard` de "Investimento" na seção Meta Ads do dashboard, formatado em R$, com suporte a meta (goal). Como os dados já são filtrados por campanha via `CampaignFilter`, o valor já refletirá a seleção de campanhas automaticamente.
+Na linha 164 de `MarketingSection.tsx`, o valor já é formatado com `R$ ` no template string (`R$ ${totalSpend...}`), e o `prefix="R$ "` adiciona o símbolo novamente.
 
-## Implementação — `src/components/dashboard/MarketingSection.tsx`
+## Correção
 
-1. Na grid de MetricCards do Meta Ads (linha ~162), adicionar um novo card entre "Campanhas" e "Impressões":
+Remover o `R$ ` do `value` e manter apenas o `prefix`. Assim o `MetricCard` cuida da formatação, e a meta também exibirá o prefixo correto.
 
 ```tsx
-<MetricCard
-  title="Investimento"
-  value={`R$ ${totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-  icon={Wallet}
-  goal={findGoal(goals, "meta_spend", range)?.target_value}
-  description="Total investido no período"
-/>
+// De:
+value={`R$ ${totalSpend.toLocaleString(...)}`} prefix="R$ "
+
+// Para:
+value={totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} prefix="R$ "
 ```
 
-`totalSpend` já é calculado na linha 151 (`sum(meta, "spend")`), e já respeita o filtro de campanhas. Nenhuma lógica nova é necessária — apenas o card.
-
-## Resultado
-
-- O card aparece na seção Meta Ads com valor em R$ (ex: `R$ 1.234,56`)
-- Filtrando por campanha, o valor muda automaticamente
-- Se uma meta `meta_spend` for configurada na página de Metas, a barra de progresso aparece
+Arquivo: `src/components/dashboard/MarketingSection.tsx`, linha 164.
 
