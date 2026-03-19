@@ -1,48 +1,30 @@
 
 
-# Comparador de Campanhas RD Station
+# Adicionar métrica de Investimento (Spend) do Meta Ads
 
-## Ideia
+## O que muda
 
-Adicionar uma seção de comparação lado a lado abaixo dos cards atuais do RD Station. Dois painéis horizontais, cada um com seu próprio seletor de campanha (seleção única), exibindo os mesmos indicadores para permitir comparação direta.
+Adicionar um novo `MetricCard` de "Investimento" na seção Meta Ads do dashboard, formatado em R$, com suporte a meta (goal). Como os dados já são filtrados por campanha via `CampaignFilter`, o valor já refletirá a seleção de campanhas automaticamente.
 
-## Layout
+## Implementação — `src/components/dashboard/MarketingSection.tsx`
 
-```text
-┌─── RD Station ──────────────────────────────────────────────────┐
-│ [filtro multi-campanha existente - sem mudança]                 │
-│ [cards agregados existentes - sem mudança]                      │
-│                                                                 │
-│ ── Comparar Campanhas ──────────────────────────────────────    │
-│                                                                 │
-│ ┌─ Campanha A ────────────────┐  ┌─ Campanha B ──────────────┐ │
-│ │ [seletor campanha única ▼]  │  │ [seletor campanha única ▼]│ │
-│ │                             │  │                            │ │
-│ │ Enviados: 1.250             │  │ Enviados: 890              │ │
-│ │ Abriram:  400 (32.0%)       │  │ Abriram:  310 (34.8%)     │ │
-│ │ Clicaram: 85  (6.8%)        │  │ Clicaram: 72  (8.1%)      │ │
-│ └─────────────────────────────┘  └────────────────────────────┘ │
-└─────────────────────────────────────────────────────────────────┘
+1. Na grid de MetricCards do Meta Ads (linha ~162), adicionar um novo card entre "Campanhas" e "Impressões":
+
+```tsx
+<MetricCard
+  title="Investimento"
+  value={`R$ ${totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+  icon={Wallet}
+  goal={findGoal(goals, "meta_spend", range)?.target_value}
+  description="Total investido no período"
+/>
 ```
 
-## Alterações
+`totalSpend` já é calculado na linha 151 (`sum(meta, "spend")`), e já respeita o filtro de campanhas. Nenhuma lógica nova é necessária — apenas o card.
 
-### `src/components/dashboard/MarketingSection.tsx`
+## Resultado
 
-1. **Novo estado**: dois states para a campanha selecionada em cada lado (`compareA` e `compareB`, tipo `string | null`).
-
-2. **Seletor de campanha única**: reutilizar um `<Select>` simples (do shadcn) com as opções de `emailCampaignOptions`. Cada lado tem seu próprio select. Placeholder: "Selecione uma campanha".
-
-3. **Painel de comparação**: um `grid grid-cols-1 md:grid-cols-2 gap-4` abaixo dos cards existentes, só visível quando pelo menos uma campanha estiver selecionada em qualquer lado. Cada lado é um `<Card>` que mostra:
-   - Nome da campanha (título do card)
-   - Total enviados (`total_sent`)
-   - Abriram (`total_opened`) com taxa de abertura
-   - Clicaram (`total_clicked`) com taxa de clique
-   - Layout em linhas com `<Separator />` entre métricas (mesmo padrão do card Leads Engajados)
-
-4. **Lookup**: para cada lado, filtrar `emailCampaigns` pelo `rd_campaign_id` selecionado e somar os valores (uma campanha pode ter múltiplos registros).
-
-### Nenhuma alteração de banco de dados necessária.
-
-Arquivo editado: apenas `src/components/dashboard/MarketingSection.tsx`.
+- O card aparece na seção Meta Ads com valor em R$ (ex: `R$ 1.234,56`)
+- Filtrando por campanha, o valor muda automaticamente
+- Se uma meta `meta_spend` for configurada na página de Metas, a barra de progresso aparece
 
