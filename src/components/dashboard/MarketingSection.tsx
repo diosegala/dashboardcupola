@@ -264,6 +264,11 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
                         </div>
                         <Separator />
                         <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Entregues</span>
+                          <span className="text-2xl font-bold">{data.totalDelivered.toLocaleString("pt-BR")}</span>
+                        </div>
+                        <Separator />
+                        <div className="flex items-center justify-between">
                           <span className="text-sm text-muted-foreground">Abriram</span>
                           <div className="text-right">
                             <span className="text-2xl font-bold">{data.totalOpened.toLocaleString("pt-BR")}</span>
@@ -277,6 +282,11 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
                             <span className="text-2xl font-bold">{data.totalClicked.toLocaleString("pt-BR")}</span>
                             <span className="text-xs text-muted-foreground ml-1">({data.clickRate.toFixed(1)}%)</span>
                           </div>
+                        </div>
+                        <Separator />
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm text-muted-foreground">Bounced</span>
+                          <span className="text-2xl font-bold">{data.totalBounced.toLocaleString("pt-BR")}</span>
                         </div>
                       </div>
                     </CardContent>
