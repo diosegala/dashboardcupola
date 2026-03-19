@@ -209,6 +209,11 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
                   <span className="text-sm text-muted-foreground">Clicaram</span>
                   <span className="text-2xl font-bold">{emailTotals.totalClicked.toLocaleString("pt-BR")}</span>
                 </div>
+                <Separator />
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Bounced</span>
+                  <span className="text-2xl font-bold">{emailTotals.totalBounced.toLocaleString("pt-BR")}</span>
+                </div>
               </div>
             </CardContent>
           </Card>
