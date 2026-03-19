@@ -5,6 +5,7 @@ export const METRIC_OPTIONS = [
   { key: "meta_clicks", label: "Cliques (Meta Ads)", category: "Marketing" },
   { key: "meta_link_clicks", label: "Cliques no Link (Meta Ads)", category: "Marketing" },
   { key: "meta_purchases", label: "Compras - Pixel (Meta Ads)", category: "Marketing" },
+  { key: "meta_spend", label: "Investimento (Meta Ads)", category: "Marketing" },
   { key: "meta_conversion_rate", label: "Taxa de Conversão (Meta Ads)", category: "Marketing" },
   { key: "google_impressions", label: "Impressões (Google Ads)", category: "Marketing" },
   { key: "google_clicks", label: "Cliques (Google Ads)", category: "Marketing" },
