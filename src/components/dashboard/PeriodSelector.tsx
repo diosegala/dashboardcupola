@@ -98,8 +98,8 @@ export function PeriodSelector({ range, onChange }: PeriodSelectorProps) {
               mode="range"
               selected={{ from: tempRange.from, to: tempRange.to }}
               onSelect={(r) => {
-                if (r?.from && r?.to) setTempRange({ from: r.from, to: r.to });
-                else if (r?.from) setTempRange({ from: r.from, to: r.from });
+                if (r?.from && r?.to) setTempRange({ from: startOfDay(r.from), to: endOfDay(r.to) });
+                else if (r?.from) setTempRange({ from: startOfDay(r.from), to: endOfDay(r.from) });
               }}
               numberOfMonths={2}
               locale={ptBR}
