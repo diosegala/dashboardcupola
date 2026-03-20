@@ -109,7 +109,7 @@ Deno.serve(async (req) => {
         total_price: parseFloat(p.ticket_sale_price ?? "0") || 0,
         buyer_name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null,
         buyer_email: p.email ?? null,
-        sold_at: p.order_approved_date || p.order_date || null,
+        sold_at: p.order_date || p.order_approved_date || null,
         status: mapStatus(p.order_status),
         event_id: eventId,
         synced_at: new Date().toISOString(),
