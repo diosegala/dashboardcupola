@@ -1,70 +1,30 @@
 
 
-# Melhorar o seletor de período do dashboard
+# Corrigir data de venda dos ingressos Sympla
 
-## Problemas atuais
+## Problema
 
-1. **UX de seleção de intervalo**: ao clicar numa data no calendário, o `onChange` dispara imediatamente (inclusive com `from === to`), o que pode fechar o popover ou causar comportamento inesperado antes de selecionar a segunda data
-2. **Presets incompletos**: faltam "Hoje", "Ontem", "Este trimestre", "Trimestre passado"; sobram "Últimos 7 dias" e "Últimos 30 dias" que podem ser mantidos
-3. **Layout**: presets e calendário empilhados verticalmente ocupam muito espaço; um layout lado a lado ficaria mais limpo
+O campo `sold_at` é preenchido com `order_approved_date || order_date`. A data de aprovação do pagamento pode ser dias após a compra (ex: boleto, PIX pendente). O dashboard do Sympla usa a data do pedido (`order_date`), não da aprovação.
 
-## Implementação — `src/components/dashboard/PeriodSelector.tsx`
+Resultado: ingressos comprados em dias anteriores mas aprovados depois inflam os números do dia da aprovação.
 
-### 1. Layout lado a lado (presets à esquerda, calendário à direita)
+Evidência: no dia 19/03, 9 ingressos (IDs 306291310–306291318) foram comprados antes mas aprovados às 05:38 do dia 19, junto com um outro (306537453). Removendo esses ~17 ingressos "deslocados", o número se aproxima dos 12 que o Sympla mostra.
 
-```text
-┌─────────────────────────────────────────────┐
-│ Hoje              │                         │
-│ Ontem             │   ◀ Mar 2026    Abr ▶   │
-│ Esta semana       │   ┌──┬──┬──┬──┬──┬──┐   │
-│ Semana passada    │   │  │  │  │  │  │  │   │
-│ Este mês          │   │  │  │  │  │  │  │   │
-│ Mês passado       │   └──┴──┴──┴──┴──┴──┘   │
-│ Este trimestre    │                         │
-│ Trimestre passado │                         │
-│ Todo o período    │                         │
-├─────────────────────────────────────────────┤
-│              [Aplicar]  [Limpar]            │
-└─────────────────────────────────────────────┘
+## Correção
+
+### `supabase/functions/sync-sympla/index.ts`
+
+Inverter a prioridade: usar `order_date` como primário e `order_approved_date` como fallback:
+
+```typescript
+// De:
+sold_at: p.order_approved_date || p.order_date || null,
+
+// Para:
+sold_at: p.order_date || p.order_approved_date || null,
 ```
 
-### 2. Presets atualizados
+### Re-sincronização
 
-- **Hoje** — dia atual
-- **Ontem** — dia anterior
-- **Esta semana** — seg a dom (semana atual)
-- **Semana passada** — seg a dom anterior
-- **Este mês** — mês atual
-- **Mês passado** — mês anterior
-- **Este trimestre** — Q1/Q2/Q3/Q4 atual
-- **Trimestre passado** — trimestre anterior
-- **Todo o período** — desde 2020
-
-Ao clicar num preset, aplica imediatamente e fecha o popover (comportamento atual, funciona bem para presets).
-
-### 3. Seleção manual com confirmação
-
-Problema principal: atualmente qualquer clique no calendário chama `onChange` direto, o que atualiza o dashboard antes de completar a seleção.
-
-Solução:
-- Estado interno `tempRange` para guardar a seleção em progresso
-- O calendário atualiza `tempRange` (não o `onChange` do pai)
-- Botão **"Aplicar"** chama `onChange(tempRange)` e fecha o popover
-- Botão **"Limpar"** reseta `tempRange` para o range atual
-- Ao abrir o popover, `tempRange` é inicializado com o `range` atual
-
-### 4. Highlight visual do preset ativo
-
-Comparar o `range` atual com cada preset e destacar o botão correspondente com `variant="secondary"`.
-
-### 5. Fechar popover programaticamente
-
-Usar estado `open` controlado no `Popover` para fechar ao aplicar ou ao clicar num preset.
-
-## Detalhes técnicos
-
-- Adicionar imports: `startOfQuarter`, `endOfQuarter`, `subQuarters`, `startOfDay`, `endOfDay`, `isSameDay` de `date-fns`
-- Estado interno: `const [tempRange, setTempRange] = useState<DateRange>(range)` + `const [open, setOpen] = useState(false)`
-- Popover controlado: `<Popover open={open} onOpenChange={setOpen}>`
-- `useEffect` para sincronizar `tempRange` quando `range` muda externamente
+Após o deploy, acionar a sincronização manualmente para atualizar todos os registros existentes com a data correta (o upsert por `sympla_order_id` vai sobrescrever os valores antigos).
 
