@@ -1,80 +1,70 @@
 
 
-# Corrigir métricas do RD Station e adicionar Bounce
+# Melhorar o seletor de período do dashboard
 
-## Problema
+## Problemas atuais
 
-A API do RD Station Analytics (`/platform/analytics/emails`) retorna campos que não estamos capturando:
-- `email_delivered_count` — emails efetivamente entregues (o que o relatório da UI do RD chama de "entregues")
-- `email_bounced_count` — emails rejeitados
-- `email_dropped_count` — emails descartados
-- `email_spam_reported_count` — marcados como spam
+1. **UX de seleção de intervalo**: ao clicar numa data no calendário, o `onChange` dispara imediatamente (inclusive com `from === to`), o que pode fechar o popover ou causar comportamento inesperado antes de selecionar a segunda data
+2. **Presets incompletos**: faltam "Hoje", "Ontem", "Este trimestre", "Trimestre passado"; sobram "Últimos 7 dias" e "Últimos 30 dias" que podem ser mantidos
+3. **Layout**: presets e calendário empilhados verticalmente ocupam muito espaço; um layout lado a lado ficaria mais limpo
 
-Atualmente usamos `contacts_count` como `total_sent`, que representa o total de contatos **selecionados** para envio (inclui bounces/drops). Isso explica a diferença nos números.
+## Implementação — `src/components/dashboard/PeriodSelector.tsx`
 
-## Plano
+### 1. Layout lado a lado (presets à esquerda, calendário à direita)
 
-### 1. Migration: adicionar colunas na tabela `email_campaigns`
-
-```sql
-ALTER TABLE email_campaigns
-  ADD COLUMN IF NOT EXISTS total_delivered integer DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS total_bounced integer DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS total_dropped integer DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS spam_reported integer DEFAULT 0;
+```text
+┌─────────────────────────────────────────────┐
+│ Hoje              │                         │
+│ Ontem             │   ◀ Mar 2026    Abr ▶   │
+│ Esta semana       │   ┌──┬──┬──┬──┬──┬──┐   │
+│ Semana passada    │   │  │  │  │  │  │  │   │
+│ Este mês          │   │  │  │  │  │  │  │   │
+│ Mês passado       │   └──┴──┴──┴──┴──┴──┘   │
+│ Este trimestre    │                         │
+│ Trimestre passado │                         │
+│ Todo o período    │                         │
+├─────────────────────────────────────────────┤
+│              [Aplicar]  [Limpar]            │
+└─────────────────────────────────────────────┘
 ```
 
-### 2. Edge Function `sync-rd-station/index.ts`
+### 2. Presets atualizados
 
-Atualizar o mapeamento para capturar os novos campos da API:
+- **Hoje** — dia atual
+- **Ontem** — dia anterior
+- **Esta semana** — seg a dom (semana atual)
+- **Semana passada** — seg a dom anterior
+- **Este mês** — mês atual
+- **Mês passado** — mês anterior
+- **Este trimestre** — Q1/Q2/Q3/Q4 atual
+- **Trimestre passado** — trimestre anterior
+- **Todo o período** — desde 2020
 
-```typescript
-return {
-  rd_campaign_id: String(item.campaign_id),
-  name: item.campaign_name ?? null,
-  sent_at: item.send_at ?? null,
-  total_sent: item.contacts_count ?? 0,        // mantém: total selecionados
-  total_delivered: item.email_delivered_count ?? 0,  // NOVO
-  total_bounced: item.email_bounced_count ?? 0,      // NOVO
-  total_dropped: item.email_dropped_count ?? 0,      // NOVO
-  total_opened: item.email_opened_count ?? 0,
-  total_clicked: item.email_clicked_count ?? 0,
-  unsubscribes: item.email_unsubscribed_count ?? 0,
-  spam_reported: item.email_spam_reported_count ?? 0,  // NOVO
-  open_rate: ...,  // recalcular usando delivered como base
-  click_rate: ..., // recalcular usando delivered como base
-  synced_at: new Date().toISOString(),
-};
-```
+Ao clicar num preset, aplica imediatamente e fecha o popover (comportamento atual, funciona bem para presets).
 
-As taxas (`open_rate`, `click_rate`) passam a usar `total_delivered` como denominador — alinhando com a lógica do relatório do RD Station.
+### 3. Seleção manual com confirmação
 
-### 3. Dashboard `MarketingSection.tsx`
+Problema principal: atualmente qualquer clique no calendário chama `onChange` direto, o que atualiza o dashboard antes de completar a seleção.
 
-**Card "Campanhas Enviadas"**: mudar a descrição de "leads alcançados" para mostrar entregues vs enviados:
-```
-"16.756 entregues de 16.800 enviados"
-```
+Solução:
+- Estado interno `tempRange` para guardar a seleção em progresso
+- O calendário atualiza `tempRange` (não o `onChange` do pai)
+- Botão **"Aplicar"** chama `onChange(tempRange)` e fecha o popover
+- Botão **"Limpar"** reseta `tempRange` para o range atual
+- Ao abrir o popover, `tempRange` é inicializado com o `range` atual
 
-**Novo dado no card "Leads Engajados"**: adicionar linha de Bounced abaixo de Clicaram:
-```
-Abriram    6.846
-Clicaram      18
-Bounced       44
-```
+### 4. Highlight visual do preset ativo
 
-**Comparador de Campanhas**: adicionar linha de Bounced e usar `total_delivered` nas taxas.
+Comparar o `range` atual com cada preset e destacar o botão correspondente com `variant="secondary"`.
 
-### 4. `emailTotals` — adicionar agregações
+### 5. Fechar popover programaticamente
 
-```typescript
-totalDelivered: sum(filteredEmailCampaigns, "total_delivered"),
-totalBounced: sum(filteredEmailCampaigns, "total_bounced"),
-```
+Usar estado `open` controlado no `Popover` para fechar ao aplicar ou ao clicar num preset.
 
-## Resultado
+## Detalhes técnicos
 
-- Métricas alinhadas com os relatórios do RD Station (usa "entregues" como base)
-- Bounce visível no dashboard (card Leads Engajados + comparador)
-- `total_sent` preservado para referência (contatos selecionados)
+- Adicionar imports: `startOfQuarter`, `endOfQuarter`, `subQuarters`, `startOfDay`, `endOfDay`, `isSameDay` de `date-fns`
+- Estado interno: `const [tempRange, setTempRange] = useState<DateRange>(range)` + `const [open, setOpen] = useState(false)`
+- Popover controlado: `<Popover open={open} onOpenChange={setOpen}>`
+- `useEffect` para sincronizar `tempRange` quando `range` muda externamente
 
