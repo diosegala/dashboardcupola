@@ -31,6 +31,7 @@ export type Database = {
           impressions: number | null
           link_clicks: number | null
           messages: number | null
+          post_engagement: number | null
           purchases: number | null
           remarketing_qualified: number | null
           source: string
@@ -53,6 +54,7 @@ export type Database = {
           impressions?: number | null
           link_clicks?: number | null
           messages?: number | null
+          post_engagement?: number | null
           purchases?: number | null
           remarketing_qualified?: number | null
           source: string
@@ -75,6 +77,7 @@ export type Database = {
           impressions?: number | null
           link_clicks?: number | null
           messages?: number | null
+          post_engagement?: number | null
           purchases?: number | null
           remarketing_qualified?: number | null
           source?: string

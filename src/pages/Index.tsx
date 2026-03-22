@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 import { SalesSection } from "@/components/dashboard/SalesSection";
 import { MarketingSection } from "@/components/dashboard/MarketingSection";
+import { FunnelKPISection } from "@/components/dashboard/FunnelKPISection";
 import {
   getDefaultRange,
   useTicketSales,
@@ -62,6 +63,14 @@ export default function Index() {
         </div>
         <PeriodSelector range={range} onChange={setRange} />
       </div>
+
+      <FunnelKPISection
+        adMetrics={adMetrics.data ?? []}
+        emailCampaigns={emailCampaigns.data ?? []}
+        tickets={tickets.data ?? []}
+        goals={goals.data ?? []}
+        range={range}
+      />
 
       <SalesSection
         tickets={tickets.data ?? []}
