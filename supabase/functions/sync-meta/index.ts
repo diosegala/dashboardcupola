@@ -174,6 +174,7 @@ Deno.serve(async (req) => {
       const addToCartCount = findAction(actions, "add_to_cart");
       const leadCount = findAction(actions, "lead");
       const remarketingCount = findAction(actions, "offsite_conversion.fb_pixel_custom");
+      const postEngagement = findAction(actions, "post_engagement");
 
       const impressions = parseInt(r.impressions ?? "0") || 0;
       const totalClicks = parseInt(r.clicks ?? "0") || 0;
