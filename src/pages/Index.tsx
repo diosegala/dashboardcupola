@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 import { SalesSection } from "@/components/dashboard/SalesSection";
 import { MarketingSection } from "@/components/dashboard/MarketingSection";
+import { FunnelKPISection } from "@/components/dashboard/FunnelKPISection";
 import {
   getDefaultRange,
   useTicketSales,
