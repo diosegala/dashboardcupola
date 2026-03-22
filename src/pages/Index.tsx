@@ -64,6 +64,14 @@ export default function Index() {
         <PeriodSelector range={range} onChange={setRange} />
       </div>
 
+      <FunnelKPISection
+        adMetrics={adMetrics.data ?? []}
+        emailCampaigns={emailCampaigns.data ?? []}
+        tickets={tickets.data ?? []}
+        goals={goals.data ?? []}
+        range={range}
+      />
+
       <SalesSection
         tickets={tickets.data ?? []}
         goals={goals.data ?? []}
