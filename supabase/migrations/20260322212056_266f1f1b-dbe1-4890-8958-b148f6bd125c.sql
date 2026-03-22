@@ -1,0 +1,1 @@
+ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS post_engagement integer DEFAULT 0;
