@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, parseISO, isAfter, isBefore, isWithinInterval } from "date-fns";
+import { format, parseISO, isAfter, isBefore, differenceInDays } from "date-fns";
 import { Plus, Pencil, Trash2, Target } from "lucide-react";
 import { toast } from "sonner";
 
