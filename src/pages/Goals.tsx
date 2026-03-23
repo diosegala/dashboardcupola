@@ -195,6 +195,9 @@ export default function Goals() {
                       {format(parseISO(goal.period_start), "dd/MM/yyyy")} – {format(parseISO(goal.period_end), "dd/MM/yyyy")}
                     </TableCell>
                     <TableCell>
+                      <span className="text-xs text-muted-foreground">{getGoalType(goal.period_start, goal.period_end)}</span>
+                    </TableCell>
+                    <TableCell>
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
                     </TableCell>
                     <TableCell className="min-w-[120px]">
