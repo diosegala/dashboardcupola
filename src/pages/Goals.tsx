@@ -172,6 +172,7 @@ export default function Goals() {
                 <TableHead>Métrica</TableHead>
                 <TableHead className="text-right">Valor-alvo</TableHead>
                 <TableHead>Período</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Progresso</TableHead>
                 {isAdmin && <TableHead className="w-[100px]" />}
