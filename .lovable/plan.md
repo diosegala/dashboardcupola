@@ -1,68 +1,61 @@
 
 
-# Seção de Funil KPIs no Dashboard
+# Funil de KPIs com breakdown semanal lado a lado
 
-## Contexto
+## Visão geral
 
-O diretor de marketing quer uma visão de funil (TOFU → MOFU → BOFU) com metas e realizados, como na planilha da imagem. A visualização ficará no topo do dashboard, antes da seção de Vendas.
+Reformular o `FunnelKPISection` para exibir colunas de meta/realizado por semana, lado a lado, além do período total — replicando o formato da planilha do diretor de marketing.
 
-## Mapeamento de métricas
+## Layout da tabela
 
-| Etapa | Objetivo | Fonte do dado | Status |
-|-------|----------|---------------|--------|
-| TOFU | Engajamento | Meta Ads `post_engagement` action | **Novo** — precisa capturar |
-| MOFU | Carrinho Mídia | Meta Ads `add_to_cart` | Já existe |
-| MOFU | G.D Email | RD Station `total_clicked` | Já existe |
-| MOFU | G.D Mídia | Meta Ads `link_clicks` | Já existe |
-| BOFU | Leadster/Mensagens | Meta `messages` + Leadster API | Leadster = **futuro** |
-| BOFU | Todas Vendas | Sympla `ticket_sales` | Já existe |
-| BOFU | Receita | Sympla `total_price` | Já existe |
-
-## Implementação
-
-### 1. Migration: adicionar coluna `post_engagement` em `ad_metrics`
-
-```sql
-ALTER TABLE ad_metrics ADD COLUMN IF NOT EXISTS post_engagement integer DEFAULT 0;
+```text
+┌──────┬────────────┬───────────────────┬───────────────────┬───────────────────┬───────────────────┐
+│Etapa │ Objetivo   │ Período Total     │ S1 (26/02-04/03)  │ S2 (05/03-11/03)  │ S3 (12/03-18/03)  │
+│      │            │ Meta  │ Realizado │ Meta  │ Realizado │ Meta  │ Realizado │ Meta  │ Realizado │
+├──────┼────────────┼───────┼───────────┼───────┼───────────┼───────┼───────────┼───────┼───────────┤
+│ TOFU │ Engajam.   │  300  │   209     │  50   │    48     │  100  │    52     │  150  │   101     │
+│ ...  │ ...        │       │           │       │           │       │           │       │           │
+└──────┴────────────┴───────┴───────────┴───────┴───────────┴───────┴───────────┴───────┴───────────┘
 ```
 
-### 2. Edge Function `sync-meta/index.ts`
+- Scroll horizontal para acomodar muitas semanas
+- Colunas fixas (Etapa + Objetivo) à esquerda
+- Período total sempre visível como primeira coluna de dados
+- Semanas numeradas (S1, S2...) com datas no sub-header
 
-Capturar `post_engagement` do array `actions`:
+## Lógica de semanas
 
-```typescript
-const postEngagement = findAction(actions, "post_engagement");
-// adicionar ao objeto mapeado:
-post_engagement: postEngagement,
-```
+1. A partir do `range` selecionado no dashboard, dividir o período em semanas (seg–dom)
+2. Para cada semana, filtrar `adMetrics`, `emailCampaigns` e `tickets` pela data correspondente
+3. Calcular o realizado de cada métrica do funil por semana
+4. Buscar a meta correspondente a cada semana via `findGoal(goals, metricKey, weekRange)`
 
-### 3. Novas metric_keys em `goalMetrics.ts`
+## Alterações
 
-Adicionar keys para o funil para que possam ser usadas na página de Metas:
+### 1. `FunnelKPISection.tsx` — reformular componente
 
-```
-funnel_tofu_engagement, funnel_mofu_cart, funnel_mofu_gd_email,
-funnel_mofu_gd_midia, funnel_bofu_messages, funnel_bofu_sales, funnel_bofu_revenue
-```
+- Calcular array de semanas a partir do `range` (usando `startOfWeek`/`endOfWeek` com `weekStartsOn: 1`)
+- Para cada semana, filtrar os dados por data e calcular os valores realizados
+- Para o período total, usar os dados como estão (já filtrados pelo range)
+- Renderizar header com colspan para cada período (total + semanas)
+- Colorir células: verde quando realizado >= meta, vermelho quando < meta (opcional, como na planilha)
+- Linha de totais no rodapé da tabela
 
-### 4. Componente `FunnelKPISection.tsx`
+### 2. `GoalFormDialog.tsx` — facilitar criação de metas semanais
 
-Tabela estilizada com colunas: **Etapa | Objetivo | Meta | Realizado | %**
+Adicionar atalhos de período ao formulário:
+- Botão "Semana" que ao ser clicado, mostra um seletor de semana (número da semana no ano) e preenche automaticamente `period_start` (segunda) e `period_end` (domingo)
+- Botão "Mês" que preenche o mês inteiro
+- Manter a opção de datas livres para flexibilidade
 
-- Cada linha busca a meta via `findGoal(goals, metricKey, range)` e calcula o realizado a partir dos dados já disponíveis no dashboard
-- Barra de progresso visual na coluna %
-- Badges coloridas para TOFU (azul), MOFU (amarelo), BOFU (verde)
-- Linha de Leadster mostrará apenas `messages` do Meta por enquanto, com nota "(sem Leadster)"
+### 3. Página `Goals.tsx` — exibição melhorada
 
-### 5. `Index.tsx` — adicionar a seção
+Adicionar coluna "Tipo" que indica se a meta é semanal (~7 dias) ou mensal (~28-31 dias), derivado automaticamente da diferença entre `period_start` e `period_end`.
 
-Inserir `<FunnelKPISection>` entre o título/seletor de período e a seção de Vendas, passando `adMetrics`, `emailCampaigns`, `tickets`, `goals` e `range`.
+## Detalhes técnicos
 
-## Sobre o Leadster
-
-Para integrar o Leadster via API, precisarei do token de API e da documentação/endpoint que vocês usam. Posso fazer isso como um próximo passo após essa primeira entrega.
-
-## Sobre "G.D email" e "G.D mídia"
-
-Preciso confirmar: **G.D email** seria o total de **cliques únicos** nas campanhas do RD Station, e **G.D mídia** seria o total de **cliques no link** do Meta Ads? Se forem outras métricas, me avise antes da implementação.
+- Funções auxiliares: `getWeeksInRange(from, to)` retorna `{ label: string, from: Date, to: Date }[]`
+- Filtro de dados por semana: comparar `date` (ad_metrics), `sent_at` (email_campaigns), `sold_at` (tickets) com os limites de cada semana
+- A barra de progresso (%) será mantida apenas na coluna do período total para não sobrecarregar visualmente
+- `sticky` CSS nas 2 primeiras colunas (Etapa + Objetivo) para manter contexto durante scroll horizontal
 
