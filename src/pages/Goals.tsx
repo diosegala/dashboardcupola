@@ -50,6 +50,13 @@ const statusConfig: Record<GoalStatus, { label: string; variant: "default" | "se
   future: { label: "Futura", variant: "outline" },
 };
 
+function getGoalType(start: string, end: string): string {
+  const days = differenceInDays(parseISO(end), parseISO(start)) + 1;
+  if (days <= 7) return "Semanal";
+  if (days <= 31) return "Mensal";
+  return "Personalizado";
+}
+
 export default function Goals() {
   const { user, isAdmin } = useAuth();
   const { data: goals, isLoading } = useGoals();
