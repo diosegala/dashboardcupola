@@ -2,7 +2,17 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { format } from "date-fns";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  startOfMonth,
+  endOfMonth,
+  addWeeks,
+  subWeeks,
+  getISOWeek,
+  getYear,
+} from "date-fns";
 import { CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -53,6 +63,41 @@ interface GoalFormDialogProps {
   isSubmitting?: boolean;
 }
 
+// Generate weeks for the current context (current week ± 8 weeks)
+function getWeekOptions() {
+  const today = new Date();
+  const options: { label: string; from: Date; to: Date }[] = [];
+  for (let i = -4; i <= 12; i++) {
+    const d = addWeeks(today, i);
+    const from = startOfWeek(d, { weekStartsOn: 1 });
+    const to = endOfWeek(d, { weekStartsOn: 1 });
+    const weekNum = getISOWeek(from);
+    const year = getYear(from);
+    options.push({
+      label: `S${weekNum}/${year} (${format(from, "dd/MM")}–${format(to, "dd/MM")})`,
+      from,
+      to,
+    });
+  }
+  return options;
+}
+
+function getMonthOptions() {
+  const today = new Date();
+  const options: { label: string; from: Date; to: Date }[] = [];
+  for (let i = -2; i <= 6; i++) {
+    const d = new Date(today.getFullYear(), today.getMonth() + i, 1);
+    const from = startOfMonth(d);
+    const to = endOfMonth(d);
+    options.push({
+      label: format(from, "MMMM yyyy"),
+      from,
+      to,
+    });
+  }
+  return options;
+}
+
 export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, isSubmitting }: GoalFormDialogProps) {
   const form = useForm<GoalFormValues>({
     resolver: zodResolver(goalSchema),
@@ -82,9 +127,17 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
     return acc;
   }, {} as Record<string, { key: string; label: string; category: string }[]>);
 
+  const weekOptions = getWeekOptions();
+  const monthOptions = getMonthOptions();
+
+  const applyPeriod = (from: Date, to: Date) => {
+    form.setValue("period_start", from, { shouldValidate: true });
+    form.setValue("period_end", to, { shouldValidate: true });
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[480px]">
+      <DialogContent className="sm:max-w-[520px]">
         <DialogHeader>
           <DialogTitle>{defaultValues?.label ? "Editar Meta" : "Nova Meta"}</DialogTitle>
         </DialogHeader>
@@ -125,6 +178,39 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
             {form.formState.errors.target_value && (
               <p className="text-sm text-destructive">{form.formState.errors.target_value.message}</p>
             )}
+          </div>
+
+          {/* Period shortcuts */}
+          <div className="space-y-2">
+            <Label>Atalhos de período</Label>
+            <div className="flex gap-2">
+              <Select onValueChange={(v) => {
+                const opt = weekOptions[Number(v)];
+                if (opt) applyPeriod(opt.from, opt.to);
+              }}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Semana..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {weekOptions.map((opt, i) => (
+                    <SelectItem key={i} value={String(i)}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select onValueChange={(v) => {
+                const opt = monthOptions[Number(v)];
+                if (opt) applyPeriod(opt.from, opt.to);
+              }}>
+                <SelectTrigger className="flex-1">
+                  <SelectValue placeholder="Mês..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {monthOptions.map((opt, i) => (
+                    <SelectItem key={i} value={String(i)}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

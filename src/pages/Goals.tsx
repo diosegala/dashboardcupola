@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, parseISO, isAfter, isBefore, isWithinInterval } from "date-fns";
+import { format, parseISO, isAfter, isBefore, differenceInDays } from "date-fns";
 import { Plus, Pencil, Trash2, Target } from "lucide-react";
 import { toast } from "sonner";
 
@@ -49,6 +49,13 @@ const statusConfig: Record<GoalStatus, { label: string; variant: "default" | "se
   expired: { label: "Expirada", variant: "secondary" },
   future: { label: "Futura", variant: "outline" },
 };
+
+function getGoalType(start: string, end: string): string {
+  const days = differenceInDays(parseISO(end), parseISO(start)) + 1;
+  if (days <= 7) return "Semanal";
+  if (days <= 31) return "Mensal";
+  return "Personalizado";
+}
 
 export default function Goals() {
   const { user, isAdmin } = useAuth();
@@ -165,6 +172,7 @@ export default function Goals() {
                 <TableHead>Métrica</TableHead>
                 <TableHead className="text-right">Valor-alvo</TableHead>
                 <TableHead>Período</TableHead>
+                <TableHead>Tipo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Progresso</TableHead>
                 {isAdmin && <TableHead className="w-[100px]" />}
@@ -185,6 +193,9 @@ export default function Goals() {
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {format(parseISO(goal.period_start), "dd/MM/yyyy")} – {format(parseISO(goal.period_end), "dd/MM/yyyy")}
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">{getGoalType(goal.period_start, goal.period_end)}</span>
                     </TableCell>
                     <TableCell>
                       <Badge variant={cfg.variant}>{cfg.label}</Badge>
