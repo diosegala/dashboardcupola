@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { Ticket, DollarSign, TrendingUp, Trophy, Award } from "lucide-react";
+import { Ticket, DollarSign, TrendingUp, Trophy, Award, Target } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { TicketsByDayChart } from "./charts/TicketsByDayChart";
 import { TicketsByTypeChart } from "./charts/TicketsByTypeChart";
