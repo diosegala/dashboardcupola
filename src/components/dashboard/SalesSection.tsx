@@ -219,6 +219,3 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range }: Sal
     </section>
   );
 }
-
-// Import Target icon
-import { Target } from "lucide-react";
