@@ -178,7 +178,7 @@ export default function Goals() {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Progresso</TableHead>
-                {isAdmin && <TableHead className="w-[100px]" />}
+                <TableHead className="w-[100px]" />
               </TableRow>
             </TableHeader>
             <TableBody>
