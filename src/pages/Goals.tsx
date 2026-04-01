@@ -68,12 +68,13 @@ export default function Goals() {
 
   const upsertMutation = useMutation({
     mutationFn: async (values: GoalFormValues & { id?: string }) => {
-      const base = {
+      const base: Record<string, any> = {
         label: values.label,
         metric_key: values.metric_key,
         target_value: values.target_value,
         period_start: format(values.period_start, "yyyy-MM-dd"),
         period_end: format(values.period_end, "yyyy-MM-dd"),
+        ticket_type: values.ticket_type ?? null,
       };
 
       if (values.id) {
