@@ -160,12 +160,20 @@ export function useGoals() {
   });
 }
 
-export function findGoal(goals: any[], metricKey: string, range: DateRange) {
+export function findGoal(goals: any[], metricKey: string, range: DateRange, ticketType?: string | null) {
   const rangeFrom = fmt(range.from);
   const rangeTo = fmt(range.to);
 
   const overlapping = goals.filter(
-    (g: any) => g.metric_key === metricKey && g.period_start <= rangeTo && g.period_end >= rangeFrom
+    (g: any) => {
+      if (g.metric_key !== metricKey) return false;
+      if (g.period_start > rangeTo || g.period_end < rangeFrom) return false;
+      // ticket_type filtering: if ticketType is explicitly provided, match it
+      const goalTicketType = g.ticket_type ?? null;
+      const searchTicketType = ticketType === undefined ? null : ticketType;
+      if (goalTicketType !== searchTicketType) return false;
+      return true;
+    }
   );
 
   if (overlapping.length === 0) return null;

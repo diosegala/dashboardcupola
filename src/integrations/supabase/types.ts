@@ -225,6 +225,7 @@ export type Database = {
           period_end: string
           period_start: string
           target_value: number
+          ticket_type: string | null
           updated_at: string
         }
         Insert: {
@@ -236,6 +237,7 @@ export type Database = {
           period_end: string
           period_start: string
           target_value: number
+          ticket_type?: string | null
           updated_at?: string
         }
         Update: {
@@ -247,6 +249,7 @@ export type Database = {
           period_end?: string
           period_start?: string
           target_value?: number
+          ticket_type?: string | null
           updated_at?: string
         }
         Relationships: []

@@ -74,7 +74,8 @@ export default function Goals() {
         target_value: values.target_value,
         period_start: format(values.period_start, "yyyy-MM-dd"),
         period_end: format(values.period_end, "yyyy-MM-dd"),
-      };
+        ticket_type: values.ticket_type ?? null,
+      } as any;
 
       if (values.id) {
         const { error } = await supabase.from("goals").update(base).eq("id", values.id);
@@ -131,6 +132,7 @@ export default function Goals() {
         target_value: Number(editingGoal.target_value),
         period_start: parseISO(editingGoal.period_start),
         period_end: parseISO(editingGoal.period_end),
+        ticket_type: editingGoal.ticket_type ?? null,
       }
     : undefined;
 
@@ -170,6 +172,7 @@ export default function Goals() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Métrica</TableHead>
+                <TableHead>Lote</TableHead>
                 <TableHead className="text-right">Valor-alvo</TableHead>
                 <TableHead>Período</TableHead>
                 <TableHead>Tipo</TableHead>
@@ -188,6 +191,9 @@ export default function Goals() {
                   <TableRow key={goal.id}>
                     <TableCell className="font-medium">{goal.label}</TableCell>
                     <TableCell>{getMetricLabel(goal.metric_key)}</TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">{goal.ticket_type ?? "Todos"}</span>
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {Number(goal.target_value).toLocaleString("pt-BR")}
                     </TableCell>
