@@ -132,6 +132,7 @@ export default function Goals() {
         target_value: Number(editingGoal.target_value),
         period_start: parseISO(editingGoal.period_start),
         period_end: parseISO(editingGoal.period_end),
+        ticket_type: editingGoal.ticket_type ?? null,
       }
     : undefined;
 
