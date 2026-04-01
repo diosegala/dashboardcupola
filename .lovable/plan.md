@@ -1,61 +1,51 @@
 
 
-# Funil de KPIs com breakdown semanal lado a lado
+# Metas por Lote/Tipo de Ingresso
 
-## Visão geral
+## Problema
 
-Reformular o `FunnelKPISection` para exibir colunas de meta/realizado por semana, lado a lado, além do período total — replicando o formato da planilha do diretor de marketing.
+Atualmente as metas de vendas (`tickets_sold`, `revenue`) são globais — não há como definir "vender 500 ingressos VIP na semana 3" e acompanhar separadamente. O diretor quer ver o progresso por lote/tipo de ingresso.
 
-## Layout da tabela
+## Abordagem
 
-```text
-┌──────┬────────────┬───────────────────┬───────────────────┬───────────────────┬───────────────────┐
-│Etapa │ Objetivo   │ Período Total     │ S1 (26/02-04/03)  │ S2 (05/03-11/03)  │ S3 (12/03-18/03)  │
-│      │            │ Meta  │ Realizado │ Meta  │ Realizado │ Meta  │ Realizado │ Meta  │ Realizado │
-├──────┼────────────┼───────┼───────────┼───────┼───────────┼───────┼───────────┼───────┼───────────┤
-│ TOFU │ Engajam.   │  300  │   209     │  50   │    48     │  100  │    52     │  150  │   101     │
-│ ...  │ ...        │       │           │       │           │       │           │       │           │
-└──────┴────────────┴───────┴───────────┴───────┴───────────┴───────┴───────────┴───────┴───────────┘
+Adicionar um campo opcional `ticket_type` na tabela `goals`. Quando preenchido, o cálculo do realizado filtra `ticket_sales` pelo tipo correspondente. Quando vazio, funciona como hoje (total geral).
+
+## Implementação
+
+### 1. Migration — coluna `ticket_type` na tabela `goals`
+
+```sql
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS ticket_type text DEFAULT NULL;
 ```
 
-- Scroll horizontal para acomodar muitas semanas
-- Colunas fixas (Etapa + Objetivo) à esquerda
-- Período total sempre visível como primeira coluna de dados
-- Semanas numeradas (S1, S2...) com datas no sub-header
+### 2. `GoalFormDialog.tsx` — campo condicional "Lote de Ingresso"
 
-## Lógica de semanas
+- Quando a métrica selecionada for `tickets_sold`, `revenue`, `funnel_bofu_sales` ou `funnel_bofu_revenue`, exibir um campo extra `Select` com os tipos de ingresso disponíveis
+- Os tipos são buscados via query distinta em `ticket_sales` (`SELECT DISTINCT ticket_type`)
+- Opção "Todos os lotes" (valor `null`) + lista dos tipos existentes
+- Novo hook `useTicketTypes()` para buscar os tipos distintos
 
-1. A partir do `range` selecionado no dashboard, dividir o período em semanas (seg–dom)
-2. Para cada semana, filtrar `adMetrics`, `emailCampaigns` e `tickets` pela data correspondente
-3. Calcular o realizado de cada métrica do funil por semana
-4. Buscar a meta correspondente a cada semana via `findGoal(goals, metricKey, weekRange)`
+### 3. `goalMetrics.ts` — sem mudança de metric_keys
 
-## Alterações
+Reutilizar as mesmas keys (`tickets_sold`, `revenue`, `funnel_bofu_sales`, `funnel_bofu_revenue`). A diferenciação é feita pelo campo `ticket_type` no goal.
 
-### 1. `FunnelKPISection.tsx` — reformular componente
+### 4. `useDashboardData.ts` — atualizar `findGoal`
 
-- Calcular array de semanas a partir do `range` (usando `startOfWeek`/`endOfWeek` com `weekStartsOn: 1`)
-- Para cada semana, filtrar os dados por data e calcular os valores realizados
-- Para o período total, usar os dados como estão (já filtrados pelo range)
-- Renderizar header com colspan para cada período (total + semanas)
-- Colorir células: verde quando realizado >= meta, vermelho quando < meta (opcional, como na planilha)
-- Linha de totais no rodapé da tabela
+Considerar `ticket_type` na busca de metas: quando o goal tem `ticket_type` preenchido, ele só "matcha" se o contexto de busca também especificar aquele tipo. Para o funil KPI e sales section, buscar metas com `ticket_type = null` (total geral).
 
-### 2. `GoalFormDialog.tsx` — facilitar criação de metas semanais
+### 5. `FunnelKPISection.tsx` e `SalesSection.tsx` — exibir metas por lote
 
-Adicionar atalhos de período ao formulário:
-- Botão "Semana" que ao ser clicado, mostra um seletor de semana (número da semana no ano) e preenche automaticamente `period_start` (segunda) e `period_end` (domingo)
-- Botão "Mês" que preenche o mês inteiro
-- Manter a opção de datas livres para flexibilidade
+- Na `SalesSection`, adicionar uma sub-tabela abaixo dos cards atuais mostrando cada tipo de ingresso com sua meta e progresso (meta vs realizado), similar ao formato do funil
+- No `FunnelKPISection`, as linhas BOFU (Vendas e Receita) continuam usando a meta geral (`ticket_type = null`)
 
-### 3. Página `Goals.tsx` — exibição melhorada
+### 6. `Goals.tsx` — exibir coluna "Lote"
 
-Adicionar coluna "Tipo" que indica se a meta é semanal (~7 dias) ou mensal (~28-31 dias), derivado automaticamente da diferença entre `period_start` e `period_end`.
+Adicionar coluna na listagem mostrando o tipo de ingresso associado à meta (ou "Todos" quando for `null`).
 
-## Detalhes técnicos
+## Resultado
 
-- Funções auxiliares: `getWeeksInRange(from, to)` retorna `{ label: string, from: Date, to: Date }[]`
-- Filtro de dados por semana: comparar `date` (ad_metrics), `sent_at` (email_campaigns), `sold_at` (tickets) com os limites de cada semana
-- A barra de progresso (%) será mantida apenas na coluna do período total para não sobrecarregar visualmente
-- `sticky` CSS nas 2 primeiras colunas (Etapa + Objetivo) para manter contexto durante scroll horizontal
+O usuário poderá:
+1. Criar meta "Ingressos VIP — S3" com `metric_key=tickets_sold`, `ticket_type="VIP"`, período da semana 3
+2. Ver no dashboard de vendas uma tabela por lote mostrando meta vs realizado
+3. Continuar usando metas gerais (sem filtro de lote) normalmente
 
