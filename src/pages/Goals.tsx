@@ -191,6 +191,9 @@ export default function Goals() {
                   <TableRow key={goal.id}>
                     <TableCell className="font-medium">{goal.label}</TableCell>
                     <TableCell>{getMetricLabel(goal.metric_key)}</TableCell>
+                    <TableCell>
+                      <span className="text-xs text-muted-foreground">{goal.ticket_type ?? "Todos"}</span>
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">
                       {Number(goal.target_value).toLocaleString("pt-BR")}
                     </TableCell>

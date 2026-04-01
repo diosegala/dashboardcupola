@@ -9,7 +9,6 @@ import {
   startOfMonth,
   endOfMonth,
   addWeeks,
-  subWeeks,
   getISOWeek,
   getYear,
 } from "date-fns";
@@ -41,6 +40,9 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { METRIC_OPTIONS } from "@/lib/goalMetrics";
+import { useTicketTypes } from "@/hooks/useTicketTypes";
+
+const TICKET_METRICS = ["tickets_sold", "revenue", "funnel_bofu_sales", "funnel_bofu_revenue"];
 
 const goalSchema = z.object({
   label: z.string().trim().min(1, "Nome é obrigatório").max(100),
@@ -48,6 +50,7 @@ const goalSchema = z.object({
   target_value: z.coerce.number().positive("Valor deve ser maior que 0"),
   period_start: z.date({ required_error: "Data inicial é obrigatória" }),
   period_end: z.date({ required_error: "Data final é obrigatória" }),
+  ticket_type: z.string().nullable().optional(),
 }).refine((d) => d.period_end >= d.period_start, {
   message: "Data final deve ser após a data inicial",
   path: ["period_end"],
@@ -63,7 +66,6 @@ interface GoalFormDialogProps {
   isSubmitting?: boolean;
 }
 
-// Generate weeks for the current context (current week ± 8 weeks)
 function getWeekOptions() {
   const today = new Date();
   const options: { label: string; from: Date; to: Date }[] = [];
@@ -98,6 +100,26 @@ function getMonthOptions() {
   return options;
 }
 
+function DatePickerField({ label, value, onChange, error }: { label: string; value?: Date; onChange: (d: Date | undefined) => void; error?: string }) {
+  return (
+    <div className="space-y-2">
+      <Label>{label}</Label>
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}>
+            <CalendarIcon className="mr-2 h-4 w-4" />
+            {value ? format(value, "dd/MM/yyyy") : "Selecione"}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="p-3 pointer-events-auto" />
+        </PopoverContent>
+      </Popover>
+      {error && <p className="text-sm text-destructive">{error}</p>}
+    </div>
+  );
+}
+
 export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, isSubmitting }: GoalFormDialogProps) {
   const form = useForm<GoalFormValues>({
     resolver: zodResolver(goalSchema),
@@ -105,9 +127,12 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
       label: "",
       metric_key: "",
       target_value: 0,
+      ticket_type: null,
       ...defaultValues,
     },
   });
+
+  const { data: ticketTypes = [] } = useTicketTypes();
 
   useEffect(() => {
     if (open) {
@@ -117,6 +142,7 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
         target_value: defaultValues?.target_value ?? 0,
         period_start: defaultValues?.period_start,
         period_end: defaultValues?.period_end,
+        ticket_type: defaultValues?.ticket_type ?? null,
       });
     }
   }, [open, defaultValues]);
@@ -135,6 +161,9 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
     form.setValue("period_end", to, { shouldValidate: true });
   };
 
+  const selectedMetric = form.watch("metric_key");
+  const showTicketType = TICKET_METRICS.includes(selectedMetric);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[520px]">
@@ -152,7 +181,12 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
 
           <div className="space-y-2">
             <Label>Métrica</Label>
-            <Select value={form.watch("metric_key")} onValueChange={(v) => form.setValue("metric_key", v, { shouldValidate: true })}>
+            <Select value={form.watch("metric_key")} onValueChange={(v) => {
+              form.setValue("metric_key", v, { shouldValidate: true });
+              if (!TICKET_METRICS.includes(v)) {
+                form.setValue("ticket_type", null);
+              }
+            }}>
               <SelectTrigger>
                 <SelectValue placeholder="Selecione a métrica" />
               </SelectTrigger>
@@ -171,6 +205,30 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
               <p className="text-sm text-destructive">{form.formState.errors.metric_key.message}</p>
             )}
           </div>
+
+          {/* Conditional ticket type selector */}
+          {showTicketType && (
+            <div className="space-y-2">
+              <Label>Lote de Ingresso</Label>
+              <Select
+                value={form.watch("ticket_type") ?? "__all__"}
+                onValueChange={(v) => form.setValue("ticket_type", v === "__all__" ? null : v)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Todos os lotes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">Todos os lotes</SelectItem>
+                  {ticketTypes.map((tt) => (
+                    <SelectItem key={tt} value={tt}>{tt}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Deixe "Todos os lotes" para meta global ou selecione um tipo específico.
+              </p>
+            </div>
+          )}
 
           <div className="space-y-2">
             <Label htmlFor="target_value">Valor-alvo</Label>
@@ -237,25 +295,5 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
         </form>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function DatePickerField({ label, value, onChange, error }: { label: string; value?: Date; onChange: (d: Date | undefined) => void; error?: string }) {
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <Popover>
-        <PopoverTrigger asChild>
-          <Button variant="outline" className={cn("w-full justify-start text-left font-normal", !value && "text-muted-foreground")}>
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {value ? format(value, "dd/MM/yyyy") : "Selecione"}
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={value} onSelect={onChange} initialFocus className="p-3 pointer-events-auto" />
-        </PopoverContent>
-      </Popover>
-      {error && <p className="text-sm text-destructive">{error}</p>}
-    </div>
   );
 }
