@@ -172,6 +172,7 @@ export default function Goals() {
               <TableRow>
                 <TableHead>Nome</TableHead>
                 <TableHead>Métrica</TableHead>
+                <TableHead>Lote</TableHead>
                 <TableHead className="text-right">Valor-alvo</TableHead>
                 <TableHead>Período</TableHead>
                 <TableHead>Tipo</TableHead>
