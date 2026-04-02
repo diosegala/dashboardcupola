@@ -170,6 +170,7 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
   }, {} as Record<string, { key: string; label: string; category: string }[]>);
 
   const weekOptions = getWeekOptions();
+  const kpiWeekOptions = getKpiWeekOptions();
   const monthOptions = getMonthOptions();
 
   const applyPeriod = (from: Date, to: Date) => {
