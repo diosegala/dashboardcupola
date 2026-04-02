@@ -1,51 +1,39 @@
 
 
-# Metas por Lote/Tipo de Ingresso
+# Alterações: Semana qui–qua para KPIs, exclusão para viewers, botão clonar
 
-## Problema
+## 1. Semana de quinta a quarta no Funil de KPIs
 
-Atualmente as metas de vendas (`tickets_sold`, `revenue`) são globais — não há como definir "vender 500 ingressos VIP na semana 3" e acompanhar separadamente. O diretor quer ver o progresso por lote/tipo de ingresso.
+No `FunnelKPISection.tsx`, a função `getWeeksInRange` atualmente usa `weekStartsOn: 1` (segunda). Alterar para usar **`weekStartsOn: 4`** (quinta-feira), fazendo as semanas do funil irem de quinta a quarta.
 
-## Abordagem
+No `GoalFormDialog.tsx`, o atalho "Semana" também usa `weekStartsOn: 1`. Para metas de KPIs (métricas do funil), alterar para `weekStartsOn: 4`. Como o formulário permite qualquer métrica, a abordagem será: adicionar um atalho separado **"Semana KPI (Qui–Qua)"** ao lado do atalho de semana padrão (Seg–Dom), para que o usuário escolha o formato correto.
 
-Adicionar um campo opcional `ticket_type` na tabela `goals`. Quando preenchido, o cálculo do realizado filtra `ticket_sales` pelo tipo correspondente. Quando vazio, funciona como hoje (total geral).
+**Arquivos**: `src/components/dashboard/FunnelKPISection.tsx`, `src/components/goals/GoalFormDialog.tsx`
 
-## Implementação
+## 2. Liberar exclusão de metas para viewers
 
-### 1. Migration — coluna `ticket_type` na tabela `goals`
-
+### Database
+Criar migration com RLS policy `DELETE` para `authenticated`:
 ```sql
-ALTER TABLE goals ADD COLUMN IF NOT EXISTS ticket_type text DEFAULT NULL;
+CREATE POLICY "Authenticated users can delete goals"
+ON public.goals FOR DELETE TO authenticated USING (true);
 ```
 
-### 2. `GoalFormDialog.tsx` — campo condicional "Lote de Ingresso"
+### UI (`Goals.tsx`)
+Remover o condicional `{isAdmin && ...}` do botão de excluir — exibir para todos os usuários autenticados.
 
-- Quando a métrica selecionada for `tickets_sold`, `revenue`, `funnel_bofu_sales` ou `funnel_bofu_revenue`, exibir um campo extra `Select` com os tipos de ingresso disponíveis
-- Os tipos são buscados via query distinta em `ticket_sales` (`SELECT DISTINCT ticket_type`)
-- Opção "Todos os lotes" (valor `null`) + lista dos tipos existentes
-- Novo hook `useTicketTypes()` para buscar os tipos distintos
+## 3. Botão de clonar meta
 
-### 3. `goalMetrics.ts` — sem mudança de metric_keys
+No `Goals.tsx`, adicionar um botão com ícone `Copy` ao lado dos botões de editar/excluir. Ao clicar, abre o formulário de criação pré-preenchido com os dados da meta clonada (mesma métrica, valor-alvo, tipo de lote), mas com o label prefixado com "Cópia de " e sem ID (para criar uma nova meta).
 
-Reutilizar as mesmas keys (`tickets_sold`, `revenue`, `funnel_bofu_sales`, `funnel_bofu_revenue`). A diferenciação é feita pelo campo `ticket_type` no goal.
+**Arquivo**: `src/pages/Goals.tsx`
 
-### 4. `useDashboardData.ts` — atualizar `findGoal`
+## Resumo de arquivos
 
-Considerar `ticket_type` na busca de metas: quando o goal tem `ticket_type` preenchido, ele só "matcha" se o contexto de busca também especificar aquele tipo. Para o funil KPI e sales section, buscar metas com `ticket_type = null` (total geral).
-
-### 5. `FunnelKPISection.tsx` e `SalesSection.tsx` — exibir metas por lote
-
-- Na `SalesSection`, adicionar uma sub-tabela abaixo dos cards atuais mostrando cada tipo de ingresso com sua meta e progresso (meta vs realizado), similar ao formato do funil
-- No `FunnelKPISection`, as linhas BOFU (Vendas e Receita) continuam usando a meta geral (`ticket_type = null`)
-
-### 6. `Goals.tsx` — exibir coluna "Lote"
-
-Adicionar coluna na listagem mostrando o tipo de ingresso associado à meta (ou "Todos" quando for `null`).
-
-## Resultado
-
-O usuário poderá:
-1. Criar meta "Ingressos VIP — S3" com `metric_key=tickets_sold`, `ticket_type="VIP"`, período da semana 3
-2. Ver no dashboard de vendas uma tabela por lote mostrando meta vs realizado
-3. Continuar usando metas gerais (sem filtro de lote) normalmente
+| Arquivo | Mudança |
+|---------|---------|
+| `FunnelKPISection.tsx` | `weekStartsOn: 4` em `getWeeksInRange` |
+| `GoalFormDialog.tsx` | Adicionar atalho "Semana KPI (Qui–Qua)" com `weekStartsOn: 4` |
+| `Goals.tsx` | Remover `isAdmin` do botão excluir; adicionar botão clonar |
+| Migration SQL | Policy `DELETE` para `authenticated` na tabela `goals` |
 
