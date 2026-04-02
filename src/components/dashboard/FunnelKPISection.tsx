@@ -126,7 +126,7 @@ const fmtVal = (value: number, fmt?: "currency" | "number") => {
   return value.toLocaleString("pt-BR");
 };
 
-export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, range }: FunnelKPISectionProps) {
+export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, range, onEditGoal }: FunnelKPISectionProps) {
   const metaAds = useMemo(() => adMetrics.filter((a) => a.source === "meta"), [adMetrics]);
 
   const weeks = useMemo(() => getWeeksInRange(range.from, range.to), [range]);
