@@ -90,6 +90,7 @@ export default function Goals() {
       queryClient.invalidateQueries({ queryKey: ["goals"] });
       setFormOpen(false);
       setEditingGoal(null);
+      setCloningGoal(null);
       toast.success(editingGoal ? "Meta atualizada" : "Meta criada");
     },
     onError: (err: any) => {
