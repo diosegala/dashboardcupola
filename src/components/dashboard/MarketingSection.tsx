@@ -164,13 +164,13 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           return (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <MetricCard title="Campanhas" value={uniqueCampaigns} icon={BarChart3} description="Campanhas ativas no período" />
-              <MetricCard title="Investimento" value={totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} icon={Wallet} goal={findGoal(goals, "meta_spend", range)?.target_value} prefix="R$ " description="Total investido no período" />
-              <MetricCard title="Impressões" value={totalImpressions} icon={Eye} goal={findGoal(goals, "meta_impressions", range)?.target_value} />
-              <MetricCard title="Cliques no Link" value={totalLinkClicks} icon={MousePointerClick} goal={findGoal(goals, "meta_link_clicks", range)?.target_value} />
+              <MetricCard title="Investimento" value={totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} icon={Wallet} goal={findGoal(goals, "meta_spend", range)?.target_value} prefix="R$ " description="Total investido no período" onEditGoal={onEditGoal ? () => onEditGoal("meta_spend") : undefined} />
+              <MetricCard title="Impressões" value={totalImpressions} icon={Eye} goal={findGoal(goals, "meta_impressions", range)?.target_value} onEditGoal={onEditGoal ? () => onEditGoal("meta_impressions") : undefined} />
+              <MetricCard title="Cliques no Link" value={totalLinkClicks} icon={MousePointerClick} goal={findGoal(goals, "meta_link_clicks", range)?.target_value} onEditGoal={onEditGoal ? () => onEditGoal("meta_link_clicks") : undefined} />
               <MetricCard title="CPC" value={`R$ ${cpc.toFixed(2)}`} icon={Wallet} description="Custo por clique no link" />
               <MetricCard title="CTR" value={`${ctr.toFixed(2)}%`} icon={BarChart3} description="Cliques no link / Impressões" />
-              <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases", range)?.target_value} />
-              <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate", range)?.target_value} description="Compras / Cliques no link" />
+              <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases", range)?.target_value} onEditGoal={onEditGoal ? () => onEditGoal("meta_purchases") : undefined} />
+              <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate", range)?.target_value} description="Compras / Cliques no link" onEditGoal={onEditGoal ? () => onEditGoal("meta_conversion_rate") : undefined} />
               <MetricCard title="Mensagens" value={totalMessages} icon={MessageCircle} description="Conversas iniciadas via anúncio" />
               <MetricCard title="Adição de Carrinho" value={totalAddToCart} icon={ShoppingCart} description="Eventos add_to_cart do Pixel" />
               <MetricCard title="Remarketing Qualificado" value={totalRemarketing} icon={Crosshair} description="Conversão customizada" />
