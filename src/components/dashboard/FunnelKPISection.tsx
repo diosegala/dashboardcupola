@@ -231,7 +231,7 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
                 const totalPct = totalTarget && totalTarget > 0 ? (totalActual / totalTarget) * 100 : null;
 
                 return (
-                  <tr key={def.metricKey} className="border-b last:border-0 hover:bg-muted/30">
+                  <tr key={def.metricKey} className="border-b last:border-0 hover:bg-muted/30 group/row">
                     <td className="sticky left-0 z-10 bg-card py-2.5 px-3 border-r">
                       <Badge variant="secondary" className={stageBadgeClass[def.stage]}>
                         {def.stage}
