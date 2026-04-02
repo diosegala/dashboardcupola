@@ -84,6 +84,22 @@ function getWeekOptions() {
   return options;
 }
 
+function getKpiWeekOptions() {
+  const today = new Date();
+  const options: { label: string; from: Date; to: Date }[] = [];
+  for (let i = -4; i <= 12; i++) {
+    const d = addWeeks(today, i);
+    const from = startOfWeek(d, { weekStartsOn: 4 });
+    const to = endOfWeek(d, { weekStartsOn: 4 });
+    options.push({
+      label: `Qui–Qua (${format(from, "dd/MM")}–${format(to, "dd/MM")})`,
+      from,
+      to,
+    });
+  }
+  return options;
+}
+
 function getMonthOptions() {
   const today = new Date();
   const options: { label: string; from: Date; to: Date }[] = [];
@@ -154,6 +170,7 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
   }, {} as Record<string, { key: string; label: string; category: string }[]>);
 
   const weekOptions = getWeekOptions();
+  const kpiWeekOptions = getKpiWeekOptions();
   const monthOptions = getMonthOptions();
 
   const applyPeriod = (from: Date, to: Date) => {
@@ -241,13 +258,13 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
           {/* Period shortcuts */}
           <div className="space-y-2">
             <Label>Atalhos de período</Label>
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               <Select onValueChange={(v) => {
                 const opt = weekOptions[Number(v)];
                 if (opt) applyPeriod(opt.from, opt.to);
               }}>
-                <SelectTrigger className="flex-1">
-                  <SelectValue placeholder="Semana..." />
+                <SelectTrigger className="flex-1 min-w-[140px]">
+                  <SelectValue placeholder="Semana (Seg–Dom)" />
                 </SelectTrigger>
                 <SelectContent>
                   {weekOptions.map((opt, i) => (
@@ -256,10 +273,23 @@ export function GoalFormDialog({ open, onOpenChange, onSubmit, defaultValues, is
                 </SelectContent>
               </Select>
               <Select onValueChange={(v) => {
+                const opt = kpiWeekOptions[Number(v)];
+                if (opt) applyPeriod(opt.from, opt.to);
+              }}>
+                <SelectTrigger className="flex-1 min-w-[140px]">
+                  <SelectValue placeholder="Semana KPI (Qui–Qua)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {kpiWeekOptions.map((opt, i) => (
+                    <SelectItem key={i} value={String(i)}>{opt.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Select onValueChange={(v) => {
                 const opt = monthOptions[Number(v)];
                 if (opt) applyPeriod(opt.from, opt.to);
               }}>
-                <SelectTrigger className="flex-1">
+                <SelectTrigger className="flex-1 min-w-[140px]">
                   <SelectValue placeholder="Mês..." />
                 </SelectTrigger>
                 <SelectContent>

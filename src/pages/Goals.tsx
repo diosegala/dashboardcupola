@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO, isAfter, isBefore, differenceInDays } from "date-fns";
-import { Plus, Pencil, Trash2, Target } from "lucide-react";
+import { Plus, Pencil, Trash2, Target, Copy } from "lucide-react";
 import { toast } from "sonner";
 
 import { supabase } from "@/integrations/supabase/client";
@@ -65,6 +65,7 @@ export default function Goals() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<any | null>(null);
   const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null);
+  const [cloningGoal, setCloningGoal] = useState<any | null>(null);
 
   const upsertMutation = useMutation({
     mutationFn: async (values: GoalFormValues & { id?: string }) => {
@@ -89,6 +90,7 @@ export default function Goals() {
       queryClient.invalidateQueries({ queryKey: ["goals"] });
       setFormOpen(false);
       setEditingGoal(null);
+      setCloningGoal(null);
       toast.success(editingGoal ? "Meta atualizada" : "Meta criada");
     },
     onError: (err: any) => {
@@ -113,11 +115,19 @@ export default function Goals() {
 
   const handleCreate = () => {
     setEditingGoal(null);
+    setCloningGoal(null);
     setFormOpen(true);
   };
 
   const handleEdit = (goal: any) => {
     setEditingGoal(goal);
+    setCloningGoal(null);
+    setFormOpen(true);
+  };
+
+  const handleClone = (goal: any) => {
+    setEditingGoal(null);
+    setCloningGoal(goal);
     setFormOpen(true);
   };
 
@@ -125,14 +135,15 @@ export default function Goals() {
     upsertMutation.mutate({ ...values, id: editingGoal?.id });
   };
 
-  const defaultValues = editingGoal
+  const sourceGoal = editingGoal || cloningGoal;
+  const defaultValues = sourceGoal
     ? {
-        label: editingGoal.label,
-        metric_key: editingGoal.metric_key,
-        target_value: Number(editingGoal.target_value),
-        period_start: parseISO(editingGoal.period_start),
-        period_end: parseISO(editingGoal.period_end),
-        ticket_type: editingGoal.ticket_type ?? null,
+        label: cloningGoal ? `Cópia de ${sourceGoal.label}` : sourceGoal.label,
+        metric_key: sourceGoal.metric_key,
+        target_value: Number(sourceGoal.target_value),
+        period_start: parseISO(sourceGoal.period_start),
+        period_end: parseISO(sourceGoal.period_end),
+        ticket_type: sourceGoal.ticket_type ?? null,
       }
     : undefined;
 
@@ -213,14 +224,15 @@ export default function Goals() {
                     </TableCell>
                     <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(goal)}>
+                          <Button variant="ghost" size="icon" onClick={() => handleClone(goal)} title="Clonar">
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(goal)} title="Editar">
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          {isAdmin && (
-                            <Button variant="ghost" size="icon" onClick={() => setDeletingGoalId(goal.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <Button variant="ghost" size="icon" onClick={() => setDeletingGoalId(goal.id)} title="Excluir">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                   </TableRow>

@@ -57,11 +57,11 @@ const ROW_DEFS: FunnelRowDef[] = [
 
 function getWeeksInRange(from: Date, to: Date): WeekSlice[] {
   const weeks: WeekSlice[] = [];
-  let weekStart = startOfWeek(from, { weekStartsOn: 1 });
+  let weekStart = startOfWeek(from, { weekStartsOn: 4 });
   let idx = 1;
 
   while (isBefore(weekStart, to) || weekStart.getTime() === to.getTime()) {
-    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+    const weekEnd = endOfWeek(weekStart, { weekStartsOn: 4 });
     const clampedStart = isAfter(weekStart, from) ? weekStart : from;
     const clampedEnd = isBefore(weekEnd, to) ? weekEnd : to;
 
