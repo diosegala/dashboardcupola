@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -22,6 +23,7 @@ interface FunnelKPISectionProps {
   tickets: any[];
   goals: any[];
   range: DateRange;
+  onEditGoal?: (metricKey: string, periodStart: Date, periodEnd: Date) => void;
 }
 
 interface FunnelRowDef {
@@ -124,7 +126,7 @@ const fmtVal = (value: number, fmt?: "currency" | "number") => {
   return value.toLocaleString("pt-BR");
 };
 
-export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, range }: FunnelKPISectionProps) {
+export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, range, onEditGoal }: FunnelKPISectionProps) {
   const metaAds = useMemo(() => adMetrics.filter((a) => a.source === "meta"), [adMetrics]);
 
   const weeks = useMemo(() => getWeeksInRange(range.from, range.to), [range]);
@@ -229,7 +231,7 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
                 const totalPct = totalTarget && totalTarget > 0 ? (totalActual / totalTarget) * 100 : null;
 
                 return (
-                  <tr key={def.metricKey} className="border-b last:border-0 hover:bg-muted/30">
+                  <tr key={def.metricKey} className="border-b last:border-0 hover:bg-muted/30 group/row">
                     <td className="sticky left-0 z-10 bg-card py-2.5 px-3 border-r">
                       <Badge variant="secondary" className={stageBadgeClass[def.stage]}>
                         {def.stage}
@@ -243,9 +245,20 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
                     </td>
                     {/* Total period */}
                     <td className="py-2.5 px-3 text-right tabular-nums bg-muted/10 border-r text-xs">
-                      {totalTarget != null ? fmtVal(totalTarget, def.format) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        {totalTarget != null ? fmtVal(totalTarget, def.format) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                        {onEditGoal && (
+                          <button
+                            onClick={() => onEditGoal(def.metricKey, range.from, range.to)}
+                            className="opacity-0 group-hover/row:opacity-100 hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity p-0.5"
+                            title="Editar meta"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        )}
+                      </span>
                     </td>
                     <td className={`py-2.5 px-3 text-right tabular-nums font-semibold bg-muted/10 border-r text-xs ${
                       totalTarget != null
@@ -276,9 +289,20 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
                         return (
                           <>
                             <td key={`${w.label}-m`} className="py-2.5 px-3 text-right tabular-nums text-xs">
-                              {weekTarget != null ? fmtVal(weekTarget, def.format) : (
-                                <span className="text-muted-foreground">—</span>
-                              )}
+                              <span className="inline-flex items-center gap-1 justify-end">
+                                {weekTarget != null ? fmtVal(weekTarget, def.format) : (
+                                  <span className="text-muted-foreground">—</span>
+                                )}
+                                {onEditGoal && (
+                                  <button
+                                    onClick={() => onEditGoal(def.metricKey, w.from, w.to)}
+                                    className="opacity-0 group-hover/row:opacity-100 hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity p-0.5"
+                                    title="Editar meta"
+                                  >
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                )}
+                              </span>
                             </td>
                             <td
                               key={`${w.label}-r`}

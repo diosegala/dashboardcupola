@@ -137,6 +137,17 @@ export default function Index() {
         tickets={tickets.data ?? []}
         goals={goals.data ?? []}
         range={range}
+        onEditGoal={(metricKey, periodStart, periodEnd) => {
+          const existingGoal = findGoal(goals.data ?? [], metricKey, { from: periodStart, to: periodEnd });
+          setGoalFormDefaults({
+            label: existingGoal?.label ?? getMetricLabel(metricKey),
+            metric_key: metricKey,
+            target_value: existingGoal ? Number(existingGoal.target_value) : 0,
+            period_start: periodStart,
+            period_end: periodEnd,
+          });
+          setGoalFormOpen(true);
+        }}
       />
 
       <SalesSection
