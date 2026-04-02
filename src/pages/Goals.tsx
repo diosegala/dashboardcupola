@@ -113,11 +113,19 @@ export default function Goals() {
 
   const handleCreate = () => {
     setEditingGoal(null);
+    setCloningGoal(null);
     setFormOpen(true);
   };
 
   const handleEdit = (goal: any) => {
     setEditingGoal(goal);
+    setCloningGoal(null);
+    setFormOpen(true);
+  };
+
+  const handleClone = (goal: any) => {
+    setEditingGoal(null);
+    setCloningGoal(goal);
     setFormOpen(true);
   };
 
@@ -125,14 +133,15 @@ export default function Goals() {
     upsertMutation.mutate({ ...values, id: editingGoal?.id });
   };
 
-  const defaultValues = editingGoal
+  const sourceGoal = editingGoal || cloningGoal;
+  const defaultValues = sourceGoal
     ? {
-        label: editingGoal.label,
-        metric_key: editingGoal.metric_key,
-        target_value: Number(editingGoal.target_value),
-        period_start: parseISO(editingGoal.period_start),
-        period_end: parseISO(editingGoal.period_end),
-        ticket_type: editingGoal.ticket_type ?? null,
+        label: cloningGoal ? `Cópia de ${sourceGoal.label}` : sourceGoal.label,
+        metric_key: sourceGoal.metric_key,
+        target_value: Number(sourceGoal.target_value),
+        period_start: parseISO(sourceGoal.period_start),
+        period_end: parseISO(sourceGoal.period_end),
+        ticket_type: sourceGoal.ticket_type ?? null,
       }
     : undefined;
 
