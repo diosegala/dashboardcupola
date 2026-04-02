@@ -1,39 +1,44 @@
 
 
-# Meta do Período Total = Soma das Metas Semanais
+# Cadastro de metas direto no Dashboard via MetricCard
 
-## O que muda
+## Resumo
 
-Hoje a coluna "Período Total" busca uma meta própria via `findGoal` para o range inteiro do mês. A proposta é: em vez disso, **somar os `target_value` das metas semanais encontradas** para cada linha do funil. Assim o usuário só precisa cadastrar metas semanais e o total se calcula automaticamente.
+Adicionar um botao de lapis (editar/criar meta) nos MetricCards do dashboard que possuem campo de meta. Ao clicar, abre o GoalFormDialog pre-preenchido com a metrica correspondente e o periodo atual do dashboard.
 
-## Implementação
+## Implementacao
 
-### Arquivo: `src/components/dashboard/FunnelKPISection.tsx`
+### 1. MetricCard — adicionar callback `onEditGoal`
 
-Na seção do `tbody` onde se renderiza cada linha (em torno da linha 215-220), a lógica atual é:
+Adicionar prop opcional `onEditGoal?: () => void` ao `MetricCard`. Quando presente, renderizar um icone de lapis (`Pencil`) ao lado do texto "Meta:" ou "Sem meta configurada", que ao clicar dispara o callback.
 
-```ts
-const totalGoal = findGoal(goals, def.metricKey, range);
-const totalTarget = totalGoal ? Number(totalGoal.target_value) : null;
-```
+**Arquivo**: `src/components/dashboard/MetricCard.tsx`
 
-Substituir por uma soma das metas semanais já calculadas logo abaixo:
+### 2. Index.tsx — estado do dialog e logica de upsert
 
-```ts
-// Calcula meta de cada semana
-const weekTargets = weeks.map((w) => {
-  const g = findGoal(goals, def.metricKey, { from: w.from, to: w.to });
-  return g ? Number(g.target_value) : null;
-});
+Mover/reutilizar a logica de criacao de metas (mutation de upsert + GoalFormDialog) para a pagina Index, similar ao que ja existe em Goals.tsx. Manter um estado `goalFormOpen` e `goalFormDefaults` (com `metric_key`, `period_start`, `period_end` pre-preenchidos baseados no range do dashboard).
 
-// Total = soma das metas semanais (se pelo menos uma existir)
-const hasAnyWeekGoal = weekTargets.some((t) => t !== null);
-const totalTarget = hasAnyWeekGoal
-  ? weekTargets.reduce((sum, t) => sum + (t ?? 0), 0)
-  : null;
-```
+Passar `onEditGoal` para SalesSection e MarketingSection, que repassam para os MetricCards relevantes.
 
-Os `weekTargets` serão reutilizados nas colunas semanais em vez de recalcular `findGoal` novamente no loop de renderização.
+**Arquivo**: `src/pages/Index.tsx`
 
-Nenhum outro arquivo precisa ser alterado.
+### 3. SalesSection e MarketingSection — repassar callback
+
+Adicionar prop `onEditGoal?: (metricKey: string, ticketType?: string | null) => void` a ambos os componentes. Cada MetricCard que tem `goal` passa o `onEditGoal` correspondente com a metric_key correta.
+
+**Arquivos**: `src/components/dashboard/SalesSection.tsx`, `src/components/dashboard/MarketingSection.tsx`
+
+### 4. Fluxo
+
+1. Usuario clica no lapis de um card (ex: "Ingressos Vendidos")
+2. Abre o GoalFormDialog com `metric_key="tickets_sold"`, `period_start` e `period_end` do range atual do dashboard
+3. Se ja existe meta para essa metrica/periodo, pre-preenche o valor atual (edicao); senao, abre vazio (criacao)
+4. Ao salvar, invalida cache e atualiza o dashboard
+
+| Arquivo | Mudanca |
+|---------|---------|
+| `MetricCard.tsx` | Prop `onEditGoal`, icone Pencil |
+| `Index.tsx` | GoalFormDialog + mutation upsert, estado, callbacks |
+| `SalesSection.tsx` | Prop `onEditGoal`, repasse aos MetricCards |
+| `MarketingSection.tsx` | Prop `onEditGoal`, repasse aos MetricCards |
 
