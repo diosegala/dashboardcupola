@@ -21,6 +21,7 @@ interface MarketingSectionProps {
   ga4Events: any[];
   goals: any[];
   range: DateRange;
+  onEditGoal?: (metricKey: string, ticketType?: string | null) => void;
 }
 
 export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range }: MarketingSectionProps) {
