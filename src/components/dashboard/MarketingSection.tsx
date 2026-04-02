@@ -312,7 +312,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           <DemandGenByDayChart ga4Events={ga4Events} />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits", range)?.target_value} />
+          <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits", range)?.target_value} onEditGoal={onEditGoal ? () => onEditGoal("site_visits") : undefined} />
           <MetricCard title="Usuários" value={siteTotals.users} icon={Users} description="Total de usuários" />
           <MetricCard title="Conversões" value={siteTotals.conversions} icon={Target} description="Key events do GA4" />
           <MetricCard title="Pageviews" value={siteTotals.pageviews} icon={FileText} description="Visualizações de página" />
