@@ -245,9 +245,20 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
                     </td>
                     {/* Total period */}
                     <td className="py-2.5 px-3 text-right tabular-nums bg-muted/10 border-r text-xs">
-                      {totalTarget != null ? fmtVal(totalTarget, def.format) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
+                      <span className="inline-flex items-center gap-1 justify-end">
+                        {totalTarget != null ? fmtVal(totalTarget, def.format) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                        {onEditGoal && (
+                          <button
+                            onClick={() => onEditGoal(def.metricKey, range.from, range.to)}
+                            className="opacity-0 group-hover/row:opacity-100 hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity p-0.5"
+                            title="Editar meta"
+                          >
+                            <Pencil className="h-3 w-3" />
+                          </button>
+                        )}
+                      </span>
                     </td>
                     <td className={`py-2.5 px-3 text-right tabular-nums font-semibold bg-muted/10 border-r text-xs ${
                       totalTarget != null
