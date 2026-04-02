@@ -215,8 +215,17 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
             </thead>
             <tbody>
               {data.map(({ def, totalActual, weekActuals }) => {
-                const totalGoal = findGoal(goals, def.metricKey, range);
-                const totalTarget = totalGoal ? Number(totalGoal.target_value) : null;
+                // Calcula meta de cada semana
+                const weekTargets = weeks.map((w) => {
+                  const g = findGoal(goals, def.metricKey, { from: w.from, to: w.to });
+                  return g ? Number(g.target_value) : null;
+                });
+
+                // Total = soma das metas semanais (se pelo menos uma existir)
+                const hasAnyWeekGoal = weekTargets.some((t) => t !== null);
+                const totalTarget = hasAnyWeekGoal
+                  ? weekTargets.reduce((sum, t) => sum + (t ?? 0), 0)
+                  : null;
                 const totalPct = totalTarget && totalTarget > 0 ? (totalActual / totalTarget) * 100 : null;
 
                 return (
@@ -255,9 +264,7 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
                     {/* Weekly columns */}
                     {showWeeks &&
                       weeks.map((w, i) => {
-                        const weekRange: DateRange = { from: w.from, to: w.to };
-                        const weekGoal = findGoal(goals, def.metricKey, weekRange);
-                        const weekTarget = weekGoal ? Number(weekGoal.target_value) : null;
+                        const weekTarget = weekTargets[i];
                         const actual = weekActuals[i];
                         const metColor =
                           weekTarget != null
