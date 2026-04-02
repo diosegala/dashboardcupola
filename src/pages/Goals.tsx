@@ -65,6 +65,7 @@ export default function Goals() {
   const [formOpen, setFormOpen] = useState(false);
   const [editingGoal, setEditingGoal] = useState<any | null>(null);
   const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null);
+  const [cloningGoal, setCloningGoal] = useState<any | null>(null);
 
   const upsertMutation = useMutation({
     mutationFn: async (values: GoalFormValues & { id?: string }) => {
