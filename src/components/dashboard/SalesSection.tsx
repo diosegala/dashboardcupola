@@ -17,7 +17,7 @@ interface SalesSectionProps {
   onEditGoal?: (metricKey: string, ticketType?: string | null) => void;
 }
 
-export function SalesSection({ tickets, goals, allTimeTickets = [], range }: SalesSectionProps) {
+export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEditGoal }: SalesSectionProps) {
   const totalTickets = useMemo(() => tickets.reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
   const totalRevenue = useMemo(() => tickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [tickets]);
 
