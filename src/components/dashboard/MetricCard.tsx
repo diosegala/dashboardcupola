@@ -66,7 +66,14 @@ export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, des
         ) : description ? (
           <p className="text-xs text-muted-foreground mt-1">{description}</p>
         ) : (
-          <p className="text-xs text-muted-foreground mt-1">Sem meta configurada</p>
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            Sem meta configurada
+            {onEditGoal && (
+              <button onClick={onEditGoal} className="inline-flex items-center justify-center rounded-sm hover:bg-muted p-0.5 transition-colors" title="Criar meta">
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
+          </p>
         )}
       </CardContent>
     </Card>
