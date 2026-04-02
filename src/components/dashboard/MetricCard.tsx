@@ -44,8 +44,13 @@ export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, des
         {pct !== null && goal ? (
           <div className="mt-2 space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
+              <span className="text-muted-foreground flex items-center gap-1">
                 Meta: {prefix}{goal.toLocaleString("pt-BR")}{suffix}
+                {onEditGoal && (
+                  <button onClick={onEditGoal} className="inline-flex items-center justify-center rounded-sm hover:bg-muted p-0.5 transition-colors" title="Editar meta">
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                )}
               </span>
               <span className={cn("font-semibold", getStatusColor(pct))}>
                 {pct}%
