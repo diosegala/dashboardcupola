@@ -23,6 +23,7 @@ interface FunnelKPISectionProps {
   tickets: any[];
   goals: any[];
   range: DateRange;
+  onEditGoal?: (metricKey: string, periodStart: Date, periodEnd: Date) => void;
 }
 
 interface FunnelRowDef {
