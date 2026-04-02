@@ -1,44 +1,23 @@
 
 
-# Cadastro de metas direto no Dashboard via MetricCard
+# Adicionar edição de metas no Funil de KPIs
 
-## Resumo
+## O que muda
 
-Adicionar um botao de lapis (editar/criar meta) nos MetricCards do dashboard que possuem campo de meta. Ao clicar, abre o GoalFormDialog pre-preenchido com a metrica correspondente e o periodo atual do dashboard.
+Adicionar um ícone de lápis (`Pencil`) em cada célula de meta semanal da tabela do funil. Ao clicar, abre o `GoalFormDialog` pré-preenchido com a `metric_key` do funil e o período da semana correspondente.
 
-## Implementacao
+## Implementação
 
-### 1. MetricCard — adicionar callback `onEditGoal`
+### 1. `FunnelKPISection.tsx`
+- Adicionar prop `onEditGoal?: (metricKey: string) => void` à interface.
+- Nas células de meta (tanto semanais quanto o total), renderizar um ícone `Pencil` pequeno ao lado do valor. O clique chamará uma função que invoca `onEditGoal` passando a `metric_key` e o período correto (semana ou range total).
+- Como o callback precisa informar também o período específico, a prop será ajustada para `onEditGoal?: (metricKey: string, periodStart: Date, periodEnd: Date) => void`.
 
-Adicionar prop opcional `onEditGoal?: () => void` ao `MetricCard`. Quando presente, renderizar um icone de lapis (`Pencil`) ao lado do texto "Meta:" ou "Sem meta configurada", que ao clicar dispara o callback.
+### 2. `Index.tsx`
+- Passar `onEditGoal` ao `FunnelKPISection` com a mesma lógica de `handleEditGoal`, mas aceitando `periodStart`/`periodEnd` explícitos (em vez de usar o range do dashboard).
 
-**Arquivo**: `src/components/dashboard/MetricCard.tsx`
-
-### 2. Index.tsx — estado do dialog e logica de upsert
-
-Mover/reutilizar a logica de criacao de metas (mutation de upsert + GoalFormDialog) para a pagina Index, similar ao que ja existe em Goals.tsx. Manter um estado `goalFormOpen` e `goalFormDefaults` (com `metric_key`, `period_start`, `period_end` pre-preenchidos baseados no range do dashboard).
-
-Passar `onEditGoal` para SalesSection e MarketingSection, que repassam para os MetricCards relevantes.
-
-**Arquivo**: `src/pages/Index.tsx`
-
-### 3. SalesSection e MarketingSection — repassar callback
-
-Adicionar prop `onEditGoal?: (metricKey: string, ticketType?: string | null) => void` a ambos os componentes. Cada MetricCard que tem `goal` passa o `onEditGoal` correspondente com a metric_key correta.
-
-**Arquivos**: `src/components/dashboard/SalesSection.tsx`, `src/components/dashboard/MarketingSection.tsx`
-
-### 4. Fluxo
-
-1. Usuario clica no lapis de um card (ex: "Ingressos Vendidos")
-2. Abre o GoalFormDialog com `metric_key="tickets_sold"`, `period_start` e `period_end` do range atual do dashboard
-3. Se ja existe meta para essa metrica/periodo, pre-preenche o valor atual (edicao); senao, abre vazio (criacao)
-4. Ao salvar, invalida cache e atualiza o dashboard
-
-| Arquivo | Mudanca |
+| Arquivo | Mudança |
 |---------|---------|
-| `MetricCard.tsx` | Prop `onEditGoal`, icone Pencil |
-| `Index.tsx` | GoalFormDialog + mutation upsert, estado, callbacks |
-| `SalesSection.tsx` | Prop `onEditGoal`, repasse aos MetricCards |
-| `MarketingSection.tsx` | Prop `onEditGoal`, repasse aos MetricCards |
+| `FunnelKPISection.tsx` | Prop `onEditGoal`, ícone Pencil nas células de meta |
+| `Index.tsx` | Passar callback ao FunnelKPISection |
 
