@@ -143,12 +143,10 @@ export default function Goals() {
           <h1 className="text-3xl font-bold tracking-tight">Metas</h1>
           <p className="text-muted-foreground">Gerencie as metas de vendas e marketing</p>
         </div>
-        {isAdmin && (
-          <Button onClick={handleCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Meta
-          </Button>
-        )}
+        <Button onClick={handleCreate}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nova Meta
+        </Button>
       </div>
 
       {isLoading ? (
