@@ -84,6 +84,22 @@ function getWeekOptions() {
   return options;
 }
 
+function getKpiWeekOptions() {
+  const today = new Date();
+  const options: { label: string; from: Date; to: Date }[] = [];
+  for (let i = -4; i <= 12; i++) {
+    const d = addWeeks(today, i);
+    const from = startOfWeek(d, { weekStartsOn: 4 });
+    const to = endOfWeek(d, { weekStartsOn: 4 });
+    options.push({
+      label: `Qui–Qua (${format(from, "dd/MM")}–${format(to, "dd/MM")})`,
+      from,
+      to,
+    });
+  }
+  return options;
+}
+
 function getMonthOptions() {
   const today = new Date();
   const options: { label: string; from: Date; to: Date }[] = [];
