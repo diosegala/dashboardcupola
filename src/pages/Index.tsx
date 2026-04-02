@@ -1,10 +1,17 @@
 import { useState } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { format } from "date-fns";
+import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 import { SalesSection } from "@/components/dashboard/SalesSection";
 import { MarketingSection } from "@/components/dashboard/MarketingSection";
 import { FunnelKPISection } from "@/components/dashboard/FunnelKPISection";
+import { GoalFormDialog, type GoalFormValues } from "@/components/goals/GoalFormDialog";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
+import { getMetricLabel } from "@/lib/goalMetrics";
 import {
   getDefaultRange,
   useTicketSales,
@@ -16,11 +23,17 @@ import {
   useGoals,
   useAllTimeTicketSales,
   useSymplaEventIds,
+  findGoal,
   type DateRange,
 } from "@/hooks/useDashboardData";
 
 export default function Index() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [range, setRange] = useState<DateRange>(getDefaultRange);
+
+  const [goalFormOpen, setGoalFormOpen] = useState(false);
+  const [goalFormDefaults, setGoalFormDefaults] = useState<Partial<GoalFormValues> | undefined>();
 
   const symplaIds = useSymplaEventIds();
   const tickets = useTicketSales(range);
@@ -33,6 +46,60 @@ export default function Index() {
   const allTimeTickets = useAllTimeTicketSales(symplaIds.data?.currentEventId ?? "");
 
   const isLoading = symplaIds.isLoading || tickets.isLoading || deals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading || goals.isLoading || allTimeTickets.isLoading;
+
+  const upsertMutation = useMutation({
+    mutationFn: async (values: GoalFormValues & { id?: string }) => {
+      const base = {
+        label: values.label,
+        metric_key: values.metric_key,
+        target_value: values.target_value,
+        period_start: format(values.period_start, "yyyy-MM-dd"),
+        period_end: format(values.period_end, "yyyy-MM-dd"),
+        ticket_type: values.ticket_type ?? null,
+      } as any;
+
+      if (values.id) {
+        const { error } = await supabase.from("goals").update(base).eq("id", values.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("goals").insert([{ ...base, created_by: user!.id }]);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["goals"] });
+      setGoalFormOpen(false);
+      toast.success("Meta salva com sucesso");
+    },
+    onError: (err: any) => {
+      toast.error("Erro ao salvar meta: " + err.message);
+    },
+  });
+
+  const handleEditGoal = (metricKey: string, ticketType?: string | null) => {
+    // Check if a goal already exists for this metric + range
+    const existingGoal = findGoal(goals.data ?? [], metricKey, range, ticketType);
+
+    setGoalFormDefaults({
+      label: existingGoal?.label ?? getMetricLabel(metricKey),
+      metric_key: metricKey,
+      target_value: existingGoal ? Number(existingGoal.target_value) : 0,
+      period_start: range.from,
+      period_end: range.to,
+      ticket_type: ticketType ?? null,
+    });
+    setGoalFormOpen(true);
+  };
+
+  const handleGoalSubmit = (values: GoalFormValues) => {
+    // Find existing goal to update instead of creating duplicate
+    const existingGoal = findGoal(goals.data ?? [], values.metric_key, {
+      from: values.period_start,
+      to: values.period_end,
+    }, values.ticket_type);
+
+    upsertMutation.mutate({ ...values, id: existingGoal?.id });
+  };
 
   if (isLoading) {
     return (
@@ -77,6 +144,7 @@ export default function Index() {
         goals={goals.data ?? []}
         allTimeTickets={allTimeTickets.data ?? []}
         range={range}
+        onEditGoal={handleEditGoal}
       />
 
       <Separator />
@@ -88,6 +156,15 @@ export default function Index() {
         ga4Events={ga4Events.data ?? []}
         goals={goals.data ?? []}
         range={range}
+        onEditGoal={handleEditGoal}
+      />
+
+      <GoalFormDialog
+        open={goalFormOpen}
+        onOpenChange={setGoalFormOpen}
+        onSubmit={handleGoalSubmit}
+        defaultValues={goalFormDefaults}
+        isSubmitting={upsertMutation.isPending}
       />
     </div>
   );

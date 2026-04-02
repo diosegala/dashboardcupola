@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
+import { Pencil } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 interface MetricCardProps {
@@ -11,6 +12,7 @@ interface MetricCardProps {
   suffix?: string;
   prefix?: string;
   description?: string;
+  onEditGoal?: () => void;
 }
 
 function getStatusColor(pct: number) {
@@ -25,7 +27,7 @@ function getProgressColor(pct: number) {
   return "bg-destructive";
 }
 
-export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, description }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, description, onEditGoal }: MetricCardProps) {
   const numericValue = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, "")) || 0;
   const pct = goal && goal > 0 ? Math.round((numericValue / goal) * 100) : null;
 
@@ -42,8 +44,13 @@ export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, des
         {pct !== null && goal ? (
           <div className="mt-2 space-y-1">
             <div className="flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">
+              <span className="text-muted-foreground flex items-center gap-1">
                 Meta: {prefix}{goal.toLocaleString("pt-BR")}{suffix}
+                {onEditGoal && (
+                  <button onClick={onEditGoal} className="inline-flex items-center justify-center rounded-sm hover:bg-muted p-0.5 transition-colors" title="Editar meta">
+                    <Pencil className="h-3 w-3" />
+                  </button>
+                )}
               </span>
               <span className={cn("font-semibold", getStatusColor(pct))}>
                 {pct}%
@@ -59,7 +66,14 @@ export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, des
         ) : description ? (
           <p className="text-xs text-muted-foreground mt-1">{description}</p>
         ) : (
-          <p className="text-xs text-muted-foreground mt-1">Sem meta configurada</p>
+          <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+            Sem meta configurada
+            {onEditGoal && (
+              <button onClick={onEditGoal} className="inline-flex items-center justify-center rounded-sm hover:bg-muted p-0.5 transition-colors" title="Criar meta">
+                <Pencil className="h-3 w-3" />
+              </button>
+            )}
+          </p>
         )}
       </CardContent>
     </Card>

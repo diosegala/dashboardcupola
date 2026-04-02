@@ -14,9 +14,10 @@ interface SalesSectionProps {
   goals: any[];
   allTimeTickets?: any[];
   range: DateRange;
+  onEditGoal?: (metricKey: string, ticketType?: string | null) => void;
 }
 
-export function SalesSection({ tickets, goals, allTimeTickets = [], range }: SalesSectionProps) {
+export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEditGoal }: SalesSectionProps) {
   const totalTickets = useMemo(() => tickets.reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
   const totalRevenue = useMemo(() => tickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [tickets]);
 
@@ -99,6 +100,7 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range }: Sal
           value={totalTickets}
           icon={Ticket}
           goal={ticketsGoal?.target_value}
+          onEditGoal={onEditGoal ? () => onEditGoal("tickets_sold") : undefined}
         />
         <MetricCard
           title="Receita Total"
@@ -106,6 +108,7 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range }: Sal
           icon={DollarSign}
           goal={revenueGoal?.target_value}
           prefix="R$ "
+          onEditGoal={onEditGoal ? () => onEditGoal("revenue") : undefined}
         />
         <MetricCard
           title="Ticket Médio"
