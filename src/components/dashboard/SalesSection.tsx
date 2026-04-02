@@ -14,6 +14,7 @@ interface SalesSectionProps {
   goals: any[];
   allTimeTickets?: any[];
   range: DateRange;
+  onEditGoal?: (metricKey: string, ticketType?: string | null) => void;
 }
 
 export function SalesSection({ tickets, goals, allTimeTickets = [], range }: SalesSectionProps) {
