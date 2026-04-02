@@ -224,14 +224,15 @@ export default function Goals() {
                     </TableCell>
                     <TableCell>
                         <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(goal)}>
+                          <Button variant="ghost" size="icon" onClick={() => handleClone(goal)} title="Clonar">
+                            <Copy className="h-4 w-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon" onClick={() => handleEdit(goal)} title="Editar">
                             <Pencil className="h-4 w-4" />
                           </Button>
-                          {isAdmin && (
-                            <Button variant="ghost" size="icon" onClick={() => setDeletingGoalId(goal.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          )}
+                          <Button variant="ghost" size="icon" onClick={() => setDeletingGoalId(goal.id)} title="Excluir">
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
                         </div>
                       </TableCell>
                   </TableRow>
