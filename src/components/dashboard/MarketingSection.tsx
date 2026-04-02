@@ -24,7 +24,7 @@ interface MarketingSectionProps {
   onEditGoal?: (metricKey: string, ticketType?: string | null) => void;
 }
 
-export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range }: MarketingSectionProps) {
+export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range, onEditGoal }: MarketingSectionProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [selectedEmailCampaigns, setSelectedEmailCampaigns] = useState<string[]>([]);
   const [compareA, setCompareA] = useState<string | null>(null);
