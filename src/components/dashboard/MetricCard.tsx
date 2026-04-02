@@ -27,7 +27,7 @@ function getProgressColor(pct: number) {
   return "bg-destructive";
 }
 
-export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, description }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, description, onEditGoal }: MetricCardProps) {
   const numericValue = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, "")) || 0;
   const pct = goal && goal > 0 ? Math.round((numericValue / goal) * 100) : null;
 
