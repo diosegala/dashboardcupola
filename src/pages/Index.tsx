@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
+import { MinPriceFilter } from "@/components/dashboard/MinPriceFilter";
 import { SalesSection } from "@/components/dashboard/SalesSection";
 import { MarketingSection } from "@/components/dashboard/MarketingSection";
 import { FunnelKPISection } from "@/components/dashboard/FunnelKPISection";
@@ -31,6 +32,15 @@ export default function Index() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [range, setRange] = useState<DateRange>(getDefaultRange);
+  const [minTicketPrice, setMinTicketPrice] = useState<number>(() => {
+    const stored = localStorage.getItem("dashboard_min_ticket_price");
+    return stored ? parseFloat(stored) : 0;
+  });
+
+  const handleMinPriceChange = useCallback((v: number) => {
+    setMinTicketPrice(v);
+    localStorage.setItem("dashboard_min_ticket_price", String(v));
+  }, []);
 
   const [goalFormOpen, setGoalFormOpen] = useState(false);
   const [goalFormDefaults, setGoalFormDefaults] = useState<Partial<GoalFormValues> | undefined>();
@@ -136,13 +146,16 @@ export default function Index() {
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
           <p className="text-muted-foreground">Visão geral de vendas e marketing — Cupola Summit</p>
         </div>
-        <PeriodSelector range={range} onChange={setRange} />
+        <div className="flex items-center gap-2">
+          <MinPriceFilter value={minTicketPrice} onChange={handleMinPriceChange} />
+          <PeriodSelector range={range} onChange={setRange} />
+        </div>
       </div>
 
       <FunnelKPISection
         adMetrics={adMetrics.data ?? []}
         emailCampaigns={emailCampaigns.data ?? []}
-        tickets={tickets.data ?? []}
+        tickets={filteredTickets}
         goals={goals.data ?? []}
         range={range}
         onEditGoal={(metricKey, periodStart, periodEnd) => {
@@ -159,9 +172,9 @@ export default function Index() {
       />
 
       <SalesSection
-        tickets={tickets.data ?? []}
+        tickets={filteredTickets}
         goals={goals.data ?? []}
-        allTimeTickets={allTimeTickets.data ?? []}
+        allTimeTickets={filteredAllTimeTickets}
         range={range}
         onEditGoal={handleEditGoal}
       />
