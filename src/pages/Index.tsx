@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -46,6 +46,14 @@ export default function Index() {
   const allTimeTickets = useAllTimeTicketSales(symplaIds.data?.currentEventId ?? "");
 
   const isLoading = symplaIds.isLoading || tickets.isLoading || deals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading || goals.isLoading || allTimeTickets.isLoading;
+
+  const filterTickets = useCallback((data: any[]) => {
+    if (minTicketPrice <= 0) return data;
+    return data.filter((t) => Number(t.unit_price ?? t.total_price ?? 0) >= minTicketPrice);
+  }, [minTicketPrice]);
+
+  const filteredTickets = useMemo(() => filterTickets(tickets.data ?? []), [tickets.data, filterTickets]);
+  const filteredAllTimeTickets = useMemo(() => filterTickets(allTimeTickets.data ?? []), [allTimeTickets.data, filterTickets]);
 
   const upsertMutation = useMutation({
     mutationFn: async (values: GoalFormValues & { id?: string }) => {
