@@ -78,9 +78,10 @@ Deno.serve(async (req) => {
     // === UPDATE ROLE ===
     if (action === "update_role") {
       const newRole = role === "admin" ? "admin" : "viewer";
+      await adminClient.from("user_roles").delete().eq("user_id", user_id);
       const { error } = await adminClient
         .from("user_roles")
-        .upsert({ user_id, role: newRole }, { onConflict: "user_id" });
+        .insert({ user_id, role: newRole });
       if (error) {
         console.error("update_role error:", error);
         return jsonResponse({ error: error.message }, 400);
