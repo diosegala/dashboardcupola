@@ -115,7 +115,7 @@ export function CommercialSegments({ tickets, minTicketPrice }: CommercialSegmen
   const segmentos = [
     { title: "Pagantes por tipo de ingresso", items: porTipo },
     { title: "Pagantes por região", items: porRegiao },
-    { title: "Pagantes por porte", items: porPorte },
+    { title: "Pagantes por perfil da empresa", items: porPorte },
   ].filter((s) => s.items.length > 0);
 
   if (segmentos.length === 0 && cupons.length === 0) return null;
