@@ -29,7 +29,7 @@ import {
 } from "@/hooks/useDashboardData";
 
 export default function Index() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [range, setRange] = useState<DateRange>(getDefaultRange);
   const [minTicketPrice, setMinTicketPrice] = useState<number>(() => {
