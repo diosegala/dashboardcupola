@@ -7,16 +7,24 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
-import Login from "./pages/Login";
-import ForgotPassword from "./pages/ForgotPassword";
-import SetPassword from "./pages/SetPassword";
-import Index from "./pages/Index";
-import Goals from "./pages/Goals";
-import Integrations from "./pages/Integrations";
-import Settings from "./pages/Settings";
-import NotFound from "./pages/NotFound";
+import { lazy, Suspense } from "react";
 
-const queryClient = new QueryClient();
+// Cada tela é baixada só quando é aberta.
+const Login = lazy(() => import("./pages/Login"));
+const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
+const SetPassword = lazy(() => import("./pages/SetPassword"));
+const Index = lazy(() => import("./pages/Index"));
+const Goals = lazy(() => import("./pages/Goals"));
+const Integrations = lazy(() => import("./pages/Integrations"));
+const Settings = lazy(() => import("./pages/Settings"));
+const NotFound = lazy(() => import("./pages/NotFound"));
+
+// Dados ficam válidos por 5 minutos: trocar de tela ou de aba do navegador não baixa tudo de novo.
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: { staleTime: 5 * 60 * 1000, refetchOnWindowFocus: false },
+  },
+});
 
 const App = () => (
   <ThemeProvider>
@@ -26,6 +34,7 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <AuthProvider>
+            <Suspense fallback={null}>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -44,6 +53,7 @@ const App = () => (
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
+            </Suspense>
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
