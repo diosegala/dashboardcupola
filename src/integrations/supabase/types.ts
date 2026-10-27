@@ -382,8 +382,10 @@ export type Database = {
       }
       ticket_sales: {
         Row: {
+          buyer_company: string | null
           buyer_email: string | null
           buyer_name: string | null
+          buyer_role: string | null
           buyer_state: string | null
           company_size: string | null
           coupon_code: string | null
@@ -401,8 +403,10 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          buyer_company?: string | null
           buyer_email?: string | null
           buyer_name?: string | null
+          buyer_role?: string | null
           buyer_state?: string | null
           company_size?: string | null
           coupon_code?: string | null
@@ -420,8 +424,10 @@ export type Database = {
           unit_price?: number
         }
         Update: {
+          buyer_company?: string | null
           buyer_email?: string | null
           buyer_name?: string | null
+          buyer_role?: string | null
           buyer_state?: string | null
           company_size?: string | null
           coupon_code?: string | null
