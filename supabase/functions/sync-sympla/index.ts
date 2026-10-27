@@ -143,6 +143,10 @@ Deno.serve(async (req) => {
         // Empresa e cargo do comprador, para identificar compras recorrentes entre eventos.
         buyer_company: formAnswerExact(p, ["empresa", "nome da empresa"]),
         buyer_role: formAnswerExact(p, ["cargo"]),
+        payment_method: order?.transaction_type ?? order?.payment_method ?? null,
+        utm_source: order?.utm_data?.utm_source ?? order?.utm_source ?? null,
+        utm_medium: order?.utm_data?.utm_medium ?? order?.utm_medium ?? null,
+        utm_campaign: order?.utm_data?.utm_campaign ?? order?.utm_campaign ?? null,
         synced_at: new Date().toISOString(),
       });
     });
@@ -154,6 +158,20 @@ Deno.serve(async (req) => {
       const { error } = await supabase
         .from("ticket_sales")
         .upsert(chunk, { onConflict: "sympla_order_id" });
+      if (error) throw error;
+    }
+
+    // 5b. Dados completos do participante e do pedido, numa tabela só para administradores.
+    const details = allParticipants.map((p: any) => ({
+      sympla_order_id: String(p.id),
+      participant_data: sanitize(p),
+      order_data: sanitize(ordersById.get(String(p.order_id ?? "")) ?? null),
+      synced_at: new Date().toISOString(),
+    }));
+    for (let i = 0; i < details.length; i += 500) {
+      const { error } = await supabase
+        .from("ticket_sales_details")
+        .upsert(details.slice(i, i + 500), { onConflict: "sympla_order_id" });
       if (error) throw error;
     }
 
@@ -203,6 +221,20 @@ function formAnswerExact(p: any, names: string[]): string | null {
     if (value) return value;
   }
   return null;
+}
+
+// Remove dados de cartão e de acesso à conta, mesmo que a Sympla venha a enviá-los.
+const BLOCKED_KEYS = /card|cartao|cartão|cvv|password|senha|token|secret|access_key/i;
+function sanitize(value: any): any {
+  if (Array.isArray(value)) return value.map(sanitize);
+  if (value && typeof value === "object") {
+    const out: Record<string, any> = {};
+    for (const [k, v] of Object.entries(value)) {
+      if (!BLOCKED_KEYS.test(k)) out[k] = sanitize(v);
+    }
+    return out;
+  }
+  return value;
 }
 
 function mapStatus(status: string | null): string {
