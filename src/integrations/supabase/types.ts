@@ -191,6 +191,33 @@ export type Database = {
         }
         Relationships: []
       }
+      event_history: {
+        Row: {
+          archived_at: string
+          data: Json
+          event_key: string
+          id: string
+          record_date: string | null
+          source_table: string
+        }
+        Insert: {
+          archived_at?: string
+          data: Json
+          event_key: string
+          id?: string
+          record_date?: string | null
+          source_table: string
+        }
+        Update: {
+          archived_at?: string
+          data?: Json
+          event_key?: string
+          id?: string
+          record_date?: string | null
+          source_table?: string
+        }
+        Relationships: []
+      }
       ga4_events: {
         Row: {
           date: string
@@ -357,8 +384,12 @@ export type Database = {
         Row: {
           buyer_email: string | null
           buyer_name: string | null
+          buyer_state: string | null
+          company_size: string | null
+          coupon_code: string | null
           event_id: string | null
           id: string
+          order_id: string | null
           quantity: number
           sold_at: string | null
           status: string | null
@@ -372,8 +403,12 @@ export type Database = {
         Insert: {
           buyer_email?: string | null
           buyer_name?: string | null
+          buyer_state?: string | null
+          company_size?: string | null
+          coupon_code?: string | null
           event_id?: string | null
           id?: string
+          order_id?: string | null
           quantity?: number
           sold_at?: string | null
           status?: string | null
@@ -387,8 +422,12 @@ export type Database = {
         Update: {
           buyer_email?: string | null
           buyer_name?: string | null
+          buyer_state?: string | null
+          company_size?: string | null
+          coupon_code?: string | null
           event_id?: string | null
           id?: string
+          order_id?: string | null
           quantity?: number
           sold_at?: string | null
           status?: string | null
