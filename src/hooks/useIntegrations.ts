@@ -18,6 +18,8 @@ export function useIntegrations() {
       if (error) throw error;
       return data as Integration[];
     },
+    // Enquanto alguma integração estiver sincronizando, confere o status a cada 3 segundos.
+    refetchInterval: (q) => (q.state.data?.some((i) => i.sync_status === "syncing") ? 3000 : false),
   });
 
   const updateIntegration = useMutation({
@@ -50,14 +52,14 @@ export function useIntegrations() {
     },
     onSuccess: () => {
       toast.success("Sincronização iniciada!");
-      // Poll for status updates
-      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["integrations"] }), 2000);
-      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["integrations"] }), 5000);
-      setTimeout(() => queryClient.invalidateQueries({ queryKey: ["integrations"] }), 10000);
+      // Busca o status na hora; o refetchInterval acompanha até a sincronização terminar.
+      queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      queryClient.invalidateQueries({ queryKey: ["integrations_health"] });
     },
     onError: (err) => {
       toast.error("Erro ao sincronizar: " + err.message);
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
+      queryClient.invalidateQueries({ queryKey: ["integrations_health"] });
     },
   });
 
