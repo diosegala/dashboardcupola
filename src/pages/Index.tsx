@@ -40,7 +40,7 @@ const ABAS = [
 type Aba = (typeof ABAS)[number]["value"];
 
 export default function Index() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   // A aba aberta fica na URL (?aba=marketing) para ser compartilhada e mantida ao recarregar.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -192,12 +192,12 @@ export default function Index() {
               goals={goals.data ?? []}
               allTimeTickets={filteredAllTimeTickets}
               range={range}
-              onEditGoal={handleEditGoal}
+              onEditGoal={isAdmin ? handleEditGoal : undefined}
             />
           </TabsContent>
 
           <TabsContent value="marketing" className="mt-0 animate-panel-in space-y-8">
-            <IntegrationsHealthCard />
+            {isAdmin && <IntegrationsHealthCard />}
 
             <FunnelKPISection
               adMetrics={adMetrics.data ?? []}
@@ -205,7 +205,7 @@ export default function Index() {
               tickets={filteredTickets}
               goals={goals.data ?? []}
               range={range}
-              onEditGoal={(metricKey, periodStart, periodEnd) => {
+              onEditGoal={!isAdmin ? undefined : (metricKey, periodStart, periodEnd) => {
                 const existingGoal = findGoal(goals.data ?? [], metricKey, { from: periodStart, to: periodEnd });
                 setGoalFormDefaults({
                   label: existingGoal?.label ?? getMetricLabel(metricKey),
@@ -225,7 +225,7 @@ export default function Index() {
               ga4Events={ga4Events.data ?? []}
               goals={goals.data ?? []}
               range={range}
-              onEditGoal={handleEditGoal}
+              onEditGoal={isAdmin ? handleEditGoal : undefined}
             />
           </TabsContent>
         </div>

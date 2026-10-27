@@ -20,18 +20,18 @@ const FONTES = [
 // Sem sincronizar há mais de 26 horas conta como atrasada.
 const LIMITE_ATRASO_MS = 26 * 60 * 60 * 1000;
 
+// Retorno de get_integrations_status: status já vem como "inactive" quando a integração está desligada.
 interface StatusIntegracao {
   name: string;
-  is_active: boolean;
-  sync_status: string;
+  status: string;
   last_synced_at: string | null;
 }
 
 function situacao(i: StatusIntegracao | undefined): { label: string; variant: ChipVariant } {
   if (!i) return { label: "Não configurada", variant: "neutral" };
-  if (!i.is_active) return { label: "Inativa", variant: "neutral" };
-  if (i.sync_status === "error") return { label: "Erro", variant: "bad" };
-  if (i.sync_status === "syncing") return { label: "Sincronizando", variant: "warn" };
+  if (i.status === "inactive") return { label: "Inativa", variant: "neutral" };
+  if (i.status === "error") return { label: "Erro", variant: "bad" };
+  if (i.status === "syncing") return { label: "Sincronizando", variant: "warn" };
   if (!i.last_synced_at || Date.now() - new Date(i.last_synced_at).getTime() > LIMITE_ATRASO_MS) {
     return { label: "Atrasada", variant: "warn" };
   }
@@ -39,13 +39,11 @@ function situacao(i: StatusIntegracao | undefined): { label: string; variant: Ch
 }
 
 export function IntegrationsHealthCard() {
-  // Só colunas de status: as credenciais nunca são lidas aqui.
+  // Função do banco liberada só para administradores; devolve status sem credenciais.
   const { data, isLoading } = useQuery({
     queryKey: ["integrations_health"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("integrations")
-        .select("name, is_active, sync_status, last_synced_at");
+      const { data, error } = await supabase.rpc("get_integrations_status");
       if (error) throw error;
       return data as StatusIntegracao[];
     },

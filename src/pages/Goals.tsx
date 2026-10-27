@@ -154,10 +154,12 @@ export default function Goals() {
         title="Metas"
         description="Gerencie as metas de vendas e marketing"
         actions={
-          <Button onClick={handleCreate}>
-            <Plus className="h-4 w-4" />
-            Nova meta
-          </Button>
+          isAdmin && (
+            <Button onClick={handleCreate}>
+              <Plus className="h-4 w-4" />
+              Nova meta
+            </Button>
+          )
         }
       />
 
@@ -224,7 +226,7 @@ export default function Goals() {
                       )}
                     </TableCell>
                     <TableCell>
-                        <div className="flex gap-1">
+                        {isAdmin && <div className="flex gap-1">
                           <Button variant="ghost" size="icon" onClick={() => handleClone(goal)} title="Clonar">
                             <Copy className="h-4 w-4" />
                           </Button>
@@ -234,7 +236,7 @@ export default function Goals() {
                           <Button variant="ghost" size="icon" onClick={() => setDeletingGoalId(goal.id)} title="Excluir">
                             <Trash2 className="h-4 w-4" />
                           </Button>
-                        </div>
+                        </div>}
                       </TableCell>
                   </TableRow>
                 );

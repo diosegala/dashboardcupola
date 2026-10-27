@@ -424,6 +424,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_current_sympla_event_id: { Args: never; Returns: string }
+      get_integrations_status: {
+        Args: never
+        Returns: {
+          last_synced_at: string
+          name: string
+          status: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
