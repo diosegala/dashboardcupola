@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ["Boldonse", "Funnel Display", "sans-serif"],
+        sans: ["Funnel Display", "system-ui", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -55,6 +59,10 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        "accent-text": "hsl(var(--accent-text))",
+        "data-blue": "hsl(var(--data-blue))",
+        ok: "hsl(var(--ok))",
+        warn: "hsl(var(--warn))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
