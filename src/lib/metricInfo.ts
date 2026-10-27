@@ -31,6 +31,9 @@ export const METRIC_INFO: Record<string, string> = {
   "Remarketing Qualificado": "Conversão personalizada do Meta Ads que marca visitantes qualificados para remarketing.",
   "Cliques por Dia (Meta Ads)": "Cliques no link dos anúncios do Meta Ads em cada dia do período.",
 
+  "Saúde das integrações":
+    "Situação de cada fonte de dados do painel. Em dia: sincronizou nas últimas 26 horas. Atrasada: passou desse prazo. Erro: a última sincronização falhou.",
+
   // E-mail (RD Station)
   "Campanhas Enviadas": "Campanhas de e-mail do RD Station enviadas no período.",
   "Taxa de Abertura": "Média da taxa de abertura das campanhas de e-mail enviadas no período.",

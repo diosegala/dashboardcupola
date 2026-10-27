@@ -103,6 +103,9 @@ export default {
         shimmer: {
           to: { backgroundPosition: "-200% 0" },
         },
+        "panel-in": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+        },
         "accordion-down": {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
@@ -114,6 +117,7 @@ export default {
       },
       animation: {
         shimmer: "shimmer 1.4s linear infinite",
+        "panel-in": "panel-in 450ms cubic-bezier(.16,1,.3,1)",
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
