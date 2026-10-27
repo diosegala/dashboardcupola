@@ -120,15 +120,10 @@ export function useSymplaEventIds() {
   return useQuery({
     queryKey: ["sympla_event_ids"],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("integrations")
-        .select("credentials")
-        .eq("name", "sympla")
-        .single();
+      const { data, error } = await supabase.rpc("get_current_sympla_event_id");
       if (error) throw error;
-      const creds = (data?.credentials as Record<string, string>) ?? {};
       return {
-        currentEventId: creds.event_id || "",
+        currentEventId: (data as string | null) || "",
       };
     },
   });
