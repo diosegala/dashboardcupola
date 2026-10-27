@@ -140,6 +140,9 @@ Deno.serve(async (req) => {
         buyer_state: formAnswer(p, ["estado/uf", "uf", "cidade/estado", "estado"]),
         // O formulário não pergunta o porte; "Perfil da empresa" é o dado mais próximo.
         company_size: formAnswer(p, ["perfil da empresa", "porte"]),
+        // Empresa e cargo do comprador, para identificar compras recorrentes entre eventos.
+        buyer_company: formAnswerExact(p, ["empresa", "nome da empresa"]),
+        buyer_role: formAnswerExact(p, ["cargo"]),
         synced_at: new Date().toISOString(),
       });
     });
@@ -185,6 +188,17 @@ function formAnswer(p: any, terms: string[]): string | null {
   const fields: any[] = p.custom_form ?? [];
   for (const term of terms) {
     const field = fields.find((f: any) => String(f.name ?? f.label ?? "").toLowerCase().includes(term));
+    const value = field?.value != null ? String(field.value).trim() : "";
+    if (value) return value;
+  }
+  return null;
+}
+
+// Resposta da pergunta cujo nome é exatamente um dos termos (evita confundir "Empresa" com "Perfil da empresa").
+function formAnswerExact(p: any, names: string[]): string | null {
+  const fields: any[] = p.custom_form ?? [];
+  for (const name of names) {
+    const field = fields.find((f: any) => String(f.name ?? f.label ?? "").trim().toLowerCase() === name);
     const value = field?.value != null ? String(field.value).trim() : "";
     if (value) return value;
   }
