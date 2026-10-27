@@ -161,7 +161,7 @@ export function CommercialOverview({ tickets, goals, minTicketPrice }: Commercia
         className="col-span-12 sm:col-span-6 lg:col-span-3"
         title="Faturados internamente"
         value={int(m.invoicedCount)}
-        footer={<span>Cupom começando com FATURADO</span>}
+        footer={<span>Cupom que começa com FATURADO</span>}
       />
       <KpiCard
         className="col-span-12 sm:col-span-6 lg:col-span-3"
