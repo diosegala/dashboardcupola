@@ -1,5 +1,26 @@
 // Definições em linguagem de negócio usadas no botão "i" de cada indicador e gráfico.
 export const METRIC_INFO: Record<string, string> = {
+  // Aba Comercial (definições do ds-summit)
+  "Meta de ingressos pagantes":
+    "Soma dos ingressos pagos na Sympla com os faturados internamente. Cortesias, expositores e patrocinadores não entram. A meta é cadastrada na tela Metas.",
+  "Ritmo necessário":
+    "Ingressos pagantes que faltam divididos pelos dias úteis de hoje até a véspera do evento. Fins de semana e feriados nacionais ficam de fora.",
+  "Ritmo atual":
+    "Média de ingressos pagantes vendidos por dia útil nos últimos 10 dias úteis. Comparado com o ritmo necessário para indicar se a venda está no ritmo.",
+  "Pagos na Sympla":
+    "Pedidos aprovados na Sympla com valor acima de zero e igual ou acima do valor mínimo configurado. Pendentes e cancelados não contam.",
+  "Faturados internamente":
+    "Ingressos vendidos pelo comercial fora da Sympla e resgatados com cupom que começa com FATURADO. Passa a contar quando a Sympla enviar o cupom.",
+  Bonificados:
+    "Ingressos aprovados sem valor: cortesias, expositores, patrocinadores, convidados e equipe. Ficam visíveis para controle de lotação, mas não somam na meta nem na receita.",
+  "Receita acumulada": "Valor dos ingressos pagantes desde a abertura das vendas.",
+  "Pagantes acumulados x meta":
+    "Linha cheia: total de pagantes semana a semana. Linha tracejada: trajetória até a meta no dia do evento, distribuída por dias úteis.",
+  "Composição":
+    "Divide os ingressos emitidos entre pagos na Sympla, faturados internamente e bonificados. Só os dois primeiros contam na meta.",
+  "Vendas por dia útil":
+    "Pagantes vendidos em cada um dos últimos 15 dias úteis. A linha marca o ritmo necessário. Barras abaixo da linha ficam em âmbar.",
+
   // Vendas
   "Ingressos Vendidos (acumulado)":
     "Todos os ingressos vendidos desde a abertura das vendas, respeitando o filtro de valor mínimo. Não muda com o período escolhido.",

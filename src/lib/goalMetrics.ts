@@ -1,4 +1,5 @@
 export const METRIC_OPTIONS = [
+  { key: "paying_tickets", label: "Ingressos pagantes (meta do evento)", category: "Vendas" },
   { key: "tickets_sold", label: "Ingressos Vendidos", category: "Vendas" },
   { key: "revenue", label: "Receita (R$)", category: "Vendas" },
   { key: "meta_impressions", label: "Impressões (Meta Ads)", category: "Marketing" },

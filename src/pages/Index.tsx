@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { SlidingTabsList } from "@/components/dashboard/SlidingTabsList";
 import { IntegrationsHealthCard } from "@/components/dashboard/IntegrationsHealthCard";
+import { CommercialOverview } from "@/components/dashboard/CommercialOverview";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 import { MinPriceFilter } from "@/components/dashboard/MinPriceFilter";
 import { SalesSection } from "@/components/dashboard/SalesSection";
@@ -183,13 +184,18 @@ export default function Index() {
 
         <div className="rounded-[28px] border bg-bg-alt/85 p-3 sm:p-5">
           <TabsContent value="comercial" className="mt-0 animate-panel-in">
-            {comercialLoading ? <TabSkeleton /> : <SalesSection
-              tickets={filteredTickets}
-              goals={goals.data ?? []}
-              allTimeTickets={filteredAllTimeTickets}
-              range={range}
-              onEditGoal={isAdmin ? handleEditGoal : undefined}
-            />}
+            {comercialLoading ? <TabSkeleton /> : (
+              <div className="space-y-8">
+                <CommercialOverview tickets={allTimeTickets.data ?? []} goals={goals.data ?? []} minTicketPrice={minTicketPrice} />
+                <SalesSection
+                  tickets={filteredTickets}
+                  goals={goals.data ?? []}
+                  allTimeTickets={filteredAllTimeTickets}
+                  range={range}
+                  onEditGoal={isAdmin ? handleEditGoal : undefined}
+                />
+              </div>
+            )}
           </TabsContent>
 
           <TabsContent value="marketing" className="mt-0 animate-panel-in space-y-8">
