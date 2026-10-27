@@ -32,7 +32,7 @@ export function AppSidebar() {
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
             <LayoutDashboard className="h-4 w-4 text-sidebar-primary-foreground" />
           </div>
-          <span className="text-lg font-bold text-sidebar-foreground">Cupola</span>
+          <span className="text-lg font-bold text-sidebar-foreground">CUPOLA</span>
         </div>
       </SidebarHeader>
       <SidebarContent>

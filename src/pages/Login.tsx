@@ -43,7 +43,7 @@ export default function Login() {
           <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
             <LayoutDashboard className="h-6 w-6 text-primary-foreground" />
           </div>
-          <CardTitle className="text-2xl">Cupola Summit</CardTitle>
+          <CardTitle className="text-2xl">CUPOLA Summit</CardTitle>
           <CardDescription>Entre para acessar o dashboard</CardDescription>
         </CardHeader>
         <CardContent>

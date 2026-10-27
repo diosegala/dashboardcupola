@@ -144,7 +144,7 @@ export default function Index() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral de vendas e marketing — Cupola Summit</p>
+          <p className="text-muted-foreground">Visão geral de vendas e marketing do CUPOLA Summit</p>
         </div>
         <div className="flex items-center gap-2">
           <MinPriceFilter value={minTicketPrice} onChange={handleMinPriceChange} />

@@ -71,7 +71,7 @@ export default function SetPassword() {
             <LayoutDashboard className="h-6 w-6 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl">Defina sua senha</CardTitle>
-          <CardDescription>Crie uma senha para acessar o Cupola Summit</CardDescription>
+          <CardDescription>Crie uma senha para acessar o CUPOLA Summit</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
