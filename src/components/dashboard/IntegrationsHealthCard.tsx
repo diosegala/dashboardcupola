@@ -14,7 +14,6 @@ const FONTES = [
   { key: "google_ads", label: "Google Ads" },
   { key: "google_analytics", label: "Google Analytics" },
   { key: "rd_station", label: "RD Station" },
-  { key: "google_drive", label: "Google Drive" },
 ];
 
 // Sem sincronizar há mais de 26 horas conta como atrasada.
