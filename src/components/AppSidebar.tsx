@@ -43,7 +43,7 @@ export function AppSidebar() {
               {publicItems.map((item) => (
                 <SidebarMenuItem key={item.title}>
                   <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end={item.url === "/"} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                    <NavLink to={item.url} end={item.url === "/"} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-accent-text font-medium">
                       <item.icon className="mr-2 h-4 w-4" />
                       <span>{item.title}</span>
                     </NavLink>
@@ -55,7 +55,7 @@ export function AppSidebar() {
                   {adminItems.map((item) => (
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                        <NavLink to={item.url} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-accent-text font-medium">
                           <item.icon className="mr-2 h-4 w-4" />
                           <span>{item.title}</span>
                         </NavLink>
@@ -64,7 +64,7 @@ export function AppSidebar() {
                   ))}
                   <SidebarMenuItem>
                     <SidebarMenuButton asChild>
-                      <NavLink to="/settings" className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
+                      <NavLink to="/settings" className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-accent-text font-medium">
                         <Settings className="mr-2 h-4 w-4" />
                         <span>Configurações</span>
                       </NavLink>

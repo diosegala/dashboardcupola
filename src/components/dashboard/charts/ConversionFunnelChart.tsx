@@ -49,7 +49,7 @@ export function ConversionFunnelChart({ ga4Events }: ConversionFunnelChartProps)
                 <div key={step.key} className="flex-1 flex flex-col items-center gap-1 min-w-0">
                   {/* Conversion rate from previous step */}
                   {conversionRate !== null && (
-                    <div className="text-xs font-medium text-primary mb-1">
+                    <div className="text-xs font-medium text-accent-text mb-1">
                       {conversionRate.toFixed(1)}%
                     </div>
                   )}
