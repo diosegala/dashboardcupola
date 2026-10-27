@@ -4,7 +4,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Chip } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
-import { INVOICED_COUPON_PREFIX } from "@/lib/eventConfig";
+import { formatDiscount, parseCoupon, type CouponKind } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -21,6 +21,12 @@ function regiaoDe(estado: string): string {
   const uf = estado.trim().toUpperCase().slice(-2);
   return REGIAO_POR_UF[uf] ?? "Outros";
 }
+
+const KIND_CHIP: Record<CouponKind, { label: string; variant: "paid" | "neutral" | "lavender" }> = {
+  faturado: { label: "Faturado", variant: "paid" },
+  cortesia: { label: "Cortesia", variant: "neutral" },
+  desconto: { label: "Desconto", variant: "lavender" },
+};
 
 function countBy(tickets: Ticket[], key: (t: Ticket) => string | null | undefined) {
   const map = new Map<string, number>();
@@ -93,14 +99,18 @@ export function CommercialSegments({ tickets, minTicketPrice }: CommercialSegmen
   const porTipo = useMemo(() => countBy(paying, (t) => t.ticket_type || "Sem tipo").slice(0, 8), [paying]);
   const porRegiao = useMemo(() => countBy(paying, (t) => (t.buyer_state ? regiaoDe(t.buyer_state) : null)), [paying]);
   const porPorte = useMemo(() => countBy(paying, (t) => t.company_size), [paying]);
-  const cupons = useMemo(
-    () =>
-      countBy([...paying, ...bonus], (t) => t.coupon_code).map((c) => ({
-        ...c,
-        faturado: c.label.toUpperCase().startsWith(INVOICED_COUPON_PREFIX),
-      })),
-    [paying, bonus],
-  );
+  // Cupons agrupados pelo código, com o desconto e o tipo enviados pela Sympla.
+  const cupons = useMemo(() => {
+    const map = new Map<string, { code: string; discount: string | null; kind: CouponKind; uses: number }>();
+    [...paying, ...bonus].forEach((t) => {
+      const c = parseCoupon(t.coupon_code);
+      if (!c) return;
+      const atual = map.get(c.code) ?? { ...c, uses: 0 };
+      atual.uses += t.quantity || 0;
+      map.set(c.code, atual);
+    });
+    return Array.from(map.values()).sort((a, b) => b.uses - a.uses);
+  }, [paying, bonus]);
 
   const segmentos = [
     { title: "Pagantes por tipo de ingresso", items: porTipo },
@@ -125,23 +135,25 @@ export function CommercialSegments({ tickets, minTicketPrice }: CommercialSegmen
               Cupons <InfoTip title="Cupons" />
             </CardTitle>
           </CardHeader>
-          <CardContent className="overflow-x-auto">
+          <CardContent className="max-h-[420px] overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Cupom</TableHead>
+                  <TableHead>Desconto</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead className="text-right">Usos</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {cupons.map((c) => (
-                  <TableRow key={c.label}>
-                    <TableCell className="font-medium">{c.label}</TableCell>
+                  <TableRow key={c.code}>
+                    <TableCell className="font-medium">{c.code}</TableCell>
+                    <TableCell className="tabular-nums">{formatDiscount(c.discount)}</TableCell>
                     <TableCell>
-                      <Chip variant={c.faturado ? "paid" : "neutral"}>{c.faturado ? "Faturado" : "Desconto ou cortesia"}</Chip>
+                      <Chip variant={KIND_CHIP[c.kind].variant}>{KIND_CHIP[c.kind].label}</Chip>
                     </TableCell>
-                    <TableCell className="text-right tabular-nums">{int(c.value)}</TableCell>
+                    <TableCell className="text-right tabular-nums">{int(c.uses)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>

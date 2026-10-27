@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import { addDays, differenceInCalendarWeeks, endOfWeek, format, startOfDay, startOfWeek } from "date-fns";
 import { businessDaysBetween, lastBusinessDays } from "@/lib/businessDays";
+import { parseCoupon } from "@/lib/coupons";
 import {
   CURRENT_PACE_DAYS,
   EVENT_DATE,
-  INVOICED_COUPON_PREFIX,
   PAYING_GOAL_DEFAULT,
   PAYING_GOAL_KEY,
   isApproved,
@@ -30,7 +30,7 @@ const dayKey = (d: Date) => format(d, "yyyy-MM-dd");
 // Separa as vendas aprovadas em pagos na Sympla, faturados (cupom FATURADO) e bonificados (valor zero).
 export function splitTickets(tickets: Ticket[], minTicketPrice: number) {
     const approved = tickets.filter((t) => isApproved(t.status));
-    const invoiced = approved.filter((t) => (t.coupon_code ?? "").toUpperCase().startsWith(INVOICED_COUPON_PREFIX));
+    const invoiced = approved.filter((t) => parseCoupon(t.coupon_code)?.kind === "faturado");
     const notInvoiced = approved.filter((t) => !invoiced.includes(t));
     // Pagos na Sympla: aprovados, com valor acima de zero e do valor mínimo configurado.
     const paidSympla = notInvoiced.filter((t) => {
