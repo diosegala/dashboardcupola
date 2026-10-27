@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     }
 
     const eventId = bodyEventId || defaultEventId;
-    console.log("sync-sympla - eventId:", eventId, "token prefix:", apiToken.slice(0, 8) + "...");
+    console.log("sync-sympla - eventId:", eventId);
 
     if (!apiToken || !eventId) {
       await supabase
@@ -96,10 +96,33 @@ Deno.serve(async (req) => {
       page++;
     }
 
+    // 4b. Pedidos do evento: trazem o cupom usado. Se falhar, a sincronização segue sem cupom.
+    const ordersById = new Map<string, any>();
+    try {
+      let orderPage = 1;
+      let hasNextOrder = true;
+      while (hasNextOrder) {
+        const url = `https://api.sympla.com.br/public/v1.5.1/events/${eventId}/orders?page=${orderPage}&page_size=200`;
+        const data = await fetchWithRetry(url, apiToken);
+        (data.data ?? []).forEach((o: any) => ordersById.set(String(o.id), o));
+        hasNextOrder = data.pagination?.has_next ?? false;
+        orderPage++;
+      }
+    } catch (err: any) {
+      console.error("sync-sympla - pedidos indisponíveis:", err.message);
+    }
+
+    // Só os nomes dos campos do formulário vão para o log (nunca as respostas), para mapear região e porte.
+    const formLabels = new Set<string>();
+    allParticipants.forEach((p: any) => (p.custom_form ?? []).forEach((f: any) => formLabels.add(String(f.name ?? f.label ?? ""))));
+    console.log("sync-sympla - campos do formulário:", Array.from(formLabels).join(" | "));
+
     // 5. Upsert each participant as individual ticket (deduplicate by sympla_order_id)
     const rowMap = new Map<string, any>();
     allParticipants.forEach((p: any) => {
       const key = String(p.id);
+      const order = ordersById.get(String(p.order_id ?? ""));
+      const coupon = order?.discount_code ?? order?.coupon_code ?? p.discount_code ?? null;
       rowMap.set(key, {
         sympla_order_id: key,
         ticket_type: p.ticket_name ?? p.ticket_title ?? null,
@@ -112,6 +135,10 @@ Deno.serve(async (req) => {
         sold_at: p.order_date || p.order_approved_date || null,
         status: mapStatus(p.order_status),
         event_id: eventId,
+        order_id: p.order_id ? String(p.order_id) : null,
+        coupon_code: coupon ? String(coupon).trim().toUpperCase() : null,
+        buyer_state: formAnswer(p, ["estado", "uf"]),
+        company_size: formAnswer(p, ["porte", "tamanho da", "número de corretores", "numero de corretores", "funcionários", "funcionarios"]),
         synced_at: new Date().toISOString(),
       });
     });
@@ -151,6 +178,16 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+// Resposta do formulário de inscrição cujo nome contém um dos termos (sem diferenciar maiúsculas).
+function formAnswer(p: any, terms: string[]): string | null {
+  const field = (p.custom_form ?? []).find((f: any) => {
+    const label = String(f.name ?? f.label ?? "").toLowerCase();
+    return terms.some((t) => label.includes(t));
+  });
+  const value = field?.value != null ? String(field.value).trim() : "";
+  return value || null;
+}
 
 function mapStatus(status: string | null): string {
   if (!status) return "unknown";
