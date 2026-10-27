@@ -158,7 +158,7 @@ export default function Index() {
         tickets={filteredTickets}
         goals={goals.data ?? []}
         range={range}
-        onEditGoal={(metricKey, periodStart, periodEnd) => {
+        onEditGoal={!isAdmin ? undefined : (metricKey, periodStart, periodEnd) => {
           const existingGoal = findGoal(goals.data ?? [], metricKey, { from: periodStart, to: periodEnd });
           setGoalFormDefaults({
             label: existingGoal?.label ?? getMetricLabel(metricKey),
@@ -176,7 +176,7 @@ export default function Index() {
         goals={goals.data ?? []}
         allTimeTickets={filteredAllTimeTickets}
         range={range}
-        onEditGoal={handleEditGoal}
+        onEditGoal={isAdmin ? handleEditGoal : undefined}
       />
 
       <Separator />
@@ -188,7 +188,7 @@ export default function Index() {
         ga4Events={ga4Events.data ?? []}
         goals={goals.data ?? []}
         range={range}
-        onEditGoal={handleEditGoal}
+        onEditGoal={isAdmin ? handleEditGoal : undefined}
       />
 
       <GoalFormDialog
