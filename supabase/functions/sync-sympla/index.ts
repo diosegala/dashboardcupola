@@ -137,8 +137,9 @@ Deno.serve(async (req) => {
         event_id: eventId,
         order_id: p.order_id ? String(p.order_id) : null,
         coupon_code: coupon ? String(coupon).trim().toUpperCase() : null,
-        buyer_state: formAnswer(p, ["estado", "uf"]),
-        company_size: formAnswer(p, ["porte", "tamanho da", "número de corretores", "numero de corretores", "funcionários", "funcionarios"]),
+        buyer_state: formAnswer(p, ["estado/uf", "uf", "cidade/estado", "estado"]),
+        // O formulário não pergunta o porte; "Perfil da empresa" é o dado mais próximo.
+        company_size: formAnswer(p, ["perfil da empresa", "porte"]),
         synced_at: new Date().toISOString(),
       });
     });
@@ -179,14 +180,15 @@ Deno.serve(async (req) => {
   }
 });
 
-// Resposta do formulário de inscrição cujo nome contém um dos termos (sem diferenciar maiúsculas).
+// Resposta do formulário de inscrição para o primeiro termo encontrado, na ordem de prioridade (sem diferenciar maiúsculas).
 function formAnswer(p: any, terms: string[]): string | null {
-  const field = (p.custom_form ?? []).find((f: any) => {
-    const label = String(f.name ?? f.label ?? "").toLowerCase();
-    return terms.some((t) => label.includes(t));
-  });
-  const value = field?.value != null ? String(field.value).trim() : "";
-  return value || null;
+  const fields: any[] = p.custom_form ?? [];
+  for (const term of terms) {
+    const field = fields.find((f: any) => String(f.name ?? f.label ?? "").toLowerCase().includes(term));
+    const value = field?.value != null ? String(field.value).trim() : "";
+    if (value) return value;
+  }
+  return null;
 }
 
 function mapStatus(status: string | null): string {

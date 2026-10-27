@@ -23,7 +23,8 @@ export const METRIC_INFO: Record<string, string> = {
 
   "Pagantes por tipo de ingresso": "Ingressos pagantes por categoria vendida. Nesta fase a meta é única e não separa VIP.",
   "Pagantes por região": "Região do comprador a partir do estado informado no formulário de inscrição da Sympla.",
-  "Pagantes por porte": "Porte da imobiliária do comprador, informado no formulário de inscrição da Sympla.",
+  "Pagantes por perfil da empresa":
+    "Perfil da empresa do comprador, informado no formulário de inscrição da Sympla. O formulário não pergunta o porte, então este é o dado mais próximo.",
   Cupons:
     "Cupons usados nos ingressos emitidos. Os que começam com FATURADO marcam vendas faturadas internamente pelo comercial.",
 
