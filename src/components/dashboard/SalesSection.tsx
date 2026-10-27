@@ -1,6 +1,6 @@
 import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
-import { Ticket, DollarSign, TrendingUp, Trophy, Award, Target } from "lucide-react";
+import { Ticket, DollarSign, TrendingUp, Trophy, Target } from "lucide-react";
 import { MetricCard } from "./MetricCard";
 import { TicketsByDayChart } from "./charts/TicketsByDayChart";
 import { TicketsByTypeChart } from "./charts/TicketsByTypeChart";
@@ -22,8 +22,6 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEdi
   const totalTickets = useMemo(() => tickets.reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
   const totalRevenue = useMemo(() => tickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [tickets]);
 
-  const allTimeTotalTickets = useMemo(() => allTimeTickets.reduce((s, t) => s + (t.quantity || 0), 0), [allTimeTickets]);
-  const allTimeTotalRevenue = useMemo(() => allTimeTickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [allTimeTickets]);
   const avgTicket = totalTickets > 0 ? totalRevenue / totalTickets : 0;
 
   const top5Types = useMemo(() => {
@@ -77,23 +75,7 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEdi
 
   return (
     <section className="space-y-6">
-      <h2 className="text-[22px] font-[650] tracking-[-0.02em]">Vendas</h2>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <MetricCard
-          title="Ingressos Vendidos (acumulado)"
-          value={allTimeTotalTickets}
-          icon={Award}
-          description="Total de todos os tempos"
-        />
-        <MetricCard
-          title="Receita Total (acumulado)"
-          value={allTimeTotalRevenue}
-          icon={Award}
-          prefix="R$ "
-          description="Total de todos os tempos"
-        />
-      </div>
+      <h2 className="text-[22px] font-[650] tracking-[-0.02em]">Vendas no período</h2>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <MetricCard
