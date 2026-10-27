@@ -280,3 +280,10 @@
     transition-duration: 1ms !important;
   }
 }
+
+/* Barras horizontais crescendo da esquerda */
+@keyframes grow {
+  from {
+    transform: scaleX(0);
+  }
+}

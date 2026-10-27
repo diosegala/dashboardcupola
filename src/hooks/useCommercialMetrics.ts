@@ -12,23 +12,23 @@ import {
 
 export type PaceStatus = "achieved" | "above" | "on_track" | "below";
 
-interface Ticket {
+export interface Ticket {
   quantity: number | null;
   total_price: number | string | null;
   unit_price: number | string | null;
   sold_at: string | null;
   status: string | null;
   coupon_code?: string | null;
+  ticket_type?: string | null;
+  buyer_state?: string | null;
+  company_size?: string | null;
 }
 
 const qty = (t: Ticket) => t.quantity || 0;
 const dayKey = (d: Date) => format(d, "yyyy-MM-dd");
 
-// Indicadores da aba Comercial, sempre sobre todas as vendas do evento atual (não dependem do período).
-export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketPrice: number) {
-  return useMemo(() => {
-    const today = startOfDay(new Date());
-
+// Separa as vendas aprovadas em pagos na Sympla, faturados (cupom FATURADO) e bonificados (valor zero).
+export function splitTickets(tickets: Ticket[], minTicketPrice: number) {
     const approved = tickets.filter((t) => isApproved(t.status));
     const invoiced = approved.filter((t) => (t.coupon_code ?? "").toUpperCase().startsWith(INVOICED_COUPON_PREFIX));
     const notInvoiced = approved.filter((t) => !invoiced.includes(t));
@@ -40,6 +40,14 @@ export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketP
     // Bonificados: aprovados sem valor (cortesias, expositores, patrocinadores). Não somam na meta nem na receita.
     const bonus = notInvoiced.filter((t) => Number(t.unit_price ?? t.total_price ?? 0) === 0);
     const paying = [...paidSympla, ...invoiced];
+    return { paidSympla, invoiced, bonus, paying };
+}
+
+// Indicadores da aba Comercial, sempre sobre todas as vendas do evento atual (não dependem do período).
+export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketPrice: number) {
+  return useMemo(() => {
+    const today = startOfDay(new Date());
+    const { paidSympla, invoiced, bonus, paying } = splitTickets(tickets, minTicketPrice);
 
     const paidSymplaCount = paidSympla.reduce((s, t) => s + qty(t), 0);
     const invoicedCount = invoiced.reduce((s, t) => s + qty(t), 0);

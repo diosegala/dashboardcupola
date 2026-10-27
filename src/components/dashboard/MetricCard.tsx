@@ -4,12 +4,15 @@ import { cn } from "@/lib/utils";
 import { Pencil } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { InfoTip } from "@/components/InfoTip";
+import { Chip } from "@/components/Chip";
+import { goalPace } from "@/lib/goalPace";
 
 interface MetricCardProps {
   title: string;
   value: string | number;
   icon: LucideIcon;
-  goal?: number | null;
+  // Meta do período (linha da tabela goals): traz valor-alvo e datas para calcular a situação.
+  goal?: { target_value: number | string; period_start: string; period_end: string } | null;
   suffix?: string;
   prefix?: string;
   description?: string;
@@ -28,9 +31,19 @@ function getProgressColor(pct: number) {
   return "bg-bad";
 }
 
-export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, description, onEditGoal }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, goal: goalRow, suffix, prefix, description, onEditGoal }: MetricCardProps) {
   const numericValue = typeof value === "number" ? value : parseFloat(String(value).replace(/[^0-9.-]/g, "")) || 0;
+  const goal = goalRow ? Number(goalRow.target_value) : null;
   const pct = goal && goal > 0 ? Math.round((numericValue / goal) * 100) : null;
+  // Taxas (%) não se acumulam no tempo: comparam direto com a meta. Contagens comparam com o esperado até hoje.
+  const isRate = typeof value === "string" && value.includes("%");
+  const pace = !goalRow || !goal
+    ? null
+    : isRate
+      ? numericValue >= goal
+        ? { label: "Na meta", variant: "ok" as const }
+        : { label: "Abaixo da meta", variant: "warn" as const }
+      : goalPace(numericValue, goal, goalRow.period_start, goalRow.period_end);
 
   return (
     <Card className="hover:-translate-y-[3px] hover:border-line-strong">
@@ -60,6 +73,11 @@ export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, des
                 {pct}%
               </span>
             </div>
+            {pace && (
+              <div className="pt-1">
+                <Chip variant={pace.variant}>{pace.label}</Chip>
+              </div>
+            )}
             <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
               <div
                 className={cn("h-full rounded-full transition-all", getProgressColor(pct))}
