@@ -253,11 +253,11 @@ export default function Settings() {
                     </TableCell>
                     <TableCell>
                       {u.email_confirmed_at ? (
-                        <Badge variant="default" className="bg-green-600 hover:bg-green-700 text-xs gap-1">
+                        <Badge variant="secondary" className="gap-1 bg-ok-bg text-xs text-ok hover:bg-ok-bg">
                           <CheckCircle2 className="h-3 w-3" /> Ativo
                         </Badge>
                       ) : (
-                        <Badge variant="secondary" className="bg-yellow-500/20 text-yellow-700 hover:bg-yellow-500/30 text-xs gap-1">
+                        <Badge variant="secondary" className="gap-1 bg-warn-bg text-xs text-warn hover:bg-warn-bg">
                           <Clock className="h-3 w-3" /> Pendente
                         </Badge>
                       )}

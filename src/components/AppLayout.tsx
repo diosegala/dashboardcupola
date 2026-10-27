@@ -6,6 +6,11 @@ import { AppHeader } from "@/components/AppHeader";
 export function AppLayout() {
   return (
     <SidebarProvider>
+      <div className="app-bg" aria-hidden>
+        <span className="orb orb-1" />
+        <span className="orb orb-2" />
+        <span className="orb orb-3" />
+      </div>
       <div className="flex min-h-screen w-full">
         <AppSidebar />
         <div className="flex min-w-0 flex-1 flex-col">

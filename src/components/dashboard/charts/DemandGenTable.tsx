@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -37,7 +38,7 @@ export function DemandGenTable({ ga4Events }: DemandGenTableProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Geração de Demanda — Site</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">Geração de Demanda no Site <InfoTip title="Geração de Demanda no Site" /></CardTitle>
       </CardHeader>
       <CardContent>
         {grandTotal === 0 ? (

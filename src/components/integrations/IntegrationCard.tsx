@@ -74,7 +74,7 @@ export function IntegrationCard({ integration, isAdmin, onToggle, onSync, onSave
             </CardTitle>
             <Badge
               variant={isSyncing ? "default" : isError ? "destructive" : integration.is_active ? "default" : "secondary"}
-              className={isSyncing ? "animate-pulse bg-yellow-500 text-yellow-950" : ""}
+              className={isSyncing ? "animate-pulse bg-warn-bg text-warn" : ""}
             >
               {isSyncing ? "Sincronizando..." : isError ? "Erro" : integration.is_active ? "Ativo" : "Inativo"}
             </Badge>

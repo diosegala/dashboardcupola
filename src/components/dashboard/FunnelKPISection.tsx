@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,9 +43,9 @@ interface WeekSlice {
 }
 
 const stageBadgeClass: Record<string, string> = {
-  TOFU: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200",
-  MOFU: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200",
-  BOFU: "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-200",
+  TOFU: "bg-secondary text-foreground/75",
+  MOFU: "bg-chart-5/30 text-foreground/80",
+  BOFU: "bg-primary text-primary-foreground",
 };
 
 const ROW_DEFS: FunnelRowDef[] = [
@@ -146,7 +147,7 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg">Funil de KPIs</CardTitle>
+        <CardTitle className="text-lg flex items-center gap-2">Funil de KPIs <InfoTip title="Funil de KPIs" /></CardTitle>
       </CardHeader>
       <CardContent className="p-0">
         <div className="overflow-x-auto">
@@ -263,8 +264,8 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
                     <td className={`py-2.5 px-3 text-right tabular-nums font-semibold bg-muted/10 border-r text-xs ${
                       totalTarget != null
                         ? totalActual >= totalTarget
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-red-600 dark:text-red-400"
+                          ? "text-ok"
+                          : "text-bad"
                         : ""
                     }`}>
                       {fmtVal(totalActual, def.format)}
@@ -282,8 +283,8 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
                         const metColor =
                           weekTarget != null
                             ? actual >= weekTarget
-                              ? "text-emerald-600 dark:text-emerald-400"
-                              : "text-red-600 dark:text-red-400"
+                              ? "text-ok"
+                              : "text-bad"
                             : "";
 
                         return (

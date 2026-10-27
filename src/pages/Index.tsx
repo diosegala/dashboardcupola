@@ -153,7 +153,7 @@ export default function Index() {
         }
       />
 
-      <div className="space-y-8 rounded-[28px] border bg-bg-alt p-3 sm:p-5">
+      <div className="space-y-8 rounded-[28px] border bg-bg-alt/75 p-3 backdrop-blur-[2px] sm:p-5">
 
       <FunnelKPISection
         adMetrics={adMetrics.data ?? []}

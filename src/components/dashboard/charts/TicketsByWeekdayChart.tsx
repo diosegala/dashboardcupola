@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -27,7 +28,7 @@ export function TicketsByWeekdayChart({ tickets }: TicketsByWeekdayChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Vendas por Dia da Semana (histórico)</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">Vendas por Dia da Semana (histórico) <InfoTip title="Vendas por Dia da Semana (histórico)" /></CardTitle>
       </CardHeader>
       <CardContent>
         {data.some((d) => d.ingressos > 0) ? (

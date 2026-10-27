@@ -62,6 +62,10 @@ export default {
         "accent-text": "hsl(var(--accent-text))",
         "data-blue": "hsl(var(--data-blue))",
         ok: "hsl(var(--ok))",
+        "ok-bg": "hsl(var(--ok-bg))",
+        "warn-bg": "hsl(var(--warn-bg))",
+        bad: "hsl(var(--bad))",
+        "bad-bg": "hsl(var(--bad-bg))",
         "bg-alt": "hsl(var(--bg-alt))",
         "line-strong": "hsl(var(--line-strong))",
         warn: "hsl(var(--warn))",
@@ -96,6 +100,9 @@ export default {
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+        shimmer: {
+          to: { backgroundPosition: "-200% 0" },
+        },
         "accordion-down": {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
@@ -106,6 +113,7 @@ export default {
         },
       },
       animation: {
+        shimmer: "shimmer 1.4s linear infinite",
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },

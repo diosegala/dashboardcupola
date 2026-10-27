@@ -8,7 +8,7 @@ export function AppHeader() {
   const { profile, signOut, user } = useAuth();
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/80 px-4 backdrop-blur-[14px] backdrop-saturate-[1.2]">
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/70 px-4 backdrop-blur-[14px] backdrop-saturate-[1.2]">
       <SidebarTrigger className="h-9 w-9 rounded-full" title="Expandir ou recolher o menu" />
       <div className="ml-auto flex items-center gap-2">
         <ThemeToggle />

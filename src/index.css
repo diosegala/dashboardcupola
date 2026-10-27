@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 40 47% 96%;
+    --background: 60 10% 97%;
     --foreground: 216 14% 7%;
 
     --card: 0 0% 100%;
@@ -16,13 +16,13 @@
     --primary: 78 95% 51%;
     --primary-foreground: 216 14% 7%;
 
-    --secondary: 42 33% 94%;
+    --secondary: 60 8% 94%;
     --secondary-foreground: 216 14% 7%;
 
-    --muted: 42 33% 94%;
+    --muted: 60 8% 94%;
     --muted-foreground: 218 5% 44%;
 
-    --accent: 42 33% 94%;
+    --accent: 60 8% 94%;
     --accent-foreground: 216 14% 7%;
 
     --destructive: 4 63% 48%;
@@ -35,8 +35,12 @@
     --warn: 36 100% 36%;
 
     /* Painel areia, borda forte e sombra dos cards (ds-summit) */
-    --bg-alt: 39 39% 93%;
-    --line-strong: 42 23% 78%;
+    --ok-bg: 138 44% 92%;
+    --warn-bg: 39 81% 92%;
+    --bad: 4 63% 48%;
+    --bad-bg: 7 76% 93%;
+    --bg-alt: 60 7% 94%;
+    --line-strong: 60 4% 80%;
     --grid: rgba(15, 17, 20, 0.06);
     --shadow-card: 0 1px 2px rgba(15, 17, 20, 0.04), 0 8px 24px -12px rgba(15, 17, 20, 0.14);
     --glow: 0 0 0 rgba(0, 0, 0, 0);
@@ -47,8 +51,8 @@
     --warning: 36 100% 36%;
     --warning-foreground: 0 0% 100%;
 
-    --border: 41 28% 86%;
-    --input: 41 28% 86%;
+    --border: 60 6% 88%;
+    --input: 60 6% 88%;
     --ring: 242 100% 61%;
 
     --radius: 1rem;
@@ -57,9 +61,9 @@
     --sidebar-foreground: 216 14% 7%;
     --sidebar-primary: 78 95% 51%;
     --sidebar-primary-foreground: 216 14% 7%;
-    --sidebar-accent: 42 33% 94%;
+    --sidebar-accent: 60 8% 94%;
     --sidebar-accent-foreground: 216 14% 7%;
-    --sidebar-border: 41 28% 86%;
+    --sidebar-border: 60 6% 88%;
     --sidebar-ring: 242 100% 61%;
 
     /* Séries de gráfico: azul, lima, grafite, lavanda, areia */
@@ -100,6 +104,10 @@
     --ok: 145 55% 59%;
     --warn: 38 86% 63%;
 
+    --ok-bg: 146 39% 12%;
+    --warn-bg: 38 41% 12%;
+    --bad: 5 100% 72%;
+    --bad-bg: 5 37% 13%;
     --bg-alt: 214 16% 9%;
     --line-strong: 217 11% 23%;
     --grid: rgba(245, 242, 235, 0.05);
@@ -189,6 +197,83 @@
     transform: translateX(120%);
     transition: transform 700ms cubic-bezier(0.16, 1, 0.3, 1);
   }
+}
+
+  /* Fundo do app: grão, grade suave e brilhos lima que se movem devagar */
+  .app-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .app-bg::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 56px 56px;
+    mask-image: radial-gradient(ellipse at 70% 0%, #000 20%, transparent 70%);
+  }
+  .app-bg::after {
+    content: "";
+    position: absolute;
+    inset: -50%;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+    opacity: 0.045;
+    mix-blend-mode: multiply;
+    animation: grain 8s steps(6) infinite;
+  }
+  .dark .app-bg::after {
+    opacity: 0.06;
+    mix-blend-mode: screen;
+  }
+  .app-bg .orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(30px);
+  }
+  .app-bg .orb-1 {
+    width: 620px;
+    height: 620px;
+    right: -180px;
+    top: -220px;
+    background: radial-gradient(circle, rgba(176, 249, 10, 0.13), transparent 65%);
+    animation: drift 16s ease-in-out infinite alternate;
+  }
+  .app-bg .orb-2 {
+    width: 520px;
+    height: 520px;
+    left: 10%;
+    bottom: -260px;
+    background: radial-gradient(circle, rgba(176, 249, 10, 0.07), transparent 65%);
+    animation: drift-2 22s ease-in-out infinite alternate;
+  }
+  .app-bg .orb-3 {
+    width: 380px;
+    height: 380px;
+    left: 45%;
+    top: 30%;
+    background: radial-gradient(circle, rgba(15, 17, 20, 0.04), transparent 65%);
+    animation: drift 26s ease-in-out infinite alternate-reverse;
+  }
+  .dark .app-bg .orb-3 {
+    background: radial-gradient(circle, rgba(245, 242, 235, 0.03), transparent 65%);
+  }
+
+@keyframes drift-2 {
+  to {
+    transform: translate(120px, -80px) scale(1.12);
+  }
+}
+
+@keyframes grain {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(-3%, 2%); }
+  40% { transform: translate(2%, -3%); }
+  60% { transform: translate(-2%, -1%); }
+  80% { transform: translate(3%, 3%); }
+  100% { transform: translate(0, 0); }
 }
 
 @keyframes drift {

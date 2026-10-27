@@ -63,8 +63,13 @@ export default function SetPassword() {
   }
 
   return (
-    <div className="bg-hero flex min-h-screen items-center justify-center bg-background px-4">
-      <ThemeToggle className="!absolute right-4 top-4" />
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="app-bg" aria-hidden>
+        <span className="orb orb-1" />
+        <span className="orb orb-2" />
+        <span className="orb orb-3" />
+      </div>
+      <ThemeToggle className="absolute right-4 top-4" />
       <Card className="w-full max-w-md p-2">
         <CardHeader className="text-center">
           <CupolaLogo className="mx-auto mb-5 h-7" />

@@ -3,6 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Pencil } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { InfoTip } from "@/components/InfoTip";
 
 interface MetricCardProps {
   title: string;
@@ -16,15 +17,15 @@ interface MetricCardProps {
 }
 
 function getStatusColor(pct: number) {
-  if (pct >= 100) return "text-success";
-  if (pct >= 70) return "text-warning";
-  return "text-destructive";
+  if (pct >= 100) return "text-ok";
+  if (pct >= 70) return "text-warn";
+  return "text-bad";
 }
 
 function getProgressColor(pct: number) {
-  if (pct >= 100) return "bg-success";
-  if (pct >= 70) return "bg-warning";
-  return "bg-destructive";
+  if (pct >= 100) return "bg-primary";
+  if (pct >= 70) return "bg-warn";
+  return "bg-bad";
 }
 
 export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, description, onEditGoal }: MetricCardProps) {
@@ -34,7 +35,10 @@ export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, des
   return (
     <Card className="hover:-translate-y-[3px] hover:border-line-strong">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-[13px] font-semibold text-foreground/75">{title}</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
+          {title}
+          <InfoTip title={title} />
+        </CardTitle>
         <Icon className="h-4 w-4 text-muted-foreground/60" />
       </CardHeader>
       <CardContent>
