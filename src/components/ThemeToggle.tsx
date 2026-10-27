@@ -13,7 +13,7 @@ export function ThemeToggle({ className }: { className?: string }) {
       aria-label="Alternar tema claro e escuro"
       title={escuro ? "Usar tema claro" : "Usar tema escuro"}
       className={cn(
-        "relative h-8 w-16 shrink-0 rounded-full border border-border bg-secondary p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        "relative h-8 w-16 shrink-0 rounded-full border border-line-strong bg-secondary p-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
         className,
       )}
     >

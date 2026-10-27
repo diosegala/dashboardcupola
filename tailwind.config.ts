@@ -62,6 +62,8 @@ export default {
         "accent-text": "hsl(var(--accent-text))",
         "data-blue": "hsl(var(--data-blue))",
         ok: "hsl(var(--ok))",
+        "bg-alt": "hsl(var(--bg-alt))",
+        "line-strong": "hsl(var(--line-strong))",
         warn: "hsl(var(--warn))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
@@ -80,6 +82,13 @@ export default {
           "4": "hsl(var(--chart-4))",
           "5": "hsl(var(--chart-5))",
         },
+      },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        glow: "var(--glow)",
+      },
+      transitionTimingFunction: {
+        cupola: "cubic-bezier(.16,1,.3,1)",
       },
       borderRadius: {
         lg: "var(--radius)",

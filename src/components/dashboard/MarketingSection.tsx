@@ -134,7 +134,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
   return (
     <section className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <h2 className="text-xl font-semibold">Marketing</h2>
+        <h2 className="text-[22px] font-[650] tracking-[-0.02em]">Marketing</h2>
         <CampaignFilter
           campaigns={campaigns}
           selected={selectedCampaigns}

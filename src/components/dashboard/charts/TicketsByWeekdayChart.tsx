@@ -37,7 +37,7 @@ export function TicketsByWeekdayChart({ tickets }: TicketsByWeekdayChartProps) {
               <XAxis dataKey="day" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
               <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
               <Tooltip />
-              <Bar dataKey="ingressos" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="ingressos" fill="hsl(var(--data-blue))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (

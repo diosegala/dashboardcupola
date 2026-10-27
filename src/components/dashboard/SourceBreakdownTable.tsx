@@ -58,7 +58,7 @@ export function SourceBreakdownTable({
               />
               <Bar
                 dataKey={metricKey as string}
-                fill="hsl(var(--primary))"
+                fill="hsl(var(--data-blue))"
                 radius={[0, 4, 4, 0]}
                 barSize={20}
               />

@@ -38,7 +38,7 @@ export function TicketsByDayChart({ tickets }: TicketsByDayChartProps) {
               <XAxis dataKey="label" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
               <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
               <Tooltip />
-              <Line type="monotone" dataKey="ingressos" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="ingressos" stroke="hsl(var(--data-blue))" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         ) : (

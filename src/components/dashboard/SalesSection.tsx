@@ -76,7 +76,7 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEdi
 
   return (
     <section className="space-y-6">
-      <h2 className="text-xl font-semibold">Vendas</h2>
+      <h2 className="text-[22px] font-[650] tracking-[-0.02em]">Vendas</h2>
 
       <div className="grid gap-4 md:grid-cols-2">
         <MetricCard

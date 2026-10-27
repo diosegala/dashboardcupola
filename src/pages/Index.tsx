@@ -1,3 +1,4 @@
+import { PageHeader } from "@/components/PageHeader";
 import { useState, useMemo, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -140,17 +141,19 @@ export default function Index() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral de vendas e marketing do CUPOLA Summit</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <MinPriceFilter value={minTicketPrice} onChange={handleMinPriceChange} />
-          <PeriodSelector range={range} onChange={setRange} />
-        </div>
-      </div>
+    <div>
+      <PageHeader
+        title="Dashboard"
+        description="Visão geral de vendas e marketing do CUPOLA Summit"
+        actions={
+          <>
+            <MinPriceFilter value={minTicketPrice} onChange={handleMinPriceChange} />
+            <PeriodSelector range={range} onChange={setRange} />
+          </>
+        }
+      />
+
+      <div className="space-y-8 rounded-[28px] border bg-bg-alt p-3 sm:p-5">
 
       <FunnelKPISection
         adMetrics={adMetrics.data ?? []}
@@ -190,6 +193,7 @@ export default function Index() {
         range={range}
         onEditGoal={handleEditGoal}
       />
+      </div>
 
       <GoalFormDialog
         open={goalFormOpen}

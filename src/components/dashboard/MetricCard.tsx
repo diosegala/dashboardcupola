@@ -32,13 +32,13 @@ export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, des
   const pct = goal && goal > 0 ? Math.round((numericValue / goal) * 100) : null;
 
   return (
-    <Card>
+    <Card className="hover:-translate-y-[3px] hover:border-line-strong">
       <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
-        <Icon className="h-4 w-4 text-muted-foreground" />
+        <CardTitle className="text-[13px] font-semibold text-foreground/75">{title}</CardTitle>
+        <Icon className="h-4 w-4 text-muted-foreground/60" />
       </CardHeader>
       <CardContent>
-        <div className="text-2xl font-bold">
+        <div className="text-[clamp(28px,2.8vw,36px)] font-semibold leading-[1.1] tracking-[-0.035em]">
           {prefix}{typeof value === "number" ? value.toLocaleString("pt-BR") : value}{suffix}
         </div>
         {pct !== null && goal ? (
@@ -56,7 +56,7 @@ export function MetricCard({ title, value, icon: Icon, goal, suffix, prefix, des
                 {pct}%
               </span>
             </div>
-            <div className="h-2 w-full rounded-full bg-muted overflow-hidden">
+            <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
               <div
                 className={cn("h-full rounded-full transition-all", getProgressColor(pct))}
                 style={{ width: `${Math.min(pct, 100)}%` }}
