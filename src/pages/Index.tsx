@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
 import { SlidingTabsList } from "@/components/dashboard/SlidingTabsList";
 import { IntegrationsHealthCard } from "@/components/dashboard/IntegrationsHealthCard";
 import { CommercialOverview } from "@/components/dashboard/CommercialOverview";
+import { CommercialSegments } from "@/components/dashboard/CommercialSegments";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 import { MinPriceFilter } from "@/components/dashboard/MinPriceFilter";
 import { SalesSection } from "@/components/dashboard/SalesSection";
@@ -187,6 +188,7 @@ export default function Index() {
             {comercialLoading ? <TabSkeleton /> : (
               <div className="space-y-8">
                 <CommercialOverview tickets={allTimeTickets.data ?? []} goals={goals.data ?? []} minTicketPrice={minTicketPrice} />
+                <CommercialSegments tickets={allTimeTickets.data ?? []} minTicketPrice={minTicketPrice} />
                 <SalesSection
                   tickets={filteredTickets}
                   goals={goals.data ?? []}

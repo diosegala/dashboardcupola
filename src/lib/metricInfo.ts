@@ -21,6 +21,12 @@ export const METRIC_INFO: Record<string, string> = {
   "Vendas por dia útil":
     "Pagantes vendidos em cada um dos últimos 15 dias úteis. A linha marca o ritmo necessário. Barras abaixo da linha ficam em âmbar.",
 
+  "Pagantes por tipo de ingresso": "Ingressos pagantes por categoria vendida. Nesta fase a meta é única e não separa VIP.",
+  "Pagantes por região": "Região do comprador a partir do estado informado no formulário de inscrição da Sympla.",
+  "Pagantes por porte": "Porte da imobiliária do comprador, informado no formulário de inscrição da Sympla.",
+  Cupons:
+    "Cupons usados nos ingressos emitidos. Os que começam com FATURADO marcam vendas faturadas internamente pelo comercial.",
+
   // Vendas
   "Ingressos Vendidos (acumulado)":
     "Todos os ingressos vendidos desde a abertura das vendas, respeitando o filtro de valor mínimo. Não muda com o período escolhido.",

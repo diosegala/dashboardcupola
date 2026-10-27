@@ -82,14 +82,14 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEdi
           title="Ingressos Vendidos"
           value={totalTickets}
           icon={Ticket}
-          goal={ticketsGoal?.target_value}
+          goal={ticketsGoal}
           onEditGoal={onEditGoal ? () => onEditGoal("tickets_sold") : undefined}
         />
         <MetricCard
           title="Receita Total"
           value={totalRevenue}
           icon={DollarSign}
-          goal={revenueGoal?.target_value}
+          goal={revenueGoal}
           prefix="R$ "
           onEditGoal={onEditGoal ? () => onEditGoal("revenue") : undefined}
         />
