@@ -20,7 +20,6 @@ import { getMetricLabel } from "@/lib/goalMetrics";
 import {
   getDefaultRange,
   useTicketSales,
-  useDeals,
   useAdMetrics,
   useEmailCampaigns,
   useSiteAnalytics,
@@ -38,6 +37,22 @@ const ABAS = [
 ] as const;
 
 type Aba = (typeof ABAS)[number]["value"];
+
+function TabSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Skeleton key={i} className="h-32" />
+        ))}
+      </div>
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Skeleton className="h-80" />
+        <Skeleton className="h-80" />
+      </div>
+    </div>
+  );
+}
 
 export default function Index() {
   const { user, isAdmin } = useAuth();
@@ -67,7 +82,6 @@ export default function Index() {
 
   const symplaIds = useSymplaEventIds();
   const tickets = useTicketSales(range);
-  const deals = useDeals(range);
   const adMetrics = useAdMetrics(range);
   const emailCampaigns = useEmailCampaigns(range);
   const siteAnalytics = useSiteAnalytics(range);
@@ -75,7 +89,9 @@ export default function Index() {
   const goals = useGoals();
   const allTimeTickets = useAllTimeTicketSales(symplaIds.data?.currentEventId ?? "");
 
-  const isLoading = symplaIds.isLoading || tickets.isLoading || deals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading || goals.isLoading || allTimeTickets.isLoading;
+  // Cada aba espera só os dados que usa; cabeçalho e abas aparecem na hora.
+  const comercialLoading = symplaIds.isLoading || tickets.isLoading || goals.isLoading || allTimeTickets.isLoading;
+  const marketingLoading = tickets.isLoading || goals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading;
 
   const filterTickets = useCallback((data: any[]) => {
     if (minTicketPrice <= 0) return data;
@@ -139,26 +155,6 @@ export default function Index() {
     upsertMutation.mutate({ ...values, id: existingGoal?.id });
   };
 
-  if (isLoading) {
-    return (
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-48" />
-          <Skeleton className="h-10 w-64" />
-        </div>
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-32" />
-          ))}
-        </div>
-        <div className="grid gap-4 lg:grid-cols-2">
-          <Skeleton className="h-80" />
-          <Skeleton className="h-80" />
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div>
       <PageHeader
@@ -185,18 +181,19 @@ export default function Index() {
           ))}
         </SlidingTabsList>
 
-        <div className="rounded-[28px] border bg-bg-alt/75 p-3 backdrop-blur-[2px] sm:p-5">
+        <div className="rounded-[28px] border bg-bg-alt/85 p-3 sm:p-5">
           <TabsContent value="comercial" className="mt-0 animate-panel-in">
-            <SalesSection
+            {comercialLoading ? <TabSkeleton /> : <SalesSection
               tickets={filteredTickets}
               goals={goals.data ?? []}
               allTimeTickets={filteredAllTimeTickets}
               range={range}
               onEditGoal={isAdmin ? handleEditGoal : undefined}
-            />
+            />}
           </TabsContent>
 
           <TabsContent value="marketing" className="mt-0 animate-panel-in space-y-8">
+            {marketingLoading ? <TabSkeleton /> : <>
             {isAdmin && <IntegrationsHealthCard />}
 
             <FunnelKPISection
@@ -227,6 +224,7 @@ export default function Index() {
               range={range}
               onEditGoal={isAdmin ? handleEditGoal : undefined}
             />
+            </>}
           </TabsContent>
         </div>
       </Tabs>

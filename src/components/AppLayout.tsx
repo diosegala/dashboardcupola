@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -16,7 +17,10 @@ export function AppLayout() {
         <div className="flex min-w-0 flex-1 flex-col">
           <AppHeader />
           <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 pb-16 pt-10 sm:px-6">
-            <Outlet />
+            {/* O menu e o topo ficam na tela enquanto a página abre */}
+            <Suspense fallback={null}>
+              <Outlet />
+            </Suspense>
           </main>
         </div>
       </div>
