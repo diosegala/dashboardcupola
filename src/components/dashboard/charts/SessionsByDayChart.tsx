@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -20,7 +21,7 @@ export function SessionsByDayChart({ siteAnalytics }: SessionsByDayChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Sessões do Site por Dia</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">Sessões do Site por Dia <InfoTip title="Sessões do Site por Dia" /></CardTitle>
       </CardHeader>
       <CardContent>
         {data.length > 0 ? (

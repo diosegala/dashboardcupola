@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -49,7 +50,7 @@ export function DemandGenByDayChart({ ga4Events }: DemandGenByDayChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Geração de Demanda por Dia</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">Geração de Demanda por Dia <InfoTip title="Geração de Demanda por Dia" /></CardTitle>
       </CardHeader>
       <CardContent>
         <ResponsiveContainer width="100%" height={300}>

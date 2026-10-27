@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { LayoutDashboard } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { CupolaLogo } from "@/components/CupolaLogo";
 
 export default function SetPassword() {
   const navigate = useNavigate();
@@ -62,14 +63,18 @@ export default function SetPassword() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="app-bg" aria-hidden>
+        <span className="orb orb-1" />
+        <span className="orb orb-2" />
+        <span className="orb orb-3" />
+      </div>
+      <ThemeToggle className="absolute right-4 top-4" />
+      <Card className="w-full max-w-md p-2">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <LayoutDashboard className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl">Defina sua senha</CardTitle>
-          <CardDescription>Crie uma senha para acessar o Cupola Summit</CardDescription>
+          <CupolaLogo className="mx-auto mb-5 h-7" />
+          <CardTitle className="font-display text-2xl font-normal leading-[1.45]">Defina sua senha</CardTitle>
+          <CardDescription>Crie uma senha para acessar o CUPOLA Summit</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">

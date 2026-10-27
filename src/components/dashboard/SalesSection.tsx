@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Ticket, DollarSign, TrendingUp, Trophy, Award, Target } from "lucide-react";
 import { MetricCard } from "./MetricCard";
@@ -76,7 +77,7 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEdi
 
   return (
     <section className="space-y-6">
-      <h2 className="text-xl font-semibold">Vendas</h2>
+      <h2 className="text-[22px] font-[650] tracking-[-0.02em]">Vendas</h2>
 
       <div className="grid gap-4 md:grid-cols-2">
         <MetricCard
@@ -126,6 +127,7 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEdi
             <CardTitle className="flex items-center gap-2 text-base">
               <Target className="h-4 w-4" />
               Progresso por Lote
+              <InfoTip title="Progresso por Lote" />
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -189,6 +191,7 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEdi
           <CardTitle className="flex items-center gap-2 text-base">
             <Trophy className="h-4 w-4" />
             Top 5 Tipos de Ingresso
+            <InfoTip title="Top 5 Tipos de Ingresso" />
           </CardTitle>
         </CardHeader>
         <CardContent>

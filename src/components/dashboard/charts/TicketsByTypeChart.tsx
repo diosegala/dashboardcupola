@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -21,7 +22,7 @@ export function TicketsByTypeChart({ tickets }: TicketsByTypeChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Ingressos por Tipo</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">Ingressos por Tipo <InfoTip title="Ingressos por Tipo" /></CardTitle>
       </CardHeader>
       <CardContent>
         {data.length > 0 ? (
@@ -31,7 +32,7 @@ export function TicketsByTypeChart({ tickets }: TicketsByTypeChartProps) {
               <XAxis dataKey="type" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
               <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
               <Tooltip />
-              <Bar dataKey="quantidade" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="quantidade" fill="hsl(var(--data-blue))" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : (

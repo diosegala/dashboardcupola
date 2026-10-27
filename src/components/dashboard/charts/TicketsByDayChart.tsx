@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -28,7 +29,7 @@ export function TicketsByDayChart({ tickets }: TicketsByDayChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Ingressos Vendidos por Dia</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">Ingressos Vendidos por Dia <InfoTip title="Ingressos Vendidos por Dia" /></CardTitle>
       </CardHeader>
       <CardContent>
         {data.length > 0 ? (
@@ -38,7 +39,7 @@ export function TicketsByDayChart({ tickets }: TicketsByDayChartProps) {
               <XAxis dataKey="label" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
               <YAxis tick={{ fontSize: 12 }} className="fill-muted-foreground" />
               <Tooltip />
-              <Line type="monotone" dataKey="ingressos" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
+              <Line type="monotone" dataKey="ingressos" stroke="hsl(var(--data-blue))" strokeWidth={2} dot={false} />
             </LineChart>
           </ResponsiveContainer>
         ) : (

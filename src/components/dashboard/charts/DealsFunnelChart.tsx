@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -19,7 +20,7 @@ export function DealsFunnelChart({ deals }: DealsFunnelChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Funil de Deals por Estágio</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">Funil de Deals por Estágio <InfoTip title="Funil de Deals por Estágio" /></CardTitle>
       </CardHeader>
       <CardContent>
         {data.length > 0 ? (

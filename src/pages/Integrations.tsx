@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/PageHeader";
 
 export default function Integrations() {
   const { integrations, isLoading, updateIntegration, syncIntegration } = useIntegrations();
@@ -30,12 +31,7 @@ export default function Integrations() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Integrações</h1>
-        <p className="text-muted-foreground">
-          Configure as integrações com Sympla, Pipedrive, Meta Ads e mais
-        </p>
-      </div>
+      <PageHeader title="Integrações" description="Configure as integrações com Sympla, Pipedrive, Meta Ads e mais" />
 
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

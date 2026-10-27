@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
@@ -29,7 +30,7 @@ export function ClicksByDayChart({ adMetrics }: ClicksByDayChartProps) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Cliques por Dia (Meta Ads)</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">Cliques por Dia (Meta Ads) <InfoTip title="Cliques por Dia (Meta Ads)" /></CardTitle>
       </CardHeader>
       <CardContent>
         {data.length > 0 ? (

@@ -1,3 +1,4 @@
+import { InfoTip } from "@/components/InfoTip";
 import { useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -30,7 +31,7 @@ export function ConversionFunnelChart({ ga4Events }: ConversionFunnelChartProps)
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="text-base">Funil de Conversão do Site</CardTitle>
+        <CardTitle className="text-base flex items-center gap-2">Funil de Conversão do Site <InfoTip title="Funil de Conversão do Site" /></CardTitle>
       </CardHeader>
       <CardContent>
         {totals.every((t) => t.count === 0) ? (
@@ -49,7 +50,7 @@ export function ConversionFunnelChart({ ga4Events }: ConversionFunnelChartProps)
                 <div key={step.key} className="flex-1 flex flex-col items-center gap-1 min-w-0">
                   {/* Conversion rate from previous step */}
                   {conversionRate !== null && (
-                    <div className="text-xs font-medium text-primary mb-1">
+                    <div className="text-xs font-medium text-accent-text mb-1">
                       {conversionRate.toFixed(1)}%
                     </div>
                   )}

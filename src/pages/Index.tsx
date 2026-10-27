@@ -1,9 +1,13 @@
+import { PageHeader } from "@/components/PageHeader";
 import { useState, useMemo, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { Separator } from "@/components/ui/separator";
+import { useSearchParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { SlidingTabsList } from "@/components/dashboard/SlidingTabsList";
+import { IntegrationsHealthCard } from "@/components/dashboard/IntegrationsHealthCard";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 import { MinPriceFilter } from "@/components/dashboard/MinPriceFilter";
 import { SalesSection } from "@/components/dashboard/SalesSection";
@@ -28,9 +32,25 @@ import {
   type DateRange,
 } from "@/hooks/useDashboardData";
 
+const ABAS = [
+  { value: "comercial", label: "Comercial" },
+  { value: "marketing", label: "Marketing" },
+] as const;
+
+type Aba = (typeof ABAS)[number]["value"];
+
 export default function Index() {
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
+  // A aba aberta fica na URL (?aba=marketing) para ser compartilhada e mantida ao recarregar.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const aba: Aba = searchParams.get("aba") === "marketing" ? "marketing" : "comercial";
+  const trocarAba = (v: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (v === "comercial") next.delete("aba");
+    else next.set("aba", v);
+    setSearchParams(next, { replace: true });
+  };
   const [range, setRange] = useState<DateRange>(getDefaultRange);
   const [minTicketPrice, setMinTicketPrice] = useState<number>(() => {
     const stored = localStorage.getItem("dashboard_min_ticket_price");
@@ -140,56 +160,76 @@ export default function Index() {
   }
 
   return (
-    <div className="space-y-8">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground">Visão geral de vendas e marketing — Cupola Summit</p>
+    <div>
+      <PageHeader
+        title="Dashboard"
+        description="Visão geral de vendas e marketing do CUPOLA Summit"
+        actions={
+          <>
+            <MinPriceFilter value={minTicketPrice} onChange={handleMinPriceChange} />
+            <PeriodSelector range={range} onChange={setRange} />
+          </>
+        }
+      />
+
+      <Tabs value={aba} onValueChange={trocarAba}>
+        <SlidingTabsList value={aba} className="mb-4">
+          {ABAS.map((a) => (
+            <TabsTrigger
+              key={a.value}
+              value={a.value}
+              className="relative z-[1] data-[state=active]:bg-transparent data-[state=active]:text-background"
+            >
+              {a.label}
+            </TabsTrigger>
+          ))}
+        </SlidingTabsList>
+
+        <div className="rounded-[28px] border bg-bg-alt/75 p-3 backdrop-blur-[2px] sm:p-5">
+          <TabsContent value="comercial" className="mt-0 animate-panel-in">
+            <SalesSection
+              tickets={filteredTickets}
+              goals={goals.data ?? []}
+              allTimeTickets={filteredAllTimeTickets}
+              range={range}
+              onEditGoal={isAdmin ? handleEditGoal : undefined}
+            />
+          </TabsContent>
+
+          <TabsContent value="marketing" className="mt-0 animate-panel-in space-y-8">
+            {isAdmin && <IntegrationsHealthCard />}
+
+            <FunnelKPISection
+              adMetrics={adMetrics.data ?? []}
+              emailCampaigns={emailCampaigns.data ?? []}
+              tickets={filteredTickets}
+              goals={goals.data ?? []}
+              range={range}
+              onEditGoal={!isAdmin ? undefined : (metricKey, periodStart, periodEnd) => {
+                const existingGoal = findGoal(goals.data ?? [], metricKey, { from: periodStart, to: periodEnd });
+                setGoalFormDefaults({
+                  label: existingGoal?.label ?? getMetricLabel(metricKey),
+                  metric_key: metricKey,
+                  target_value: existingGoal ? Number(existingGoal.target_value) : 0,
+                  period_start: periodStart,
+                  period_end: periodEnd,
+                });
+                setGoalFormOpen(true);
+              }}
+            />
+
+            <MarketingSection
+              adMetrics={adMetrics.data ?? []}
+              emailCampaigns={emailCampaigns.data ?? []}
+              siteAnalytics={siteAnalytics.data ?? []}
+              ga4Events={ga4Events.data ?? []}
+              goals={goals.data ?? []}
+              range={range}
+              onEditGoal={isAdmin ? handleEditGoal : undefined}
+            />
+          </TabsContent>
         </div>
-        <div className="flex items-center gap-2">
-          <MinPriceFilter value={minTicketPrice} onChange={handleMinPriceChange} />
-          <PeriodSelector range={range} onChange={setRange} />
-        </div>
-      </div>
-
-      <FunnelKPISection
-        adMetrics={adMetrics.data ?? []}
-        emailCampaigns={emailCampaigns.data ?? []}
-        tickets={filteredTickets}
-        goals={goals.data ?? []}
-        range={range}
-        onEditGoal={!isAdmin ? undefined : (metricKey, periodStart, periodEnd) => {
-          const existingGoal = findGoal(goals.data ?? [], metricKey, { from: periodStart, to: periodEnd });
-          setGoalFormDefaults({
-            label: existingGoal?.label ?? getMetricLabel(metricKey),
-            metric_key: metricKey,
-            target_value: existingGoal ? Number(existingGoal.target_value) : 0,
-            period_start: periodStart,
-            period_end: periodEnd,
-          });
-          setGoalFormOpen(true);
-        }}
-      />
-
-      <SalesSection
-        tickets={filteredTickets}
-        goals={goals.data ?? []}
-        allTimeTickets={filteredAllTimeTickets}
-        range={range}
-        onEditGoal={isAdmin ? handleEditGoal : undefined}
-      />
-
-      <Separator />
-
-      <MarketingSection
-        adMetrics={adMetrics.data ?? []}
-        emailCampaigns={emailCampaigns.data ?? []}
-        siteAnalytics={siteAnalytics.data ?? []}
-        ga4Events={ga4Events.data ?? []}
-        goals={goals.data ?? []}
-        range={range}
-        onEditGoal={isAdmin ? handleEditGoal : undefined}
-      />
+      </Tabs>
 
       <GoalFormDialog
         open={goalFormOpen}

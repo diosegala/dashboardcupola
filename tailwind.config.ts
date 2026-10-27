@@ -13,6 +13,10 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        display: ["Boldonse", "Funnel Display", "sans-serif"],
+        sans: ["Funnel Display", "system-ui", "sans-serif"],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -55,6 +59,16 @@ export default {
           DEFAULT: "hsl(var(--warning))",
           foreground: "hsl(var(--warning-foreground))",
         },
+        "accent-text": "hsl(var(--accent-text))",
+        "data-blue": "hsl(var(--data-blue))",
+        ok: "hsl(var(--ok))",
+        "ok-bg": "hsl(var(--ok-bg))",
+        "warn-bg": "hsl(var(--warn-bg))",
+        bad: "hsl(var(--bad))",
+        "bad-bg": "hsl(var(--bad-bg))",
+        "bg-alt": "hsl(var(--bg-alt))",
+        "line-strong": "hsl(var(--line-strong))",
+        warn: "hsl(var(--warn))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",
@@ -73,12 +87,25 @@ export default {
           "5": "hsl(var(--chart-5))",
         },
       },
+      boxShadow: {
+        card: "var(--shadow-card)",
+        glow: "var(--glow)",
+      },
+      transitionTimingFunction: {
+        cupola: "cubic-bezier(.16,1,.3,1)",
+      },
       borderRadius: {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
       },
       keyframes: {
+        shimmer: {
+          to: { backgroundPosition: "-200% 0" },
+        },
+        "panel-in": {
+          from: { opacity: "0", transform: "translateY(8px)" },
+        },
         "accordion-down": {
           from: { height: "0" },
           to: { height: "var(--radix-accordion-content-height)" },
@@ -89,6 +116,8 @@ export default {
         },
       },
       animation: {
+        shimmer: "shimmer 1.4s linear infinite",
+        "panel-in": "panel-in 450ms cubic-bezier(.16,1,.3,1)",
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },

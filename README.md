@@ -1,6 +1,6 @@
 # [SUM] Dashboard de vendas e Marketing
 
-PRD — Dashboard de Vendas e Marketing | Cupola Summit
+PRD — Dashboard de Vendas e Marketing | CUPOLA Summit
 
 Visão Geral
 

@@ -69,12 +69,12 @@ export function IntegrationCard({ integration, isAdmin, onToggle, onSync, onSave
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Icon className="h-5 w-5 text-primary" />
+              <Icon className="h-5 w-5 text-accent-text" />
               {label}
             </CardTitle>
             <Badge
               variant={isSyncing ? "default" : isError ? "destructive" : integration.is_active ? "default" : "secondary"}
-              className={isSyncing ? "animate-pulse bg-yellow-500 text-yellow-950" : ""}
+              className={isSyncing ? "animate-pulse bg-warn-bg text-warn" : ""}
             >
               {isSyncing ? "Sincronizando..." : isError ? "Erro" : integration.is_active ? "Ativo" : "Inativo"}
             </Badge>

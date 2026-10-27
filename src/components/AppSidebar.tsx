@@ -1,9 +1,11 @@
-import { LayoutDashboard, Target, Plug, Settings } from "lucide-react";
-import { NavLink } from "@/components/NavLink";
+import { Link, useLocation } from "react-router-dom";
+import { LayoutDashboard, Target, Plug, Settings, PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
+import { CupolaLogo } from "@/components/CupolaLogo";
 import {
   Sidebar,
   SidebarContent,
+  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarGroupLabel,
@@ -11,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarHeader,
+  useSidebar,
 } from "@/components/ui/sidebar";
 
 const publicItems = [
@@ -20,62 +23,70 @@ const publicItems = [
 
 const adminItems = [
   { title: "Integrações", url: "/integrations", icon: Plug },
+  { title: "Configurações", url: "/settings", icon: Settings },
 ];
+
+const itemClass =
+  "h-10 rounded-full px-3 text-[13px] font-medium text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground data-[active=true]:bg-foreground data-[active=true]:text-background data-[active=true]:hover:bg-foreground data-[active=true]:hover:text-background";
 
 export function AppSidebar() {
   const { isAdmin } = useAuth();
+  const { pathname } = useLocation();
+  const { state, toggleSidebar } = useSidebar();
+  const recolhido = state === "collapsed";
+  const items = isAdmin ? [...publicItems, ...adminItems] : publicItems;
 
   return (
-    <Sidebar>
-      <SidebarHeader className="p-4">
-        <div className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-sidebar-primary">
-            <LayoutDashboard className="h-4 w-4 text-sidebar-primary-foreground" />
-          </div>
-          <span className="text-lg font-bold text-sidebar-foreground">Cupola</span>
-        </div>
+    <Sidebar collapsible="icon">
+      <SidebarHeader className="h-16 justify-center px-4 group-data-[collapsible=icon]:px-2">
+        <Link to="/" className="flex items-center gap-2.5 text-foreground">
+          {recolhido ? (
+            <img src="/brand/simbolo-cupola-lima.svg" alt="CUPOLA" className="mx-auto h-6 w-6" />
+          ) : (
+            <CupolaLogo className="h-[22px]" />
+          )}
+        </Link>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navegação</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-[11px] font-semibold tracking-[0.06em] text-muted-foreground">
+            Eventos · Summit 2027
+          </SidebarGroupLabel>
           <SidebarGroupContent>
-            <SidebarMenu>
-              {publicItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <NavLink to={item.url} end={item.url === "/"} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                      <item.icon className="mr-2 h-4 w-4" />
+            <SidebarMenu className="gap-1">
+              {items.map((item) => (
+                <SidebarMenuItem key={item.url}>
+                  <SidebarMenuButton
+                    asChild
+                    tooltip={item.title}
+                    isActive={item.url === "/" ? pathname === "/" : pathname.startsWith(item.url)}
+                    className={itemClass}
+                  >
+                    <Link to={item.url}>
+                      <item.icon />
                       <span>{item.title}</span>
-                    </NavLink>
+                    </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
-              {isAdmin && (
-                <>
-                  {adminItems.map((item) => (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton asChild>
-                        <NavLink to={item.url} className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                          <item.icon className="mr-2 h-4 w-4" />
-                          <span>{item.title}</span>
-                        </NavLink>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                  <SidebarMenuItem>
-                    <SidebarMenuButton asChild>
-                      <NavLink to="/settings" className="hover:bg-sidebar-accent" activeClassName="bg-sidebar-accent text-sidebar-primary font-medium">
-                        <Settings className="mr-2 h-4 w-4" />
-                        <span>Configurações</span>
-                      </NavLink>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                </>
-              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
+      <SidebarFooter className="p-2">
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              onClick={toggleSidebar}
+              tooltip={recolhido ? "Expandir menu" : "Recolher menu"}
+              className={itemClass}
+            >
+              {recolhido ? <PanelLeftOpen /> : <PanelLeftClose />}
+              <span>Recolher menu</span>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
     </Sidebar>
   );
 }

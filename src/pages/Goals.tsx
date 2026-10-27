@@ -3,6 +3,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO, isAfter, isBefore, differenceInDays } from "date-fns";
 import { Plus, Pencil, Trash2, Target, Copy } from "lucide-react";
 import { toast } from "sonner";
+import { PageHeader } from "@/components/PageHeader";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useGoals } from "@/hooks/useDashboardData";
@@ -149,18 +150,18 @@ export default function Goals() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Metas</h1>
-          <p className="text-muted-foreground">Gerencie as metas de vendas e marketing</p>
-        </div>
-        {isAdmin && (
-          <Button onClick={handleCreate}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Meta
-          </Button>
-        )}
-      </div>
+      <PageHeader
+        title="Metas"
+        description="Gerencie as metas de vendas e marketing"
+        actions={
+          isAdmin && (
+            <Button onClick={handleCreate}>
+              <Plus className="h-4 w-4" />
+              Nova meta
+            </Button>
+          )
+        }
+      />
 
       {isLoading ? (
         <div className="space-y-3">

@@ -6,7 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { LayoutDashboard, ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { ThemeToggle } from "@/components/ThemeToggle";
+import { CupolaLogo } from "@/components/CupolaLogo";
 
 export default function ForgotPassword() {
   const [email, setEmail] = useState("");
@@ -32,13 +34,17 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md">
+    <div className="flex min-h-screen items-center justify-center px-4">
+      <div className="app-bg" aria-hidden>
+        <span className="orb orb-1" />
+        <span className="orb orb-2" />
+        <span className="orb orb-3" />
+      </div>
+      <ThemeToggle className="absolute right-4 top-4" />
+      <Card className="w-full max-w-md p-2">
         <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-            <LayoutDashboard className="h-6 w-6 text-primary-foreground" />
-          </div>
-          <CardTitle className="text-2xl">Recuperar senha</CardTitle>
+          <CupolaLogo className="mx-auto mb-5 h-7" />
+          <CardTitle className="font-display text-2xl font-normal leading-[1.45]">Recuperar senha</CardTitle>
           <CardDescription>
             {sent
               ? "Verifique sua caixa de entrada"
