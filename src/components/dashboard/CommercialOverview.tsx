@@ -13,7 +13,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CountUp } from "@/components/CountUp";
 import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import { useCommercialMetrics, type PaceStatus } from "@/hooks/useCommercialMetrics";
@@ -54,7 +56,7 @@ const tooltipStyle = {
   labelStyle: { color: "hsl(var(--foreground))", fontWeight: 600 },
 };
 
-function KpiCard({ title, value, unit, footer, className }: { title: string; value: string; unit?: string; footer?: React.ReactNode; className?: string }) {
+function KpiCard({ title, value, format, unit, footer, className }: { title: string; value: number; format: (n: number) => string; unit?: string; footer?: React.ReactNode; className?: string }) {
   return (
     <Card className={cn("flex flex-col gap-2.5 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
       <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
@@ -62,7 +64,7 @@ function KpiCard({ title, value, unit, footer, className }: { title: string; val
         <InfoTip title={title} />
       </div>
       <div className="whitespace-nowrap text-[clamp(24px,2.4vw,36px)] font-semibold leading-[1.1] tracking-[-0.035em]">
-        {value}
+        <CountUp value={value} format={format} />
         {unit && <small className="ml-1 text-sm font-medium tracking-normal text-muted-foreground">{unit}</small>}
       </div>
       {footer && <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">{footer}</div>}
@@ -70,7 +72,12 @@ function KpiCard({ title, value, unit, footer, className }: { title: string; val
   );
 }
 
-function GoalRing({ progress }: { progress: number }) {
+function GoalRing({ progress: target }: { progress: number }) {
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setProgress(target));
+    return () => cancelAnimationFrame(id);
+  }, [target]);
   const r = 40;
   const c = 2 * Math.PI * r;
   return (
@@ -125,7 +132,7 @@ export function CommercialOverview({ tickets, goals, minTicketPrice }: Commercia
           <GoalRing progress={m.progress} />
           <div className="min-w-0">
             <div className="text-[clamp(32px,3.8vw,42px)] font-semibold leading-none tracking-[-0.035em]">
-              {int(m.payingCount)}
+              <CountUp value={m.payingCount} format={int} />
               <small className="ml-1.5 text-sm font-medium tracking-normal text-[#9A9FA7]">de {int(m.goal)}</small>
             </div>
             <p className="mt-2 text-xs text-[#9A9FA7]">
@@ -138,14 +145,16 @@ export function CommercialOverview({ tickets, goals, minTicketPrice }: Commercia
       <KpiCard
         className="col-span-12 sm:col-span-6 lg:col-span-3"
         title="Ritmo necessário"
-        value={int(Math.ceil(m.requiredPace))}
+        value={Math.ceil(m.requiredPace)}
+        format={int}
         unit="por dia útil"
         footer={<span>{int(m.remainingDays)} dias úteis até o evento</span>}
       />
       <KpiCard
         className="col-span-12 sm:col-span-6 lg:col-span-3"
         title="Ritmo atual"
-        value={m.currentPace.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
+        value={m.currentPace}
+        format={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
         unit="por dia útil"
         footer={<Chip variant={chip.variant}>{chip.label}</Chip>}
       />
@@ -154,25 +163,29 @@ export function CommercialOverview({ tickets, goals, minTicketPrice }: Commercia
       <KpiCard
         className="col-span-12 sm:col-span-6 lg:col-span-3"
         title="Pagos na Sympla"
-        value={int(m.paidSymplaCount)}
+        value={m.paidSymplaCount}
+        format={int}
         footer={<span>{m.payingCount > 0 ? `${Math.round((m.paidSymplaCount / m.payingCount) * 100)}% dos pagantes` : "Sem vendas"}</span>}
       />
       <KpiCard
         className="col-span-12 sm:col-span-6 lg:col-span-3"
         title="Faturados internamente"
-        value={int(m.invoicedCount)}
+        value={m.invoicedCount}
+        format={int}
         footer={<span>Cupom que começa com FATURADO</span>}
       />
       <KpiCard
         className="col-span-12 sm:col-span-6 lg:col-span-3"
         title="Bonificados"
-        value={int(m.bonusCount)}
+        value={m.bonusCount}
+        format={int}
         footer={<Chip variant="neutral">Fora da meta</Chip>}
       />
       <KpiCard
         className="col-span-12 sm:col-span-6 lg:col-span-3"
         title="Receita acumulada"
-        value={brl(m.revenue)}
+        value={m.revenue}
+        format={brl}
         footer={<span>Ticket médio {brl(m.payingCount > 0 ? m.revenue / m.payingCount : 0)}</span>}
       />
 
