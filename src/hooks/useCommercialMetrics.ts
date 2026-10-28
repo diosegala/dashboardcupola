@@ -22,6 +22,8 @@ export interface Ticket {
   ticket_type?: string | null;
   buyer_state?: string | null;
   company_size?: string | null;
+  payment_method?: string | null;
+  utm_source?: string | null;
 }
 
 const qty = (t: Ticket) => t.quantity || 0;

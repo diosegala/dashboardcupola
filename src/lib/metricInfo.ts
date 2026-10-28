@@ -25,6 +25,8 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes por região": "Região do comprador a partir do estado informado no formulário de inscrição da Sympla.",
   "Pagantes por perfil da empresa":
     "Perfil da empresa do comprador, informado no formulário de inscrição da Sympla. O formulário não pergunta o porte, então este é o dado mais próximo.",
+  "Pagantes por forma de pagamento": "Como cada ingresso pagante foi pago na Sympla: cartão, boleto, Pix e outros.",
+  "Pagantes por origem (UTM)": "Origem da venda pela UTM do link usado na compra (utm_source). Vendas sem UTM não aparecem.",
   Cupons:
     "Cupons usados nos ingressos emitidos. Os que começam com FATURADO marcam vendas faturadas internamente pelo comercial.",
 

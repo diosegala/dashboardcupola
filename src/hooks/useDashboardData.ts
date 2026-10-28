@@ -91,27 +91,52 @@ export function useSiteAnalytics(range: DateRange) {
   });
 }
 
+const BASE_TICKET_COLUMNS = "quantity, total_price, unit_price, sold_at, status, ticket_type, coupon_code, buyer_state, company_size";
+
+async function fetchAllTimeTickets(eventId: string, columns: string) {
+  const all: any[] = [];
+  let from = 0;
+  const pageSize = 1000;
+  while (true) {
+    const { data, error } = await supabase
+      .from("ticket_sales")
+      .select(columns)
+      .eq("event_id", eventId)
+      .range(from, from + pageSize - 1);
+    if (error) throw error;
+    if (!data || data.length === 0) break;
+    all.push(...data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return all;
+}
+
+// Respostas do formulário de inscrição agregadas por pergunta (sem dados pessoais). Vazio até o SQL novo existir.
+export function useFormAnswerCounts(eventId: string) {
+  return useQuery({
+    queryKey: ["form_answer_counts", eventId],
+    enabled: !!eventId,
+    queryFn: async () => {
+      const { data, error } = await (supabase.rpc as any)("get_form_answer_counts", { p_event_id: eventId });
+      if (error) return [] as { question: string; answer: string; total: number }[];
+      return (data ?? []) as { question: string; answer: string; total: number }[];
+    },
+  });
+}
+
 export function useAllTimeTicketSales(eventId: string) {
   return useQuery({
     queryKey: ["ticket_sales_all_time", eventId],
     enabled: !!eventId,
     queryFn: async () => {
-      const all: any[] = [];
-      let from = 0;
-      const pageSize = 1000;
-      while (true) {
-        const { data, error } = await supabase
-          .from("ticket_sales")
-          .select("quantity, total_price, unit_price, sold_at, status, ticket_type, coupon_code, buyer_state, company_size")
-          .eq("event_id", eventId)
-          .range(from, from + pageSize - 1);
-        if (error) throw error;
-        if (!data || data.length === 0) break;
-        all.push(...data);
-        if (data.length < pageSize) break;
-        from += pageSize;
+      // Colunas de pagamento e origem só existem depois do SQL novo; sem elas, busca as básicas.
+      try {
+        return await fetchAllTimeTickets(eventId, `${BASE_TICKET_COLUMNS}, payment_method, utm_source`);
+      } catch (err: any) {
+        if (err?.code !== "42703") throw err;
+        return await fetchAllTimeTickets(eventId, BASE_TICKET_COLUMNS);
       }
-      return all;
     },
   });
 }

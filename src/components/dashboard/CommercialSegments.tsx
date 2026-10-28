@@ -17,6 +17,29 @@ const REGIAO_POR_UF: Record<string, string> = {
   PR: "Sul", RS: "Sul", SC: "Sul",
 };
 
+const PAGAMENTO: Record<string, string> = {
+  CREDIT_CARD: "Cartão de crédito",
+  DEBIT_CARD: "Cartão de débito",
+  BOLETO: "Boleto",
+  BANK_SLIP: "Boleto",
+  PIX: "Pix",
+  FREE: "Gratuito",
+  MANUAL: "Manual",
+};
+
+function pagamentoDe(valor: string): string {
+  return PAGAMENTO[valor.trim().toUpperCase()] ?? valor;
+}
+
+// Perguntas que já têm gráfico próprio na aba (região e perfil) não se repetem na seção do formulário.
+const PERGUNTAS_COM_GRAFICO = /perfil da empresa|estado/i;
+
+export interface FormAnswerCount {
+  question: string;
+  answer: string;
+  total: number;
+}
+
 function regiaoDe(estado: string): string {
   const uf = estado.trim().toUpperCase().slice(-2);
   return REGIAO_POR_UF[uf] ?? "Outros";
@@ -90,15 +113,33 @@ function SegmentCard({ title, items, className }: { title: string; items: { labe
 interface CommercialSegmentsProps {
   tickets: Ticket[];
   minTicketPrice: number;
+  formAnswers?: FormAnswerCount[];
 }
 
 // Pagantes por tipo, região e porte, e tabela de cupons. Cada bloco só aparece quando a Sympla entrega o dado.
-export function CommercialSegments({ tickets, minTicketPrice }: CommercialSegmentsProps) {
+export function CommercialSegments({ tickets, minTicketPrice, formAnswers = [] }: CommercialSegmentsProps) {
   const { paying, bonus } = useMemo(() => splitTickets(tickets, minTicketPrice), [tickets, minTicketPrice]);
 
   const porTipo = useMemo(() => countBy(paying, (t) => t.ticket_type || "Sem tipo").slice(0, 8), [paying]);
   const porRegiao = useMemo(() => countBy(paying, (t) => (t.buyer_state ? regiaoDe(t.buyer_state) : null)), [paying]);
   const porPorte = useMemo(() => countBy(paying, (t) => t.company_size), [paying]);
+  const porPagamento = useMemo(() => countBy(paying, (t) => (t.payment_method ? pagamentoDe(t.payment_method) : null)), [paying]);
+  const porOrigem = useMemo(() => countBy(paying, (t) => t.utm_source).slice(0, 8), [paying]);
+
+  // Cada pergunta do formulário vira um gráfico; as respostas abertas mostram as 8 mais comuns.
+  const perguntas = useMemo(() => {
+    const map = new Map<string, { label: string; value: number }[]>();
+    formAnswers.forEach((r) => {
+      if (PERGUNTAS_COM_GRAFICO.test(r.question)) return;
+      const lista = map.get(r.question) ?? [];
+      lista.push({ label: r.answer, value: Number(r.total) });
+      map.set(r.question, lista);
+    });
+    return Array.from(map.entries()).map(([question, items]) => {
+      const ordenados = items.sort((a, b) => b.value - a.value);
+      return { title: question, items: ordenados.slice(0, 8), distintas: ordenados.length };
+    });
+  }, [formAnswers]);
   // Cupons agrupados pelo código, com o desconto e o tipo enviados pela Sympla.
   const cupons = useMemo(() => {
     const map = new Map<string, { code: string; discount: string | null; kind: CouponKind; uses: number }>();
@@ -116,16 +157,38 @@ export function CommercialSegments({ tickets, minTicketPrice }: CommercialSegmen
     { title: "Pagantes por tipo de ingresso", items: porTipo },
     { title: "Pagantes por região", items: porRegiao },
     { title: "Pagantes por perfil da empresa", items: porPorte },
+    { title: "Pagantes por forma de pagamento", items: porPagamento },
+    { title: "Pagantes por origem (UTM)", items: porOrigem },
   ].filter((s) => s.items.length > 0);
 
-  if (segmentos.length === 0 && cupons.length === 0) return null;
+  if (segmentos.length === 0 && cupons.length === 0 && perguntas.length === 0) return null;
 
-  const span = segmentos.length === 1 ? "lg:col-span-12" : segmentos.length === 2 ? "lg:col-span-6" : "lg:col-span-4";
+  const span = segmentos.length === 1 ? "lg:col-span-12" : segmentos.length % 2 === 0 ? "lg:col-span-6" : "lg:col-span-4";
 
   return (
     <div className="grid grid-cols-12 gap-[14px]">
       {segmentos.map((s) => (
         <SegmentCard key={s.title} title={s.title} items={s.items} className={cn("col-span-12", span)} />
+      ))}
+
+      {perguntas.length > 0 && (
+        <div className="col-span-12 mt-2">
+          <h3 className="text-base font-semibold">Respostas do formulário de inscrição</h3>
+          <p className="text-xs text-muted-foreground">Ingressos aprovados. Perguntas novas da Sympla aparecem aqui sozinhas; dados pessoais ficam de fora.</p>
+        </div>
+      )}
+      {perguntas.map((q) => (
+        <Card key={q.title} className="col-span-12 md:col-span-6 lg:col-span-4">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-[15px]">{q.title}</CardTitle>
+            {q.distintas > q.items.length && (
+              <p className="text-xs text-muted-foreground">{int(q.distintas)} respostas diferentes; mostrando as 8 mais comuns</p>
+            )}
+          </CardHeader>
+          <CardContent>
+            <HBars items={q.items} />
+          </CardContent>
+        </Card>
       ))}
 
       {cupons.length > 0 && (
