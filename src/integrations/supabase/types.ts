@@ -218,6 +218,94 @@ export type Database = {
         }
         Relationships: []
       }
+      event_integrations: {
+        Row: {
+          credentials: Json
+          event_id: string
+          integration_name: string
+        }
+        Insert: {
+          credentials?: Json
+          event_id: string
+          integration_name: string
+        }
+        Update: {
+          credentials?: Json
+          event_id?: string
+          integration_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_integrations_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      event_users: {
+        Row: {
+          event_id: string
+          user_id: string
+        }
+        Insert: {
+          event_id: string
+          user_id: string
+        }
+        Update: {
+          event_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_users_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      events: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: string
+          is_active: boolean
+          name: string
+          paying_goal: number | null
+          previous_event_slug: string | null
+          slug: string
+          start_date: string | null
+          sympla_event_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: string
+          is_active?: boolean
+          name: string
+          paying_goal?: number | null
+          previous_event_slug?: string | null
+          slug: string
+          start_date?: string | null
+          sympla_event_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          paying_goal?: number | null
+          previous_event_slug?: string | null
+          slug?: string
+          start_date?: string | null
+          sympla_event_id?: string | null
+        }
+        Relationships: []
+      }
       ga4_events: {
         Row: {
           date: string
@@ -246,6 +334,7 @@ export type Database = {
         Row: {
           created_at: string
           created_by: string
+          event_id: string | null
           id: string
           label: string
           metric_key: string
@@ -258,6 +347,7 @@ export type Database = {
         Insert: {
           created_at?: string
           created_by: string
+          event_id?: string | null
           id?: string
           label: string
           metric_key: string
@@ -270,6 +360,7 @@ export type Database = {
         Update: {
           created_at?: string
           created_by?: string
+          event_id?: string | null
           id?: string
           label?: string
           metric_key?: string
@@ -279,7 +370,15 @@ export type Database = {
           ticket_type?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "goals_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       integrations: {
         Row: {
@@ -502,6 +601,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_see_event: { Args: { _event_id: string }; Returns: boolean }
       get_current_sympla_event_id: { Args: never; Returns: string }
       get_form_answer_counts: {
         Args: { p_event_id: string }
