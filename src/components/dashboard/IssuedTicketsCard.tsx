@@ -10,6 +10,7 @@ import { TICKET_KINDS, ticketKind, type TicketKind } from "@/lib/ticketKinds";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { cn } from "@/lib/utils";
 import { GoalMeter } from "@/components/GoalMeter";
+import { CompareLine } from "@/components/CompareLine";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const pct = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "0%");
@@ -77,7 +78,20 @@ function FatiaAtiva(props: any) {
 // Meta de ingressos emitidos (opcional, da tela Metas): aparece embaixo da pizza.
 type MetaEmitidos = { target_value: number | string; period_start: string; period_end: string } | null;
 
-export function IssuedTicketsCard({ tickets, goal, className }: { tickets: Ticket[]; goal?: MetaEmitidos; className?: string }) {
+export function IssuedTicketsCard({
+  tickets,
+  goal,
+  emitidosAnterior,
+  emitidosAtual,
+  className,
+}: {
+  tickets: Ticket[];
+  goal?: MetaEmitidos;
+  // Ingressos aprovados (pagos, faturados e cortesias) até hoje e no evento anterior na mesma data.
+  emitidosAnterior?: number | null;
+  emitidosAtual?: number;
+  className?: string;
+}) {
   const [visao, setVisao] = useState<"categoria" | "lote">("categoria");
   const [ativa, setAtiva] = useState<number | null>(null);
 
@@ -163,6 +177,7 @@ export function IssuedTicketsCard({ tickets, goal, className }: { tickets: Ticke
             </li>
           ))}
         </ul>
+        <CompareLine className="sm:col-span-2" anterior={emitidosAnterior} atual={emitidosAtual ?? 0} quando="na mesma data (aprovados)" />
         {goal && Number(goal.target_value) > 0 && (
           <GoalMeter
             className="sm:col-span-2"

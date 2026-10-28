@@ -5,7 +5,9 @@ export function batchOf(ticketType: string | null | undefined): string | null {
   const n = antes.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
   if (/pre[\s-]?venda/.test(n)) return "Pré-venda";
   const lote = n.match(/lote\s*(\d+)/);
-  return lote ? `Lote ${Number(lote[1])}` : null;
+  if (!lote) return null;
+  // Lote 0 é a pré-venda para quem já veio em anos anteriores: compara com a pré-venda dos outros anos.
+  return Number(lote[1]) === 0 ? "Pré-venda" : `Lote ${Number(lote[1])}`;
 }
 
 // Ordem de venda: pré-venda primeiro, depois os lotes pelo número.

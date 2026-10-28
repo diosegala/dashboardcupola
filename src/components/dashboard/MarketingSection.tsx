@@ -86,6 +86,38 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
     return [...nonMeta, ...meta];
   }, [adMetrics, meta, selectedCampaigns]);
 
+  // Mesmo período do evento anterior. Com filtro de campanha não compara (as campanhas de lá são outras).
+  const anteriorMeta = useMemo(() => {
+    const linhas = previousAdMetrics.filter((a) => a.source === "meta");
+    if (selectedCampaigns.length > 0 || linhas.length === 0) return null;
+    const impressoes = sum(linhas, "impressions");
+    const cliques = sum(linhas, "link_clicks");
+    const compras = sum(linhas, "purchases");
+    return {
+      investimento: sum(linhas, "spend"),
+      impressoes,
+      cliques,
+      ctr: impressoes > 0 ? (cliques / impressoes) * 100 : null,
+      compras,
+      conversao: cliques > 0 ? (compras / cliques) * 100 : null,
+      mensagens: sum(linhas, "messages"),
+      carrinho: sum(linhas, "add_to_cart"),
+      remarketing: sum(linhas, "remarketing_qualified"),
+    };
+  }, [previousAdMetrics, selectedCampaigns]);
+  const anteriorSite = useMemo(
+    () =>
+      previousSiteAnalytics.length === 0
+        ? null
+        : {
+            sessoes: sum(previousSiteAnalytics, "sessions"),
+            usuarios: sum(previousSiteAnalytics, "users"),
+            conversoes: sum(previousSiteAnalytics, "conversions"),
+            pageviews: sum(previousSiteAnalytics, "pageviews"),
+          },
+    [previousSiteAnalytics],
+  );
+
   // Site totals
   const siteTotals = useMemo(() => ({
     sessions: sum(siteAnalytics, "sessions"),
@@ -165,16 +197,16 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           return (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <MetricCard title="Campanhas" value={uniqueCampaigns} icon={BarChart3} description="Campanhas ativas no período" />
-              <MetricCard title="Investimento" value={totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} icon={Wallet} goal={findGoal(goals, "meta_spend", range)} prefix="R$ " description="Total investido no período" />
-              <MetricCard title="Impressões" value={totalImpressions} icon={Eye} goal={findGoal(goals, "meta_impressions", range)} />
-              <MetricCard title="Cliques no Link" value={totalLinkClicks} icon={MousePointerClick} goal={findGoal(goals, "meta_link_clicks", range)} />
+              <MetricCard title="Investimento" value={totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} icon={Wallet} goal={findGoal(goals, "meta_spend", range)} anterior={anteriorMeta?.investimento} prefix="R$ " description="Total investido no período" />
+              <MetricCard title="Impressões" value={totalImpressions} icon={Eye} goal={findGoal(goals, "meta_impressions", range)} anterior={anteriorMeta?.impressoes} />
+              <MetricCard title="Cliques no Link" value={totalLinkClicks} icon={MousePointerClick} goal={findGoal(goals, "meta_link_clicks", range)} anterior={anteriorMeta?.cliques} />
               <MetricCard title="CPC" value={`R$ ${cpc.toFixed(2)}`} icon={Wallet} description="Custo por clique no link" />
-              <MetricCard title="CTR" value={`${ctr.toFixed(2)}%`} icon={BarChart3} goal={findGoal(goals, "meta_ctr", range)} description="Cliques no link / Impressões" />
-              <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases", range)} />
-              <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate", range)} description="Compras / Cliques no link" />
-              <MetricCard title="Mensagens" value={totalMessages} icon={MessageCircle} goal={findGoal(goals, "meta_messages", range)} description="Conversas iniciadas via anúncio" />
-              <MetricCard title="Adição de Carrinho" value={totalAddToCart} icon={ShoppingCart} goal={findGoal(goals, "meta_add_to_cart", range)} description="Eventos add_to_cart do Pixel" />
-              <MetricCard title="Remarketing Qualificado" value={totalRemarketing} icon={Crosshair} goal={findGoal(goals, "meta_remarketing", range)} description="Conversão customizada" />
+              <MetricCard title="CTR" value={`${ctr.toFixed(2)}%`} icon={BarChart3} goal={findGoal(goals, "meta_ctr", range)} anterior={anteriorMeta?.ctr} description="Cliques no link / Impressões" />
+              <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases", range)} anterior={anteriorMeta?.compras} />
+              <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate", range)} anterior={anteriorMeta?.conversao} description="Compras / Cliques no link" />
+              <MetricCard title="Mensagens" value={totalMessages} icon={MessageCircle} goal={findGoal(goals, "meta_messages", range)} anterior={anteriorMeta?.mensagens} description="Conversas iniciadas via anúncio" />
+              <MetricCard title="Adição de Carrinho" value={totalAddToCart} icon={ShoppingCart} goal={findGoal(goals, "meta_add_to_cart", range)} anterior={anteriorMeta?.carrinho} description="Eventos add_to_cart do Pixel" />
+              <MetricCard title="Remarketing Qualificado" value={totalRemarketing} icon={Crosshair} goal={findGoal(goals, "meta_remarketing", range)} anterior={anteriorMeta?.remarketing} description="Conversão customizada" />
             </div>
           );
         })()}
@@ -313,10 +345,10 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           <DemandGenByDayChart ga4Events={ga4Events} />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits", range)} />
-          <MetricCard title="Usuários" value={siteTotals.users} icon={Users} goal={findGoal(goals, "site_users", range)} description="Total de usuários" />
-          <MetricCard title="Conversões" value={siteTotals.conversions} icon={Target} goal={findGoal(goals, "site_conversions", range)} description="Key events do GA4" />
-          <MetricCard title="Pageviews" value={siteTotals.pageviews} icon={FileText} goal={findGoal(goals, "site_pageviews", range)} description="Visualizações de página" />
+          <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits", range)} anterior={anteriorSite?.sessoes} />
+          <MetricCard title="Usuários" value={siteTotals.users} icon={Users} goal={findGoal(goals, "site_users", range)} anterior={anteriorSite?.usuarios} description="Total de usuários" />
+          <MetricCard title="Conversões" value={siteTotals.conversions} icon={Target} goal={findGoal(goals, "site_conversions", range)} anterior={anteriorSite?.conversoes} description="Key events do GA4" />
+          <MetricCard title="Pageviews" value={siteTotals.pageviews} icon={FileText} goal={findGoal(goals, "site_pageviews", range)} anterior={anteriorSite?.pageviews} description="Visualizações de página" />
         </div>
         {/* Source breakdown tables */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-4">

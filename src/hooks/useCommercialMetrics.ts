@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { addDays, addYears, differenceInCalendarWeeks, endOfWeek, format, startOfDay, startOfWeek } from "date-fns";
+import { addDays, addYears, differenceInCalendarWeeks, endOfWeek, format, startOfDay, startOfWeek, subYears } from "date-fns";
 import { businessDaysBetween, lastBusinessDays } from "@/lib/businessDays";
 import { parseCoupon } from "@/lib/coupons";
 import { eventGoal } from "@/lib/goalMetrics";
@@ -127,9 +127,34 @@ export function useCommercialMetrics(
       };
     });
 
+    // Evento anterior no mesmo ponto: tudo o que ele tinha até a mesma data, um ano antes.
+    const umAnoAntes = subYears(today, 1);
+    const limiteAnterior = dayKey(umAnoAntes);
+    const anteriores = splitTickets(previousTickets);
+    const ateMesmaData = (lista: Ticket[]) => lista.filter((t) => t.sold_at && dayKey(new Date(t.sold_at)) <= limiteAnterior);
+    const prevPaying = ateMesmaData(anteriores.paying);
+    const prevByDay = new Map<string, number>();
+    anteriores.paying.forEach((t) => {
+      if (!t.sold_at) return;
+      const k = dayKey(new Date(t.sold_at));
+      prevByDay.set(k, (prevByDay.get(k) || 0) + qty(t));
+    });
+    const prevPaceDays = lastBusinessDays(umAnoAntes, CURRENT_PACE_DAYS);
+    const anterior = hasPrevious
+      ? {
+          payingCount: prevPaying.reduce((s, t) => s + qty(t), 0),
+          revenue: prevPaying.reduce((s, t) => s + Number(t.total_price || 0), 0),
+          issuedCount: [...anteriores.paying, ...anteriores.bonus].filter((t) => t.sold_at && dayKey(new Date(t.sold_at)) <= limiteAnterior).reduce((s, t) => s + qty(t), 0),
+          currentPace: prevPaceDays.reduce((s, d) => s + (prevByDay.get(dayKey(d)) || 0), 0) / CURRENT_PACE_DAYS,
+          // Vendas pagantes por dia, já na data equivalente deste ano (aaaa-mm-dd).
+          paidByDay: Object.fromEntries(Array.from(prevByDay.entries()).map(([d, v]) => [dayKey(addYears(new Date(`${d}T12:00:00`), 1)), v])),
+        }
+      : null;
+
     return {
       goal,
       hasGoalRow: !!goalRow,
+      anterior,
       payingCount,
       paidSymplaCount,
       invoicedCount,

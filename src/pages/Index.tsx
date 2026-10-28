@@ -10,6 +10,8 @@ import { IntegrationsHealthCard } from "@/components/dashboard/IntegrationsHealt
 import { CommercialOverview } from "@/components/dashboard/CommercialOverview";
 import { CommercialSegments } from "@/components/dashboard/CommercialSegments";
 import { SellerHome } from "@/components/dashboard/SellerHome";
+import { CompareProvider } from "@/hooks/useCompare";
+import { CompareToggle } from "@/components/CompareToggle";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 import { SalesSection } from "@/components/dashboard/SalesSection";
 import { MarketingSection } from "@/components/dashboard/MarketingSection";
@@ -71,7 +73,10 @@ function Dashboard() {
   };
   const [range, setRange] = useState<DateRange>(getDefaultRange);
 
-  const { event, isLoading: eventLoading } = useEvent();
+  const { event, events, isLoading: eventLoading } = useEvent();
+  // Ano do evento anterior (o que a comparação usa); vazio quando não há evento anterior.
+  const anterior = events.find((e) => e.slug === event.previous_event_slug);
+  const rotuloAnterior = anterior ? anterior.name.match(/\b(20\d{2})\b/)?.[1] ?? anterior.end_date.slice(0, 4) : "";
   const currentEventId = event.sympla_event_id ?? "";
   const tickets = useTicketSales(range);
   const adMetrics = useAdMetrics(range);
@@ -95,6 +100,7 @@ function Dashboard() {
   const marketingLoading = tickets.isLoading || goals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading;
 
   return (
+    <CompareProvider rotulo={rotuloAnterior}>
     <div>
       <PageHeader
         kicker={event.name}
@@ -102,7 +108,10 @@ function Dashboard() {
         badge={encerrado ? <Chip variant="neutral">Encerrado</Chip> : undefined}
         description="Visão geral de vendas e marketing do CUPOLA Summit"
         actions={
-          <PeriodSelector range={range} onChange={setRange} />
+          <>
+            <CompareToggle />
+            <PeriodSelector range={range} onChange={setRange} />
+          </>
         }
       />
 
@@ -126,11 +135,9 @@ function Dashboard() {
                 <CommercialOverview tickets={allTimeTickets.data ?? []} goals={eventGoals} previousTickets={previousTickets.data ?? []} eventParams={eventParams} />
                 <CommercialSegments tickets={allTimeTickets.data ?? []} goals={eventGoals} />
                 <SalesSection
-                  tickets={tickets.data ?? []}
                   goals={eventGoals}
                   allTimeTickets={allTimeTickets.data ?? []}
                   previousYearTickets={previousTickets.data ?? []}
-                  range={range}
                 />
               </div>
             )}
@@ -164,5 +171,6 @@ function Dashboard() {
       </Tabs>
 
     </div>
+    </CompareProvider>
   );
 }

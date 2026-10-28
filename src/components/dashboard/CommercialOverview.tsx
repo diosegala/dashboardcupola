@@ -21,9 +21,11 @@ import { InfoTip } from "@/components/InfoTip";
 import { useCommercialMetrics, type EventParams, type PaceStatus } from "@/hooks/useCommercialMetrics";
 import { cn } from "@/lib/utils";
 import { GoalMeter } from "@/components/GoalMeter";
+import { CompareLine } from "@/components/CompareLine";
+import { useCompare } from "@/hooks/useCompare";
 import { eventGoal } from "@/lib/goalMetrics";
 import { ChartLegend } from "./charts/ChartLegend";
-import { PREVIOUS_YEAR_KEY, PREVIOUS_YEAR_LABEL, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
+import { PREVIOUS_YEAR_KEY, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number) =>
@@ -69,7 +71,7 @@ function KpiCard({ title, value, format, unit, footer, className, children }: { 
         {unit && <small className="ml-1 text-sm font-medium tracking-normal text-muted-foreground">{unit}</small>}
       </div>
       {footer && <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">{footer}</div>}
-      {children && <div className="mt-auto pt-1">{children}</div>}
+      {children && <div className="mt-auto space-y-2 pt-1">{children}</div>}
     </Card>
   );
 }
@@ -121,6 +123,9 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
   const metaReceita = eventGoal(goals, "revenue");
   const metaEmitidos = eventGoal(goals, "issued_tickets");
   const temMeta = m.goal !== null;
+  // Comparação com o evento anterior só com a chave ligada.
+  const { ativo: comparar, rotulo } = useCompare();
+  const mostrarAnterior = comparar && m.hasPrevious;
 
   return (
     <div className="grid grid-cols-12 gap-[14px]">
@@ -146,6 +151,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
                 <>Pagos na Sympla e faturados pelo comercial</>
               )}
             </p>
+            <CompareLine className="mt-1.5" escuro anterior={m.anterior?.payingCount} atual={m.payingCount} />
           </div>
         </div>
       </Card>
@@ -156,10 +162,11 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
         requiredPace={m.requiredPace}
         remainingDays={m.remainingDays}
         chip={chip}
+        ritmoAnterior={m.anterior?.currentPace}
       />
 
       {/* Linha 2: todos os ingressos emitidos (pizza) e receita */}
-      <IssuedTicketsCard tickets={tickets} goal={metaEmitidos} className="col-span-12 lg:col-span-8" />
+      <IssuedTicketsCard tickets={tickets} goal={metaEmitidos} emitidosAnterior={m.anterior?.issuedCount} emitidosAtual={m.issuedCount} className="col-span-12 lg:col-span-8" />
       <KpiCard
         className="col-span-12 lg:col-span-4"
         title="Receita acumulada"
@@ -167,6 +174,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
         format={brl}
         footer={<span>Ticket médio {brl(m.payingCount > 0 ? m.revenue / m.payingCount : 0)}</span>}
       >
+        <CompareLine anterior={m.anterior?.revenue} atual={m.revenue} formato={brl} />
         {metaReceita && Number(metaReceita.target_value) > 0 && (
           <GoalMeter actual={m.revenue} target={Number(metaReceita.target_value)} unit="brl" periodStart={metaReceita.period_start} periodEnd={metaReceita.period_end} />
         )}
@@ -185,7 +193,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
             items={[
               { key: "pagantes", label: "Pagantes", color: COLORS.blue, shape: "line" },
               ...(temMeta ? [{ key: "trajetoria", label: "Trajetória da meta", color: COLORS.muted, shape: "dashed" as const }] : []),
-              ...(m.hasPrevious ? [{ key: PREVIOUS_YEAR_KEY, label: PREVIOUS_YEAR_LABEL, color: COLORS.muted, shape: "dashed" as const }] : []),
+              ...(mostrarAnterior ? [{ key: PREVIOUS_YEAR_KEY, label: rotulo, color: COLORS.muted, shape: "dashed" as const }] : []),
             ]}
             hidden={weeklySeries.hidden}
             onToggle={weeklySeries.toggle}
@@ -210,9 +218,10 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
                 strokeOpacity={weeklySeries.opacity("trajetoria", 0.8)}
                 animationDuration={1000}
               />}
-              {m.hasPrevious && (
+              {mostrarAnterior && (
                 <Line
                   {...previousYearLineProps}
+                  name={rotulo}
                   strokeDasharray="2 4"
                   hide={weeklySeries.hidden.has(PREVIOUS_YEAR_KEY)}
                   strokeOpacity={weeklySeries.opacity(PREVIOUS_YEAR_KEY, 0.55)}
@@ -260,7 +269,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
           {diaVisao === "semana" ? (
             <WeekdayView tickets={tickets} />
           ) : (
-            <BusinessDaysView paidByDay={m.paidByDay} firstSaleDate={m.firstSaleDate} requiredPace={m.requiredPace} />
+            <BusinessDaysView paidByDay={m.paidByDay} firstSaleDate={m.firstSaleDate} requiredPace={m.requiredPace} paidByDayAnterior={mostrarAnterior ? m.anterior?.paidByDay : undefined} />
           )}
         </CardContent>
       </Card>

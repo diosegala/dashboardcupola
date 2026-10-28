@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { LucideIcon } from "lucide-react";
 import { InfoTip } from "@/components/InfoTip";
 import { GoalMeter } from "@/components/GoalMeter";
+import { CompareLine } from "@/components/CompareLine";
 
 interface MetricCardProps {
   title: string;
@@ -12,9 +13,11 @@ interface MetricCardProps {
   suffix?: string;
   prefix?: string;
   description?: string;
+  // Mesmo indicador no mesmo período do evento anterior (aparece com a chave "Comparar" ligada).
+  anterior?: number | null;
 }
 
-export function MetricCard({ title, value, icon: Icon, goal: goalRow, suffix, prefix, description }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, goal: goalRow, suffix, prefix, description, anterior }: MetricCardProps) {
   // Texto no formato brasileiro ("12.345,67") ou com ponto decimal ("1.23", "12.5%").
   const bruto = String(value).replace(/[^0-9,.-]/g, "");
   const numericValue = typeof value === "number" ? value : parseFloat(bruto.includes(",") ? bruto.replace(/\./g, "").replace(",", ".") : bruto) || 0;
@@ -36,6 +39,19 @@ export function MetricCard({ title, value, icon: Icon, goal: goalRow, suffix, pr
           {prefix}{typeof value === "number" ? value.toLocaleString("pt-BR") : value}{suffix}
         </div>
         {description && <p className="mt-1 text-xs text-muted-foreground">{description}</p>}
+        <CompareLine
+          className="mt-1.5"
+          anterior={anterior}
+          atual={numericValue}
+          quando="no mesmo período"
+          formato={(n) =>
+            unit === "pct"
+              ? `${n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%`
+              : unit === "brl"
+                ? n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })
+                : Math.round(n).toLocaleString("pt-BR")
+          }
+        />
         {goalRow && target > 0 && (
           <GoalMeter className="mt-3" actual={numericValue} target={target} unit={unit} periodStart={goalRow.period_start} periodEnd={goalRow.period_end} />
         )}
