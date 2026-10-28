@@ -392,6 +392,7 @@ export type Database = {
           event_id: string | null
           id: string
           order_id: string | null
+          payment_method: string | null
           quantity: number
           sold_at: string | null
           status: string | null
@@ -401,6 +402,9 @@ export type Database = {
           ticket_type_id: string | null
           total_price: number
           unit_price: number
+          utm_campaign: string | null
+          utm_medium: string | null
+          utm_source: string | null
         }
         Insert: {
           buyer_company?: string | null
@@ -413,6 +417,7 @@ export type Database = {
           event_id?: string | null
           id?: string
           order_id?: string | null
+          payment_method?: string | null
           quantity?: number
           sold_at?: string | null
           status?: string | null
@@ -422,6 +427,9 @@ export type Database = {
           ticket_type_id?: string | null
           total_price?: number
           unit_price?: number
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
         }
         Update: {
           buyer_company?: string | null
@@ -434,6 +442,7 @@ export type Database = {
           event_id?: string | null
           id?: string
           order_id?: string | null
+          payment_method?: string | null
           quantity?: number
           sold_at?: string | null
           status?: string | null
@@ -443,6 +452,30 @@ export type Database = {
           ticket_type_id?: string | null
           total_price?: number
           unit_price?: number
+          utm_campaign?: string | null
+          utm_medium?: string | null
+          utm_source?: string | null
+        }
+        Relationships: []
+      }
+      ticket_sales_details: {
+        Row: {
+          order_data: Json | null
+          participant_data: Json | null
+          sympla_order_id: string
+          synced_at: string
+        }
+        Insert: {
+          order_data?: Json | null
+          participant_data?: Json | null
+          sympla_order_id: string
+          synced_at?: string
+        }
+        Update: {
+          order_data?: Json | null
+          participant_data?: Json | null
+          sympla_order_id?: string
+          synced_at?: string
         }
         Relationships: []
       }
@@ -470,6 +503,14 @@ export type Database = {
     }
     Functions: {
       get_current_sympla_event_id: { Args: never; Returns: string }
+      get_form_answer_counts: {
+        Args: { p_event_id: string }
+        Returns: {
+          answer: string
+          question: string
+          total: number
+        }[]
+      }
       get_integrations_status: {
         Args: never
         Returns: {
