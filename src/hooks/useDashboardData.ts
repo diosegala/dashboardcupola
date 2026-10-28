@@ -112,6 +112,30 @@ async function fetchAllTimeTickets(eventId: string, columns: string) {
   return all;
 }
 
+// Vendas do evento anterior guardadas na base própria. Vazio enquanto o evento atual for o próprio evento anterior.
+export function usePreviousEventTickets(currentEventId: string, previousEventKey: string) {
+  return useQuery({
+    queryKey: ["previous_event_tickets", previousEventKey, currentEventId],
+    enabled: !!currentEventId,
+    queryFn: async () => {
+      const all: any[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from("event_history" as any)
+          .select("data")
+          .eq("event_key", previousEventKey)
+          .eq("source_table", "ticket_sales")
+          .range(from, from + 999);
+        if (error) return [];
+        all.push(...(data ?? []).map((r: any) => r.data));
+        if (!data || data.length < 1000) break;
+      }
+      if (all.some((t) => t.event_id === currentEventId)) return [];
+      return all;
+    },
+  });
+}
+
 // Respostas do formulário de inscrição agregadas por pergunta (sem dados pessoais). Vazio até o SQL novo existir.
 export function useFormAnswerCounts(eventId: string) {
   return useQuery({
