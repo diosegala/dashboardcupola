@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
+import { EventsManager } from "@/components/settings/EventsManager";
 import { UserPlus, Shield, Eye, Loader2, Mail, Trash2, CheckCircle2, Clock } from "lucide-react";
 
 interface UserWithAuth {
@@ -185,6 +186,8 @@ export default function Settings() {
           </form>
         </CardContent>
       </Card>
+
+      <EventsManager users={users ?? []} />
 
       <Card>
         <CardHeader>

@@ -46,7 +46,20 @@ export function splitTickets(tickets: Ticket[], minTicketPrice: number) {
 }
 
 // Indicadores da aba Comercial, sempre sobre todas as vendas do evento atual (não dependem do período).
-export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketPrice: number, previousTickets: Ticket[] = []) {
+export interface EventParams {
+  // Abertura do evento: fim da contagem de dias úteis.
+  eventDate: Date;
+  // Meta de pagantes do evento (a meta "paying_tickets" da tela Metas tem prioridade).
+  payingGoal: number;
+}
+
+export function useCommercialMetrics(
+  tickets: Ticket[],
+  goals: any[],
+  minTicketPrice: number,
+  previousTickets: Ticket[] = [],
+  { eventDate, payingGoal }: EventParams = { eventDate: EVENT_DATE, payingGoal: PAYING_GOAL_DEFAULT },
+) {
   return useMemo(() => {
     const today = startOfDay(new Date());
     const { paidSympla, invoiced, bonus, paying } = splitTickets(tickets, minTicketPrice);
@@ -60,11 +73,11 @@ export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketP
     const goalRow = goals
       .filter((g) => g.metric_key === PAYING_GOAL_KEY && !g.ticket_type)
       .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0];
-    const goal = goalRow ? Number(goalRow.target_value) : PAYING_GOAL_DEFAULT;
+    const goal = goalRow ? Number(goalRow.target_value) : payingGoal;
     const missing = Math.max(goal - payingCount, 0);
 
     // Ritmo necessário: o que falta dividido pelos dias úteis de hoje até a véspera do evento.
-    const remainingDays = businessDaysBetween(today, addDays(EVENT_DATE, -1)).length;
+    const remainingDays = businessDaysBetween(today, addDays(eventDate, -1)).length;
     const requiredPace = remainingDays > 0 ? missing / remainingDays : 0;
 
     // Vendas pagantes por dia.
@@ -94,9 +107,9 @@ export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketP
     // Pagantes acumulados por semana, da primeira venda até o evento, com a trajetória linear (dias úteis) até a meta.
     const saleDates = paying.map((t) => t.sold_at).filter(Boolean).sort() as string[];
     const start = saleDates.length ? startOfDay(new Date(saleDates[0])) : today;
-    const lastDayBeforeEvent = addDays(EVENT_DATE, -1);
+    const lastDayBeforeEvent = addDays(eventDate, -1);
     const totalBusiness = Math.max(businessDaysBetween(start, lastDayBeforeEvent).length, 1);
-    const weekCount = differenceInCalendarWeeks(EVENT_DATE, start, { weekStartsOn: 1 }) + 1;
+    const weekCount = differenceInCalendarWeeks(eventDate, start, { weekStartsOn: 1 }) + 1;
     const sortedDays = Array.from(byDay.entries()).sort((a, b) => a[0].localeCompare(b[0]));
     const previousPaying = splitTickets(previousTickets, minTicketPrice).paying;
     const previousDays = previousPaying
@@ -138,5 +151,5 @@ export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketP
       hasPrevious,
       issuedCount: paidSymplaCount + invoicedCount + bonusCount,
     };
-  }, [tickets, goals, minTicketPrice, previousTickets]);
+  }, [tickets, goals, minTicketPrice, previousTickets, eventDate, payingGoal]);
 }
