@@ -4,6 +4,7 @@ import { format, parseISO, isAfter, isBefore, differenceInDays } from "date-fns"
 import { Plus, Pencil, Trash2, Target, Copy } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
+import { goalsOfEvent, useEvent } from "@/hooks/useEvent";
 
 import { supabase } from "@/integrations/supabase/client";
 import { useGoals } from "@/hooks/useDashboardData";
@@ -60,7 +61,9 @@ function getGoalType(start: string, end: string): string {
 
 export default function Goals() {
   const { user, isAdmin } = useAuth();
-  const { data: goals, isLoading } = useGoals();
+  const { event } = useEvent();
+  const { data: allGoals, isLoading } = useGoals();
+  const goals = allGoals ? goalsOfEvent(allGoals, event) : allGoals;
   const queryClient = useQueryClient();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -77,6 +80,7 @@ export default function Goals() {
         period_start: format(values.period_start, "yyyy-MM-dd"),
         period_end: format(values.period_end, "yyyy-MM-dd"),
         ticket_type: values.ticket_type ?? null,
+        ...(event.id ? { event_id: event.id } : {}),
       } as any;
 
       if (values.id) {

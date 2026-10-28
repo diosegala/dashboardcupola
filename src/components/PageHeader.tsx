@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { useOptionalEvent } from "@/hooks/useEvent";
 
 interface PageHeaderProps {
   kicker?: string;
@@ -9,7 +10,8 @@ interface PageHeaderProps {
 }
 
 // Cabeçalho de página no padrão do ds-summit: rótulo em verde, título leve e texto de apoio.
-export function PageHeader({ kicker = "CUPOLA Summit 2027", title, description, actions, badge }: PageHeaderProps) {
+export function PageHeader({ kicker: kickerProp, title, description, actions, badge }: PageHeaderProps) {
+  const kicker = kickerProp ?? useOptionalEvent()?.event.name ?? "CUPOLA Summit 2027";
   return (
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
       <div>

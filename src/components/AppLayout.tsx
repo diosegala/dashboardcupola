@@ -3,9 +3,11 @@ import { Outlet } from "react-router-dom";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
+import { EventProvider } from "@/hooks/useEvent";
 
 export function AppLayout() {
   return (
+    <EventProvider>
     <SidebarProvider>
       <div className="app-bg" aria-hidden>
         <span className="orb orb-1" />
@@ -25,5 +27,6 @@ export function AppLayout() {
         </div>
       </div>
     </SidebarProvider>
+    </EventProvider>
   );
 }

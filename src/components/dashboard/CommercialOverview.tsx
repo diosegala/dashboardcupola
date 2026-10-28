@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/CountUp";
 import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
-import { useCommercialMetrics, type PaceStatus } from "@/hooks/useCommercialMetrics";
+import { useCommercialMetrics, type EventParams, type PaceStatus } from "@/hooks/useCommercialMetrics";
 import { CURRENT_PACE_DAYS } from "@/lib/eventConfig";
 import { cn } from "@/lib/utils";
 import { ChartLegend } from "./charts/ChartLegend";
@@ -108,10 +108,11 @@ interface CommercialOverviewProps {
   goals: any[];
   minTicketPrice: number;
   previousTickets?: any[];
+  eventParams?: EventParams;
 }
 
-export function CommercialOverview({ tickets, goals, minTicketPrice, previousTickets = [] }: CommercialOverviewProps) {
-  const m = useCommercialMetrics(tickets, goals, minTicketPrice, previousTickets);
+export function CommercialOverview({ tickets, goals, minTicketPrice, previousTickets = [], eventParams }: CommercialOverviewProps) {
+  const m = useCommercialMetrics(tickets, goals, minTicketPrice, previousTickets, eventParams);
   const weeklySeries = useSeriesVisibility();
   const chip = PACE_CHIP[m.paceStatus];
 

@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
 
     // 2. Get credentials (DB priority, then env fallback)
     const creds = (integration.credentials as Record<string, string>) ?? {};
-    const apiToken = (creds.api_token || Deno.env.get("SYMPLA_API_TOKEN") || "").trim();
+    const globalToken = (creds.api_token || Deno.env.get("SYMPLA_API_TOKEN") || "").trim();
     const defaultEventId = (creds.event_id || Deno.env.get("SYMPLA_EVENT_ID") || "").trim();
 
     // Check if a specific event_id was passed in the request body
@@ -60,10 +60,33 @@ Deno.serve(async (req) => {
       // no body or invalid JSON — use default
     }
 
-    const eventId = bodyEventId || defaultEventId;
-    console.log("sync-sympla - eventId:", eventId);
+    // Eventos a sincronizar: o pedido explícito; senão todos os eventos ativos com ID da Sympla (cada um com o seu
+    // token, se tiver); senão o evento da integração geral, enquanto a tabela de eventos não existir.
+    const targets: { eventId: string; token: string }[] = [];
+    if (bodyEventId) {
+      targets.push({ eventId: bodyEventId, token: globalToken });
+    } else {
+      const { data: events, error: eventsError } = await supabase
+        .from("events")
+        .select("id, sympla_event_id")
+        .eq("is_active", true)
+        .not("sympla_event_id", "is", null);
+      if (eventsError) {
+        if (defaultEventId) targets.push({ eventId: defaultEventId, token: globalToken });
+      } else {
+        const { data: overrides } = await supabase
+          .from("event_integrations")
+          .select("event_id, credentials")
+          .eq("integration_name", "sympla");
+        for (const e of events ?? []) {
+          const own = (overrides ?? []).find((o: any) => o.event_id === e.id)?.credentials?.api_token;
+          targets.push({ eventId: String(e.sympla_event_id).trim(), token: String(own || globalToken).trim() });
+        }
+      }
+    }
+    console.log("sync-sympla - eventos:", targets.map((t) => t.eventId).join(", "));
 
-    if (!apiToken || !eventId) {
+    if (!targets.length || targets.some((t) => !t.token || !t.eventId)) {
       await supabase
         .from("integrations")
         .update({ sync_status: "error", error_message: "Credenciais ausentes (api_token ou event_id)" })
@@ -80,6 +103,8 @@ Deno.serve(async (req) => {
       .update({ sync_status: "syncing", error_message: null })
       .eq("id", integration.id);
 
+    let totalParticipants = 0;
+    for (const { eventId, token: apiToken } of targets) {
     // 4. Fetch all participants with pagination + retry
     const allParticipants: any[] = [];
     let page = 1;
@@ -174,6 +199,8 @@ Deno.serve(async (req) => {
         .upsert(details.slice(i, i + 500), { onConflict: "sympla_order_id" });
       if (error) throw error;
     }
+    totalParticipants += allParticipants.length;
+    }
 
     // 6. Success
     await supabase
@@ -182,7 +209,7 @@ Deno.serve(async (req) => {
       .eq("id", integration.id);
 
     return new Response(
-      JSON.stringify({ success: true, participants: allParticipants.length }),
+      JSON.stringify({ success: true, events: targets.length, participants: totalParticipants }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {

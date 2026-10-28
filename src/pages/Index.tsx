@@ -1,6 +1,6 @@
 import { PageHeader } from "@/components/PageHeader";
 import { Chip } from "@/components/Chip";
-import { EVENT_END_DATE, PREVIOUS_EVENT_KEY } from "@/lib/eventConfig";
+import { goalsOfEvent, isEventClosed, useEvent } from "@/hooks/useEvent";
 import { useState, useMemo, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -30,7 +30,6 @@ import {
   useGa4Events,
   useGoals,
   useAllTimeTicketSales,
-  useSymplaEventIds,
   findGoal,
   useFormAnswerCounts,
   usePreviousEventTickets,
@@ -86,21 +85,27 @@ export default function Index() {
   const [goalFormOpen, setGoalFormOpen] = useState(false);
   const [goalFormDefaults, setGoalFormDefaults] = useState<Partial<GoalFormValues> | undefined>();
 
-  const symplaIds = useSymplaEventIds();
+  const { event, isLoading: eventLoading } = useEvent();
+  const currentEventId = event.sympla_event_id ?? "";
   const tickets = useTicketSales(range);
   const adMetrics = useAdMetrics(range);
   const emailCampaigns = useEmailCampaigns(range);
   const siteAnalytics = useSiteAnalytics(range);
   const ga4Events = useGa4Events(range);
   const goals = useGoals();
-  const allTimeTickets = useAllTimeTicketSales(symplaIds.data?.currentEventId ?? "");
-  const formAnswers = useFormAnswerCounts(symplaIds.data?.currentEventId ?? "");
-  const previousTickets = usePreviousEventTickets(symplaIds.data?.currentEventId ?? "", PREVIOUS_EVENT_KEY);
+  const allTimeTickets = useAllTimeTicketSales(currentEventId);
+  const formAnswers = useFormAnswerCounts(currentEventId);
+  const previousTickets = usePreviousEventTickets(currentEventId, event.previous_event_slug ?? "");
   // Depois do último dia o evento fica "Encerrado"; as integrações continuam atualizando se trouxerem dados.
-  const encerrado = new Date() > EVENT_END_DATE;
+  const encerrado = isEventClosed(event);
+  const eventGoals = goalsOfEvent(goals.data ?? [], event);
+  const eventParams = {
+    eventDate: new Date(`${event.start_date ?? event.end_date}T00:00:00`),
+    payingGoal: event.paying_goal ?? 2000,
+  };
 
   // Cada aba espera só os dados que usa; cabeçalho e abas aparecem na hora.
-  const comercialLoading = symplaIds.isLoading || tickets.isLoading || goals.isLoading || allTimeTickets.isLoading;
+  const comercialLoading = eventLoading || tickets.isLoading || goals.isLoading || allTimeTickets.isLoading;
   const marketingLoading = tickets.isLoading || goals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading;
 
   const filterTickets = useCallback((data: any[]) => {
@@ -120,6 +125,7 @@ export default function Index() {
         period_start: format(values.period_start, "yyyy-MM-dd"),
         period_end: format(values.period_end, "yyyy-MM-dd"),
         ticket_type: values.ticket_type ?? null,
+        ...(event.id ? { event_id: event.id } : {}),
       } as any;
 
       if (values.id) {
@@ -142,7 +148,7 @@ export default function Index() {
 
   const handleEditGoal = (metricKey: string, ticketType?: string | null) => {
     // Check if a goal already exists for this metric + range
-    const existingGoal = findGoal(goals.data ?? [], metricKey, range, ticketType);
+    const existingGoal = findGoal(eventGoals, metricKey, range, ticketType);
 
     setGoalFormDefaults({
       label: existingGoal?.label ?? getMetricLabel(metricKey),
@@ -157,7 +163,7 @@ export default function Index() {
 
   const handleGoalSubmit = (values: GoalFormValues) => {
     // Find existing goal to update instead of creating duplicate
-    const existingGoal = findGoal(goals.data ?? [], values.metric_key, {
+    const existingGoal = findGoal(eventGoals, values.metric_key, {
       from: values.period_start,
       to: values.period_end,
     }, values.ticket_type);
@@ -168,6 +174,7 @@ export default function Index() {
   return (
     <div>
       <PageHeader
+        kicker={event.name}
         title="Dashboard"
         badge={encerrado ? <Chip variant="neutral">Encerrado</Chip> : undefined}
         description="Visão geral de vendas e marketing do CUPOLA Summit"
@@ -196,11 +203,11 @@ export default function Index() {
           <TabsContent value="comercial" className="mt-0 animate-panel-in">
             {comercialLoading ? <TabSkeleton /> : (
               <div className="space-y-8">
-                <CommercialOverview tickets={allTimeTickets.data ?? []} goals={goals.data ?? []} minTicketPrice={minTicketPrice} previousTickets={previousTickets.data ?? []} />
+                <CommercialOverview tickets={allTimeTickets.data ?? []} goals={eventGoals} minTicketPrice={minTicketPrice} previousTickets={previousTickets.data ?? []} eventParams={eventParams} />
                 <CommercialSegments tickets={allTimeTickets.data ?? []} minTicketPrice={minTicketPrice} formAnswers={formAnswers.data ?? []} />
                 <SalesSection
                   tickets={filteredTickets}
-                  goals={goals.data ?? []}
+                  goals={eventGoals}
                   allTimeTickets={filteredAllTimeTickets}
                   previousYearTickets={previousTickets.data ?? []}
                   range={range}
@@ -218,10 +225,10 @@ export default function Index() {
               adMetrics={adMetrics.data ?? []}
               emailCampaigns={emailCampaigns.data ?? []}
               tickets={filteredTickets}
-              goals={goals.data ?? []}
+              goals={eventGoals}
               range={range}
               onEditGoal={!isAdmin ? undefined : (metricKey, periodStart, periodEnd) => {
-                const existingGoal = findGoal(goals.data ?? [], metricKey, { from: periodStart, to: periodEnd });
+                const existingGoal = findGoal(eventGoals, metricKey, { from: periodStart, to: periodEnd });
                 setGoalFormDefaults({
                   label: existingGoal?.label ?? getMetricLabel(metricKey),
                   metric_key: metricKey,
@@ -238,7 +245,7 @@ export default function Index() {
               emailCampaigns={emailCampaigns.data ?? []}
               siteAnalytics={siteAnalytics.data ?? []}
               ga4Events={ga4Events.data ?? []}
-              goals={goals.data ?? []}
+              goals={eventGoals}
               range={range}
               onEditGoal={isAdmin ? handleEditGoal : undefined}
             />
