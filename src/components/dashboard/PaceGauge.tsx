@@ -4,6 +4,7 @@ import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import { CountUp } from "@/components/CountUp";
 import { cn } from "@/lib/utils";
+import { CompareLine } from "@/components/CompareLine";
 
 interface PaceGaugeProps {
   currentPace: number;
@@ -11,6 +12,8 @@ interface PaceGaugeProps {
   requiredPace: number | null;
   remainingDays: number;
   chip: { label: string; variant: ChipVariant } | null;
+  // Ritmo do evento anterior na mesma época (últimos dias úteis, um ano antes).
+  ritmoAnterior?: number | null;
   className?: string;
 }
 
@@ -27,7 +30,7 @@ const point = (frac: number, r = R) => {
 const arcLength = Math.PI * R;
 
 // Velocímetro do ritmo: o arco enche até o ritmo atual e um marcador mostra o ritmo necessário.
-export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, className }: PaceGaugeProps) {
+export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritmoAnterior, className }: PaceGaugeProps) {
   // Escala vai até o dobro do necessário (ou até o atual, se passar disso).
   const temMeta = requiredPace !== null;
   const max = temMeta ? Math.max((requiredPace as number) * 2, currentPace * 1.1, 1) : Math.max(currentPace * 1.4, 1);
@@ -89,6 +92,7 @@ export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, clas
             <span className="text-muted-foreground">Média de vendas pagantes nos últimos dias úteis</span>
           )}
           <span className="text-xs text-muted-foreground">{remainingDays.toLocaleString("pt-BR")} dias úteis até o evento</span>
+          <CompareLine anterior={ritmoAnterior} atual={currentPace} formato={(n) => `${fmt(n)}/dia`} quando="nesta época" />
           {chip && (
             <span>
               <Chip variant={chip.variant}>{chip.label}</Chip>

@@ -4,7 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
 import { addYears, format, parseISO } from "date-fns";
 import { ChartLegend } from "./ChartLegend";
-import { PREVIOUS_YEAR_KEY, PREVIOUS_YEAR_LABEL, previousYearLineProps, useSeriesVisibility } from "./chartSeries";
+import { PREVIOUS_YEAR_KEY, previousYearLineProps, useSeriesVisibility } from "./chartSeries";
+import { useCompare } from "@/hooks/useCompare";
 import { ptBR } from "date-fns/locale";
 
 interface SessionsByDayChartProps {
@@ -19,7 +20,9 @@ export function SessionsByDayChart({ siteAnalytics, previousSiteAnalytics = [] }
     () => new Map(previousSiteAnalytics.map((s) => [format(addYears(parseISO(s.date), 1), "yyyy-MM-dd"), s.sessions || 0])),
     [previousSiteAnalytics],
   );
-  const hasPrevious = previousByDay.size > 0;
+  // Linha do evento anterior só com a chave "Comparar" ligada.
+  const { ativo: comparar, rotulo } = useCompare();
+  const hasPrevious = comparar && previousByDay.size > 0;
 
   const data = useMemo(() => {
     return siteAnalytics.map((s) => ({
@@ -38,7 +41,7 @@ export function SessionsByDayChart({ siteAnalytics, previousSiteAnalytics = [] }
           <ChartLegend
             items={[
               { key: "sessões", label: "Sessões", color: "hsl(var(--chart-2))", shape: "line" },
-              { key: PREVIOUS_YEAR_KEY, label: PREVIOUS_YEAR_LABEL, color: "hsl(var(--muted-foreground))", shape: "dashed" },
+              { key: PREVIOUS_YEAR_KEY, label: rotulo, color: "hsl(var(--muted-foreground))", shape: "dashed" },
             ]}
             hidden={series.hidden}
             onToggle={series.toggle}
@@ -59,6 +62,7 @@ export function SessionsByDayChart({ siteAnalytics, previousSiteAnalytics = [] }
                 <Line
 
                   {...previousYearLineProps}
+                  name={rotulo}
 
                   hide={series.hidden.has(PREVIOUS_YEAR_KEY)}
 

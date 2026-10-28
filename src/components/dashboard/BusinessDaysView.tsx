@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { addMonths, endOfMonth, format, isAfter, isBefore, startOfDay, startOfMonth } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Bar, BarChart, CartesianGrid, Cell, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, Cell, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { useCompare } from "@/hooks/useCompare";
 import { Button } from "@/components/ui/button";
 import { businessDaysBetween, lastBusinessDays, isBusinessDay } from "@/lib/businessDays";
 import { CURRENT_PACE_DAYS } from "@/lib/eventConfig";
@@ -15,13 +16,16 @@ interface BusinessDaysViewProps {
   firstSaleDate: Date;
   // Sem meta de pagantes: barras numa cor só e sem a linha do necessário.
   requiredPace: number | null;
+  // Vendas do evento anterior por dia, já na data equivalente deste ano (só com a chave de comparação ligada).
+  paidByDayAnterior?: Record<string, number>;
 }
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const COR = { ok: "hsl(var(--data-blue))", abaixo: "hsl(var(--warn))", muted: "hsl(var(--muted-foreground))" };
 
 // Vendas em cada dia útil até hoje (nunca dias futuros): últimos 15, um mês por vez ou tudo desde a primeira venda.
-export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace }: BusinessDaysViewProps) {
+export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace, paidByDayAnterior }: BusinessDaysViewProps) {
+  const { rotulo } = useCompare();
   const hoje = startOfDay(new Date());
   const [modo, setModo] = useState<Modo>("15");
   const [mes, setMes] = useState(startOfMonth(hoje));
@@ -41,10 +45,12 @@ export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace }: Bus
 
   const data = dias.map((d) => {
     const vendas = paidByDay[format(d, "yyyy-MM-dd")] || 0;
-    return { date: format(d, "yyyy-MM-dd"), label: format(d, "dd/MM"), vendas, onPace: requiredPace === null || vendas >= requiredPace };
+    const anterior = paidByDayAnterior ? paidByDayAnterior[format(d, "yyyy-MM-dd")] || 0 : undefined;
+    return { date: format(d, "yyyy-MM-dd"), label: format(d, "dd/MM"), vendas, anterior, onPace: requiredPace === null || vendas >= requiredPace };
   });
   const total = data.reduce((s, d) => s + d.vendas, 0);
   const diasNoRitmo = data.filter((d) => d.onPace).length;
+  const totalAnterior = paidByDayAnterior ? data.reduce((s, d) => s + (d.anterior ?? 0), 0) : null;
 
   const botao = (m: Modo, rotulo: string) => (
     <button
@@ -89,18 +95,18 @@ export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace }: Bus
       </div>
 
       <p className="mb-2 text-xs text-muted-foreground">
-        {int(total)} vendas em {int(data.length)} dias úteis{requiredPace !== null && <> · {int(diasNoRitmo)} {diasNoRitmo === 1 ? "dia" : "dias"} no ritmo</>}
+        {int(total)} vendas em {int(data.length)} dias úteis{requiredPace !== null && <> · {int(diasNoRitmo)} {diasNoRitmo === 1 ? "dia" : "dias"} no ritmo</>}{totalAnterior !== null && <> · {rotulo} nos mesmos dias: {int(totalAnterior)}</>}
       </p>
 
       <ResponsiveContainer width="100%" height={240}>
-        <BarChart data={data} margin={{ left: -12, right: 8, top: 16 }}>
+        <ComposedChart data={data} margin={{ left: -12, right: 8, top: 16 }}>
           <CartesianGrid vertical={false} className="stroke-border" />
           <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={8} className="fill-muted-foreground" />
           <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
           <Tooltip
             cursor={{ fill: "hsl(var(--secondary))" }}
             contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--line-strong))", borderRadius: 10, fontSize: 12 }}
-            formatter={(v: number) => [int(v), "Pagantes"]}
+            formatter={(v: number, n: string) => [int(v), n === "anterior" ? rotulo : "Pagantes"]}
           />
           {requiredPace !== null && <ReferenceLine
             y={requiredPace}
@@ -114,7 +120,10 @@ export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace }: Bus
               <Cell key={d.date} fill={d.onPace ? COR.ok : COR.abaixo} />
             ))}
           </Bar>
-        </BarChart>
+          {paidByDayAnterior && (
+            <Line dataKey="anterior" name="anterior" type="monotone" stroke="hsl(var(--muted-foreground))" strokeWidth={1.25} strokeDasharray="4 4" dot={false} activeDot={false} animationDuration={1000} />
+          )}
+        </ComposedChart>
       </ResponsiveContainer>
       <p className="mt-2 text-xs text-muted-foreground">
         Ritmo atual considera a média dos últimos {CURRENT_PACE_DAYS} dias úteis. Feriados nacionais e fins de semana ficam de fora.

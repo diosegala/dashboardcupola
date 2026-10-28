@@ -70,6 +70,8 @@ export const METRIC_INFO: Record<string, string> = {
   "Receita Total": "Soma do valor dos ingressos vendidos no período selecionado.",
   "Ticket Médio": "Receita do período dividida pela quantidade de ingressos vendidos no mesmo período.",
   "Progresso por Lote": "Ingressos vendidos em cada lote comparados à meta do lote.",
+  "Vendas por lote":
+    "Pagantes e receita de cada lote (pré-venda, lote 1, lote 2…). O lote 0 conta como pré-venda. Com meta do lote, aparece a marca da meta. Com a chave de comparação ligada, a linha tracejada mostra o mesmo lote do evento anterior, inteiro.",
   "Funil de KPIs":
     "Resultado de cada etapa do funil, do engajamento até a venda, semana a semana e comparado à meta de cada semana.",
   "Funil de Deals por Estágio": "Negócios do CRM em cada estágio do funil comercial.",

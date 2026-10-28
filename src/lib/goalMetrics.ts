@@ -36,8 +36,8 @@ export const GOAL_SECTIONS: GoalSection[] = [
     title: "Lotes",
     description: "Um valor por lote de ingresso.",
     items: [
-      { id: "tickets_sold_lote", key: "tickets_sold", label: "Ingressos do lote", where: "Progresso por lote", unit: "num", scope: "lote" },
-      { id: "revenue_lote", key: "revenue", label: "Receita do lote", where: "Progresso por lote", unit: "brl", scope: "lote" },
+      { id: "tickets_sold_lote", key: "tickets_sold", label: "Ingressos do lote", where: "Vendas por lote", unit: "num", scope: "lote" },
+      { id: "revenue_lote", key: "revenue", label: "Receita do lote", where: "Vendas por lote", unit: "brl", scope: "lote" },
     ],
   },
   {
