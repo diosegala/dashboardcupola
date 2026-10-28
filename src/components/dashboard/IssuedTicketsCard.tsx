@@ -151,7 +151,6 @@ export function IssuedTicketsCard({ tickets, className }: { tickets: Ticket[]; c
               <span className="flex min-w-0 items-center gap-2">
                 <i className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: f.color }} />
                 <span className="truncate">{f.label}</span>
-                {visao === "categoria" && f.meta && <span className="shrink-0 text-[11px] text-accent-text">conta na meta</span>}
               </span>
               <span className="shrink-0 tabular-nums">
                 <b className="font-semibold">{int(f.value)}</b>

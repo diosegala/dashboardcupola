@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/CountUp";
 import { IssuedTicketsCard } from "./IssuedTicketsCard";
+import { PaceGauge } from "./PaceGauge";
 import { SlidingTabsList } from "./SlidingTabsList";
 import { WeekdayView } from "./charts/WeekdayView";
 import { Tabs, TabsTrigger } from "@/components/ui/tabs";
@@ -140,21 +141,12 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
         </div>
       </Card>
 
-      <KpiCard
-        className="col-span-12 sm:col-span-6 lg:col-span-3"
-        title="Ritmo necessário"
-        value={Math.ceil(m.requiredPace)}
-        format={int}
-        unit="por dia útil"
-        footer={<span>{int(m.remainingDays)} dias úteis até o evento</span>}
-      />
-      <KpiCard
-        className="col-span-12 sm:col-span-6 lg:col-span-3"
-        title="Ritmo atual"
-        value={m.currentPace}
-        format={(n) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}
-        unit="por dia útil"
-        footer={<Chip variant={chip.variant}>{chip.label}</Chip>}
+      <PaceGauge
+        className="col-span-12 lg:col-span-6"
+        currentPace={m.currentPace}
+        requiredPace={m.requiredPace}
+        remainingDays={m.remainingDays}
+        chip={chip}
       />
 
       {/* Linha 2: todos os ingressos emitidos (pizza) e receita */}

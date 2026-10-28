@@ -93,7 +93,59 @@ export function HBars({ items }: { items: { label: string; value: number }[] }) 
   );
 }
 
-function SegmentCard({ title, items, className }: { title: string; items: { label: string; value: number }[]; className?: string }) {
+const CORES_PARTE = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--muted-foreground))"];
+
+// Barra única de 100% dividida em partes, com legenda de quantidade e %. Cabe quantas opções aparecerem.
+export function ShareBar({ items }: { items: { label: string; value: number }[] }) {
+  const [hover, setHover] = useState<string | null>(null);
+  const total = items.reduce((s, i) => s + i.value, 0) || 1;
+  const pct = (v: number) => `${((v / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+  return (
+    <div className="space-y-3">
+      <div className="flex h-4 w-full overflow-hidden rounded-full bg-secondary">
+        {items.map((i, n) => (
+          <i
+            key={i.label}
+            onMouseEnter={() => setHover(i.label)}
+            onMouseLeave={() => setHover(null)}
+            title={`${i.label}: ${int(i.value)} (${pct(i.value)})`}
+            className={cn("block h-full origin-left animate-[grow_900ms_cubic-bezier(.16,1,.3,1)_both] transition-opacity duration-150 motion-reduce:animate-none", hover && hover !== i.label && "opacity-35")}
+            style={{ width: `${(i.value / total) * 100}%`, background: CORES_PARTE[n % CORES_PARTE.length] }}
+          />
+        ))}
+      </div>
+      <ul className="space-y-1">
+        {items.map((i, n) => (
+          <li
+            key={i.label}
+            onMouseEnter={() => setHover(i.label)}
+            onMouseLeave={() => setHover(null)}
+            className={cn("flex items-center justify-between gap-3 rounded-xl px-2 py-1 text-[13px] transition-[background-color,opacity] duration-150 hover:bg-secondary", hover && hover !== i.label && "opacity-45")}
+          >
+            <span className="flex min-w-0 items-center gap-2">
+              <i className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: CORES_PARTE[n % CORES_PARTE.length] }} />
+              <span className="truncate">{i.label}</span>
+            </span>
+            <span className="shrink-0 tabular-nums">
+              <b className="font-semibold">{int(i.value)}</b>
+              <span className="ml-2 text-muted-foreground">{pct(i.value)}</span>
+            </span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// UTM às vezes vem como códigos de letra ("(99,97,110,...)"): converte de volta para texto.
+function utmLabel(v: string | null | undefined): string | null {
+  const t = (v ?? "").trim();
+  if (!t) return null;
+  const codes = t.match(/^[({[]?\s*(\d{2,3}(?:\s*,\s*\d{2,3})+)\s*[)}\]]?$/);
+  return codes ? String.fromCharCode(...codes[1].split(",").map((n) => Number(n.trim()))) : t;
+}
+
+function SegmentCard({ title, items, className, share }: { title: string; items: { label: string; value: number }[]; className?: string; share?: boolean }) {
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
@@ -102,7 +154,7 @@ function SegmentCard({ title, items, className }: { title: string; items: { labe
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <HBars items={items} />
+        {share ? <ShareBar items={items} /> : <HBars items={items} />}
       </CardContent>
     </Card>
   );
@@ -117,7 +169,7 @@ export function CommercialSegments({ tickets }: CommercialSegmentsProps) {
   const { paying, bonus } = useMemo(() => splitTickets(tickets), [tickets]);
 
   const porPagamento = useMemo(() => countBy(paying, (t) => (t.payment_method ? pagamentoDe(t.payment_method) : null)), [paying]);
-  const porOrigem = useMemo(() => countBy(paying, (t) => t.utm_source).slice(0, 8), [paying]);
+  const porOrigem = useMemo(() => countBy(paying, (t) => utmLabel(t.utm_source)).slice(0, 8), [paying]);
 
   // Cupons agrupados pelo código, com o desconto e o tipo enviados pela Sympla.
   const cupons = useMemo(() => {
@@ -133,7 +185,7 @@ export function CommercialSegments({ tickets }: CommercialSegmentsProps) {
   }, [paying, bonus]);
 
   const segmentos = [
-    { title: "Pagantes por forma de pagamento", items: porPagamento },
+    { title: "Pagantes por forma de pagamento", items: porPagamento, share: true },
     { title: "Pagantes por origem (UTM)", items: porOrigem },
   ].filter((s) => s.items.length > 0);
 
@@ -144,7 +196,7 @@ export function CommercialSegments({ tickets }: CommercialSegmentsProps) {
   return (
     <div className="grid grid-cols-12 gap-[14px]">
       {segmentos.map((s) => (
-        <SegmentCard key={s.title} title={s.title} items={s.items} className={cn("col-span-12", span)} />
+        <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className={cn("col-span-12", span)} />
       ))}
 
       {cupons.length > 0 && (
