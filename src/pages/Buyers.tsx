@@ -119,7 +119,7 @@ function FullBuyers() {
   });
 
   const { people, companies } = useMemo(() => buildBuyers(dados.data ?? []), [dados.data]);
-  const anos = useMemo(() => Array.from(new Set((dados.data ?? []).map((d) => d.event.year))).sort(), [dados.data]);
+  const eventos = useMemo(() => (dados.data ?? []).map((d) => d.event).sort((a, b) => a.endDate.localeCompare(b.endDate)), [dados.data]);
 
   // Números do evento selecionado; "já vieram" é quem também aparece em algum evento anterior.
   const kpis = useMemo(() => {
@@ -181,7 +181,7 @@ function FullBuyers() {
             {dados.isLoading ? (
               <Skeleton className="h-96" />
             ) : (
-              <PeopleTable people={people} anos={anos} eventSlug={event.slug} eventYear={eventRef(event).year} />
+              <PeopleTable people={people} eventos={eventos} eventSlug={event.slug} />
             )}
           </TabsContent>
         )}

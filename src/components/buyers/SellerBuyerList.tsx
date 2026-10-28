@@ -12,22 +12,27 @@ import { buildBuyers, eventRef, type DetailRow } from "@/lib/buyers";
 // como chaves secretas: servem para achar quem a equipe já conhece (digitando o contato), nunca para mostrar.
 export function SellerBuyerList() {
   const { events, event } = useEvent();
-  const relevantes = useMemo(() => events.filter((e) => e.slug === event.slug || e.end_date < event.end_date), [events, event]);
 
   const dados = useQuery({
-    queryKey: ["buyers-equipe", event.slug, relevantes.map((e) => e.slug).join("|")],
-    enabled: relevantes.length > 0,
+    queryKey: ["buyers-equipe", event.slug],
     staleTime: 10 * 60 * 1000,
-    queryFn: async () =>
-      Promise.all(
+    queryFn: async () => {
+      // Todos os eventos CUPOLA até o selecionado (edições, imersões…), mesmo os que a equipe não abre no painel.
+      const lista = await supabase.rpc("get_buyer_events" as any, { p_slug: event.slug });
+      const relevantes: { slug: string; name: string; end_date: string }[] =
+        !lista.error && (lista.data as any[])?.length
+          ? (lista.data as any[])
+          : events.filter((e) => e.slug === event.slug || e.end_date < event.end_date);
+      return Promise.all(
         relevantes.map(async (e) => {
           const { data, error } = await supabase.rpc("get_buyer_rows" as any, { p_slug: e.slug });
           return { event: eventRef(e), rows: error ? [] : ((data ?? []) as DetailRow[]) };
         }),
-      ),
+      );
+    },
   });
 
-  const anos = useMemo(() => Array.from(new Set((dados.data ?? []).map((d) => d.event.year))).sort(), [dados.data]);
+  const eventos = useMemo(() => (dados.data ?? []).map((d) => d.event).sort((a, b) => a.endDate.localeCompare(b.endDate)), [dados.data]);
   const people = useMemo(() => buildBuyers(dados.data ?? []).people, [dados.data]);
 
   return (
@@ -39,7 +44,7 @@ export function SellerBuyerList() {
       {dados.isLoading ? (
         <Skeleton className="h-96" />
       ) : (
-        <PeopleTable people={people} anos={anos} eventSlug={event.slug} eventYear={eventRef(event).year} restrito escopoInicial="fora" />
+        <PeopleTable people={people} eventos={eventos} eventSlug={event.slug} restrito escopoInicial="fora" />
       )}
     </div>
   );

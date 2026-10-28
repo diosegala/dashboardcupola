@@ -97,9 +97,11 @@ BEGIN
   IF auth.uid() IS NULL OR NOT (public.has_role(auth.uid(), 'admin') OR public.is_seller()) THEN
     RETURN;
   END IF;
+  -- A equipe lê o evento liberado para ela e qualquer evento CUPOLA que terminou antes dele (para a recorrência).
   IF NOT public.has_role(auth.uid(), 'admin') AND NOT EXISTS (
-    SELECT 1 FROM public.events e
-    WHERE (e.slug = p_slug OR e.previous_event_slug = p_slug) AND public.can_see_event(e.id)
+    SELECT 1 FROM public.events alvo
+    JOIN public.events e ON public.can_see_event(e.id) AND e.end_date >= alvo.end_date
+    WHERE alvo.slug = p_slug
   ) THEN
     RETURN;
   END IF;
@@ -169,6 +171,22 @@ BEGIN
   LEFT JOIN cupons c ON c.oid = u.oid;
 END;
 $$;
+-- Eventos que entram na lista da equipe: o selecionado e todos os eventos CUPOLA que terminaram antes dele
+-- (edições, imersões…), mesmo os que ela não abre no painel. Só nome e data.
+CREATE OR REPLACE FUNCTION public.get_buyer_events(p_slug text)
+RETURNS TABLE (slug text, name text, end_date date)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT e.slug, e.name, e.end_date
+  FROM public.events alvo
+  JOIN public.events e ON e.end_date <= alvo.end_date
+  WHERE alvo.slug = p_slug
+    AND auth.uid() IS NOT NULL
+    AND (public.has_role(auth.uid(), 'admin') OR (public.is_seller() AND public.can_see_event(alvo.id)))
+  ORDER BY e.end_date
+$$;
+REVOKE ALL ON FUNCTION public.get_buyer_events(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_buyer_events(text) TO authenticated;
+
 REVOKE ALL ON FUNCTION public.get_buyer_rows(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_buyer_rows(text) TO authenticated;
 

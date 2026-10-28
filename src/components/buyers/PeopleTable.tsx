@@ -6,15 +6,16 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Chip } from "@/components/Chip";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { parseCoupon } from "@/lib/coupons";
-import { formatPhone, type Person } from "@/lib/buyers";
+import { formatPhone, type EventRef, type Person } from "@/lib/buyers";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => n.toLocaleString("pt-BR");
 const PAGE = 100;
 
 export type Escopo = "neste" | "fora" | "todos";
-type Marca = "antes" | "cupom" | "pendente";
+type Marca = "recorrente" | "cupom" | "pendente";
 
 const APROVADO = new Set(["APPROVED", "A"]);
 const SITUACAO: Record<string, { label: string; variant: "warn" | "bad" | "neutral" }> = {
@@ -31,17 +32,18 @@ const SITUACAO: Record<string, { label: string; variant: "warn" | "bad" | "neutr
 
 interface PeopleTableProps {
   people: Person[];
-  // Anos de todos os eventos carregados, em ordem.
-  anos: string[];
+  // Todos os eventos CUPOLA carregados (edições, imersões…), do mais antigo ao mais recente.
+  eventos: EventRef[];
   eventSlug: string;
-  eventYear: string;
   // Equipe de vendas: sem e-mail, telefone e pedidos; contato só serve para localizar na busca.
   restrito?: boolean;
   escopoInicial?: Escopo;
 }
 
-// Lista de pessoas com filtros: quem veio neste evento, quem ainda não veio, quem já veio antes, quem usou cupom.
-export function PeopleTable({ people, anos, eventSlug, eventYear, restrito = false, escopoInicial = "neste" }: PeopleTableProps) {
+// Lista de pessoas com filtros: quem veio neste evento, quem ainda não veio, clientes recorrentes de qualquer evento
+// CUPOLA, quem participou de um evento específico e quem usou cupom.
+export function PeopleTable({ people, eventos, eventSlug, restrito = false, escopoInicial = "neste" }: PeopleTableProps) {
+  const [participouDe, setParticipouDe] = useState("qualquer");
   const [busca, setBusca] = useState("");
   const [escopo, setEscopo] = useState<Escopo>(escopoInicial);
   const [marcas, setMarcas] = useState<Set<Marca>>(new Set());
@@ -52,20 +54,21 @@ export function PeopleTable({ people, anos, eventSlug, eventYear, restrito = fal
     () =>
       people.map((p) => {
         const neste = p.events[eventSlug];
-        const outros = Object.keys(p.events).filter((s) => s !== eventSlug);
-        const anosDaPessoa = new Set(Object.values(p.events).map((e) => e.event.year));
-        // Cupons do evento atual primeiro; os de outros anos vêm depois, com o ano.
-        const cupons = [
-          ...Array.from(neste?.coupons ?? []).map((c) => ({ code: parseCoupon(c)?.code ?? c, ano: eventYear, atual: true })),
-          ...Object.values(p.events)
-            .filter((e) => e.event.slug !== eventSlug)
-            .sort((a, b) => b.event.year.localeCompare(a.event.year))
-            .flatMap((e) => Array.from(e.coupons).map((c) => ({ code: parseCoupon(c)?.code ?? c, ano: e.event.year, atual: false }))),
-        ].filter((c, i, arr) => arr.findIndex((x) => x.code === c.code && x.ano === c.ano) === i);
+        // Eventos da pessoa em ordem de data; recorrente é quem participou de dois ou mais eventos CUPOLA, de qualquer tipo.
+        const eventosDaPessoa = Object.values(p.events)
+          .map((e) => e.event)
+          .sort((a, b) => a.endDate.localeCompare(b.endDate));
+        // Cupons do evento atual primeiro; os dos outros eventos vêm depois, do mais recente ao mais antigo.
+        const cupons = [...eventosDaPessoa]
+          .sort((a, b) => Number(b.slug === eventSlug) - Number(a.slug === eventSlug) || b.endDate.localeCompare(a.endDate))
+          .flatMap((ev) =>
+            Array.from(p.events[ev.slug].coupons).map((c) => ({ code: parseCoupon(c)?.code ?? c, evento: ev.label, atual: ev.slug === eventSlug })),
+          )
+          .filter((c, i, arr) => arr.findIndex((x) => x.code === c.code && x.evento === c.evento) === i);
         const pendencias = Array.from(neste?.statuses ?? []).filter((s) => !APROVADO.has(s));
-        return { p, neste: !!neste, veioAntes: outros.length > 0, anosDaPessoa, cupons, pendencias };
+        return { p, neste: !!neste, recorrente: eventosDaPessoa.length >= 2, eventosDaPessoa, cupons, pendencias };
       }),
-    [people, eventSlug, eventYear],
+    [people, eventSlug],
   );
 
   // Busca por contato: a equipe digita e-mail ou telefone e o banco devolve a chave do que foi digitado.
@@ -101,7 +104,10 @@ export function PeopleTable({ people, anos, eventSlug, eventYear, restrito = fal
   };
 
   const casaMarcas = (l: (typeof linhas)[number]) =>
-    (!marcas.has("antes") || l.veioAntes) && (!marcas.has("cupom") || l.cupons.length > 0) && (!marcas.has("pendente") || l.pendencias.length > 0);
+    (participouDe === "qualquer" || !!l.p.events[participouDe]) &&
+    (!marcas.has("recorrente") || l.recorrente) &&
+    (!marcas.has("cupom") || l.cupons.length > 0) &&
+    (!marcas.has("pendente") || l.pendencias.length > 0);
   const casaEscopo = (l: (typeof linhas)[number], e: Escopo) => e === "todos" || (e === "neste") === l.neste;
 
   // Buscando, procura em todos; sem busca, vale o escopo escolhido.
@@ -109,14 +115,19 @@ export function PeopleTable({ people, anos, eventSlug, eventYear, restrito = fal
     () =>
       linhas
         .filter((l) => (termo ? true : casaEscopo(l, escopo)) && casaMarcas(l) && casaBusca(l.p))
-        .sort((a, b) => b.anosDaPessoa.size - a.anosDaPessoa.size || a.p.name.localeCompare(b.p.name, "pt-BR")),
+        .sort((a, b) => b.eventosDaPessoa.length - a.eventosDaPessoa.length || a.p.name.localeCompare(b.p.name, "pt-BR")),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [linhas, escopo, marcas, termo, chavesBusca.join("|")],
+    [linhas, escopo, marcas, participouDe, termo, chavesBusca.join("|")],
   );
 
   const contaEscopo = (e: Escopo) => linhas.filter((l) => casaEscopo(l, e) && casaMarcas(l)).length;
   const contaMarca = (m: Marca) =>
-    linhas.filter((l) => casaEscopo(l, escopo) && (m === "antes" ? l.veioAntes : m === "cupom" ? l.cupons.length > 0 : l.pendencias.length > 0)).length;
+    linhas.filter(
+      (l) =>
+        casaEscopo(l, escopo) &&
+        (participouDe === "qualquer" || !!l.p.events[participouDe]) &&
+        (m === "recorrente" ? l.recorrente : m === "cupom" ? l.cupons.length > 0 : l.pendencias.length > 0),
+    ).length;
 
   const trocarMarca = (m: Marca) => {
     setMarcas((atual) => {
@@ -129,13 +140,13 @@ export function PeopleTable({ people, anos, eventSlug, eventYear, restrito = fal
   };
 
   const escopos: [Escopo, string][] = [
-    ["neste", `Vieram em ${eventYear}`],
-    ["fora", `Ainda não vieram em ${eventYear}`],
+    ["neste", "Vieram a este evento"],
+    ["fora", "Ainda não vieram a este"],
     ["todos", "Todos"],
   ];
   const ordemEscopos = escopoInicial === "fora" ? [escopos[1], escopos[0], escopos[2]] : escopos;
   const marcasDisponiveis: [Marca, string][] = [
-    ["antes", "Já vieram antes"],
+    ["recorrente", "Clientes recorrentes"],
     ["cupom", "Usaram cupom"],
     ...(restrito ? [] : ([["pendente", "Pedido pendente"]] as [Marca, string][])),
   ];
@@ -183,6 +194,26 @@ export function PeopleTable({ people, anos, eventSlug, eventYear, restrito = fal
               {rotulo} <span className="tabular-nums opacity-70">{int(contaMarca(m))}</span>
             </button>
           ))}
+          {eventos.length > 1 && (
+            <Select value={participouDe} onValueChange={(v) => { setParticipouDe(v); setLimite(PAGE); }}>
+              <SelectTrigger
+                className={cn(
+                  "h-7 w-auto gap-1.5 rounded-full px-3 text-xs font-semibold",
+                  participouDe !== "qualquer" ? "border-primary bg-primary text-primary-foreground" : "bg-card text-foreground/75",
+                )}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="qualquer">Participou de qualquer evento</SelectItem>
+                {[...eventos].reverse().map((ev) => (
+                  <SelectItem key={ev.slug} value={ev.slug}>
+                    Participou de {ev.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
           {termo && <span className="text-xs text-muted-foreground">Buscando em todas as pessoas.</span>}
         </div>
       </div>
@@ -211,7 +242,7 @@ export function PeopleTable({ people, anos, eventSlug, eventYear, restrito = fal
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lista.slice(0, limite).map(({ p, anosDaPessoa, cupons, pendencias }) => (
+                {lista.slice(0, limite).map(({ p, eventosDaPessoa, cupons, pendencias }) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">
                       {p.name}
@@ -230,22 +261,18 @@ export function PeopleTable({ people, anos, eventSlug, eventYear, restrito = fal
                     {!restrito && (
                       <TableCell className="whitespace-nowrap tabular-nums text-foreground/80">{p.phones[0] ? formatPhone(p.phones[0]) : "—"}</TableCell>
                     )}
-                    <TableCell className="whitespace-nowrap">
-                      <span className="inline-flex gap-1">
-                        {anos.map((ano) => (
+                    <TableCell>
+                      <span className="flex max-w-[280px] flex-wrap gap-1">
+                        {eventosDaPessoa.map((ev) => (
                           <span
-                            key={ano}
-                            title={anosDaPessoa.has(ano) ? `Participou em ${ano}` : `Não veio em ${ano}`}
+                            key={ev.slug}
+                            title={ev.name}
                             className={cn(
-                              "rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums",
-                              !anosDaPessoa.has(ano)
-                                ? "text-muted-foreground/40 line-through decoration-1"
-                                : ano === eventYear
-                                  ? "bg-primary text-primary-foreground"
-                                  : "bg-secondary text-foreground/80",
+                              "whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold",
+                              ev.slug === eventSlug ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground/80",
                             )}
                           >
-                            {ano}
+                            {ev.label}
                           </span>
                         ))}
                       </span>
@@ -256,14 +283,14 @@ export function PeopleTable({ people, anos, eventSlug, eventYear, restrito = fal
                         <span className="text-muted-foreground">—</span>
                       ) : (
                         <span
-                          title={cupons.map((c) => `${c.code} (${c.ano})`).join("\n")}
+                          title={cupons.map((c) => `${c.code} (${c.evento})`).join("\n")}
                           className={cn(
                             "inline-block max-w-[180px] truncate rounded-md px-1.5 py-0.5 align-middle font-mono text-[11px]",
                             cupons[0].atual ? "bg-data-blue/10 text-data-blue" : "bg-secondary text-muted-foreground",
                           )}
                         >
                           {cupons[0].code}
-                          {!cupons[0].atual && <span className="ml-1 font-sans opacity-70">{cupons[0].ano}</span>}
+                          {!cupons[0].atual && <span className="ml-1 font-sans opacity-70">{cupons[0].evento}</span>}
                         </span>
                       )}
                     </TableCell>
