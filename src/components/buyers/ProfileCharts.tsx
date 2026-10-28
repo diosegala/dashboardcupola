@@ -5,7 +5,7 @@ import { CountUp } from "@/components/CountUp";
 import { countBy } from "@/components/dashboard/CommercialSegments";
 import { BrazilTileMap, ufDe } from "@/components/buyers/profile/BrazilTileMap";
 import { CompanyRanking } from "@/components/buyers/profile/CompanyRanking";
-import { CloudViz, DonutViz, HighlightViz, VizCard, WaffleViz, vizFor, VIZ, type Item } from "@/components/buyers/profile/ProfileViz";
+import { BubblesViz, CloudViz, DonutViz, HighlightViz, VizCard, vizFor, VIZ, type Item } from "@/components/buyers/profile/ProfileViz";
 import { themeCharts } from "@/lib/formQuestions";
 import { isApproved } from "@/lib/eventConfig";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
@@ -28,7 +28,7 @@ function Grafico({ title, items }: { title: string; items: Item[] }) {
   if (forma === "cloud") return <CloudViz items={items} />;
   if (forma === "highlight") return <HighlightViz items={items} />;
   if (forma === "donut") return <DonutViz items={items} />;
-  return <WaffleViz items={items} />;
+  return <BubblesViz items={items} />;
 }
 
 function Destaque({ titulo, valor, sufixo, cor, atraso }: { titulo: string; valor: number; sufixo?: string; cor: string; atraso: number }) {

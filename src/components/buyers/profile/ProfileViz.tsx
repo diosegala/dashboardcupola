@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/InfoTip";
 import { cn } from "@/lib/utils";
@@ -22,11 +22,14 @@ export interface Item {
   value: number;
 }
 
-// Mantém as n-1 maiores e junta o resto em "Outros".
+// Mantém as n-1 maiores e junta o resto em "Outros", sempre no fim (inclusive quando "Outros" é uma resposta do formulário).
+// Assim nunca há mais cores do que a paleta tem.
 export function topN(items: Item[], n: number): Item[] {
-  if (items.length <= n) return items;
-  const resto = items.slice(n - 1).reduce((s, i) => s + i.value, 0);
-  return [...items.slice(0, n - 1), { label: "Outros", value: resto }];
+  const outros = items.filter((i) => i.label === "Outros").reduce((s, i) => s + i.value, 0);
+  const demais = items.filter((i) => i.label !== "Outros");
+  if (demais.length <= n - 1) return outros > 0 ? [...demais, { label: "Outros", value: outros }] : demais;
+  const resto = demais.slice(n - 1).reduce((s, i) => s + i.value, 0) + outros;
+  return [...demais.slice(0, n - 1), { label: "Outros", value: resto }];
 }
 const corDe = (items: Item[], i: number) => (items[i]?.label === "Outros" ? OUTROS : VIZ[i % VIZ.length]);
 
@@ -134,47 +137,60 @@ export function DonutViz({ items: brutos }: { items: Item[] }) {
   );
 }
 
-// Grade de 100 quadradinhos: cada um é 1% das pessoas. Os quadradinhos entram um a um.
-export function WaffleViz({ items: brutos }: { items: Item[] }) {
+// Bolhas: cada resposta é um círculo do tamanho da sua fatia, com a % dentro e o nome embaixo.
+// Uma frase no topo diz o principal, para ninguém precisar decifrar o gráfico.
+export function BubblesViz({ items: brutos }: { items: Item[] }) {
   const items = topN(brutos, 6);
   const total = items.reduce((s, i) => s + i.value, 0);
+  const max = Math.max(...items.map((i) => i.value), 1);
   const [ativo, setAtivo] = useState<number | null>(null);
-
-  // Divide os 100 quadradinhos pelo maior resto, para somar sempre 100.
-  const celulas = useMemo(() => {
-    const exatos = items.map((it) => (it.value / (total || 1)) * 100);
-    const base = exatos.map(Math.floor);
-    let falta = 100 - base.reduce((s, n) => s + n, 0);
-    exatos
-      .map((e, i) => ({ i, resto: e - Math.floor(e) }))
-      .sort((a, b) => b.resto - a.resto)
-      .forEach(({ i }) => {
-        if (falta > 0) {
-          base[i] += 1;
-          falta -= 1;
-        }
-      });
-    return base.flatMap((n, i) => Array.from({ length: n }, () => i));
-  }, [items, total]);
+  const topo = items[0];
+  const fatia = topo.value / (total || 1);
+  const frase = fatia > 0.5 ? "A maioria é" : fatia >= 0.42 ? "Quase metade é" : "O mais comum é";
 
   return (
-    <div className="flex flex-wrap items-center gap-5">
-      <div className="grid shrink-0 grid-cols-10 gap-[3px]" role="img" aria-label={items.map((i) => `${i.label}: ${pct(i.value, total)}`).join(", ")}>
-        {celulas.map((cat, n) => (
-          <i
-            key={n}
-            onMouseEnter={() => setAtivo(cat)}
-            onMouseLeave={() => setAtivo(null)}
-            title={`${items[cat].label}: ${int(items[cat].value)} (${pct(items[cat].value, total)})`}
-            className={cn(
-              "block h-[13px] w-[13px] animate-[pop-in_520ms_cubic-bezier(.16,1,.3,1)_both] rounded-[3px] transition-[opacity,transform] duration-150",
-              ativo !== null && ativo !== cat ? "opacity-25" : ativo === cat && "scale-110",
-            )}
-            style={{ background: corDe(items, cat), animationDelay: `${(n % 10) * 25 + Math.floor(n / 10) * 35}ms` }}
-          />
-        ))}
+    <div className="flex flex-col gap-4">
+      <p className="text-sm text-muted-foreground">
+        {frase} <b className="font-semibold text-foreground">{topo.label}</b> ({pct(topo.value, total)})
+      </p>
+      <div className="flex flex-wrap items-end justify-center gap-x-4 gap-y-5" role="img" aria-label={items.map((i) => `${i.label}: ${pct(i.value, total)}`).join(", ")}>
+        {items.map((it, i) => {
+          const d = Math.round(46 + 94 * Math.sqrt(it.value / max));
+          const outros = it.label === "Outros";
+          return (
+            <div
+              key={it.label}
+              onMouseEnter={() => setAtivo(i)}
+              onMouseLeave={() => setAtivo(null)}
+              title={`${it.label}: ${int(it.value)} ${it.value === 1 ? "pessoa" : "pessoas"} (${pct(it.value, total)})`}
+              className={cn(
+                "flex animate-[pop-in_650ms_cubic-bezier(.16,1,.3,1)_both] cursor-default flex-col items-center gap-1.5 transition-opacity duration-150",
+                ativo !== null && ativo !== i && "opacity-35",
+              )}
+              style={{ animationDelay: `${i * 110}ms` }}
+            >
+              <div
+                className={cn(
+                  "flex animate-[bob_4s_ease-in-out_infinite] items-center justify-center rounded-full font-semibold tabular-nums tracking-[-0.03em] shadow-[0_8px_20px_-12px_rgba(0,0,0,0.45)] transition-transform duration-200",
+                  ativo === i && "scale-105",
+                  outros ? "text-foreground" : "text-white",
+                )}
+                style={{
+                  width: d,
+                  height: d,
+                  background: corDe(items, i),
+                  fontSize: Math.max(12, Math.round(d / 4.2)),
+                  animationDelay: `${(i % 5) * 0.5}s`,
+                  animationDuration: `${3.4 + (i % 4) * 0.5}s`,
+                }}
+              >
+                {pct(it.value, total)}
+              </div>
+              <span className="max-w-[120px] text-center text-xs font-medium leading-tight text-foreground/80">{it.label}</span>
+            </div>
+          );
+        })}
       </div>
-      <Legenda items={items} total={total} ativo={ativo} setAtivo={setAtivo} />
     </div>
   );
 }
@@ -257,10 +273,10 @@ export function HighlightViz({ items }: { items: Item[] }) {
 }
 
 // Escolhe a forma pelo jeito das respostas, para perguntas novas entrarem sozinhas com um gráfico que faz sentido.
-export function vizFor(title: string, items: Item[]): "cloud" | "highlight" | "donut" | "waffle" {
+export function vizFor(title: string, items: Item[]): "cloud" | "highlight" | "donut" | "bubbles" {
   const total = items.reduce((s, i) => s + i.value, 0);
   if (title === "Cidades" || title === "Empresas" || items.length > 8) return "cloud";
   if (items.length === 1 || (items.length > 1 && items[0].value / (total || 1) >= 0.8)) return "highlight";
   if (items.length <= 4) return "donut";
-  return "waffle";
+  return "bubbles";
 }
