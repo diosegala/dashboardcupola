@@ -55,6 +55,18 @@ export function EventsManager({ users }: { users: UserOption[] }) {
   const [form, setForm] = useState<EventForm | null>(null);
   const [accessEvent, setAccessEvent] = useState<EventRow | null>(null);
 
+  // Eventos da conta Sympla, buscados no servidor (o token não vem para o navegador).
+  const symplaEvents = useQuery({
+    queryKey: ["sympla_account_events"],
+    enabled: !!form,
+    staleTime: 10 * 60 * 1000,
+    queryFn: async () => {
+      const { data, error } = await supabase.functions.invoke("list-sympla-events");
+      if (error || !data?.events) return [] as { id: string; name: string; start_date: string | null; end_date: string | null }[];
+      return data.events as { id: string; name: string; start_date: string | null; end_date: string | null }[];
+    },
+  });
+
   const access = useQuery({
     queryKey: ["event_users"],
     enabled: hasEventsTable,
@@ -223,8 +235,41 @@ export function EventsManager({ users }: { users: UserOption[] }) {
               </div>
               <div className="grid gap-3">
                 <div className="grid gap-1.5">
-                  <Label htmlFor="ev-sympla">ID do evento na Sympla</Label>
-                  <Input id="ev-sympla" value={form.sympla_event_id} onChange={(e) => set({ sympla_event_id: e.target.value })} />
+                  <Label htmlFor="ev-sympla">Evento na Sympla</Label>
+                  {symplaEvents.data?.length ? (
+                    <Select
+                      value={form.sympla_event_id || undefined}
+                      onValueChange={(id) => {
+                        const se = symplaEvents.data?.find((e) => e.id === id);
+                        set({
+                          sympla_event_id: id,
+                          // Preenche nome e datas só se ainda estiverem vazios.
+                          ...(se && !form.name ? { name: se.name, slug: slugify(se.name) } : {}),
+                          ...(se?.start_date && !form.start_date ? { start_date: se.start_date.slice(0, 10) } : {}),
+                          ...(se?.end_date && !form.end_date ? { end_date: se.end_date.slice(0, 10) } : {}),
+                        });
+                      }}
+                    >
+                      <SelectTrigger id="ev-sympla">
+                        <SelectValue placeholder="Escolha o evento da conta Sympla" />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[320px]">
+                        {symplaEvents.data.map((e) => (
+                          <SelectItem key={e.id} value={e.id}>
+                            {e.name} · {fmtDate(e.start_date?.slice(0, 10) ?? null)}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    // Sem a lista (carregando ou função fora do ar), dá para informar o ID direto.
+                    <Input
+                      id="ev-sympla"
+                      value={form.sympla_event_id}
+                      placeholder={symplaEvents.isLoading ? "Carregando eventos da Sympla…" : "ID do evento na Sympla"}
+                      onChange={(e) => set({ sympla_event_id: e.target.value })}
+                    />
+                  )}
                 </div>
               </div>
               <DialogFooter>
