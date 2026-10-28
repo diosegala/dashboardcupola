@@ -37,6 +37,17 @@ export const METRIC_INFO: Record<string, string> = {
   "Empresas no evento": "Empresas com compradores ou participantes no evento selecionado, juntando pelo CNPJ ou pelo nome da empresa.",
   "Empresas que já vieram": "Empresas do evento selecionado que também estiveram em algum evento anterior.",
 
+  "Vendas por dia da semana":
+    "Quantas vendas pagantes cada dia da semana teve desde a abertura das vendas. O melhor dia fica em destaque. Cortesias e credenciais não entram.",
+
+  "Região": "Região de quem vai ao evento, pelo estado informado no formulário de inscrição da Sympla. Ingressos aprovados.",
+  "Perfil da empresa": "Perfil da empresa de quem vai ao evento, informado no formulário de inscrição da Sympla.",
+  Acessibilidade: "Recursos de acessibilidade pedidos no formulário de inscrição. Respostas parecidas são agrupadas.",
+  Cargo: "Cargo informado no formulário de inscrição.",
+  Empresas: "Empresas mais frequentes entre quem vai ao evento.",
+  Cidades: "Cidades mais frequentes entre quem vai ao evento.",
+  "Visita presencial": "Opção de visita presencial escolhida no formulário de inscrição.",
+
   // Vendas
   "Ingressos Vendidos (acumulado)":
     "Todos os ingressos vendidos desde a abertura das vendas. Não muda com o período escolhido.",
@@ -46,10 +57,6 @@ export const METRIC_INFO: Record<string, string> = {
   "Receita Total": "Soma do valor dos ingressos vendidos no período selecionado.",
   "Ticket Médio": "Receita do período dividida pela quantidade de ingressos vendidos no mesmo período.",
   "Progresso por Lote": "Ingressos vendidos em cada lote comparados à meta do lote.",
-  "Top 5 Tipos de Ingresso": "Os cinco tipos de ingresso mais vendidos no período.",
-  "Ingressos Vendidos por Dia": "Ingressos vendidos em cada dia do período selecionado.",
-  "Ingressos por Tipo": "Ingressos vendidos no período, separados por tipo de ingresso.",
-  "Vendas por Dia da Semana (histórico)": "Ingressos vendidos em cada dia da semana, somando todo o histórico de vendas.",
   "Funil de KPIs":
     "Resultado de cada etapa do funil, do engajamento até a venda, semana a semana e comparado à meta de cada semana.",
   "Funil de Deals por Estágio": "Negócios do CRM em cada estágio do funil comercial.",

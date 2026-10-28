@@ -19,10 +19,10 @@ import {
 const publicItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Metas", url: "/goals", icon: Target },
+  { title: "Compradores", url: "/compradores", icon: UsersRound },
 ];
 
 const adminItems = [
-  { title: "Compradores", url: "/compradores", icon: UsersRound },
   { title: "Integrações", url: "/integrations", icon: Plug },
   { title: "Configurações", url: "/settings", icon: Settings },
 ];

@@ -30,7 +30,6 @@ import {
   useGoals,
   useAllTimeTicketSales,
   findGoal,
-  useFormAnswerCounts,
   usePreviousEventTickets,
   usePreviousEventRows,
   type DateRange,
@@ -85,7 +84,6 @@ export default function Index() {
   const ga4Events = useGa4Events(range);
   const goals = useGoals();
   const allTimeTickets = useAllTimeTicketSales(currentEventId);
-  const formAnswers = useFormAnswerCounts(currentEventId);
   const previousTickets = usePreviousEventTickets(currentEventId, event.previous_event_slug ?? "");
   const previousAdMetrics = usePreviousEventRows(event.previous_event_slug ?? "", "ad_metrics", range);
   const previousSiteAnalytics = usePreviousEventRows(event.previous_event_slug ?? "", "site_analytics", range);
@@ -186,7 +184,7 @@ export default function Index() {
             {comercialLoading ? <TabSkeleton /> : (
               <div className="space-y-8">
                 <CommercialOverview tickets={allTimeTickets.data ?? []} goals={eventGoals} previousTickets={previousTickets.data ?? []} eventParams={eventParams} />
-                <CommercialSegments tickets={allTimeTickets.data ?? []} formAnswers={formAnswers.data ?? []} />
+                <CommercialSegments tickets={allTimeTickets.data ?? []} />
                 <SalesSection
                   tickets={tickets.data ?? []}
                   goals={eventGoals}
