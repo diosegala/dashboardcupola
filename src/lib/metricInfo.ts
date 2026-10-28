@@ -48,8 +48,14 @@ export const METRIC_INFO: Record<string, string> = {
   "Perfil da empresa": "Perfil da empresa de quem vai ao evento, informado no formulário de inscrição da Sympla.",
   Acessibilidade: "Recursos de acessibilidade pedidos no formulário de inscrição. Respostas parecidas são agrupadas.",
   Cargo: "Cargo informado no formulário de inscrição.",
-  Empresas: "Empresas mais frequentes entre quem vai ao evento.",
-  Cidades: "Cidades mais frequentes entre quem vai ao evento.",
+  Cidades: "Cidades informadas no formulário de inscrição. Grafias diferentes da mesma cidade são juntadas; o tamanho mostra quantas pessoas.",
+  Participantes: "Ingressos aprovados do evento selecionado.",
+  Estados: "Quantos estados diferentes aparecem entre os ingressos aprovados.",
+  "Voltaram à CUPOLA": "Parte das pessoas deste evento que já participaram de algum outro evento CUPOLA (edições anteriores, imersões e outros).",
+  Empresas: "Empresas diferentes entre os participantes deste evento.",
+  "De onde vêm": "Estado de quem vai ao evento, informado no formulário de inscrição. A cor de cada região é fixa; quanto mais forte, mais pessoas daquele estado.",
+  "Empresas da casa":
+    "Empresas presentes neste evento, ranqueadas pela fidelidade à CUPOLA: em quantos eventos já vieram, depois quantos ingressos pagos somam em todos eles. Estreante é quem vem pela primeira vez.",
   "Visita presencial": "Opção de visita presencial escolhida no formulário de inscrição.",
 
   // Vendas

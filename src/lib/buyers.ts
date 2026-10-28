@@ -39,6 +39,8 @@ interface RawRecord {
   company: string | null;
   status: string | null;
   coupon: string | null;
+  // Ingresso com valor (não cortesia). Só vale para participantes.
+  paid: boolean;
 }
 
 export interface Person {
@@ -58,7 +60,8 @@ export interface Company {
   name: string;
   cnpj: string | null;
   people: number;
-  events: Record<string, { event: EventRef; tickets: number }>;
+  // Por evento: ingressos, ingressos pagos e quantas pessoas diferentes da empresa vieram.
+  events: Record<string, { event: EventRef; tickets: number; paid: number; people: Set<string> }>;
   recurring: boolean;
 }
 
@@ -124,6 +127,7 @@ function toRecords(row: DetailRow, event: EventRef): RawRecord[] {
       company: formValue(p, /^empresa$|nome da empresa/i),
       status: p.order_status ?? null,
       coupon: row.coupon ?? p.coupon ?? null,
+      paid: Number(p.ticket_sale_price) > 0,
     });
   }
   if (o) {
@@ -141,6 +145,7 @@ function toRecords(row: DetailRow, event: EventRef): RawRecord[] {
       company: doc.cnpj ? inv.client_name ?? null : null,
       status: o.order_status ?? null,
       coupon: null,
+      paid: false,
     });
   }
   return out;
@@ -256,8 +261,10 @@ export function buildBuyers(rowsByEvent: { event: EventRef; rows: DetailRow[] }[
   const companies: Company[] = Array.from(cGroups.entries()).map(([root, recs]) => {
     const events: Company["events"] = {};
     recs.forEach((r) => {
-      const e = (events[r.event.slug] ??= { event: r.event, tickets: 0 });
+      const e = (events[r.event.slug] ??= { event: r.event, tickets: 0, paid: 0, people: new Set() });
+      e.people.add(personOf.get(r) ?? "");
       if (r.role === "participante") e.tickets += 1;
+      if (r.paid) e.paid += 1;
     });
     return {
       id: String(root),

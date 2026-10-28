@@ -6,9 +6,9 @@ const TEMAS: [RegExp, string | null][] = [
   [/visita presencial/i, "Visita presencial"],
   [/^\s*cargo\s*$/i, "Cargo"],
   [/perfil da empresa/i, null],
+  [/cidade/i, "Cidades"],
   [/estado|\buf\b/i, null],
   [/^\s*empresa\s*$/i, "Empresas"],
-  [/^\s*cidade\s*$/i, "Cidades"],
 ];
 
 export function questionTheme(question: string): string | null {
@@ -32,19 +32,33 @@ export function answerKey(answer: string): { key: string; label: string } {
   return { key: base, label: limpo.charAt(0).toUpperCase() + limpo.slice(1) };
 }
 
+// Cidade escrita de vários jeitos ("porto alegre - RS", "Porto Alegre/RS") vira "Porto Alegre".
+const MINUSCULAS = new Set(["da", "de", "do", "das", "dos", "e"]);
+export function cityKey(answer: string): { key: string; label: string } {
+  const cidade = answer.split(/\s*[/,\-–(]\s*/)[0].replace(/\s+/g, " ").trim();
+  const label = cidade
+    .toLowerCase()
+    .split(" ")
+    .map((p, i) => (i > 0 && MINUSCULAS.has(p) ? p : p.charAt(0).toUpperCase() + p.slice(1)))
+    .join(" ");
+  return { key: semAcento(label).toLowerCase(), label };
+}
+
 export interface ThemeChart {
   title: string;
+  // Todas as respostas, da mais comum para a menos comum.
   items: { label: string; value: number }[];
   distinct: number;
 }
 
-// Agrupa as contagens por tema e por resposta normalizada; mostra as 8 respostas mais comuns.
+// Agrupa as contagens por tema e por resposta normalizada.
 export function themeCharts(rows: { question: string; answer: string; total: number }[]): ThemeChart[] {
   const temas = new Map<string, Map<string, { label: string; value: number }>>();
   rows.forEach((r) => {
     const tema = questionTheme(r.question);
     if (!tema) return;
-    const { key, label } = answerKey(r.answer);
+    const { key, label } = tema === "Cidades" ? cityKey(r.answer) : answerKey(r.answer);
+    if (!key) return;
     const respostas = temas.get(tema) ?? new Map();
     const atual = respostas.get(key) ?? { label, value: 0 };
     atual.value += Number(r.total);
@@ -53,6 +67,6 @@ export function themeCharts(rows: { question: string; answer: string; total: num
   });
   return Array.from(temas.entries()).map(([title, respostas]) => {
     const items = Array.from(respostas.values()).sort((a, b) => b.value - a.value);
-    return { title, items: items.slice(0, 8), distinct: items.length };
+    return { title, items, distinct: items.length };
   });
 }

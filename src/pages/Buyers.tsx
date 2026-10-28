@@ -171,7 +171,11 @@ function FullBuyers() {
             {perfilTickets.isLoading ? (
               <Skeleton className="h-80" />
             ) : (
-              <ProfileCharts tickets={perfilTickets.data ?? []} formAnswers={perfilRespostas.data ?? []} />
+              <ProfileCharts
+                tickets={perfilTickets.data ?? []}
+                formAnswers={perfilRespostas.data ?? []}
+                {...(isAdmin && dados.data ? { people, companies, eventos, eventSlug: event.slug } : {})}
+              />
             )}
           </div>
         </TabsContent>
