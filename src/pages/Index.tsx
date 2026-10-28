@@ -1,4 +1,6 @@
 import { PageHeader } from "@/components/PageHeader";
+import { Chip } from "@/components/Chip";
+import { EVENT_END_DATE, PREVIOUS_EVENT_KEY } from "@/lib/eventConfig";
 import { useState, useMemo, useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -31,6 +33,7 @@ import {
   useSymplaEventIds,
   findGoal,
   useFormAnswerCounts,
+  usePreviousEventTickets,
   type DateRange,
 } from "@/hooks/useDashboardData";
 
@@ -92,6 +95,9 @@ export default function Index() {
   const goals = useGoals();
   const allTimeTickets = useAllTimeTicketSales(symplaIds.data?.currentEventId ?? "");
   const formAnswers = useFormAnswerCounts(symplaIds.data?.currentEventId ?? "");
+  const previousTickets = usePreviousEventTickets(symplaIds.data?.currentEventId ?? "", PREVIOUS_EVENT_KEY);
+  // Depois do último dia o evento fica "Encerrado"; as integrações continuam atualizando se trouxerem dados.
+  const encerrado = new Date() > EVENT_END_DATE;
 
   // Cada aba espera só os dados que usa; cabeçalho e abas aparecem na hora.
   const comercialLoading = symplaIds.isLoading || tickets.isLoading || goals.isLoading || allTimeTickets.isLoading;
@@ -163,6 +169,7 @@ export default function Index() {
     <div>
       <PageHeader
         title="Dashboard"
+        badge={encerrado ? <Chip variant="neutral">Encerrado</Chip> : undefined}
         description="Visão geral de vendas e marketing do CUPOLA Summit"
         actions={
           <>
@@ -189,12 +196,13 @@ export default function Index() {
           <TabsContent value="comercial" className="mt-0 animate-panel-in">
             {comercialLoading ? <TabSkeleton /> : (
               <div className="space-y-8">
-                <CommercialOverview tickets={allTimeTickets.data ?? []} goals={goals.data ?? []} minTicketPrice={minTicketPrice} />
+                <CommercialOverview tickets={allTimeTickets.data ?? []} goals={goals.data ?? []} minTicketPrice={minTicketPrice} previousTickets={previousTickets.data ?? []} />
                 <CommercialSegments tickets={allTimeTickets.data ?? []} minTicketPrice={minTicketPrice} formAnswers={formAnswers.data ?? []} />
                 <SalesSection
                   tickets={filteredTickets}
                   goals={goals.data ?? []}
                   allTimeTickets={filteredAllTimeTickets}
+                  previousYearTickets={previousTickets.data ?? []}
                   range={range}
                   onEditGoal={isAdmin ? handleEditGoal : undefined}
                 />

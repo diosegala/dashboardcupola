@@ -22,7 +22,7 @@ import { useCommercialMetrics, type PaceStatus } from "@/hooks/useCommercialMetr
 import { CURRENT_PACE_DAYS } from "@/lib/eventConfig";
 import { cn } from "@/lib/utils";
 import { ChartLegend } from "./charts/ChartLegend";
-import { useSeriesVisibility } from "./charts/chartSeries";
+import { PREVIOUS_YEAR_KEY, PREVIOUS_YEAR_LABEL, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number) =>
@@ -107,10 +107,11 @@ interface CommercialOverviewProps {
   tickets: any[];
   goals: any[];
   minTicketPrice: number;
+  previousTickets?: any[];
 }
 
-export function CommercialOverview({ tickets, goals, minTicketPrice }: CommercialOverviewProps) {
-  const m = useCommercialMetrics(tickets, goals, minTicketPrice);
+export function CommercialOverview({ tickets, goals, minTicketPrice, previousTickets = [] }: CommercialOverviewProps) {
+  const m = useCommercialMetrics(tickets, goals, minTicketPrice, previousTickets);
   const weeklySeries = useSeriesVisibility();
   const chip = PACE_CHIP[m.paceStatus];
 
@@ -202,6 +203,7 @@ export function CommercialOverview({ tickets, goals, minTicketPrice }: Commercia
             items={[
               { key: "pagantes", label: "Pagantes", color: COLORS.blue, shape: "line" },
               { key: "trajetoria", label: "Trajetória da meta", color: COLORS.muted, shape: "dashed" },
+              ...(m.hasPrevious ? [{ key: PREVIOUS_YEAR_KEY, label: PREVIOUS_YEAR_LABEL, color: COLORS.muted, shape: "dashed" as const }] : []),
             ]}
             hidden={weeklySeries.hidden}
             onToggle={weeklySeries.toggle}
@@ -226,6 +228,14 @@ export function CommercialOverview({ tickets, goals, minTicketPrice }: Commercia
                 strokeOpacity={weeklySeries.opacity("trajetoria", 0.8)}
                 animationDuration={1000}
               />
+              {m.hasPrevious && (
+                <Line
+                  {...previousYearLineProps}
+                  strokeDasharray="2 4"
+                  hide={weeklySeries.hidden.has(PREVIOUS_YEAR_KEY)}
+                  strokeOpacity={weeklySeries.opacity(PREVIOUS_YEAR_KEY, 0.55)}
+                />
+              )}
               <Line
                 dataKey="pagantes"
                 name="Pagantes"

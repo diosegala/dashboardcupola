@@ -14,11 +14,12 @@ interface SalesSectionProps {
   tickets: any[];
   goals: any[];
   allTimeTickets?: any[];
+  previousYearTickets?: any[];
   range: DateRange;
   onEditGoal?: (metricKey: string, ticketType?: string | null) => void;
 }
 
-export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEditGoal }: SalesSectionProps) {
+export function SalesSection({ tickets, goals, allTimeTickets = [], previousYearTickets = [], range, onEditGoal }: SalesSectionProps) {
   const totalTickets = useMemo(() => tickets.reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
   const totalRevenue = useMemo(() => tickets.reduce((s, t) => s + Number(t.total_price || 0), 0), [tickets]);
 
@@ -199,7 +200,7 @@ export function SalesSection({ tickets, goals, allTimeTickets = [], range, onEdi
 
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <TicketsByDayChart tickets={tickets} />
+        <TicketsByDayChart tickets={tickets} previousYearTickets={previousYearTickets} />
         <TicketsByTypeChart tickets={tickets} />
       </div>
 

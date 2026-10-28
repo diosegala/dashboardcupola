@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { addDays, differenceInCalendarWeeks, endOfWeek, format, startOfDay, startOfWeek } from "date-fns";
+import { addDays, addYears, differenceInCalendarWeeks, endOfWeek, format, startOfDay, startOfWeek } from "date-fns";
 import { businessDaysBetween, lastBusinessDays } from "@/lib/businessDays";
 import { parseCoupon } from "@/lib/coupons";
 import {
@@ -46,7 +46,7 @@ export function splitTickets(tickets: Ticket[], minTicketPrice: number) {
 }
 
 // Indicadores da aba Comercial, sempre sobre todas as vendas do evento atual (não dependem do período).
-export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketPrice: number) {
+export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketPrice: number, previousTickets: Ticket[] = []) {
   return useMemo(() => {
     const today = startOfDay(new Date());
     const { paidSympla, invoiced, bonus, paying } = splitTickets(tickets, minTicketPrice);
@@ -98,6 +98,11 @@ export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketP
     const totalBusiness = Math.max(businessDaysBetween(start, lastDayBeforeEvent).length, 1);
     const weekCount = differenceInCalendarWeeks(EVENT_DATE, start, { weekStartsOn: 1 }) + 1;
     const sortedDays = Array.from(byDay.entries()).sort((a, b) => a[0].localeCompare(b[0]));
+    const previousPaying = splitTickets(previousTickets, minTicketPrice).paying;
+    const previousDays = previousPaying
+      .filter((t) => t.sold_at)
+      .map((t) => [dayKey(addYears(new Date(t.sold_at as string), 1)), qty(t)] as const);
+    const hasPrevious = previousDays.length > 0;
     const weekly = Array.from({ length: Math.max(weekCount, 1) }, (_, i) => {
       const weekStart = startOfWeek(addDays(start, i * 7), { weekStartsOn: 1 });
       const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
@@ -110,6 +115,7 @@ export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketP
         weekStart: dayKey(weekStart),
         pagantes: weekStart <= today ? cumulative : null,
         trajetoria: trajectory,
+        ...(hasPrevious ? { anoAnterior: previousDays.filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0) } : {}),
       };
     });
 
@@ -129,7 +135,8 @@ export function useCommercialMetrics(tickets: Ticket[], goals: any[], minTicketP
       paceStatus,
       dailyBusiness,
       weekly,
+      hasPrevious,
       issuedCount: paidSymplaCount + invoicedCount + bonusCount,
     };
-  }, [tickets, goals, minTicketPrice]);
+  }, [tickets, goals, minTicketPrice, previousTickets]);
 }
