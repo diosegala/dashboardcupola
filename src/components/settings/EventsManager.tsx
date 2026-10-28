@@ -28,7 +28,6 @@ interface EventForm {
   sympla_event_id: string;
   previous_event_slug: string;
   paying_goal: string;
-  sympla_token: string;
 }
 
 const EMPTY: EventForm = {
@@ -39,7 +38,6 @@ const EMPTY: EventForm = {
   sympla_event_id: "",
   previous_event_slug: "",
   paying_goal: "",
-  sympla_token: "",
 };
 
 const NONE = "__nenhum__";
@@ -98,13 +96,6 @@ export function EventsManager({ users }: { users: UserOption[] }) {
         if (names.length) {
           await supabase.from("event_integrations" as any).insert(names.map((n: string) => ({ event_id: eventId, integration_name: n })));
         }
-      }
-      // Token da Sympla só quando o evento usa outra conta; nunca é mostrado de volta.
-      if (f.sympla_token.trim() && eventId) {
-        const { error } = await supabase
-          .from("event_integrations" as any)
-          .upsert({ event_id: eventId, integration_name: "sympla", credentials: { api_token: f.sympla_token.trim() } });
-        if (error) throw error;
       }
     },
     onSuccess: () => {
@@ -201,7 +192,6 @@ export function EventsManager({ users }: { users: UserOption[] }) {
                         sympla_event_id: e.sympla_event_id ?? "",
                         previous_event_slug: e.previous_event_slug ?? "",
                         paying_goal: e.paying_goal ? String(e.paying_goal) : "",
-                        sympla_token: "",
                       })
                     }
                   >
@@ -268,10 +258,6 @@ export function EventsManager({ users }: { users: UserOption[] }) {
                       ))}
                   </SelectContent>
                 </Select>
-              </div>
-              <div className="grid gap-1.5">
-                <Label htmlFor="ev-token">Token da Sympla (só se for outra conta)</Label>
-                <Input id="ev-token" type="password" autoComplete="off" value={form.sympla_token} placeholder="Deixe em branco para usar a conta geral" onChange={(e) => set({ sympla_token: e.target.value })} />
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setForm(null)}>
