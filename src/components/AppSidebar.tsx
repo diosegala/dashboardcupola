@@ -98,11 +98,12 @@ export function AppSidebar() {
           <SidebarMenuItem>
             <SidebarMenuButton
               onClick={toggleSidebar}
+              title={recolhido ? "Expandir menu" : "Recolher menu"}
               tooltip={recolhido ? "Expandir menu" : "Recolher menu"}
-              className={itemClass}
+              className={`${itemClass} w-10 justify-center px-0`}
             >
               {recolhido ? <PanelLeftOpen /> : <PanelLeftClose />}
-              <span>Recolher menu</span>
+              <span className="sr-only">{recolhido ? "Expandir menu" : "Recolher menu"}</span>
             </SidebarMenuButton>
           </SidebarMenuItem>
         </SidebarMenu>
