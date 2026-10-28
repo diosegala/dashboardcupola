@@ -5,8 +5,6 @@ import {
   Cell,
   Line,
   LineChart,
-  Pie,
-  PieChart,
   ReferenceLine,
   ResponsiveContainer,
   Tooltip,
@@ -16,6 +14,7 @@ import {
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/CountUp";
+import { IssuedTicketsCard } from "./IssuedTicketsCard";
 import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import { useCommercialMetrics, type EventParams, type PaceStatus } from "@/hooks/useCommercialMetrics";
@@ -115,12 +114,6 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
   const weeklySeries = useSeriesVisibility();
   const chip = PACE_CHIP[m.paceStatus];
 
-  const composition = [
-    { key: "sympla", name: "Pagos na Sympla", value: m.paidSymplaCount, color: COLORS.sympla },
-    { key: "invoiced", name: "Faturados", value: m.invoicedCount, color: COLORS.invoiced },
-    { key: "bonus", name: "Bonificados", value: m.bonusCount, color: COLORS.bonus },
-  ].filter((c) => c.value > 0);
-
   return (
     <div className="grid grid-cols-12 gap-[14px]">
       {/* Linha 1: meta, ritmo necessário e ritmo atual */}
@@ -160,38 +153,18 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
         footer={<Chip variant={chip.variant}>{chip.label}</Chip>}
       />
 
-      {/* Linha 2: composição dos ingressos e receita */}
+      {/* Linha 2: todos os ingressos emitidos (pizza) e receita */}
+      <IssuedTicketsCard tickets={tickets} className="col-span-12 lg:col-span-8" />
       <KpiCard
-        className="col-span-12 sm:col-span-6 lg:col-span-3"
-        title="Pagos na Sympla"
-        value={m.paidSymplaCount}
-        format={int}
-        footer={<span>{m.payingCount > 0 ? `${Math.round((m.paidSymplaCount / m.payingCount) * 100)}% dos pagantes` : "Sem vendas"}</span>}
-      />
-      <KpiCard
-        className="col-span-12 sm:col-span-6 lg:col-span-3"
-        title="Faturados internamente"
-        value={m.invoicedCount}
-        format={int}
-        footer={<span>Cupom que começa com FATURADO</span>}
-      />
-      <KpiCard
-        className="col-span-12 sm:col-span-6 lg:col-span-3"
-        title="Bonificados"
-        value={m.bonusCount}
-        format={int}
-        footer={<Chip variant="neutral">Fora da meta</Chip>}
-      />
-      <KpiCard
-        className="col-span-12 sm:col-span-6 lg:col-span-3"
+        className="col-span-12 lg:col-span-4"
         title="Receita acumulada"
         value={m.revenue}
         format={brl}
         footer={<span>Ticket médio {brl(m.payingCount > 0 ? m.revenue / m.payingCount : 0)}</span>}
       />
 
-      {/* Linha 3: pagantes acumulados x trajetória e composição */}
-      <Card className="col-span-12 lg:col-span-8">
+      {/* Linha 3: pagantes acumulados x trajetória */}
+      <Card className="col-span-12">
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-2">
           <div>
             <CardTitle className="flex items-center gap-2">
@@ -249,43 +222,6 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
               />
             </LineChart>
           </ResponsiveContainer>
-        </CardContent>
-      </Card>
-
-      <Card className="col-span-12 lg:col-span-4">
-        <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2">
-            Composição <InfoTip title="Composição" />
-          </CardTitle>
-          <p className="text-xs text-muted-foreground">Ingressos emitidos: {int(m.issuedCount)}</p>
-        </CardHeader>
-        <CardContent>
-          <div className="relative">
-            <ResponsiveContainer width="100%" height={200}>
-              <PieChart>
-                <Pie data={composition} dataKey="value" nameKey="name" innerRadius="68%" outerRadius="92%" paddingAngle={2} stroke="none" animationDuration={1000}>
-                  {composition.map((c) => (
-                    <Cell key={c.key} fill={c.color} />
-                  ))}
-                </Pie>
-                <Tooltip {...tooltipStyle} formatter={(v: number, n: string) => [int(v), n]} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
-              <div>
-                <div className="text-2xl font-semibold tracking-[-0.035em]">{int(m.payingCount)}</div>
-                <div className="text-xs text-muted-foreground">contam na meta</div>
-              </div>
-            </div>
-          </div>
-          <div className="mt-3 flex flex-wrap gap-3.5 text-xs text-foreground/75">
-            {composition.map((c) => (
-              <span key={c.key} className="inline-flex items-center gap-1.5">
-                <i className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: c.color }} />
-                {c.name} {int(c.value)}
-              </span>
-            ))}
-          </div>
         </CardContent>
       </Card>
 

@@ -120,7 +120,6 @@ interface CommercialSegmentsProps {
 export function CommercialSegments({ tickets, formAnswers = [] }: CommercialSegmentsProps) {
   const { paying, bonus } = useMemo(() => splitTickets(tickets), [tickets]);
 
-  const porTipo = useMemo(() => countBy(paying, (t) => t.ticket_type || "Sem tipo").slice(0, 8), [paying]);
   const porRegiao = useMemo(() => countBy(paying, (t) => (t.buyer_state ? regiaoDe(t.buyer_state) : null)), [paying]);
   const porPorte = useMemo(() => countBy(paying, (t) => t.company_size), [paying]);
   const porPagamento = useMemo(() => countBy(paying, (t) => (t.payment_method ? pagamentoDe(t.payment_method) : null)), [paying]);
@@ -154,7 +153,6 @@ export function CommercialSegments({ tickets, formAnswers = [] }: CommercialSegm
   }, [paying, bonus]);
 
   const segmentos = [
-    { title: "Pagantes por tipo de ingresso", items: porTipo },
     { title: "Pagantes por região", items: porRegiao },
     { title: "Pagantes por perfil da empresa", items: porPorte },
     { title: "Pagantes por forma de pagamento", items: porPagamento },

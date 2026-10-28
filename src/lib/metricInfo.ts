@@ -16,6 +16,8 @@ export const METRIC_INFO: Record<string, string> = {
   "Receita acumulada": "Valor dos ingressos pagantes desde a abertura das vendas.",
   "Pagantes acumulados x meta":
     "Linha cheia: total de pagantes semana a semana. Linha tracejada: trajetória até a meta no dia do evento, distribuída por dias úteis.",
+  "Ingressos emitidos":
+    "Todos os ingressos do evento. Por categoria: pagos na Sympla e faturados contam na meta; cortesias com cupom e gratuitos são bonificados; pendentes ainda não foram pagos. Por tipo de ingresso: a categoria cadastrada na Sympla (lote, VIP etc.).",
   "Composição":
     "Divide os ingressos emitidos entre pagos na Sympla, faturados internamente e bonificados. Só os dois primeiros contam na meta.",
   "Vendas por dia útil":
