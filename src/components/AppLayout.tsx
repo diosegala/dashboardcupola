@@ -1,4 +1,4 @@
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/components/ui/sidebar";
@@ -16,7 +16,8 @@ export function AppLayout() {
 
   return (
     <EventProvider>
-    <SidebarProvider>
+    {/* Menu mais fino (o padrão é 16rem): sobra mais espaço para o conteúdo */}
+    <SidebarProvider style={{ "--sidebar-width": "12.5rem" } as CSSProperties}>
       <div className="app-bg" aria-hidden>
         <span className="orb orb-1" />
         <span className="orb orb-2" />

@@ -101,7 +101,7 @@ export function AppSidebar() {
                 className={itemClass}
               >
                 {viewingAsSeller ? <EyeOff /> : <Eye />}
-                <span>{viewingAsSeller ? "Voltar ao painel completo" : "Ver como a equipe"}</span>
+                <span>{viewingAsSeller ? "Voltar ao painel" : "Ver como a equipe"}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
