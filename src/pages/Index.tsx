@@ -30,6 +30,7 @@ import {
   useAllTimeTicketSales,
   useSymplaEventIds,
   findGoal,
+  useFormAnswerCounts,
   type DateRange,
 } from "@/hooks/useDashboardData";
 
@@ -90,6 +91,7 @@ export default function Index() {
   const ga4Events = useGa4Events(range);
   const goals = useGoals();
   const allTimeTickets = useAllTimeTicketSales(symplaIds.data?.currentEventId ?? "");
+  const formAnswers = useFormAnswerCounts(symplaIds.data?.currentEventId ?? "");
 
   // Cada aba espera só os dados que usa; cabeçalho e abas aparecem na hora.
   const comercialLoading = symplaIds.isLoading || tickets.isLoading || goals.isLoading || allTimeTickets.isLoading;
@@ -188,7 +190,7 @@ export default function Index() {
             {comercialLoading ? <TabSkeleton /> : (
               <div className="space-y-8">
                 <CommercialOverview tickets={allTimeTickets.data ?? []} goals={goals.data ?? []} minTicketPrice={minTicketPrice} />
-                <CommercialSegments tickets={allTimeTickets.data ?? []} minTicketPrice={minTicketPrice} />
+                <CommercialSegments tickets={allTimeTickets.data ?? []} minTicketPrice={minTicketPrice} formAnswers={formAnswers.data ?? []} />
                 <SalesSection
                   tickets={filteredTickets}
                   goals={goals.data ?? []}
