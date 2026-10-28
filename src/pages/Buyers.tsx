@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { Navigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -15,6 +14,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Chip } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import { SlidingTabsList } from "@/components/dashboard/SlidingTabsList";
+import { ProfileCharts } from "@/components/buyers/ProfileCharts";
+import { useAllTimeTicketSales, useFormAnswerCounts } from "@/hooks/useDashboardData";
 import { buildBuyers, formatPhone, maskCpf, pendingOrders, type DetailRow, type EventRef } from "@/lib/buyers";
 
 const int = (n: number) => n.toLocaleString("pt-BR");
@@ -82,7 +83,10 @@ function Kpi({ title, value }: { title: string; value: number }) {
 export default function Buyers() {
   const { isAdmin, loading } = useAuth();
   const { events, event } = useEvent();
-  const [aba, setAba] = useState("pessoas");
+  const [aba, setAba] = useState("perfil");
+  // Perfil (só totais) vale para todos; pessoas, empresas e pedidos mostram dados pessoais e são só de administradores.
+  const perfilTickets = useAllTimeTicketSales(event.sympla_event_id ?? "");
+  const perfilRespostas = useFormAnswerCounts(event.sympla_event_id ?? "");
   const [busca, setBusca] = useState("");
   const [soRecorrentes, setSoRecorrentes] = useState(false);
   const [limite, setLimite] = useState(PAGE);
@@ -138,8 +142,6 @@ export default function Buyers() {
     [companies, soRecorrentes, termo],
   );
 
-  if (!loading && !isAdmin) return <Navigate to="/" replace />;
-
   const eventChips = (evs: Record<string, { event: EventRef; roles?: Set<string> }>) =>
     anos.map((ano) => {
       const e = Object.values(evs).find((x) => x.event.year === ano);
@@ -155,36 +157,41 @@ export default function Buyers() {
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Compradores" description="Quem comprou ou vai participar do evento selecionado e quem já veio em anos anteriores." />
+      <PageHeader title="Compradores" description="Quem comprou ou vai participar do evento selecionado, o perfil dessas pessoas e quem já veio em anos anteriores." />
 
-      {dados.isLoading ? (
+      {isAdmin && dados.isLoading ? (
         <div className="space-y-4">
           <Skeleton className="h-28" />
           <Skeleton className="h-96" />
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-12 gap-[14px]">
+          {isAdmin && <div className="grid grid-cols-12 gap-[14px]">
             <Kpi title="Pessoas no evento" value={people.length} />
             <Kpi title="Já vieram antes" value={people.filter((p) => p.recurring).length} />
             <Kpi title="Empresas no evento" value={companies.length} />
             <Kpi title="Empresas que já vieram" value={companies.filter((c) => c.recurring).length} />
-          </div>
+          </div>}
 
           <Tabs value={aba} onValueChange={(v) => { setAba(v); setLimite(PAGE); }}>
             <div className="mb-4 flex flex-wrap items-center gap-3">
               <SlidingTabsList value={aba} className="max-w-full justify-start overflow-x-auto">
                 {[
-                  ["pessoas", "Pessoas"],
-                  ["empresas", "Empresas"],
-                  ["pedidos", `Pedidos para acompanhar (${int(pedidos.length)})`],
+                  ["perfil", "Perfil"],
+                  ...(isAdmin
+                    ? [
+                        ["pessoas", "Pessoas"],
+                        ["empresas", "Empresas"],
+                        ["pedidos", `Pedidos para acompanhar (${int(pedidos.length)})`],
+                      ]
+                    : []),
                 ].map(([v, l]) => (
                   <TabsTrigger key={v} value={v} className="relative z-[1] data-[state=active]:bg-transparent data-[state=active]:text-background">
                     {l}
                   </TabsTrigger>
                 ))}
               </SlidingTabsList>
-              {aba !== "pedidos" && (
+              {(aba === "pessoas" || aba === "empresas") && (
                 <>
                   <Input
                     value={busca}
@@ -201,6 +208,14 @@ export default function Buyers() {
             </div>
 
             <div className="rounded-[28px] border bg-bg-alt/85 p-3 sm:p-5">
+              <TabsContent value="perfil" className="mt-0">
+                {perfilTickets.isLoading ? (
+                  <Skeleton className="h-80" />
+                ) : (
+                  <ProfileCharts tickets={perfilTickets.data ?? []} formAnswers={perfilRespostas.data ?? []} />
+                )}
+              </TabsContent>
+
               <TabsContent value="pessoas" className="mt-0">
                 <Card>
                   <CardContent className="overflow-x-auto p-0">

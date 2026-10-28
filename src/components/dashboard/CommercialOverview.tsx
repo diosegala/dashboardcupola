@@ -15,6 +15,9 @@ import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/CountUp";
 import { IssuedTicketsCard } from "./IssuedTicketsCard";
+import { SlidingTabsList } from "./SlidingTabsList";
+import { WeekdayView } from "./charts/WeekdayView";
+import { Tabs, TabsTrigger } from "@/components/ui/tabs";
 import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import { useCommercialMetrics, type EventParams, type PaceStatus } from "@/hooks/useCommercialMetrics";
@@ -112,6 +115,7 @@ interface CommercialOverviewProps {
 export function CommercialOverview({ tickets, goals, previousTickets = [], eventParams }: CommercialOverviewProps) {
   const m = useCommercialMetrics(tickets, goals, previousTickets, eventParams);
   const weeklySeries = useSeriesVisibility();
+  const [diaVisao, setDiaVisao] = useState<"uteis" | "semana">("uteis");
   const chip = PACE_CHIP[m.paceStatus];
 
   return (
@@ -225,16 +229,34 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
         </CardContent>
       </Card>
 
-      {/* Linha 4: vendas por dia útil */}
+      {/* Linha 4: vendas por dia (últimos dias úteis ou dia da semana) */}
       <Card className="col-span-12">
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-2">
           <div>
             <CardTitle className="flex items-center gap-2">
-              Vendas por dia útil <InfoTip title="Vendas por dia útil" />
+              Vendas por dia <InfoTip title={diaVisao === "uteis" ? "Vendas por dia útil" : "Vendas por dia da semana"} />
             </CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">Últimos 15 dias úteis</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {diaVisao === "uteis" ? "Últimos 15 dias úteis comparados ao ritmo necessário" : "Vendas pagantes em cada dia da semana desde a abertura das vendas"}
+            </p>
           </div>
-          <div className="flex flex-wrap gap-3.5 text-xs text-foreground/75">
+          <Tabs value={diaVisao} onValueChange={(v) => setDiaVisao(v as "uteis" | "semana")}>
+            <SlidingTabsList value={diaVisao} className="h-9">
+              <TabsTrigger value="uteis" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
+                Últimos dias úteis
+              </TabsTrigger>
+              <TabsTrigger value="semana" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
+                Dia da semana
+              </TabsTrigger>
+            </SlidingTabsList>
+          </Tabs>
+        </CardHeader>
+        <CardContent>
+          {diaVisao === "semana" ? (
+            <WeekdayView tickets={tickets} />
+          ) : (
+          <>
+          <div className="mb-2 flex flex-wrap gap-3.5 text-xs text-foreground/75">
             <span className="inline-flex items-center gap-1.5">
               <i className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: COLORS.blue }} /> No ritmo
             </span>
@@ -242,8 +264,6 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
               <i className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: COLORS.amber }} /> Abaixo
             </span>
           </div>
-        </CardHeader>
-        <CardContent>
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={m.dailyBusiness} margin={{ left: -12, right: 8, top: 8 }}>
               <CartesianGrid vertical={false} className="stroke-border" />
@@ -270,6 +290,8 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
           <p className="mt-2 text-xs text-muted-foreground">
             Ritmo atual considera a média dos últimos {CURRENT_PACE_DAYS} dias úteis. Feriados nacionais e fins de semana ficam de fora.
           </p>
+          </>
+          )}
         </CardContent>
       </Card>
     </div>
