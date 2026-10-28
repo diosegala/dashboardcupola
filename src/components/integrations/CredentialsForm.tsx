@@ -16,8 +16,6 @@ interface FieldDef {
 const FIELDS: Record<string, FieldDef[]> = {
   sympla: [
     { key: "api_token", label: "API Token (s_token)", type: "text" },
-    { key: "event_id", label: "Event ID (evento atual)", type: "text" },
-    { key: "previous_event_id", label: "Event ID (evento anterior - comparação ano a ano)", type: "text" },
   ],
   pipedrive: [
     { key: "api_token", label: "API Token", type: "text" },
@@ -70,7 +68,8 @@ export function CredentialsForm({ open, onOpenChange, integration, onSave }: Pro
   }, [open]);
 
   const handleSave = () => {
-    onSave(values);
+    // O ID de cada evento fica em Configurações → Eventos; aqui só as credenciais da conta.
+    onSave({ ...existing, ...values });
     onOpenChange(false);
   };
 
