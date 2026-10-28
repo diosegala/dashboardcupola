@@ -144,9 +144,9 @@ Deno.serve(async (req) => {
         buyer_company: formAnswerExact(p, ["empresa", "nome da empresa"]),
         buyer_role: formAnswerExact(p, ["cargo"]),
         payment_method: order?.transaction_type ?? order?.payment_method ?? null,
-        utm_source: order?.utm_data?.utm_source ?? order?.utm_source ?? null,
-        utm_medium: order?.utm_data?.utm_medium ?? order?.utm_medium ?? null,
-        utm_campaign: order?.utm_data?.utm_campaign ?? order?.utm_campaign ?? null,
+        utm_source: order?.utm?.utm_source ?? order?.utm_data?.utm_source ?? null,
+        utm_medium: order?.utm?.utm_medium ?? order?.utm_data?.utm_medium ?? null,
+        utm_campaign: order?.utm?.utm_campaign ?? order?.utm_data?.utm_campaign ?? null,
         synced_at: new Date().toISOString(),
       });
     });

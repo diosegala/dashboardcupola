@@ -21,6 +21,7 @@ const PAGAMENTO: Record<string, string> = {
   CREDIT_CARD: "Cartão de crédito",
   DEBIT_CARD: "Cartão de débito",
   BOLETO: "Boleto",
+  BOLETO_BANCARIO: "Boleto",
   BANK_SLIP: "Boleto",
   PIX: "Pix",
   FREE: "Gratuito",
