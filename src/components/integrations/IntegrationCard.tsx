@@ -4,13 +4,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Ticket, PieChart, Megaphone, BarChart3, Mail, Globe, RefreshCw, Settings, AlertTriangle, History } from "lucide-react";
+import { Ticket, PieChart, Megaphone, BarChart3, Mail, Globe, RefreshCw, Settings, AlertTriangle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import type { Integration } from "@/hooks/useIntegrations";
 import { CredentialsForm } from "./CredentialsForm";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "sonner";
 
 const ICONS: Record<string, React.ElementType> = {
   sympla: Ticket,
@@ -40,28 +38,11 @@ interface Props {
 
 export function IntegrationCard({ integration, isAdmin, onToggle, onSync, onSaveCredentials }: Props) {
   const [showCredentials, setShowCredentials] = useState(false);
-  const [syncingPrevious, setSyncingPrevious] = useState(false);
   const Icon = ICONS[integration.name] ?? Globe;
   const label = LABELS[integration.name] ?? integration.name;
   const isSyncing = integration.sync_status === "syncing";
   const isError = integration.sync_status === "error";
-  const creds = (integration.credentials as Record<string, string>) ?? {};
-  const hasPreviousEvent = integration.name === "sympla" && !!creds.previous_event_id;
 
-  const handleSyncPrevious = async () => {
-    setSyncingPrevious(true);
-    try {
-      const { error } = await supabase.functions.invoke("sync-sympla", {
-        body: { event_id: creds.previous_event_id },
-      });
-      if (error) throw error;
-      toast.success("Sincronização do evento anterior iniciada!");
-    } catch (err: any) {
-      toast.error("Erro ao sincronizar evento anterior: " + err.message);
-    } finally {
-      setSyncingPrevious(false);
-    }
-  };
 
   return (
     <>
@@ -115,17 +96,6 @@ export function IntegrationCard({ integration, isAdmin, onToggle, onSync, onSave
               <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? "animate-spin" : ""}`} />
               Sincronizar
             </Button>
-            {hasPreviousEvent && (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleSyncPrevious}
-                disabled={!isAdmin || !integration.is_active || syncingPrevious}
-              >
-                <History className={`h-4 w-4 mr-1 ${syncingPrevious ? "animate-spin" : ""}`} />
-                Sync Anterior
-              </Button>
-            )}
             <Button
               size="sm"
               variant="outline"
