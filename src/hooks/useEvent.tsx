@@ -73,7 +73,11 @@ export function EventProvider({ children }: { children: ReactNode }) {
 
   const hasEventsTable = Array.isArray(eventsQuery.data);
   const events = useMemo<EventRow[]>(() => {
-    if (hasEventsTable) return eventsQuery.data as EventRow[];
+    if (hasEventsTable) {
+      // Cada evento compara sempre com o evento imediatamente anterior (o último que terminou antes dele).
+      const list = eventsQuery.data as EventRow[];
+      return list.map((e) => ({ ...e, previous_event_slug: previousEventOf(e, list)?.slug ?? null }));
+    }
     return [{ ...FALLBACK_EVENT, sympla_event_id: fallbackSympla.data?.currentEventId || null }];
   }, [hasEventsTable, eventsQuery.data, fallbackSympla.data]);
 
@@ -114,6 +118,13 @@ export function useEvent() {
   const ctx = useContext(EventContext);
   if (!ctx) throw new Error("useEvent precisa estar dentro de EventProvider");
   return ctx;
+}
+
+// Evento imediatamente anterior: o que terminou por último antes do último dia deste.
+export function previousEventOf(event: { slug: string; end_date: string }, events: { slug: string; end_date: string }[]) {
+  return events
+    .filter((e) => e.slug !== event.slug && e.end_date < event.end_date)
+    .sort((a, b) => b.end_date.localeCompare(a.end_date))[0];
 }
 
 // Versão opcional, para componentes que também aparecem fora da área logada.
