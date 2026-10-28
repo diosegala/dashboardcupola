@@ -30,15 +30,12 @@ const qty = (t: Ticket) => t.quantity || 0;
 const dayKey = (d: Date) => format(d, "yyyy-MM-dd");
 
 // Separa as vendas aprovadas em pagos na Sympla, faturados (cupom FATURADO) e bonificados (valor zero).
-export function splitTickets(tickets: Ticket[], minTicketPrice: number) {
+export function splitTickets(tickets: Ticket[]) {
     const approved = tickets.filter((t) => isApproved(t.status));
     const invoiced = approved.filter((t) => parseCoupon(t.coupon_code)?.kind === "faturado");
     const notInvoiced = approved.filter((t) => !invoiced.includes(t));
-    // Pagos na Sympla: aprovados, com valor acima de zero e do valor mínimo configurado.
-    const paidSympla = notInvoiced.filter((t) => {
-      const price = Number(t.unit_price ?? t.total_price ?? 0);
-      return price > 0 && price >= minTicketPrice;
-    });
+    // Pagos na Sympla: aprovados com qualquer valor acima de zero.
+    const paidSympla = notInvoiced.filter((t) => Number(t.unit_price ?? t.total_price ?? 0) > 0);
     // Bonificados: aprovados sem valor (cortesias, expositores, patrocinadores). Não somam na meta nem na receita.
     const bonus = notInvoiced.filter((t) => Number(t.unit_price ?? t.total_price ?? 0) === 0);
     const paying = [...paidSympla, ...invoiced];
@@ -56,13 +53,12 @@ export interface EventParams {
 export function useCommercialMetrics(
   tickets: Ticket[],
   goals: any[],
-  minTicketPrice: number,
   previousTickets: Ticket[] = [],
   { eventDate, payingGoal }: EventParams = { eventDate: EVENT_DATE, payingGoal: PAYING_GOAL_DEFAULT },
 ) {
   return useMemo(() => {
     const today = startOfDay(new Date());
-    const { paidSympla, invoiced, bonus, paying } = splitTickets(tickets, minTicketPrice);
+    const { paidSympla, invoiced, bonus, paying } = splitTickets(tickets);
 
     const paidSymplaCount = paidSympla.reduce((s, t) => s + qty(t), 0);
     const invoicedCount = invoiced.reduce((s, t) => s + qty(t), 0);
@@ -111,7 +107,7 @@ export function useCommercialMetrics(
     const totalBusiness = Math.max(businessDaysBetween(start, lastDayBeforeEvent).length, 1);
     const weekCount = differenceInCalendarWeeks(eventDate, start, { weekStartsOn: 1 }) + 1;
     const sortedDays = Array.from(byDay.entries()).sort((a, b) => a[0].localeCompare(b[0]));
-    const previousPaying = splitTickets(previousTickets, minTicketPrice).paying;
+    const previousPaying = splitTickets(previousTickets).paying;
     const previousDays = previousPaying
       .filter((t) => t.sold_at)
       .map((t) => [dayKey(addYears(new Date(t.sold_at as string), 1)), qty(t)] as const);
@@ -151,5 +147,5 @@ export function useCommercialMetrics(
       hasPrevious,
       issuedCount: paidSymplaCount + invoicedCount + bonusCount,
     };
-  }, [tickets, goals, minTicketPrice, previousTickets, eventDate, payingGoal]);
+  }, [tickets, goals, previousTickets, eventDate, payingGoal]);
 }

@@ -15,6 +15,8 @@ import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { CampaignFilter, type Campaign } from "./CampaignFilter";
 
 interface MarketingSectionProps {
+  previousAdMetrics?: any[];
+  previousSiteAnalytics?: any[];
   adMetrics: any[];
   emailCampaigns: any[];
   siteAnalytics: any[];
@@ -24,7 +26,7 @@ interface MarketingSectionProps {
   onEditGoal?: (metricKey: string, ticketType?: string | null) => void;
 }
 
-export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range, onEditGoal }: MarketingSectionProps) {
+export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range, onEditGoal, previousAdMetrics = [], previousSiteAnalytics = [] }: MarketingSectionProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [selectedEmailCampaigns, setSelectedEmailCampaigns] = useState<string[]>([]);
   const [compareA, setCompareA] = useState<string | null>(null);
@@ -338,8 +340,8 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
 
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-2">
-        <ClicksByDayChart adMetrics={filteredAdMetrics} />
-        <SessionsByDayChart siteAnalytics={siteAnalytics} />
+        <ClicksByDayChart adMetrics={filteredAdMetrics} previousAdMetrics={previousAdMetrics} />
+        <SessionsByDayChart siteAnalytics={siteAnalytics} previousSiteAnalytics={previousSiteAnalytics} />
       </div>
     </section>
   );

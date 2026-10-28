@@ -29,6 +29,19 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // Sincronização manual só para administradores (a agendada não passa por aqui).
+    const { data: isAdmin } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Apenas administradores podem sincronizar" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   try {
@@ -197,6 +210,22 @@ Deno.serve(async (req) => {
       const { error } = await supabase
         .from("ticket_sales_details")
         .upsert(details.slice(i, i + 500), { onConflict: "sympla_order_id" });
+      if (error) throw error;
+    }
+    // 5c. Pedidos sem participante (cancelados, recusados, pendentes antigos), para a lista de pedidos a acompanhar.
+    const linkedOrders = new Set(allParticipants.map((p: any) => String(p.order_id ?? "")));
+    const orphanOrders = Array.from(ordersById.values())
+      .filter((o: any) => !linkedOrders.has(String(o.id)))
+      .map((o: any) => ({
+        sympla_order_id: `pedido-${o.id}`,
+        participant_data: null,
+        order_data: sanitize(o),
+        synced_at: new Date().toISOString(),
+      }));
+    for (let i = 0; i < orphanOrders.length; i += 500) {
+      const { error } = await supabase
+        .from("ticket_sales_details")
+        .upsert(orphanOrders.slice(i, i + 500), { onConflict: "sympla_order_id" });
       if (error) throw error;
     }
     totalParticipants += allParticipants.length;

@@ -113,13 +113,12 @@ function SegmentCard({ title, items, className }: { title: string; items: { labe
 
 interface CommercialSegmentsProps {
   tickets: Ticket[];
-  minTicketPrice: number;
   formAnswers?: FormAnswerCount[];
 }
 
 // Pagantes por tipo, região e porte, e tabela de cupons. Cada bloco só aparece quando a Sympla entrega o dado.
-export function CommercialSegments({ tickets, minTicketPrice, formAnswers = [] }: CommercialSegmentsProps) {
-  const { paying, bonus } = useMemo(() => splitTickets(tickets, minTicketPrice), [tickets, minTicketPrice]);
+export function CommercialSegments({ tickets, formAnswers = [] }: CommercialSegmentsProps) {
+  const { paying, bonus } = useMemo(() => splitTickets(tickets), [tickets]);
 
   const porTipo = useMemo(() => countBy(paying, (t) => t.ticket_type || "Sem tipo").slice(0, 8), [paying]);
   const porRegiao = useMemo(() => countBy(paying, (t) => (t.buyer_state ? regiaoDe(t.buyer_state) : null)), [paying]);

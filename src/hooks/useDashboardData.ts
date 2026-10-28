@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { startOfMonth, endOfMonth, format } from "date-fns";
+import { startOfMonth, endOfMonth, format, subYears } from "date-fns";
 
 export interface DateRange {
   from: Date;
@@ -131,6 +131,33 @@ export function usePreviousEventTickets(currentEventId: string, previousEventKey
         if (!data || data.length < 1000) break;
       }
       if (all.some((t) => t.event_id === currentEventId)) return [];
+      return all;
+    },
+  });
+}
+
+// Linhas de uma tabela do evento anterior (base própria) no mesmo período do ano anterior.
+export function usePreviousEventRows(previousEventKey: string, sourceTable: string, range: DateRange) {
+  const from = fmt(subYears(range.from, 1));
+  const to = fmt(subYears(range.to, 1));
+  return useQuery({
+    queryKey: ["previous_event_rows", previousEventKey, sourceTable, from, to],
+    enabled: !!previousEventKey,
+    queryFn: async () => {
+      const all: any[] = [];
+      for (let start = 0; ; start += 1000) {
+        const { data, error } = await supabase
+          .from("event_history" as any)
+          .select("data")
+          .eq("event_key", previousEventKey)
+          .eq("source_table", sourceTable)
+          .gte("record_date", from)
+          .lte("record_date", to)
+          .range(start, start + 999);
+        if (error) return [];
+        all.push(...(data ?? []).map((r: any) => r.data));
+        if (!data || data.length < 1000) break;
+      }
       return all;
     },
   });

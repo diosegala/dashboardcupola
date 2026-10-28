@@ -1,7 +1,7 @@
 import { PageHeader } from "@/components/PageHeader";
 import { Chip } from "@/components/Chip";
 import { goalsOfEvent, isEventClosed, useEvent } from "@/hooks/useEvent";
-import { useState, useMemo, useCallback } from "react";
+import { useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -13,7 +13,6 @@ import { IntegrationsHealthCard } from "@/components/dashboard/IntegrationsHealt
 import { CommercialOverview } from "@/components/dashboard/CommercialOverview";
 import { CommercialSegments } from "@/components/dashboard/CommercialSegments";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
-import { MinPriceFilter } from "@/components/dashboard/MinPriceFilter";
 import { SalesSection } from "@/components/dashboard/SalesSection";
 import { MarketingSection } from "@/components/dashboard/MarketingSection";
 import { FunnelKPISection } from "@/components/dashboard/FunnelKPISection";
@@ -33,6 +32,7 @@ import {
   findGoal,
   useFormAnswerCounts,
   usePreviousEventTickets,
+  usePreviousEventRows,
   type DateRange,
 } from "@/hooks/useDashboardData";
 
@@ -72,15 +72,6 @@ export default function Index() {
     setSearchParams(next, { replace: true });
   };
   const [range, setRange] = useState<DateRange>(getDefaultRange);
-  const [minTicketPrice, setMinTicketPrice] = useState<number>(() => {
-    const stored = localStorage.getItem("dashboard_min_ticket_price");
-    return stored ? parseFloat(stored) : 0;
-  });
-
-  const handleMinPriceChange = useCallback((v: number) => {
-    setMinTicketPrice(v);
-    localStorage.setItem("dashboard_min_ticket_price", String(v));
-  }, []);
 
   const [goalFormOpen, setGoalFormOpen] = useState(false);
   const [goalFormDefaults, setGoalFormDefaults] = useState<Partial<GoalFormValues> | undefined>();
@@ -96,6 +87,8 @@ export default function Index() {
   const allTimeTickets = useAllTimeTicketSales(currentEventId);
   const formAnswers = useFormAnswerCounts(currentEventId);
   const previousTickets = usePreviousEventTickets(currentEventId, event.previous_event_slug ?? "");
+  const previousAdMetrics = usePreviousEventRows(event.previous_event_slug ?? "", "ad_metrics", range);
+  const previousSiteAnalytics = usePreviousEventRows(event.previous_event_slug ?? "", "site_analytics", range);
   // Depois do último dia o evento fica "Encerrado"; as integrações continuam atualizando se trouxerem dados.
   const encerrado = isEventClosed(event);
   const eventGoals = goalsOfEvent(goals.data ?? [], event);
@@ -107,14 +100,6 @@ export default function Index() {
   // Cada aba espera só os dados que usa; cabeçalho e abas aparecem na hora.
   const comercialLoading = eventLoading || tickets.isLoading || goals.isLoading || allTimeTickets.isLoading;
   const marketingLoading = tickets.isLoading || goals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading;
-
-  const filterTickets = useCallback((data: any[]) => {
-    if (minTicketPrice <= 0) return data;
-    return data.filter((t) => Number(t.unit_price ?? t.total_price ?? 0) >= minTicketPrice);
-  }, [minTicketPrice]);
-
-  const filteredTickets = useMemo(() => filterTickets(tickets.data ?? []), [tickets.data, filterTickets]);
-  const filteredAllTimeTickets = useMemo(() => filterTickets(allTimeTickets.data ?? []), [allTimeTickets.data, filterTickets]);
 
   const upsertMutation = useMutation({
     mutationFn: async (values: GoalFormValues & { id?: string }) => {
@@ -179,10 +164,7 @@ export default function Index() {
         badge={encerrado ? <Chip variant="neutral">Encerrado</Chip> : undefined}
         description="Visão geral de vendas e marketing do CUPOLA Summit"
         actions={
-          <>
-            <MinPriceFilter value={minTicketPrice} onChange={handleMinPriceChange} />
-            <PeriodSelector range={range} onChange={setRange} />
-          </>
+          <PeriodSelector range={range} onChange={setRange} />
         }
       />
 
@@ -203,12 +185,12 @@ export default function Index() {
           <TabsContent value="comercial" className="mt-0 animate-panel-in">
             {comercialLoading ? <TabSkeleton /> : (
               <div className="space-y-8">
-                <CommercialOverview tickets={allTimeTickets.data ?? []} goals={eventGoals} minTicketPrice={minTicketPrice} previousTickets={previousTickets.data ?? []} eventParams={eventParams} />
-                <CommercialSegments tickets={allTimeTickets.data ?? []} minTicketPrice={minTicketPrice} formAnswers={formAnswers.data ?? []} />
+                <CommercialOverview tickets={allTimeTickets.data ?? []} goals={eventGoals} previousTickets={previousTickets.data ?? []} eventParams={eventParams} />
+                <CommercialSegments tickets={allTimeTickets.data ?? []} formAnswers={formAnswers.data ?? []} />
                 <SalesSection
-                  tickets={filteredTickets}
+                  tickets={tickets.data ?? []}
                   goals={eventGoals}
-                  allTimeTickets={filteredAllTimeTickets}
+                  allTimeTickets={allTimeTickets.data ?? []}
                   previousYearTickets={previousTickets.data ?? []}
                   range={range}
                   onEditGoal={isAdmin ? handleEditGoal : undefined}
@@ -224,7 +206,7 @@ export default function Index() {
             <FunnelKPISection
               adMetrics={adMetrics.data ?? []}
               emailCampaigns={emailCampaigns.data ?? []}
-              tickets={filteredTickets}
+              tickets={tickets.data ?? []}
               goals={eventGoals}
               range={range}
               onEditGoal={!isAdmin ? undefined : (metricKey, periodStart, periodEnd) => {
@@ -245,6 +227,8 @@ export default function Index() {
               emailCampaigns={emailCampaigns.data ?? []}
               siteAnalytics={siteAnalytics.data ?? []}
               ga4Events={ga4Events.data ?? []}
+              previousAdMetrics={previousAdMetrics.data ?? []}
+              previousSiteAnalytics={previousSiteAnalytics.data ?? []}
               goals={eventGoals}
               range={range}
               onEditGoal={isAdmin ? handleEditGoal : undefined}
