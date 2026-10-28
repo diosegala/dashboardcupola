@@ -72,6 +72,13 @@
     --chart-3: 217 10% 25%;
     --chart-4: 242 100% 83%;
     --chart-5: 42 23% 72%;
+
+    /* Paleta viva do Perfil (validada para daltonismo e contraste): azul, verde, magenta, coral, petróleo */
+    --viz-1: #3f38ff;
+    --viz-2: #4f8f00;
+    --viz-3: #c03fd1;
+    --viz-4: #e8553a;
+    --viz-5: #0f9d9a;
   }
 
   .dark {
@@ -138,6 +145,12 @@
     --chart-3: 43 15% 81%;
     --chart-4: 242 44% 50%;
     --chart-5: 42 9% 44%;
+
+    --viz-1: #7a74ff;
+    --viz-2: #5f9a06;
+    --viz-3: #c75ad8;
+    --viz-4: #e0603f;
+    --viz-5: #1fa8a3;
   }
 }
 
@@ -278,6 +291,27 @@
     animation-duration: 1ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 1ms !important;
+  }
+}
+
+/* Perfil: peças que aparecem com um pulo, pílulas que balançam devagar e anel que se desenha */
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  70% {
+    transform: scale(1.08);
+  }
+}
+@keyframes bob {
+  50% {
+    transform: translateY(-4px);
+  }
+}
+@keyframes rise {
+  from {
+    transform: scaleY(0);
   }
 }
 

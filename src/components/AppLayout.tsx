@@ -1,14 +1,23 @@
-import { Suspense } from "react";
-import { Outlet } from "react-router-dom";
+import { Suspense, type CSSProperties } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { EventProvider } from "@/hooks/useEvent";
 
+// Telas que a equipe de vendas pode abrir; as outras voltam para o ranking.
+const TELAS_EQUIPE = ["/", "/compradores"];
+
 export function AppLayout() {
+  const { isSeller } = useAuth();
+  const { pathname } = useLocation();
+  if (isSeller && !TELAS_EQUIPE.includes(pathname)) return <Navigate to="/" replace />;
+
   return (
     <EventProvider>
-    <SidebarProvider>
+    {/* Menu mais fino (o padrão é 16rem): sobra mais espaço para o conteúdo */}
+    <SidebarProvider style={{ "--sidebar-width": "12.5rem" } as CSSProperties}>
       <div className="app-bg" aria-hidden>
         <span className="orb orb-1" />
         <span className="orb orb-2" />

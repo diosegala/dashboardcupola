@@ -13,7 +13,8 @@ type Modo = "15" | "mes" | "tudo";
 interface BusinessDaysViewProps {
   paidByDay: Record<string, number>;
   firstSaleDate: Date;
-  requiredPace: number;
+  // Sem meta de pagantes: barras numa cor só e sem a linha do necessário.
+  requiredPace: number | null;
 }
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -40,7 +41,7 @@ export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace }: Bus
 
   const data = dias.map((d) => {
     const vendas = paidByDay[format(d, "yyyy-MM-dd")] || 0;
-    return { date: format(d, "yyyy-MM-dd"), label: format(d, "dd/MM"), vendas, onPace: vendas >= requiredPace };
+    return { date: format(d, "yyyy-MM-dd"), label: format(d, "dd/MM"), vendas, onPace: requiredPace === null || vendas >= requiredPace };
   });
   const total = data.reduce((s, d) => s + d.vendas, 0);
   const diasNoRitmo = data.filter((d) => d.onPace).length;
@@ -77,18 +78,18 @@ export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace }: Bus
             </Button>
           </div>
         )}
-        <div className="flex flex-wrap gap-3.5 text-xs text-foreground/75">
+        {requiredPace !== null && <div className="flex flex-wrap gap-3.5 text-xs text-foreground/75">
           <span className="inline-flex items-center gap-1.5">
             <i className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: COR.ok }} /> No ritmo
           </span>
           <span className="inline-flex items-center gap-1.5">
             <i className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: COR.abaixo }} /> Abaixo
           </span>
-        </div>
+        </div>}
       </div>
 
       <p className="mb-2 text-xs text-muted-foreground">
-        {int(total)} vendas em {int(data.length)} dias úteis · {int(diasNoRitmo)} {diasNoRitmo === 1 ? "dia" : "dias"} no ritmo
+        {int(total)} vendas em {int(data.length)} dias úteis{requiredPace !== null && <> · {int(diasNoRitmo)} {diasNoRitmo === 1 ? "dia" : "dias"} no ritmo</>}
       </p>
 
       <ResponsiveContainer width="100%" height={240}>
@@ -101,13 +102,13 @@ export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace }: Bus
             contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--line-strong))", borderRadius: 10, fontSize: 12 }}
             formatter={(v: number) => [int(v), "Pagantes"]}
           />
-          <ReferenceLine
+          {requiredPace !== null && <ReferenceLine
             y={requiredPace}
             ifOverflow="extendDomain"
             stroke={COR.muted}
             strokeDasharray="4 4"
             label={{ value: `Necessário ${int(Math.ceil(requiredPace))}`, position: "insideTopRight", fontSize: 11, fill: COR.muted }}
-          />
+          />}
           <Bar dataKey="vendas" radius={[6, 6, 0, 0]} animationDuration={900}>
             {data.map((d) => (
               <Cell key={d.date} fill={d.onPace ? COR.ok : COR.abaixo} />

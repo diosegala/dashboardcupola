@@ -5,7 +5,10 @@ import { Chip } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { COUPON_GROUPS, formatDiscount, parseCoupon, type CouponGroup, type CouponKind } from "@/lib/coupons";
-import { TeamRanking } from "@/components/dashboard/TeamRanking";
+import { TeamRanking, buildTeamRanking, findMe } from "@/components/dashboard/TeamRanking";
+import { useAuth } from "@/hooks/useAuth";
+import { useMyTeamCoupons } from "@/hooks/useTeam";
+import { eventGoal } from "@/lib/goalMetrics";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -163,11 +166,16 @@ function SegmentCard({ title, items, className, share }: { title: string; items:
 
 interface CommercialSegmentsProps {
   tickets: Ticket[];
+  goals?: any[];
 }
 
 // Forma de pagamento, origem da venda e cupons. O perfil de quem compra fica na página Compradores.
-export function CommercialSegments({ tickets }: CommercialSegmentsProps) {
+export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsProps) {
   const { paying, bonus } = useMemo(() => splitTickets(tickets), [tickets]);
+  const { profile } = useAuth();
+  const meusCupons = useMyTeamCoupons();
+  const ranking = useMemo(() => buildTeamRanking(paying), [paying]);
+  const eu = useMemo(() => findMe(ranking, meusCupons.data ?? [], profile?.name), [ranking, meusCupons.data, profile?.name]);
 
   const porPagamento = useMemo(() => countBy(paying, (t) => (t.payment_method ? pagamentoDe(t.payment_method) : null)), [paying]);
   const porOrigem = useMemo(() => countBy(paying, (t) => utmLabel(t.utm_source)).slice(0, 8), [paying]);
@@ -221,7 +229,7 @@ export function CommercialSegments({ tickets }: CommercialSegmentsProps) {
         <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className={cn("col-span-12", span)} />
       ))}
 
-      <TeamRanking paying={paying} />
+      <TeamRanking data={ranking} eu={eu} metaPorPessoa={Number(eventGoal(goals, "team_sales")?.target_value ?? 0)} />
 
       {cupons.length > 0 && (
         <Card className="col-span-12">

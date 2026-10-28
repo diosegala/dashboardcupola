@@ -15,7 +15,10 @@ export const METRIC_INFO: Record<string, string> = {
     "Ingressos vendidos pelo comercial fora da Sympla e resgatados com cupom que começa com FATURADO. Passa a contar quando a Sympla enviar o cupom.",
   Bonificados:
     "Ingressos aprovados sem valor: cortesias, expositores, patrocinadores, convidados e equipe. Ficam visíveis para controle de lotação, mas não somam na meta nem na receita.",
-  "Receita acumulada": "Valor dos ingressos pagantes desde a abertura das vendas.",
+  "Ingressos pagantes":
+    "Soma dos ingressos pagos na Sympla com os faturados internamente. Cortesias, expositores e patrocinadores não entram. Para acompanhar uma meta, defina-a na tela Metas.",
+  "Pagantes acumulados": "Total de pagantes semana a semana desde a primeira venda. Com uma meta de pagantes na tela Metas, aparece também a trajetória até ela.",
+  "Receita acumulada": "Valor dos ingressos pagantes desde a abertura das vendas. Com uma meta de receita na tela Metas, aparece o progresso até ela.",
   "Pagantes acumulados x meta":
     "Linha cheia: total de pagantes semana a semana. Linha tracejada: trajetória até a meta no dia do evento, distribuída por dias úteis.",
   "Ingressos emitidos":
@@ -48,8 +51,14 @@ export const METRIC_INFO: Record<string, string> = {
   "Perfil da empresa": "Perfil da empresa de quem vai ao evento, informado no formulário de inscrição da Sympla.",
   Acessibilidade: "Recursos de acessibilidade pedidos no formulário de inscrição. Respostas parecidas são agrupadas.",
   Cargo: "Cargo informado no formulário de inscrição.",
-  Empresas: "Empresas mais frequentes entre quem vai ao evento.",
-  Cidades: "Cidades mais frequentes entre quem vai ao evento.",
+  Cidades: "Cidades informadas no formulário de inscrição. Grafias diferentes da mesma cidade são juntadas; o tamanho mostra quantas pessoas.",
+  Participantes: "Ingressos aprovados do evento selecionado.",
+  Estados: "Quantos estados diferentes aparecem entre os ingressos aprovados.",
+  "Voltaram à CUPOLA": "Parte das pessoas deste evento que já participaram de algum outro evento CUPOLA (edições anteriores, imersões e outros).",
+  Empresas: "Empresas diferentes entre os participantes deste evento.",
+  "De onde vêm": "Estado de quem vai ao evento, informado no formulário de inscrição. A cor de cada região é fixa; quanto mais forte, mais pessoas daquele estado.",
+  "Empresas da casa":
+    "Empresas presentes neste evento, ranqueadas pela fidelidade à CUPOLA: em quantos eventos já vieram, depois quantos ingressos pagos somam em todos eles. Estreante é quem vem pela primeira vez.",
   "Visita presencial": "Opção de visita presencial escolhida no formulário de inscrição.",
 
   // Vendas

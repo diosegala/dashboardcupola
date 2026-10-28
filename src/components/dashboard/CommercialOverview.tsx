@@ -20,6 +20,8 @@ import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import { useCommercialMetrics, type EventParams, type PaceStatus } from "@/hooks/useCommercialMetrics";
 import { cn } from "@/lib/utils";
+import { GoalMeter } from "@/components/GoalMeter";
+import { eventGoal } from "@/lib/goalMetrics";
 import { ChartLegend } from "./charts/ChartLegend";
 import { PREVIOUS_YEAR_KEY, PREVIOUS_YEAR_LABEL, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
 
@@ -55,7 +57,7 @@ const tooltipStyle = {
   labelStyle: { color: "hsl(var(--foreground))", fontWeight: 600 },
 };
 
-function KpiCard({ title, value, format, unit, footer, className }: { title: string; value: number; format: (n: number) => string; unit?: string; footer?: React.ReactNode; className?: string }) {
+function KpiCard({ title, value, format, unit, footer, className, children }: { title: string; value: number; format: (n: number) => string; unit?: string; footer?: React.ReactNode; className?: string; children?: React.ReactNode }) {
   return (
     <Card className={cn("flex flex-col gap-2.5 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
       <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
@@ -67,6 +69,7 @@ function KpiCard({ title, value, format, unit, footer, className }: { title: str
         {unit && <small className="ml-1 text-sm font-medium tracking-normal text-muted-foreground">{unit}</small>}
       </div>
       {footer && <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">{footer}</div>}
+      {children && <div className="mt-auto pt-1">{children}</div>}
     </Card>
   );
 }
@@ -113,25 +116,35 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
   const m = useCommercialMetrics(tickets, goals, previousTickets, eventParams);
   const weeklySeries = useSeriesVisibility();
   const [diaVisao, setDiaVisao] = useState<"uteis" | "semana">("semana");
-  const chip = PACE_CHIP[m.paceStatus];
+  const chip = m.paceStatus ? PACE_CHIP[m.paceStatus] : null;
+  // Metas do evento definidas na tela Metas (sem elas, os cards ficam só com os números).
+  const metaReceita = eventGoal(goals, "revenue");
+  const metaEmitidos = eventGoal(goals, "issued_tickets");
+  const temMeta = m.goal !== null;
 
   return (
     <div className="grid grid-cols-12 gap-[14px]">
       {/* Linha 1: meta, ritmo necessário e ritmo atual */}
       <Card className="col-span-12 flex flex-col gap-3 border-[#0F1114] bg-[#0F1114] p-5 text-[#F5F2EB] dark:border-[#2d3a10] dark:shadow-glow lg:col-span-6">
         <div className="flex items-center gap-2 text-[13px] font-semibold text-[#D6D2C8]">
-          Meta de ingressos pagantes
-          <InfoTip title="Meta de ingressos pagantes" className="text-[#D6D2C8]" />
+          {temMeta ? "Meta de ingressos pagantes" : "Ingressos pagantes"}
+          <InfoTip title={temMeta ? "Meta de ingressos pagantes" : "Ingressos pagantes"} className="text-[#D6D2C8]" />
         </div>
         <div className="flex items-center gap-5">
-          <GoalRing progress={m.progress} />
+          {temMeta && <GoalRing progress={m.progress} />}
           <div className="min-w-0">
             <div className="text-[clamp(32px,3.8vw,42px)] font-semibold leading-none tracking-[-0.035em]">
               <CountUp value={m.payingCount} format={int} />
-              <small className="ml-1.5 text-sm font-medium tracking-normal text-[#9A9FA7]">de {int(m.goal)}</small>
+              {temMeta && <small className="ml-1.5 text-sm font-medium tracking-normal text-[#9A9FA7]">de {int(m.goal as number)}</small>}
             </div>
             <p className="mt-2 text-xs text-[#9A9FA7]">
-              Faltam <b className="font-semibold text-[#B0F90A]">{int(m.missing)}</b> ingressos pagantes
+              {temMeta ? (
+                <>
+                  Faltam <b className="font-semibold text-[#B0F90A]">{int(m.missing)}</b> ingressos pagantes
+                </>
+              ) : (
+                <>Pagos na Sympla e faturados pelo comercial</>
+              )}
             </p>
           </div>
         </div>
@@ -146,28 +159,32 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
       />
 
       {/* Linha 2: todos os ingressos emitidos (pizza) e receita */}
-      <IssuedTicketsCard tickets={tickets} className="col-span-12 lg:col-span-8" />
+      <IssuedTicketsCard tickets={tickets} goal={metaEmitidos} className="col-span-12 lg:col-span-8" />
       <KpiCard
         className="col-span-12 lg:col-span-4"
         title="Receita acumulada"
         value={m.revenue}
         format={brl}
         footer={<span>Ticket médio {brl(m.payingCount > 0 ? m.revenue / m.payingCount : 0)}</span>}
-      />
+      >
+        {metaReceita && Number(metaReceita.target_value) > 0 && (
+          <GoalMeter actual={m.revenue} target={Number(metaReceita.target_value)} unit="brl" periodStart={metaReceita.period_start} periodEnd={metaReceita.period_end} />
+        )}
+      </KpiCard>
 
       {/* Linha 3: pagantes acumulados x trajetória */}
       <Card className="col-span-12">
         <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-2">
           <div>
             <CardTitle className="flex items-center gap-2">
-              Pagantes acumulados x meta <InfoTip title="Pagantes acumulados x meta" />
+              {temMeta ? "Pagantes acumulados x meta" : "Pagantes acumulados"} <InfoTip title={temMeta ? "Pagantes acumulados x meta" : "Pagantes acumulados"} />
             </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">Semanas desde a primeira venda</p>
           </div>
           <ChartLegend
             items={[
               { key: "pagantes", label: "Pagantes", color: COLORS.blue, shape: "line" },
-              { key: "trajetoria", label: "Trajetória da meta", color: COLORS.muted, shape: "dashed" },
+              ...(temMeta ? [{ key: "trajetoria", label: "Trajetória da meta", color: COLORS.muted, shape: "dashed" as const }] : []),
               ...(m.hasPrevious ? [{ key: PREVIOUS_YEAR_KEY, label: PREVIOUS_YEAR_LABEL, color: COLORS.muted, shape: "dashed" as const }] : []),
             ]}
             hidden={weeklySeries.hidden}
@@ -182,7 +199,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
               <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" className="fill-muted-foreground" />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => int(v)} className="fill-muted-foreground" />
               <Tooltip {...tooltipStyle} formatter={(v: number, n: string) => [int(v), n]} />
-              <Line
+              {temMeta && <Line
                 dataKey="trajetoria"
                 name="Trajetória da meta"
                 stroke={COLORS.muted}
@@ -192,7 +209,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
                 hide={weeklySeries.hidden.has("trajetoria")}
                 strokeOpacity={weeklySeries.opacity("trajetoria", 0.8)}
                 animationDuration={1000}
-              />
+              />}
               {m.hasPrevious && (
                 <Line
                   {...previousYearLineProps}
@@ -225,7 +242,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
               Vendas por dia <InfoTip title={diaVisao === "uteis" ? "Vendas por dia útil" : "Vendas por dia da semana"} />
             </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
-              {diaVisao === "uteis" ? "Vendas em cada dia útil comparadas ao ritmo necessário" : "Vendas pagantes em cada dia da semana desde a abertura das vendas"}
+              {diaVisao === "uteis" ? (temMeta ? "Vendas em cada dia útil comparadas ao ritmo necessário" : "Vendas pagantes em cada dia útil") : "Vendas pagantes em cada dia da semana desde a abertura das vendas"}
             </p>
           </div>
           <Tabs value={diaVisao} onValueChange={(v) => setDiaVisao(v as "uteis" | "semana")}>

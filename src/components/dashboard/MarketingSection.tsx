@@ -23,10 +23,9 @@ interface MarketingSectionProps {
   ga4Events: any[];
   goals: any[];
   range: DateRange;
-  onEditGoal?: (metricKey: string, ticketType?: string | null) => void;
 }
 
-export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range, onEditGoal, previousAdMetrics = [], previousSiteAnalytics = [] }: MarketingSectionProps) {
+export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range, previousAdMetrics = [], previousSiteAnalytics = [] }: MarketingSectionProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [selectedEmailCampaigns, setSelectedEmailCampaigns] = useState<string[]>([]);
   const [compareA, setCompareA] = useState<string | null>(null);
@@ -166,16 +165,16 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           return (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <MetricCard title="Campanhas" value={uniqueCampaigns} icon={BarChart3} description="Campanhas ativas no período" />
-              <MetricCard title="Investimento" value={totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} icon={Wallet} goal={findGoal(goals, "meta_spend", range)} prefix="R$ " description="Total investido no período" onEditGoal={onEditGoal ? () => onEditGoal("meta_spend") : undefined} />
-              <MetricCard title="Impressões" value={totalImpressions} icon={Eye} goal={findGoal(goals, "meta_impressions", range)} onEditGoal={onEditGoal ? () => onEditGoal("meta_impressions") : undefined} />
-              <MetricCard title="Cliques no Link" value={totalLinkClicks} icon={MousePointerClick} goal={findGoal(goals, "meta_link_clicks", range)} onEditGoal={onEditGoal ? () => onEditGoal("meta_link_clicks") : undefined} />
+              <MetricCard title="Investimento" value={totalSpend.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} icon={Wallet} goal={findGoal(goals, "meta_spend", range)} prefix="R$ " description="Total investido no período" />
+              <MetricCard title="Impressões" value={totalImpressions} icon={Eye} goal={findGoal(goals, "meta_impressions", range)} />
+              <MetricCard title="Cliques no Link" value={totalLinkClicks} icon={MousePointerClick} goal={findGoal(goals, "meta_link_clicks", range)} />
               <MetricCard title="CPC" value={`R$ ${cpc.toFixed(2)}`} icon={Wallet} description="Custo por clique no link" />
-              <MetricCard title="CTR" value={`${ctr.toFixed(2)}%`} icon={BarChart3} description="Cliques no link / Impressões" />
-              <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases", range)} onEditGoal={onEditGoal ? () => onEditGoal("meta_purchases") : undefined} />
-              <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate", range)} description="Compras / Cliques no link" onEditGoal={onEditGoal ? () => onEditGoal("meta_conversion_rate") : undefined} />
-              <MetricCard title="Mensagens" value={totalMessages} icon={MessageCircle} description="Conversas iniciadas via anúncio" />
-              <MetricCard title="Adição de Carrinho" value={totalAddToCart} icon={ShoppingCart} description="Eventos add_to_cart do Pixel" />
-              <MetricCard title="Remarketing Qualificado" value={totalRemarketing} icon={Crosshair} description="Conversão customizada" />
+              <MetricCard title="CTR" value={`${ctr.toFixed(2)}%`} icon={BarChart3} goal={findGoal(goals, "meta_ctr", range)} description="Cliques no link / Impressões" />
+              <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases", range)} />
+              <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate", range)} description="Compras / Cliques no link" />
+              <MetricCard title="Mensagens" value={totalMessages} icon={MessageCircle} goal={findGoal(goals, "meta_messages", range)} description="Conversas iniciadas via anúncio" />
+              <MetricCard title="Adição de Carrinho" value={totalAddToCart} icon={ShoppingCart} goal={findGoal(goals, "meta_add_to_cart", range)} description="Eventos add_to_cart do Pixel" />
+              <MetricCard title="Remarketing Qualificado" value={totalRemarketing} icon={Crosshair} goal={findGoal(goals, "meta_remarketing", range)} description="Conversão customizada" />
             </div>
           );
         })()}
@@ -193,9 +192,9 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Campanhas Enviadas" value={emailTotals.sent} icon={Mail} description={`${emailTotals.totalDelivered.toLocaleString("pt-BR")} entregues de ${emailTotals.totalSent.toLocaleString("pt-BR")} enviados`} />
-          <MetricCard title="Taxa de Abertura" value={`${emailTotals.openRate.toFixed(1)}%`} icon={Mail} goal={findGoal(goals, "email_open_rate", range)} onEditGoal={onEditGoal ? () => onEditGoal("email_open_rate") : undefined} />
-          <MetricCard title="Taxa de Clique" value={`${emailTotals.clickRate.toFixed(1)}%`} icon={MousePointerClick} goal={findGoal(goals, "email_click_rate", range)} onEditGoal={onEditGoal ? () => onEditGoal("email_click_rate") : undefined} />
+          <MetricCard title="Campanhas Enviadas" value={emailTotals.sent} icon={Mail} goal={findGoal(goals, "email_sent", range)} description={`${emailTotals.totalDelivered.toLocaleString("pt-BR")} entregues de ${emailTotals.totalSent.toLocaleString("pt-BR")} enviados`} />
+          <MetricCard title="Taxa de Abertura" value={`${emailTotals.openRate.toFixed(1)}%`} icon={Mail} goal={findGoal(goals, "email_open_rate", range)} />
+          <MetricCard title="Taxa de Clique" value={`${emailTotals.clickRate.toFixed(1)}%`} icon={MousePointerClick} goal={findGoal(goals, "email_click_rate", range)} />
           <Card>
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">Leads Engajados</CardTitle>
@@ -314,10 +313,10 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           <DemandGenByDayChart ga4Events={ga4Events} />
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits", range)} onEditGoal={onEditGoal ? () => onEditGoal("site_visits") : undefined} />
-          <MetricCard title="Usuários" value={siteTotals.users} icon={Users} description="Total de usuários" />
-          <MetricCard title="Conversões" value={siteTotals.conversions} icon={Target} description="Key events do GA4" />
-          <MetricCard title="Pageviews" value={siteTotals.pageviews} icon={FileText} description="Visualizações de página" />
+          <MetricCard title="Sessões" value={siteTotals.sessions} icon={Globe} goal={findGoal(goals, "site_visits", range)} />
+          <MetricCard title="Usuários" value={siteTotals.users} icon={Users} goal={findGoal(goals, "site_users", range)} description="Total de usuários" />
+          <MetricCard title="Conversões" value={siteTotals.conversions} icon={Target} goal={findGoal(goals, "site_conversions", range)} description="Key events do GA4" />
+          <MetricCard title="Pageviews" value={siteTotals.pageviews} icon={FileText} goal={findGoal(goals, "site_pageviews", range)} description="Visualizações de página" />
         </div>
         {/* Source breakdown tables */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4 mt-4">

@@ -9,6 +9,7 @@ import { isApproved } from "@/lib/eventConfig";
 import { TICKET_KINDS, ticketKind, type TicketKind } from "@/lib/ticketKinds";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { cn } from "@/lib/utils";
+import { GoalMeter } from "@/components/GoalMeter";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const pct = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "0%");
@@ -73,7 +74,10 @@ function FatiaAtiva(props: any) {
 }
 
 // Todos os ingressos emitidos do evento, numa pizza só: por categoria (o que conta na meta) ou por tipo de ingresso da Sympla.
-export function IssuedTicketsCard({ tickets, className }: { tickets: Ticket[]; className?: string }) {
+// Meta de ingressos emitidos (opcional, da tela Metas): aparece embaixo da pizza.
+type MetaEmitidos = { target_value: number | string; period_start: string; period_end: string } | null;
+
+export function IssuedTicketsCard({ tickets, goal, className }: { tickets: Ticket[]; goal?: MetaEmitidos; className?: string }) {
   const [visao, setVisao] = useState<"categoria" | "lote">("categoria");
   const [ativa, setAtiva] = useState<number | null>(null);
 
@@ -159,6 +163,15 @@ export function IssuedTicketsCard({ tickets, className }: { tickets: Ticket[]; c
             </li>
           ))}
         </ul>
+        {goal && Number(goal.target_value) > 0 && (
+          <GoalMeter
+            className="sm:col-span-2"
+            actual={fatias.reduce((s, f) => s + f.value, 0)}
+            target={Number(goal.target_value)}
+            periodStart={goal.period_start}
+            periodEnd={goal.period_end}
+          />
+        )}
       </CardContent>
     </Card>
   );

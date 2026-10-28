@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
 
     // === UPDATE ROLE ===
     if (action === "update_role") {
-      const newRole = role === "admin" ? "admin" : "viewer";
+      const newRole = role === "admin" ? "admin" : role === "seller" ? "seller" : "viewer";
       await adminClient.from("user_roles").delete().eq("user_id", user_id);
       const { error } = await adminClient
         .from("user_roles")
