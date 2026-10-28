@@ -86,7 +86,7 @@ $$;
 REVOKE ALL ON FUNCTION public.contact_search_keys(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.contact_search_keys(text) TO authenticated;
 
--- 5. Lista de compradores para a equipe: nome, empresa, situação e eventos.
+-- 5. Lista de compradores para a equipe: nome, empresa, cupom, situação e eventos.
 -- Sem CPF (documento só vai quando é CNPJ) e sem e-mail ou telefone (só as chaves). Vale para o evento liberado e o anterior.
 CREATE OR REPLACE FUNCTION public.get_buyer_rows(p_slug text)
 RETURNS TABLE (sympla_order_id text, participant_data jsonb, order_data jsonb)
@@ -119,10 +119,23 @@ BEGIN
   ),
   unicos AS (
     SELECT DISTINCT ON (oid) * FROM brutos WHERE oid IS NOT NULL ORDER BY oid, prioridade
+  ),
+  -- Cupom de cada ingresso: das vendas atuais e das guardadas na base própria.
+  cupons AS (
+    SELECT DISTINCT ON (oid) oid, cupom FROM (
+      SELECT ts.sympla_order_id AS oid, ts.coupon_code AS cupom, 0 AS prioridade
+      FROM public.ticket_sales ts
+      WHERE v_sympla IS NOT NULL AND ts.event_id = v_sympla AND ts.coupon_code IS NOT NULL
+      UNION ALL
+      SELECT h.data->>'sympla_order_id', h.data->>'coupon_code', 1
+      FROM public.event_history h
+      WHERE h.event_key = p_slug AND h.source_table = 'ticket_sales' AND h.data->>'coupon_code' IS NOT NULL
+    ) c ORDER BY oid, prioridade
   )
   SELECT
     u.oid,
     CASE WHEN u.p IS NULL OR jsonb_typeof(u.p) <> 'object' THEN NULL ELSE jsonb_build_object(
+      'coupon', c.cupom,
       'first_name', u.p->'first_name',
       'last_name', u.p->'last_name',
       'email', public.contact_key('e', u.p->>'email'),
@@ -152,7 +165,8 @@ BEGIN
                            THEN u.o->'invoice_info'->'doc_number' END
       )
     ) END
-  FROM unicos u;
+  FROM unicos u
+  LEFT JOIN cupons c ON c.oid = u.oid;
 END;
 $$;
 REVOKE ALL ON FUNCTION public.get_buyer_rows(text) FROM PUBLIC, anon;

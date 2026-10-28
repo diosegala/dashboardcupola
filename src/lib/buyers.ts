@@ -8,6 +8,8 @@ export interface DetailRow {
   sympla_order_id: string;
   participant_data: any | null;
   order_data: any | null;
+  // Cupom usado no ingresso, como a Sympla grava ("10.00% - CODIGO"). Vem das vendas, não dos dados completos.
+  coupon?: string | null;
 }
 
 export interface EventRef {
@@ -32,6 +34,7 @@ interface RawRecord {
   phone: string | null;
   company: string | null;
   status: string | null;
+  coupon: string | null;
 }
 
 export interface Person {
@@ -42,7 +45,7 @@ export interface Person {
   cpf: string | null;
   companies: string[];
   // Por evento: em quais papéis a pessoa apareceu e quantos ingressos resgatou.
-  events: Record<string, { event: EventRef; roles: Set<Role>; tickets: number; orders: Set<string> }>;
+  events: Record<string, { event: EventRef; roles: Set<Role>; tickets: number; orders: Set<string>; statuses: Set<string>; coupons: Set<string> }>;
   recurring: boolean;
 }
 
@@ -116,6 +119,7 @@ function toRecords(row: DetailRow, event: EventRef): RawRecord[] {
       phone: formValue(p, /whats|telefone|celular/i),
       company: formValue(p, /^empresa$|nome da empresa/i),
       status: p.order_status ?? null,
+      coupon: row.coupon ?? p.coupon ?? null,
     });
   }
   if (o) {
@@ -132,6 +136,7 @@ function toRecords(row: DetailRow, event: EventRef): RawRecord[] {
       phone: null,
       company: doc.cnpj ? inv.client_name ?? null : null,
       status: o.order_status ?? null,
+      coupon: null,
     });
   }
   return out;
@@ -204,9 +209,11 @@ export function buildBuyers(rowsByEvent: { event: EventRef; rows: DetailRow[] }[
   const people: Person[] = Array.from(groups.entries()).map(([root, recs]) => {
     const events: Person["events"] = {};
     recs.forEach((r) => {
-      const e = (events[r.event.slug] ??= { event: r.event, roles: new Set(), tickets: 0, orders: new Set() });
+      const e = (events[r.event.slug] ??= { event: r.event, roles: new Set(), tickets: 0, orders: new Set(), statuses: new Set(), coupons: new Set() });
       e.roles.add(r.role);
       e.orders.add(r.orderId);
+      if (r.status) e.statuses.add(String(r.status).toUpperCase());
+      if (r.coupon) e.coupons.add(r.coupon);
       if (r.role === "participante") e.tickets += 1;
     });
     return {
