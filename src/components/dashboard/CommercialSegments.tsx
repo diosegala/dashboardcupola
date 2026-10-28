@@ -4,7 +4,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Chip } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
-import { formatDiscount, parseCoupon, type CouponKind } from "@/lib/coupons";
+import { COUPON_GROUPS, formatDiscount, parseCoupon, type CouponGroup, type CouponKind } from "@/lib/coupons";
+import { TeamRanking } from "@/components/dashboard/TeamRanking";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -173,7 +174,7 @@ export function CommercialSegments({ tickets }: CommercialSegmentsProps) {
 
   // Cupons agrupados pelo código, com o desconto e o tipo enviados pela Sympla.
   const cupons = useMemo(() => {
-    const map = new Map<string, { code: string; discount: string | null; kind: CouponKind; uses: number }>();
+    const map = new Map<string, { code: string; discount: string | null; kind: CouponKind; group: CouponGroup; uses: number }>();
     [...paying, ...bonus].forEach((t) => {
       const c = parseCoupon(t.coupon_code);
       if (!c) return;
@@ -183,6 +184,27 @@ export function CommercialSegments({ tickets }: CommercialSegmentsProps) {
     });
     return Array.from(map.values()).sort((a, b) => b.uses - a.uses);
   }, [paying, bonus]);
+
+  // Filtro por grupo: só mostra os grupos que têm cupom usado.
+  const [grupo, setGrupo] = useState<CouponGroup | "todos">("todos");
+  const grupos = COUPON_GROUPS.map((g) => ({ ...g, uses: cupons.filter((c) => c.group === g.key).reduce((s, c) => s + c.uses, 0) })).filter((g) => g.uses > 0);
+  const grupoAtivo = grupos.some((g) => g.key === grupo) ? grupo : "todos";
+  const cuponsVisiveis = grupoAtivo === "todos" ? cupons : cupons.filter((c) => c.group === grupoAtivo);
+  const rotuloGrupo = (g: CouponGroup) => COUPON_GROUPS.find((x) => x.key === g)?.label ?? g;
+
+  const filtro = (key: CouponGroup | "todos", rotulo: string, usos: number) => (
+    <button
+      key={key}
+      type="button"
+      onClick={() => setGrupo(key)}
+      className={cn(
+        "rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150",
+        grupoAtivo === key ? "bg-foreground text-background" : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+      )}
+    >
+      {rotulo} <span className="tabular-nums opacity-70">{int(usos)}</span>
+    </button>
+  );
 
   const segmentos = [
     { title: "Pagantes por forma de pagamento", items: porPagamento, share: true },
@@ -199,27 +221,35 @@ export function CommercialSegments({ tickets }: CommercialSegmentsProps) {
         <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className={cn("col-span-12", span)} />
       ))}
 
+      <TeamRanking paying={paying} />
+
       {cupons.length > 0 && (
         <Card className="col-span-12">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2">
               Cupons <InfoTip title="Cupons" />
             </CardTitle>
+            <div className="!mt-3 inline-flex w-fit flex-wrap items-center gap-0.5 rounded-[18px] border bg-secondary p-1">
+              {filtro("todos", "Todos", cupons.reduce((s, c) => s + c.uses, 0))}
+              {grupos.map((g) => filtro(g.key, g.label, g.uses))}
+            </div>
           </CardHeader>
           <CardContent className="max-h-[420px] overflow-auto">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Cupom</TableHead>
+                  <TableHead>Grupo</TableHead>
                   <TableHead>Desconto</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead className="text-right">Usos</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {cupons.map((c) => (
+                {cuponsVisiveis.map((c) => (
                   <TableRow key={c.code}>
                     <TableCell className="font-medium">{c.code}</TableCell>
+                    <TableCell className="text-muted-foreground">{rotuloGrupo(c.group)}</TableCell>
                     <TableCell className="tabular-nums">{formatDiscount(c.discount)}</TableCell>
                     <TableCell>
                       <Chip variant={KIND_CHIP[c.kind].variant}>{KIND_CHIP[c.kind].label}</Chip>

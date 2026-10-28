@@ -32,7 +32,9 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes por forma de pagamento": "Como cada ingresso pagante foi pago na Sympla: cartão, boleto, Pix e outros.",
   "Pagantes por origem (UTM)": "Origem da venda pela UTM do link usado na compra (utm_source). Vendas sem UTM não aparecem.",
   Cupons:
-    "Cupons usados nos ingressos emitidos. Os que começam com FATURADO marcam vendas faturadas internamente pelo comercial.",
+    "Cupons usados nos ingressos emitidos, separados por grupo: Faturados (começam com FATURADO), Resgate (GANHADOR ou RESGATE), Palestrantes, Equipe CUPOLA (nome + 5, com 5% de desconto) e Parceiros e outros.",
+  "Ranking da equipe":
+    "Pagantes vendidos com o cupom de cada pessoa da equipe CUPOLA. O ranking recomeça a cada lote; o lote atual é o da venda mais recente. Passe o mouse no nome para ver o cupom. Ao lado, quantos lotes cada pessoa liderou.",
 
   "Pessoas no evento": "Pessoas que compraram ou vão participar do evento selecionado, juntando comprador e participante quando têm o mesmo e-mail, CPF, telefone ou nome completo.",
   "Já vieram antes": "Pessoas do evento selecionado que também compraram ou participaram de algum evento anterior.",
