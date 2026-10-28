@@ -58,7 +58,11 @@ export interface Company {
 const strip = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "");
 const digits = (s: unknown) => String(s ?? "").replace(/\D/g, "");
 
+// Contatos que começam com "#" são chaves secretas vindas do banco (lista da equipe): já estão normalizados.
+const isKey = (v: unknown) => String(v ?? "").startsWith("#");
+
 export function normEmail(e: unknown): string | null {
+  if (isKey(e)) return String(e);
   const v = String(e ?? "").trim().toLowerCase();
   return v.includes("@") ? v : null;
 }
@@ -69,6 +73,7 @@ export function normName(n: unknown): string | null {
 }
 
 export function normPhone(p: unknown): string | null {
+  if (isKey(p)) return String(p);
   let d = digits(p);
   if (d.startsWith("55") && d.length >= 12) d = d.slice(2);
   return d.length >= 10 ? d.slice(-11) : null;

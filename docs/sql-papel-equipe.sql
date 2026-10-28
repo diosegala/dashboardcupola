@@ -39,8 +39,55 @@ CREATE POLICY "Sellers cannot read integrations" ON public.integrations AS RESTR
 CREATE POLICY "Sellers cannot read event_history" ON public.event_history AS RESTRICTIVE FOR SELECT TO authenticated USING (NOT public.is_seller());
 CREATE POLICY "Sellers cannot touch goals" ON public.goals AS RESTRICTIVE FOR ALL TO authenticated USING (NOT public.is_seller()) WITH CHECK (NOT public.is_seller());
 
--- 4. Lista de compradores para a equipe: só nome, e-mail, telefone, empresa, situação e eventos.
--- CPF nunca sai daqui (documento só vai quando é CNPJ). Vale para o evento liberado e para o anterior a ele.
+-- 4. Contatos viram chaves secretas: e-mail e telefone nunca chegam à tela da equipe.
+-- A chave serve para juntar a mesma pessoa entre eventos e para achar alguém quando a equipe digita
+-- um e-mail ou telefone que já conhece. Sem a senha interna abaixo, a chave não pode ser revertida.
+CREATE TABLE public.app_secrets (
+  key text PRIMARY KEY,
+  value text NOT NULL
+);
+-- Sem nenhuma regra de leitura: ninguém lê pela API, só as funções abaixo.
+ALTER TABLE public.app_secrets ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON public.app_secrets FROM anon, authenticated;
+INSERT INTO public.app_secrets (key, value)
+VALUES ('contact_pepper', gen_random_uuid()::text || gen_random_uuid()::text);
+
+-- kind 'e' = e-mail, 'p' = telefone. Mesma normalização do painel (telefone sem 55, últimos 11 dígitos).
+CREATE OR REPLACE FUNCTION public.contact_key(kind text, v text)
+RETURNS text
+LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
+DECLARE
+  n text;
+  pepper text;
+BEGIN
+  IF v IS NULL THEN RETURN NULL; END IF;
+  IF kind = 'e' THEN
+    n := lower(btrim(v));
+    IF position('@' IN n) = 0 THEN RETURN NULL; END IF;
+  ELSE
+    n := regexp_replace(v, '\D', '', 'g');
+    IF n LIKE '55%' AND length(n) >= 12 THEN n := substr(n, 3); END IF;
+    IF length(n) < 10 THEN RETURN NULL; END IF;
+    n := right(n, 11);
+  END IF;
+  SELECT s.value INTO pepper FROM public.app_secrets s WHERE s.key = 'contact_pepper';
+  RETURN '#' || encode(sha256(convert_to(pepper || kind || n, 'UTF8')), 'hex');
+END;
+$$;
+REVOKE ALL ON FUNCTION public.contact_key(text, text) FROM PUBLIC, anon, authenticated;
+
+-- Busca da equipe: devolve só as chaves do que ela mesma digitou.
+CREATE OR REPLACE FUNCTION public.contact_search_keys(p_term text)
+RETURNS TABLE (email_key text, phone_key text)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT public.contact_key('e', p_term), public.contact_key('p', p_term)
+  WHERE auth.uid() IS NOT NULL AND (public.has_role(auth.uid(), 'admin') OR public.is_seller())
+$$;
+REVOKE ALL ON FUNCTION public.contact_search_keys(text) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.contact_search_keys(text) TO authenticated;
+
+-- 5. Lista de compradores para a equipe: nome, empresa, situação e eventos.
+-- Sem CPF (documento só vai quando é CNPJ) e sem e-mail ou telefone (só as chaves). Vale para o evento liberado e o anterior.
 CREATE OR REPLACE FUNCTION public.get_buyer_rows(p_slug text)
 RETURNS TABLE (sympla_order_id text, participant_data jsonb, order_data jsonb)
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = public AS $$
@@ -78,11 +125,16 @@ BEGIN
     CASE WHEN u.p IS NULL OR jsonb_typeof(u.p) <> 'object' THEN NULL ELSE jsonb_build_object(
       'first_name', u.p->'first_name',
       'last_name', u.p->'last_name',
-      'email', u.p->'email',
+      'email', public.contact_key('e', u.p->>'email'),
       'order_id', u.p->'order_id',
       'order_status', u.p->'order_status',
       'custom_form', COALESCE((
-        SELECT jsonb_agg(f) FROM jsonb_array_elements(COALESCE(u.p->'custom_form', '[]'::jsonb)) f
+        SELECT jsonb_agg(
+          CASE WHEN (f->>'name') ~* '(whats|telefone|celular)'
+               THEN jsonb_build_object('name', f->'name', 'value', public.contact_key('p', f->>'value'))
+               ELSE f END
+        )
+        FROM jsonb_array_elements(COALESCE(u.p->'custom_form', '[]'::jsonb)) f
         WHERE (f->>'name') ~* '(whats|telefone|celular|^empresa$|nome da empresa)'
            OR ((f->>'name') ~* '(cpf|cnpj)' AND length(regexp_replace(COALESCE(f->>'value', ''), '\D', '', 'g')) = 14)
       ), '[]'::jsonb)
@@ -91,7 +143,7 @@ BEGIN
       'id', u.o->'id',
       'buyer_first_name', u.o->'buyer_first_name',
       'buyer_last_name', u.o->'buyer_last_name',
-      'buyer_email', u.o->'buyer_email',
+      'buyer_email', public.contact_key('e', u.o->>'buyer_email'),
       'order_status', u.o->'order_status',
       'order_date', u.o->'order_date',
       'invoice_info', jsonb_build_object(
@@ -105,3 +157,4 @@ END;
 $$;
 REVOKE ALL ON FUNCTION public.get_buyer_rows(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_buyer_rows(text) TO authenticated;
+
