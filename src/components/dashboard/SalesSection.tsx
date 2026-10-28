@@ -11,10 +11,10 @@ interface SalesSectionProps {
   allTimeTickets?: any[];
   previousYearTickets?: any[];
   range: DateRange;
-  onEditGoal?: (metricKey: string, ticketType?: string | null) => void;
+
 }
 
-export function SalesSection({ tickets, goals, allTimeTickets = [], previousYearTickets = [], range, onEditGoal }: SalesSectionProps) {
+export function SalesSection({ tickets, goals, allTimeTickets = [], previousYearTickets = [], range }: SalesSectionProps) {
 
 
   // Per-batch (ticket_type) goals progress

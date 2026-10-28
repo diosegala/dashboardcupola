@@ -2,10 +2,10 @@ import { useMemo } from "react";
 import { addDays, addYears, differenceInCalendarWeeks, endOfWeek, format, startOfDay, startOfWeek } from "date-fns";
 import { businessDaysBetween, lastBusinessDays } from "@/lib/businessDays";
 import { parseCoupon } from "@/lib/coupons";
+import { eventGoal } from "@/lib/goalMetrics";
 import {
   CURRENT_PACE_DAYS,
   EVENT_DATE,
-  PAYING_GOAL_DEFAULT,
   PAYING_GOAL_KEY,
   isApproved,
 } from "@/lib/eventConfig";
@@ -46,15 +46,13 @@ export function splitTickets(tickets: Ticket[]) {
 export interface EventParams {
   // Abertura do evento: fim da contagem de dias úteis.
   eventDate: Date;
-  // Meta de pagantes do evento (a meta "paying_tickets" da tela Metas tem prioridade).
-  payingGoal: number;
 }
 
 export function useCommercialMetrics(
   tickets: Ticket[],
   goals: any[],
   previousTickets: Ticket[] = [],
-  { eventDate, payingGoal }: EventParams = { eventDate: EVENT_DATE, payingGoal: PAYING_GOAL_DEFAULT },
+  { eventDate }: EventParams = { eventDate: EVENT_DATE },
 ) {
   return useMemo(() => {
     const today = startOfDay(new Date());
@@ -66,15 +64,14 @@ export function useCommercialMetrics(
     const payingCount = paidSymplaCount + invoicedCount;
     const revenue = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
 
-    const goalRow = goals
-      .filter((g) => g.metric_key === PAYING_GOAL_KEY && !g.ticket_type)
-      .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")))[0];
-    const goal = goalRow ? Number(goalRow.target_value) : payingGoal;
-    const missing = Math.max(goal - payingCount, 0);
+    // Meta de pagantes só existe se foi definida na tela Metas; sem ela, nada de meta aparece nos gráficos.
+    const goalRow = eventGoal(goals, PAYING_GOAL_KEY);
+    const goal: number | null = goalRow && Number(goalRow.target_value) > 0 ? Number(goalRow.target_value) : null;
+    const missing = goal !== null ? Math.max(goal - payingCount, 0) : 0;
 
     // Ritmo necessário: o que falta dividido pelos dias úteis de hoje até a véspera do evento.
     const remainingDays = businessDaysBetween(today, addDays(eventDate, -1)).length;
-    const requiredPace = remainingDays > 0 ? missing / remainingDays : 0;
+    const requiredPace: number | null = goal === null ? null : remainingDays > 0 ? missing / remainingDays : 0;
 
     // Vendas pagantes por dia.
     const byDay = new Map<string, number>();
@@ -88,16 +85,18 @@ export function useCommercialMetrics(
     const paceDays = lastBusinessDays(today, CURRENT_PACE_DAYS);
     const currentPace = paceDays.reduce((s, d) => s + (byDay.get(dayKey(d)) || 0), 0) / CURRENT_PACE_DAYS;
 
-    let paceStatus: PaceStatus;
-    if (missing === 0) paceStatus = "achieved";
-    else if (currentPace >= requiredPace * 1.1) paceStatus = "above";
-    else if (currentPace >= requiredPace) paceStatus = "on_track";
-    else paceStatus = "below";
+    let paceStatus: PaceStatus | null = null;
+    if (goal !== null && requiredPace !== null) {
+      if (missing === 0) paceStatus = "achieved";
+      else if (currentPace >= requiredPace * 1.1) paceStatus = "above";
+      else if (currentPace >= requiredPace) paceStatus = "on_track";
+      else paceStatus = "below";
+    }
 
     // Vendas por dia útil: últimos 15 dias úteis comparados ao ritmo necessário.
     const dailyBusiness = lastBusinessDays(today, 15).map((d) => {
       const value = byDay.get(dayKey(d)) || 0;
-      return { date: dayKey(d), label: format(d, "dd/MM"), pagantes: value, onPace: value >= requiredPace };
+      return { date: dayKey(d), label: format(d, "dd/MM"), pagantes: value, onPace: requiredPace === null || value >= requiredPace };
     });
 
     // Pagantes acumulados por semana, da primeira venda até o evento, com a trajetória linear (dias úteis) até a meta.
@@ -118,12 +117,12 @@ export function useCommercialMetrics(
       const limit = weekEnd < lastDayBeforeEvent ? weekEnd : lastDayBeforeEvent;
       const endKey = dayKey(limit);
       const cumulative = sortedDays.filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0);
-      const trajectory = Math.round((goal * businessDaysBetween(start, limit).length) / totalBusiness);
+      const trajectory = goal !== null ? Math.round((goal * businessDaysBetween(start, limit).length) / totalBusiness) : null;
       return {
         label: `S${i + 1}`,
         weekStart: dayKey(weekStart),
         pagantes: weekStart <= today ? cumulative : null,
-        trajetoria: trajectory,
+        ...(trajectory !== null ? { trajetoria: trajectory } : {}),
         ...(hasPrevious ? { anoAnterior: previousDays.filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0) } : {}),
       };
     });
@@ -137,7 +136,7 @@ export function useCommercialMetrics(
       bonusCount,
       missing,
       revenue,
-      progress: goal > 0 ? Math.min(payingCount / goal, 1) : 0,
+      progress: goal ? Math.min(payingCount / goal, 1) : 0,
       remainingDays,
       requiredPace,
       currentPace,
@@ -150,5 +149,5 @@ export function useCommercialMetrics(
       hasPrevious,
       issuedCount: paidSymplaCount + invoicedCount + bonusCount,
     };
-  }, [tickets, goals, previousTickets, eventDate, payingGoal]);
+  }, [tickets, goals, previousTickets, eventDate]);
 }

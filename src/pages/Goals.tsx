@@ -1,29 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { format, parseISO, isAfter, isBefore, differenceInDays } from "date-fns";
-import { Plus, Pencil, Trash2, Target, Copy } from "lucide-react";
+import { format, parseISO } from "date-fns";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
-import { goalsOfEvent, useEvent } from "@/hooks/useEvent";
-
-import { supabase } from "@/integrations/supabase/client";
-import { useGoals } from "@/hooks/useDashboardData";
-import { useAuth } from "@/hooks/useAuth";
-import { getMetricLabel } from "@/lib/goalMetrics";
-import { GoalFormDialog, type GoalFormValues } from "@/components/goals/GoalFormDialog";
-
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -34,245 +17,226 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { GoalEditor, type GoalEditorValues } from "@/components/goals/GoalEditor";
+import { goalsOfEvent, useEvent } from "@/hooks/useEvent";
+import { useGoals } from "@/hooks/useDashboardData";
+import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
+import { GOAL_DEFS, GOAL_SECTIONS, defOfGoal, formatGoalValue, type GoalDef } from "@/lib/goalMetrics";
+import { cn } from "@/lib/utils";
 
-type GoalStatus = "active" | "expired" | "future";
-
-function getGoalStatus(start: string, end: string): GoalStatus {
-  const today = new Date();
-  const s = parseISO(start);
-  const e = parseISO(end);
-  if (isBefore(today, s)) return "future";
-  if (isAfter(today, e)) return "expired";
-  return "active";
-}
-
-const statusConfig: Record<GoalStatus, { label: string; variant: "default" | "secondary" | "outline" }> = {
-  active: { label: "Ativa", variant: "default" },
-  expired: { label: "Expirada", variant: "secondary" },
-  future: { label: "Futura", variant: "outline" },
+type Goal = {
+  id: string;
+  metric_key: string;
+  label: string;
+  target_value: number | string;
+  period_start: string;
+  period_end: string;
+  ticket_type?: string | null;
+  created_at?: string | null;
 };
 
-function getGoalType(start: string, end: string): string {
-  const days = differenceInDays(parseISO(end), parseISO(start)) + 1;
-  if (days <= 7) return "Semanal";
-  if (days <= 31) return "Mensal";
-  return "Personalizado";
-}
+const data = (d: string) => format(parseISO(d), "dd/MM/yy");
 
+// Metas do catálogo: um só lugar para criar, ver e alterar. Só administradores editam; os demais só consultam.
 export default function Goals() {
   const { user, isAdmin } = useAuth();
   const { event } = useEvent();
-  const { data: allGoals, isLoading } = useGoals();
-  const goals = allGoals ? goalsOfEvent(allGoals, event) : allGoals;
+  const { data: todas, isLoading } = useGoals();
+  const goals = useMemo(() => (todas ? (goalsOfEvent(todas, event) as Goal[]) : []), [todas, event]);
   const queryClient = useQueryClient();
 
-  const [formOpen, setFormOpen] = useState(false);
-  const [editingGoal, setEditingGoal] = useState<any | null>(null);
-  const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null);
-  const [cloningGoal, setCloningGoal] = useState<any | null>(null);
+  const [editando, setEditando] = useState<{ def: GoalDef; goal: Goal | null } | null>(null);
+  const [excluindo, setExcluindo] = useState<Goal | null>(null);
 
-  const upsertMutation = useMutation({
-    mutationFn: async (values: GoalFormValues & { id?: string }) => {
-      const base = {
-        label: values.label,
-        metric_key: values.metric_key,
-        target_value: values.target_value,
-        period_start: format(values.period_start, "yyyy-MM-dd"),
-        period_end: format(values.period_end, "yyyy-MM-dd"),
-        ticket_type: values.ticket_type ?? null,
+  // Metas de cada item do catálogo; as que não batem com nenhum item vão para "Outras metas".
+  const porItem = useMemo(() => {
+    const map = new Map<string, Goal[]>();
+    const soltas: Goal[] = [];
+    goals.forEach((g) => {
+      const def = defOfGoal(g);
+      if (!def) return soltas.push(g);
+      map.set(def.id, [...(map.get(def.id) ?? []), g]);
+    });
+    map.forEach((lista) => lista.sort((a, b) => a.period_start.localeCompare(b.period_start) || String(a.ticket_type ?? "").localeCompare(String(b.ticket_type ?? ""))));
+    return { map, soltas };
+  }, [goals]);
+
+  const salvar = useMutation({
+    mutationFn: async ({ def, goal, v }: { def: GoalDef; goal: Goal | null; v: GoalEditorValues }) => {
+      const linha = {
+        label: v.ticket_type ? `${def.label} · ${v.ticket_type}` : def.label,
+        metric_key: def.key,
+        target_value: v.target_value,
+        period_start: v.period_start,
+        period_end: v.period_end,
+        ticket_type: v.ticket_type,
         ...(event.id ? { event_id: event.id } : {}),
       } as any;
-
-      if (values.id) {
-        const { error } = await supabase.from("goals").update(base).eq("id", values.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("goals").insert([{ ...base, created_by: user!.id }]);
-        if (error) throw error;
-      }
+      const { error } = goal
+        ? await supabase.from("goals").update(linha).eq("id", goal.id)
+        : await supabase.from("goals").insert([{ ...linha, created_by: user!.id }]);
+      if (error) throw error;
     },
-    onSuccess: () => {
+    onSuccess: (_, { goal }) => {
       queryClient.invalidateQueries({ queryKey: ["goals"] });
-      setFormOpen(false);
-      setEditingGoal(null);
-      setCloningGoal(null);
-      toast.success(editingGoal ? "Meta atualizada" : "Meta criada");
+      setEditando(null);
+      toast.success(goal ? "Meta alterada" : "Meta definida");
     },
-    onError: (err: any) => {
-      toast.error("Erro ao salvar meta: " + err.message);
-    },
+    onError: (err: any) => toast.error(`Não deu para salvar a meta: ${err.message}`),
   });
 
-  const deleteMutation = useMutation({
+  const excluir = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase.from("goals").delete().eq("id", id);
       if (error) throw error;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["goals"] });
-      setDeletingGoalId(null);
-      toast.success("Meta excluída");
+      setExcluindo(null);
+      toast.success("Meta removida. O gráfico volta a aparecer sem meta.");
     },
-    onError: (err: any) => {
-      toast.error("Erro ao excluir meta: " + err.message);
-    },
+    onError: (err: any) => toast.error(`Não deu para remover a meta: ${err.message}`),
   });
 
-  const handleCreate = () => {
-    setEditingGoal(null);
-    setCloningGoal(null);
-    setFormOpen(true);
-  };
-
-  const handleEdit = (goal: any) => {
-    setEditingGoal(goal);
-    setCloningGoal(null);
-    setFormOpen(true);
-  };
-
-  const handleClone = (goal: any) => {
-    setEditingGoal(null);
-    setCloningGoal(goal);
-    setFormOpen(true);
-  };
-
-  const handleSubmit = (values: GoalFormValues) => {
-    upsertMutation.mutate({ ...values, id: editingGoal?.id });
-  };
-
-  const sourceGoal = editingGoal || cloningGoal;
-  const defaultValues = sourceGoal
-    ? {
-        label: cloningGoal ? `Cópia de ${sourceGoal.label}` : sourceGoal.label,
-        metric_key: sourceGoal.metric_key,
-        target_value: Number(sourceGoal.target_value),
-        period_start: parseISO(sourceGoal.period_start),
-        period_end: parseISO(sourceGoal.period_end),
-        ticket_type: sourceGoal.ticket_type ?? null,
-      }
-    : undefined;
+  const definidas = GOAL_DEFS.filter((d) => (porItem.map.get(d.id) ?? []).length > 0).length;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Metas"
-        description="Gerencie as metas de vendas e marketing"
-        actions={
-          isAdmin && (
-            <Button onClick={handleCreate}>
-              <Plus className="h-4 w-4" />
-              Nova meta
-            </Button>
-          )
+        description={
+          <>
+            Todas as metas do painel ficam aqui. Gráfico sem meta aparece normalmente; com meta, ganha a marca de progresso. Meta é diferente da comparação com o ano anterior.
+            {!isAdmin && " Só administradores alteram as metas."}
+          </>
         }
       />
 
       {isLoading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <Skeleton key={i} className="h-16 w-full" />
-          ))}
-        </div>
-      ) : !goals?.length ? (
-        <div className="flex flex-col items-center justify-center py-16 text-center">
-          <Target className="h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-lg font-medium">Nenhuma meta configurada</h3>
-          <p className="text-sm text-muted-foreground mt-1">
-            {isAdmin ? "Clique em \"Nova Meta\" para começar." : "O administrador ainda não criou metas."}
-          </p>
+        <div className="space-y-4">
+          <Skeleton className="h-40" />
+          <Skeleton className="h-64" />
         </div>
       ) : (
-        <div className="rounded-md border">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nome</TableHead>
-                <TableHead>Métrica</TableHead>
-                <TableHead>Lote</TableHead>
-                <TableHead className="text-right">Valor-alvo</TableHead>
-                <TableHead>Período</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Progresso</TableHead>
-                <TableHead className="w-[100px]" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {goals.map((goal) => {
-                const status = getGoalStatus(goal.period_start, goal.period_end);
-                const cfg = statusConfig[status];
-                const progress = status === "active" ? null : null; // Progress calculation would need dashboard data
+        <>
+          <p className="text-sm text-muted-foreground">
+            <b className="font-semibold text-foreground">{definidas}</b> de {GOAL_DEFS.length} metas definidas para {event.name}.
+          </p>
 
-                return (
-                  <TableRow key={goal.id}>
-                    <TableCell className="font-medium">{goal.label}</TableCell>
-                    <TableCell>{getMetricLabel(goal.metric_key)}</TableCell>
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground">{goal.ticket_type ?? "Todos"}</span>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">
-                      {Number(goal.target_value).toLocaleString("pt-BR")}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {format(parseISO(goal.period_start), "dd/MM/yyyy")} – {format(parseISO(goal.period_end), "dd/MM/yyyy")}
-                    </TableCell>
-                    <TableCell>
-                      <span className="text-xs text-muted-foreground">{getGoalType(goal.period_start, goal.period_end)}</span>
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={cfg.variant}>{cfg.label}</Badge>
-                    </TableCell>
-                    <TableCell className="min-w-[120px]">
-                      {status === "active" ? (
-                        <Progress value={0} className="h-2" />
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+          {GOAL_SECTIONS.map((sec) => (
+            <Card key={sec.title} className="overflow-hidden">
+              <div className="border-b bg-secondary/40 px-5 py-3">
+                <h2 className="text-[15px] font-semibold">{sec.title}</h2>
+                <p className="text-xs text-muted-foreground">{sec.description}</p>
+              </div>
+              <ul>
+                {sec.items.map((def) => {
+                  const lista = porItem.map.get(def.id) ?? [];
+                  const varias = def.scope !== "evento";
+                  return (
+                    <li key={def.id} className="grid gap-3 border-b px-5 py-3.5 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_auto] sm:items-center">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold">{def.label}</div>
+                        <div className="truncate text-xs text-muted-foreground" title={def.where}>Aparece em: {def.where}</div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {lista.length === 0 ? (
+                          <span className="text-xs text-muted-foreground/80">Sem meta</span>
+                        ) : (
+                          lista.map((g) => (
+                            <span key={g.id} className="inline-flex items-center gap-1.5 rounded-full border bg-card py-1 pl-3 pr-1 text-xs">
+                              <i className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
+                              {g.ticket_type && <span className="max-w-[160px] truncate text-muted-foreground" title={g.ticket_type}>{g.ticket_type}:</span>}
+                              <b className="font-semibold tabular-nums">{formatGoalValue(Number(g.target_value), def.unit)}</b>
+                              <span className="text-muted-foreground">{data(g.period_start)}–{data(g.period_end)}</span>
+                              {isAdmin ? (
+                                <>
+                                  <button type="button" onClick={() => setEditando({ def, goal: g })} title="Alterar meta" className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-foreground">
+                                    <Pencil className="h-3 w-3" />
+                                  </button>
+                                  <button type="button" onClick={() => setExcluindo(g)} title="Remover meta" className="rounded-full p-1 text-muted-foreground hover:bg-secondary hover:text-destructive">
+                                    <Trash2 className="h-3 w-3" />
+                                  </button>
+                                </>
+                              ) : (
+                                <span className="pr-2" />
+                              )}
+                            </span>
+                          ))
+                        )}
+                      </div>
+                      {isAdmin && (lista.length === 0 || varias) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={cn("w-fit rounded-full", lista.length === 0 && "border-primary/60")}
+                          onClick={() => setEditando({ def, goal: null })}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                          {lista.length === 0 ? "Definir" : def.scope === "lote" ? "Outro lote" : "Outro período"}
+                        </Button>
                       )}
-                    </TableCell>
-                    <TableCell>
-                        {isAdmin && <div className="flex gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => handleClone(goal)} title="Clonar">
-                            <Copy className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleEdit(goal)} title="Editar">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => setDeletingGoalId(goal.id)} title="Excluir">
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>}
-                      </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            </Card>
+          ))}
+
+          {porItem.soltas.length > 0 && (
+            <Card className="overflow-hidden">
+              <div className="border-b bg-secondary/40 px-5 py-3">
+                <h2 className="text-[15px] font-semibold">Outras metas</h2>
+                <p className="text-xs text-muted-foreground">Metas antigas de métricas que não aparecem em nenhum gráfico hoje. Podem ser removidas.</p>
+              </div>
+              <ul>
+                {porItem.soltas.map((g) => (
+                  <li key={g.id} className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-3 text-sm last:border-b-0">
+                    <span>
+                      <b className="font-semibold">{g.label}</b>{" "}
+                      <span className="text-muted-foreground">
+                        {Number(g.target_value).toLocaleString("pt-BR")} · {data(g.period_start)}–{data(g.period_end)}
+                      </span>
+                    </span>
+                    {isAdmin && (
+                      <Button variant="ghost" size="sm" className="rounded-full text-muted-foreground hover:text-destructive" onClick={() => setExcluindo(g)}>
+                        <Trash2 className="h-3.5 w-3.5" /> Remover
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </Card>
+          )}
+        </>
       )}
 
-      <GoalFormDialog
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        onSubmit={handleSubmit}
-        defaultValues={defaultValues}
-        isSubmitting={upsertMutation.isPending}
+      <GoalEditor
+        open={!!editando}
+        def={editando?.def ?? null}
+        goal={editando?.goal ?? null}
+        eventEnd={event.end_date}
+        saving={salvar.isPending}
+        onClose={() => setEditando(null)}
+        onSave={(v) => editando && salvar.mutate({ def: editando.def, goal: editando.goal, v })}
       />
 
-      <AlertDialog open={!!deletingGoalId} onOpenChange={(o) => !o && setDeletingGoalId(null)}>
+      <AlertDialog open={!!excluindo} onOpenChange={(o) => !o && setExcluindo(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Excluir meta?</AlertDialogTitle>
+            <AlertDialogTitle>Remover esta meta?</AlertDialogTitle>
             <AlertDialogDescription>
-              Esta ação não pode ser desfeita. A meta será removida permanentemente.
+              {excluindo?.label}: o gráfico volta a aparecer sem a marca de meta. Dá para definir de novo quando quiser.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => deletingGoalId && deleteMutation.mutate(deletingGoalId)}
+              onClick={() => excluindo && excluir.mutate(excluindo.id)}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
-              Excluir
+              Remover
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

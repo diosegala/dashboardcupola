@@ -1,5 +1,6 @@
--- Papel "Equipe de vendas": vê só o ranking de cupons e a lista de compradores dos eventos liberados para ela.
--- Rodar inteiro no editor SQL do Lovable. Não apaga nada; só cria o papel, a tabela de cupons e regras novas.
+-- Pacote de banco desta fase. Rodar inteiro no editor SQL do Lovable.
+-- Cria o papel "Equipe de vendas" (ranking e lista de compradores dos eventos liberados) e deixa a gravação de metas só para administradores.
+-- Não apaga dados; só cria o papel, a tabela de cupons, funções e regras novas.
 
 -- 1. Novo papel
 ALTER TYPE public.app_role ADD VALUE IF NOT EXISTS 'seller';
@@ -190,3 +191,13 @@ GRANT EXECUTE ON FUNCTION public.get_buyer_events(text) TO authenticated;
 REVOKE ALL ON FUNCTION public.get_buyer_rows(text) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.get_buyer_rows(text) TO authenticated;
 
+
+-- 6. Metas: todo mundo que vê o evento lê as metas; só administradores criam, alteram ou removem.
+DROP POLICY IF EXISTS "Authenticated users can insert goals" ON public.goals;
+DROP POLICY IF EXISTS "Authenticated users can update goals" ON public.goals;
+DROP POLICY IF EXISTS "Authenticated users can delete goals" ON public.goals;
+DROP POLICY IF EXISTS "Admins can manage goals" ON public.goals;
+CREATE POLICY "Admins can manage goals" ON public.goals
+  FOR ALL TO authenticated
+  USING (public.has_role(auth.uid(), 'admin'))
+  WITH CHECK (public.has_role(auth.uid(), 'admin'));

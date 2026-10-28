@@ -8,7 +8,6 @@ export const PREVIOUS_EVENT_KEY = "summit-2026";
 
 // Meta global de pagantes: vem da tela Metas (métrica "paying_tickets"); 2.000 é o valor decidido em 27/10/2026.
 export const PAYING_GOAL_KEY = "paying_tickets";
-export const PAYING_GOAL_DEFAULT = 2000;
 
 // Ritmo atual = média dos últimos N dias úteis.
 export const CURRENT_PACE_DAYS = 10;

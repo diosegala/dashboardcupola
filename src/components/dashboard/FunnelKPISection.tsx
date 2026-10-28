@@ -1,6 +1,5 @@
 import { InfoTip } from "@/components/InfoTip";
-import { useMemo } from "react";
-import { Pencil } from "lucide-react";
+import { Fragment, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
@@ -24,7 +23,6 @@ interface FunnelKPISectionProps {
   tickets: any[];
   goals: any[];
   range: DateRange;
-  onEditGoal?: (metricKey: string, periodStart: Date, periodEnd: Date) => void;
 }
 
 interface FunnelRowDef {
@@ -127,7 +125,19 @@ const fmtVal = (value: number, fmt?: "currency" | "number") => {
   return value.toLocaleString("pt-BR");
 };
 
-export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, range, onEditGoal }: FunnelKPISectionProps) {
+// % da meta embaixo do realizado: verde quando bateu, discreto quando ainda não.
+function MetaPct({ actual, target }: { actual: number; target: number | null }) {
+  if (target == null || target <= 0) return null;
+  const pct = Math.round((actual / target) * 100);
+  return (
+    <span className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] font-medium ${pct >= 100 ? "text-ok" : "text-muted-foreground"}`}>
+      <i className={`inline-block h-1.5 w-1.5 rounded-full ${pct >= 100 ? "bg-ok" : "bg-primary"}`} />
+      {pct.toLocaleString("pt-BR")}% da meta
+    </span>
+  );
+}
+
+export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, range }: FunnelKPISectionProps) {
   const metaAds = useMemo(() => adMetrics.filter((a) => a.source === "meta"), [adMetrics]);
 
   const weeks = useMemo(() => getWeeksInRange(range.from, range.to), [range]);
@@ -138,11 +148,24 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
     return ROW_DEFS.map((def) => {
       const totalActual = calcActual(def, metaAds, emailCampaigns, tickets, range.from, range.to);
       const weekActuals = weeks.map((w) => calcActual(def, metaAds, emailCampaigns, tickets, w.from, w.to));
-      return { def, totalActual, weekActuals };
+      // Meta de cada semana; o total soma as semanais ou usa uma meta do período todo.
+      const weekTargets = weeks.map((w) => {
+        const g = findGoal(goals, def.metricKey, { from: w.from, to: w.to });
+        return g && Number(g.target_value) > 0 ? Number(g.target_value) : null;
+      });
+      const totalGoal = findGoal(goals, def.metricKey, range);
+      const totalTarget = weekTargets.some((t) => t !== null)
+        ? weekTargets.reduce((sum, t) => sum + (t ?? 0), 0)
+        : totalGoal && Number(totalGoal.target_value) > 0
+          ? Number(totalGoal.target_value)
+          : null;
+      return { def, totalActual, weekActuals, weekTargets, totalTarget };
     });
-  }, [metaAds, emailCampaigns, tickets, weeks, range]);
+  }, [metaAds, emailCampaigns, tickets, weeks, range, goals]);
 
-  const colCount = showWeeks ? 2 + (1 + weeks.length) * 2 : 5; // etapa+obj + (total + weeks) * (meta+real)
+  // Sem nenhuma meta definida, a tabela mostra só o realizado (sem colunas de meta vazias).
+  const temMeta = data.some((d) => d.totalTarget !== null || d.weekTargets.some((t) => t !== null));
+  const span = temMeta ? 2 : 1;
 
   return (
     <Card>
@@ -156,19 +179,19 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
               {/* Top header row */}
               <tr className="border-b">
                 <th
-                  rowSpan={2}
+                  rowSpan={temMeta ? 2 : 1}
                   className="sticky left-0 z-20 bg-card text-left py-2 px-3 font-medium text-muted-foreground border-r"
                 >
                   Etapa
                 </th>
                 <th
-                  rowSpan={2}
+                  rowSpan={temMeta ? 2 : 1}
                   className="sticky left-[72px] z-20 bg-card text-left py-2 px-3 font-medium text-muted-foreground border-r"
                 >
                   Objetivo
                 </th>
                 <th
-                  colSpan={2}
+                  colSpan={span}
                   className="text-center py-2 px-3 font-semibold border-r bg-muted/30"
                 >
                   Período Total
@@ -177,39 +200,37 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
                   weeks.map((w) => (
                     <th
                       key={w.label}
-                      colSpan={2}
+                      colSpan={span}
                       className="text-center py-2 px-3 font-medium border-r last:border-r-0"
                     >
                       {w.label}
                     </th>
                   ))}
               </tr>
-              {/* Sub header row */}
-              <tr className="border-b text-xs text-muted-foreground">
-                <th className="py-1 px-3 text-right border-r bg-muted/30 font-normal">Meta</th>
-                <th className="py-1 px-3 text-right border-r bg-muted/30 font-normal">Real.</th>
-                {showWeeks &&
-                  weeks.map((w) => (
-                    <>
-                      <th key={`${w.label}-m`} className="py-1 px-3 text-right font-normal whitespace-nowrap">
-                        Meta
-                      </th>
-                      <th key={`${w.label}-r`} className="py-1 px-3 text-right border-r last:border-r-0 font-normal whitespace-nowrap">
-                        Real.
-                      </th>
-                    </>
-                  ))}
-              </tr>
+              {/* Sub-cabeçalho Meta / Real. só quando existe alguma meta */}
+              {temMeta && (
+                <tr className="border-b text-xs text-muted-foreground">
+                  <th className="py-1 px-3 text-right border-r bg-muted/30 font-normal">Meta</th>
+                  <th className="py-1 px-3 text-right border-r bg-muted/30 font-normal">Real.</th>
+                  {showWeeks &&
+                    weeks.map((w) => (
+                      <Fragment key={w.label}>
+                        <th className="py-1 px-3 text-right font-normal whitespace-nowrap">Meta</th>
+                        <th className="py-1 px-3 text-right border-r last:border-r-0 font-normal whitespace-nowrap">Real.</th>
+                      </Fragment>
+                    ))}
+                </tr>
+              )}
               {/* Week date labels */}
               {showWeeks && (
                 <tr className="border-b text-[10px] text-muted-foreground/70">
                   <th className="sticky left-0 z-20 bg-card border-r" />
                   <th className="sticky left-[72px] z-20 bg-card border-r" />
-                  <th colSpan={2} className="py-0.5 text-center border-r bg-muted/30">
+                  <th colSpan={span} className="py-0.5 text-center border-r bg-muted/30">
                     {format(range.from, "dd/MM")}–{format(range.to, "dd/MM")}
                   </th>
                   {weeks.map((w) => (
-                    <th key={`${w.label}-d`} colSpan={2} className="py-0.5 text-center border-r last:border-r-0 whitespace-nowrap">
+                    <th key={`${w.label}-d`} colSpan={span} className="py-0.5 text-center border-r last:border-r-0 whitespace-nowrap">
                       {w.sub}
                     </th>
                   ))}
@@ -217,106 +238,34 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
               )}
             </thead>
             <tbody>
-              {data.map(({ def, totalActual, weekActuals }) => {
-                // Calcula meta de cada semana
-                const weekTargets = weeks.map((w) => {
-                  const g = findGoal(goals, def.metricKey, { from: w.from, to: w.to });
-                  return g ? Number(g.target_value) : null;
-                });
-
-                // Total = soma das metas semanais (se pelo menos uma existir)
-                const hasAnyWeekGoal = weekTargets.some((t) => t !== null);
-                const totalTarget = hasAnyWeekGoal
-                  ? weekTargets.reduce((sum, t) => sum + (t ?? 0), 0)
-                  : null;
-                const totalPct = totalTarget && totalTarget > 0 ? (totalActual / totalTarget) * 100 : null;
-
-                return (
-                  <tr key={def.metricKey} className="border-b last:border-0 hover:bg-muted/30 group/row">
-                    <td className="sticky left-0 z-10 bg-card py-2.5 px-3 border-r">
-                      <Badge variant="secondary" className={stageBadgeClass[def.stage]}>
-                        {def.stage}
-                      </Badge>
-                    </td>
-                    <td className="sticky left-[72px] z-10 bg-card py-2.5 px-3 border-r">
-                      <span className="font-medium text-xs whitespace-nowrap">{def.label}</span>
-                      {def.note && (
-                        <span className="text-[10px] text-muted-foreground ml-1">({def.note})</span>
-                      )}
-                    </td>
-                    {/* Total period */}
-                    <td className="py-2.5 px-3 text-right tabular-nums bg-muted/10 border-r text-xs">
-                      <span className="inline-flex items-center gap-1 justify-end">
-                        {totalTarget != null ? fmtVal(totalTarget, def.format) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                        {onEditGoal && (
-                          <button
-                            onClick={() => onEditGoal(def.metricKey, range.from, range.to)}
-                            className="opacity-0 group-hover/row:opacity-100 hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity p-0.5"
-                            title="Editar meta"
-                          >
-                            <Pencil className="h-3 w-3" />
-                          </button>
-                        )}
-                      </span>
-                    </td>
-                    <td className={`py-2.5 px-3 text-right tabular-nums font-semibold bg-muted/10 border-r text-xs ${
-                      totalTarget != null
-                        ? totalActual >= totalTarget
-                          ? "text-ok"
-                          : "text-bad"
-                        : ""
-                    }`}>
-                      {fmtVal(totalActual, def.format)}
-                      {totalPct != null && (
-                        <span className="block text-[10px] font-normal text-muted-foreground">
-                          {totalPct.toFixed(0)}%
-                        </span>
-                      )}
-                    </td>
-                    {/* Weekly columns */}
-                    {showWeeks &&
-                      weeks.map((w, i) => {
-                        const weekTarget = weekTargets[i];
-                        const actual = weekActuals[i];
-                        const metColor =
-                          weekTarget != null
-                            ? actual >= weekTarget
-                              ? "text-ok"
-                              : "text-bad"
-                            : "";
-
-                        return (
-                          <>
-                            <td key={`${w.label}-m`} className="py-2.5 px-3 text-right tabular-nums text-xs">
-                              <span className="inline-flex items-center gap-1 justify-end">
-                                {weekTarget != null ? fmtVal(weekTarget, def.format) : (
-                                  <span className="text-muted-foreground">—</span>
-                                )}
-                                {onEditGoal && (
-                                  <button
-                                    onClick={() => onEditGoal(def.metricKey, w.from, w.to)}
-                                    className="opacity-0 group-hover/row:opacity-100 hover:opacity-100 text-muted-foreground hover:text-foreground transition-opacity p-0.5"
-                                    title="Editar meta"
-                                  >
-                                    <Pencil className="h-3 w-3" />
-                                  </button>
-                                )}
-                              </span>
-                            </td>
-                            <td
-                              key={`${w.label}-r`}
-                              className={`py-2.5 px-3 text-right tabular-nums font-semibold border-r last:border-r-0 text-xs ${metColor}`}
-                            >
-                              {fmtVal(actual, def.format)}
-                            </td>
-                          </>
-                        );
-                      })}
-                  </tr>
-                );
-              })}
+              {data.map(({ def, totalActual, weekActuals, weekTargets, totalTarget }) => (
+                <tr key={def.metricKey} className="border-b last:border-0 hover:bg-muted/30">
+                  <td className="sticky left-0 z-10 bg-card py-2.5 px-3 border-r">
+                    <Badge variant="secondary" className={stageBadgeClass[def.stage]}>
+                      {def.stage}
+                    </Badge>
+                  </td>
+                  <td className="sticky left-[72px] z-10 bg-card py-2.5 px-3 border-r">
+                    <span className="font-medium text-xs whitespace-nowrap">{def.label}</span>
+                    {def.note && <span className="text-[10px] text-muted-foreground ml-1">({def.note})</span>}
+                  </td>
+                  {temMeta && <td className="py-2.5 px-3 text-right tabular-nums bg-muted/10 border-r text-xs text-muted-foreground">{totalTarget != null ? fmtVal(totalTarget, def.format) : ""}</td>}
+                  <td className="py-2.5 px-3 text-right tabular-nums font-semibold bg-muted/10 border-r text-xs">
+                    {fmtVal(totalActual, def.format)}
+                    <MetaPct actual={totalActual} target={totalTarget} />
+                  </td>
+                  {showWeeks &&
+                    weeks.map((w, i) => (
+                      <Fragment key={w.label}>
+                        {temMeta && <td className="py-2.5 px-3 text-right tabular-nums text-xs text-muted-foreground">{weekTargets[i] != null ? fmtVal(weekTargets[i] as number, def.format) : ""}</td>}
+                        <td className="py-2.5 px-3 text-right tabular-nums font-semibold border-r last:border-r-0 text-xs">
+                          {fmtVal(weekActuals[i], def.format)}
+                          <MetaPct actual={weekActuals[i]} target={weekTargets[i]} />
+                        </td>
+                      </Fragment>
+                    ))}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>

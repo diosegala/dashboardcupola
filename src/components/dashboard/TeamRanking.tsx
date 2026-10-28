@@ -116,7 +116,8 @@ function NomeComCupom({ nome, cupons, className }: { nome: string; cupons: strin
 }
 
 // Ranking da equipe CUPOLA: recomeça a cada lote. Só aparece quem vendeu. Quem está logado aparece destacado.
-export function TeamRanking({ data, eu, className }: { data: TeamRankingData; eu?: Eu; className?: string }) {
+// metaPorPessoa: meta de vendas de cada pessoa no lote (tela Metas). Sem meta, as barras ficam sem marca.
+export function TeamRanking({ data, eu, metaPorPessoa, className }: { data: TeamRankingData; eu?: Eu; metaPorPessoa?: number | null; className?: string }) {
   const { lotes, loteAtual, campeoes } = data;
   const indiceAtual = Math.max(lotes.findIndex((l) => l.lote === loteAtual), 0);
   const [escolhido, setEscolhido] = useState<number | null>(null);
@@ -125,7 +126,8 @@ export function TeamRanking({ data, eu, className }: { data: TeamRankingData; eu
 
   if (!lotes.some((l) => l.ranking.length > 0)) return null;
 
-  const max = Math.max(...(lote?.ranking.map((v) => v.vendas) ?? [1]), 1);
+  const meta = metaPorPessoa && metaPorPessoa > 0 ? metaPorPessoa : null;
+  const max = Math.max(...(lote?.ranking.map((v) => v.vendas) ?? [1]), meta ?? 0, 1);
 
   return (
     <Card className={cn("col-span-12", className)}>
@@ -145,6 +147,11 @@ export function TeamRanking({ data, eu, className }: { data: TeamRankingData; eu
               <ChevronRight className="h-4 w-4" />
             </Button>
             {lote?.lote === loteAtual && <span className="ml-1 text-xs text-muted-foreground">lote atual</span>}
+            {meta && (
+              <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+                <i className="inline-block h-3 w-[2px] rounded-full bg-foreground/45" /> Meta {int(meta)} por pessoa
+              </span>
+            )}
           </div>
 
           {lote && lote.ranking.length > 0 ? (
@@ -166,7 +173,7 @@ export function TeamRanking({ data, eu, className }: { data: TeamRankingData; eu
                         </span>
                         <b className="font-semibold tabular-nums">{int(v.vendas)}</b>
                       </div>
-                      <div className="h-2.5 overflow-hidden rounded-full bg-secondary">
+                      <div className="relative h-2.5 rounded-full bg-secondary">
                         <i
                           className={cn(
                             "block h-full origin-left animate-[grow_900ms_cubic-bezier(.16,1,.3,1)_both] rounded-full motion-reduce:animate-none",
@@ -174,6 +181,13 @@ export function TeamRanking({ data, eu, className }: { data: TeamRankingData; eu
                           )}
                           style={{ width: `${(v.vendas / max) * 100}%` }}
                         />
+                        {meta && (
+                          <span
+                            className="absolute -top-[3px] h-4 w-[2px] rounded-full bg-foreground/45"
+                            style={{ left: `calc(${(meta / max) * 100}% - 1px)` }}
+                            title={`Meta: ${int(meta)} por pessoa`}
+                          />
+                        )}
                       </div>
                     </div>
                   </li>

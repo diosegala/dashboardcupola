@@ -15,7 +15,10 @@ export const METRIC_INFO: Record<string, string> = {
     "Ingressos vendidos pelo comercial fora da Sympla e resgatados com cupom que começa com FATURADO. Passa a contar quando a Sympla enviar o cupom.",
   Bonificados:
     "Ingressos aprovados sem valor: cortesias, expositores, patrocinadores, convidados e equipe. Ficam visíveis para controle de lotação, mas não somam na meta nem na receita.",
-  "Receita acumulada": "Valor dos ingressos pagantes desde a abertura das vendas.",
+  "Ingressos pagantes":
+    "Soma dos ingressos pagos na Sympla com os faturados internamente. Cortesias, expositores e patrocinadores não entram. Para acompanhar uma meta, defina-a na tela Metas.",
+  "Pagantes acumulados": "Total de pagantes semana a semana desde a primeira venda. Com uma meta de pagantes na tela Metas, aparece também a trajetória até ela.",
+  "Receita acumulada": "Valor dos ingressos pagantes desde a abertura das vendas. Com uma meta de receita na tela Metas, aparece o progresso até ela.",
   "Pagantes acumulados x meta":
     "Linha cheia: total de pagantes semana a semana. Linha tracejada: trajetória até a meta no dia do evento, distribuída por dias úteis.",
   "Ingressos emitidos":
