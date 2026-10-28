@@ -6,6 +6,7 @@ import { InfoTip } from "@/components/InfoTip";
 import { SlidingTabsList } from "./SlidingTabsList";
 import { parseCoupon } from "@/lib/coupons";
 import { isApproved } from "@/lib/eventConfig";
+import { TICKET_KINDS, ticketKind, type TicketKind } from "@/lib/ticketKinds";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { cn } from "@/lib/utils";
 
@@ -21,7 +22,16 @@ const CATEGORIAS = [
   { key: "pendentes", label: "Pendentes", color: "hsl(var(--warn))", meta: false },
 ] as const;
 
-const PALETA_LOTE = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--muted-foreground))"];
+// Cores fixas por tipo: azul e lima para os principais, tons neutros para o resto.
+const COR_TIPO: Record<TicketKind, string> = {
+  Padrão: "hsl(var(--chart-1))",
+  VIP: "hsl(var(--chart-2))",
+  "Padrão Combo": "hsl(var(--chart-4))",
+  "VIP Combo": "hsl(var(--accent-text))",
+  Grupo: "hsl(var(--chart-3))",
+  "Visita presencial": "hsl(var(--chart-5))",
+  Credenciais: "hsl(var(--muted-foreground))",
+};
 
 const qty = (t: Ticket) => t.quantity || 0;
 const price = (t: Ticket) => Number(t.unit_price ?? t.total_price ?? 0);
@@ -47,15 +57,14 @@ function porCategoria(tickets: Ticket[]): Fatia[] {
   return CATEGORIAS.map((c) => ({ key: c.key, label: c.label, value: soma[c.key] || 0, color: c.color, meta: c.meta })).filter((f) => f.value > 0);
 }
 
-function porLote(tickets: Ticket[]): Fatia[] {
-  const soma = new Map<string, number>();
-  tickets.forEach((t) => soma.set(t.ticket_type || "Sem tipo", (soma.get(t.ticket_type || "Sem tipo") || 0) + qty(t)));
-  const ordenado = Array.from(soma.entries()).sort((a, b) => b[1] - a[1]);
-  const principais = ordenado.slice(0, 5);
-  const resto = ordenado.slice(5).reduce((s, [, v]) => s + v, 0);
-  const fatias = principais.map(([label, value], i) => ({ key: label, label, value, color: PALETA_LOTE[i] }));
-  if (resto > 0) fatias.push({ key: "outros", label: "Outros tipos", value: resto, color: PALETA_LOTE[5] });
-  return fatias;
+// Agrupa pelo tipo (Padrão, VIP, combos, grupo...), não pelo nome de cada lote.
+function porTipo(tickets: Ticket[]): Fatia[] {
+  const soma = new Map<TicketKind, number>();
+  tickets.forEach((t) => {
+    const tipo = ticketKind(t.ticket_type);
+    soma.set(tipo, (soma.get(tipo) || 0) + qty(t));
+  });
+  return TICKET_KINDS.filter((k) => soma.get(k)).map((k) => ({ key: k, label: k, value: soma.get(k) as number, color: COR_TIPO[k] }));
 }
 
 // Fatia em destaque no hover: engrossa um pouco, como no ds-summit.
@@ -68,7 +77,7 @@ export function IssuedTicketsCard({ tickets, className }: { tickets: Ticket[]; c
   const [visao, setVisao] = useState<"categoria" | "lote">("categoria");
   const [ativa, setAtiva] = useState<number | null>(null);
 
-  const fatias = useMemo(() => (visao === "categoria" ? porCategoria(tickets) : porLote(tickets)), [tickets, visao]);
+  const fatias = useMemo(() => (visao === "categoria" ? porCategoria(tickets) : porTipo(tickets)), [tickets, visao]);
   const total = fatias.reduce((s, f) => s + f.value, 0);
   const destaque = ativa != null ? fatias[ativa] : null;
 
