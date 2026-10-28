@@ -173,7 +173,7 @@ export default function Buyers() {
 
           <Tabs value={aba} onValueChange={(v) => { setAba(v); setLimite(PAGE); }}>
             <div className="mb-4 flex flex-wrap items-center gap-3">
-              <SlidingTabsList value={aba}>
+              <SlidingTabsList value={aba} className="max-w-full justify-start overflow-x-auto">
                 {[
                   ["pessoas", "Pessoas"],
                   ["empresas", "Empresas"],
