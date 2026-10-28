@@ -143,6 +143,9 @@ export function useCommercialMetrics(
       currentPace,
       paceStatus,
       dailyBusiness,
+      // Vendas pagantes por dia (aaaa-mm-dd) e a data da primeira venda, para navegar pelos dias úteis.
+      paidByDay: Object.fromEntries(byDay),
+      firstSaleDate: start,
       weekly,
       hasPrevious,
       issuedCount: paidSymplaCount + invoicedCount + bonusCount,

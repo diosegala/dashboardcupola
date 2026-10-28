@@ -1,11 +1,7 @@
 import {
-  Bar,
-  BarChart,
   CartesianGrid,
-  Cell,
   Line,
   LineChart,
-  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,11 +14,11 @@ import { IssuedTicketsCard } from "./IssuedTicketsCard";
 import { PaceGauge } from "./PaceGauge";
 import { SlidingTabsList } from "./SlidingTabsList";
 import { WeekdayView } from "./charts/WeekdayView";
+import { BusinessDaysView } from "./BusinessDaysView";
 import { Tabs, TabsTrigger } from "@/components/ui/tabs";
 import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import { useCommercialMetrics, type EventParams, type PaceStatus } from "@/hooks/useCommercialMetrics";
-import { CURRENT_PACE_DAYS } from "@/lib/eventConfig";
 import { cn } from "@/lib/utils";
 import { ChartLegend } from "./charts/ChartLegend";
 import { PREVIOUS_YEAR_KEY, PREVIOUS_YEAR_LABEL, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
@@ -116,7 +112,7 @@ interface CommercialOverviewProps {
 export function CommercialOverview({ tickets, goals, previousTickets = [], eventParams }: CommercialOverviewProps) {
   const m = useCommercialMetrics(tickets, goals, previousTickets, eventParams);
   const weeklySeries = useSeriesVisibility();
-  const [diaVisao, setDiaVisao] = useState<"uteis" | "semana">("uteis");
+  const [diaVisao, setDiaVisao] = useState<"uteis" | "semana">("semana");
   const chip = PACE_CHIP[m.paceStatus];
 
   return (
@@ -229,16 +225,16 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
               Vendas por dia <InfoTip title={diaVisao === "uteis" ? "Vendas por dia útil" : "Vendas por dia da semana"} />
             </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
-              {diaVisao === "uteis" ? "Últimos 15 dias úteis comparados ao ritmo necessário" : "Vendas pagantes em cada dia da semana desde a abertura das vendas"}
+              {diaVisao === "uteis" ? "Vendas em cada dia útil comparadas ao ritmo necessário" : "Vendas pagantes em cada dia da semana desde a abertura das vendas"}
             </p>
           </div>
           <Tabs value={diaVisao} onValueChange={(v) => setDiaVisao(v as "uteis" | "semana")}>
             <SlidingTabsList value={diaVisao} className="h-9">
-              <TabsTrigger value="uteis" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
-                Últimos dias úteis
-              </TabsTrigger>
               <TabsTrigger value="semana" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
                 Dia da semana
+              </TabsTrigger>
+              <TabsTrigger value="uteis" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
+                Dias úteis
               </TabsTrigger>
             </SlidingTabsList>
           </Tabs>
@@ -247,42 +243,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
           {diaVisao === "semana" ? (
             <WeekdayView tickets={tickets} />
           ) : (
-          <>
-          <div className="mb-2 flex flex-wrap gap-3.5 text-xs text-foreground/75">
-            <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: COLORS.blue }} /> No ritmo
-            </span>
-            <span className="inline-flex items-center gap-1.5">
-              <i className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: COLORS.amber }} /> Abaixo
-            </span>
-          </div>
-          <ResponsiveContainer width="100%" height={220}>
-            <BarChart data={m.dailyBusiness} margin={{ left: -12, right: 8, top: 8 }}>
-              <CartesianGrid vertical={false} className="stroke-border" />
-              <XAxis dataKey="label" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} className="fill-muted-foreground" />
-              <Tooltip
-                {...tooltipStyle}
-                cursor={{ fill: "hsl(var(--secondary))" }}
-                formatter={(v: number) => [int(v), "Pagantes"]}
-              />
-              <ReferenceLine
-                y={m.requiredPace}
-                stroke={COLORS.muted}
-                strokeDasharray="4 4"
-                label={{ value: `Necessário ${int(Math.ceil(m.requiredPace))}`, position: "insideTopRight", fontSize: 11, fill: COLORS.muted }}
-              />
-              <Bar dataKey="pagantes" radius={[6, 6, 0, 0]} animationDuration={900}>
-                {m.dailyBusiness.map((d) => (
-                  <Cell key={d.date} fill={d.onPace ? COLORS.blue : COLORS.amber} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-          <p className="mt-2 text-xs text-muted-foreground">
-            Ritmo atual considera a média dos últimos {CURRENT_PACE_DAYS} dias úteis. Feriados nacionais e fins de semana ficam de fora.
-          </p>
-          </>
+            <BusinessDaysView paidByDay={m.paidByDay} firstSaleDate={m.firstSaleDate} requiredPace={m.requiredPace} />
           )}
         </CardContent>
       </Card>
