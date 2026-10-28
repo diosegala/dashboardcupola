@@ -18,7 +18,8 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { EventsManager } from "@/components/settings/EventsManager";
-import { UserPlus, Shield, Eye, Loader2, Mail, Trash2, CheckCircle2, Clock } from "lucide-react";
+import { UserPlus, Shield, Eye, Loader2, Mail, Trash2, CheckCircle2, Clock, Trophy } from "lucide-react";
+import { useTeamCoupons } from "@/hooks/useTeam";
 
 interface UserWithAuth {
   id: string;
@@ -64,6 +65,46 @@ function useUsers() {
   });
 }
 
+// Cupons da pessoa da equipe, separados por vírgula. Salva ao sair do campo.
+function TeamCouponInput({ userId, codes }: { userId: string; codes: string[] }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const atual = codes.join(", ");
+  const [valor, setValor] = useState(atual);
+  const [salvando, setSalvando] = useState(false);
+
+  const salvar = async () => {
+    const novos = Array.from(new Set(valor.split(/[,\s]+/).map((c) => c.trim().toUpperCase()).filter(Boolean)));
+    if (novos.join(", ") === atual) return;
+    setSalvando(true);
+    const tabela = supabase.from("team_coupons" as any);
+    const apagar = await tabela.delete().eq("user_id", userId);
+    const inserir = apagar.error || novos.length === 0 ? apagar : await supabase.from("team_coupons" as any).insert(novos.map((coupon_code) => ({ user_id: userId, coupon_code })));
+    setSalvando(false);
+    if (inserir.error) {
+      toast({ variant: "destructive", title: "Não deu para salvar o cupom", description: inserir.error.message });
+      setValor(atual);
+      return;
+    }
+    setValor(novos.join(", "));
+    toast({ title: novos.length ? "Cupom salvo" : "Cupom removido" });
+    queryClient.invalidateQueries({ queryKey: ["team_coupons"] });
+  };
+
+  return (
+    <Input
+      value={valor}
+      onChange={(e) => setValor(e.target.value)}
+      onBlur={salvar}
+      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+      disabled={salvando}
+      placeholder="Cupom (ex.: NOME5)"
+      className="mt-1.5 h-8 w-40 font-mono text-xs uppercase"
+      title="Cupom desta pessoa da equipe. Mais de um? Separe por vírgula."
+    />
+  );
+}
+
 function useManageUser() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -95,6 +136,7 @@ export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: users, isLoading: usersLoading } = useUsers();
+  const teamCoupons = useTeamCoupons(isAdmin);
   const manageMutation = useManageUser();
 
   const [email, setEmail] = useState("");
@@ -168,7 +210,7 @@ export default function Settings() {
                 <p className="text-xs text-destructive">O e-mail deve terminar com @cupola.com.br</p>
               )}
             </div>
-            <div className="w-full sm:w-36">
+            <div className="w-full sm:w-44">
               <Label htmlFor="invite-role" className="sr-only">Função</Label>
               <Select value={role} onValueChange={setRole}>
                 <SelectTrigger id="invite-role">
@@ -176,6 +218,7 @@ export default function Settings() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="viewer">Viewer</SelectItem>
+                  <SelectItem value="seller">Equipe de vendas</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
@@ -241,18 +284,24 @@ export default function Settings() {
                           manageMutation.mutate({ action: "update_role", user_id: u.id, role: newRole })
                         }
                       >
-                        <SelectTrigger className="w-28 h-8">
+                        <SelectTrigger className="w-40 h-8">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="viewer">
                             <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> Viewer</span>
                           </SelectItem>
+                          <SelectItem value="seller">
+                            <span className="flex items-center gap-1"><Trophy className="h-3 w-3" /> Equipe de vendas</span>
+                          </SelectItem>
                           <SelectItem value="admin">
                             <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> Admin</span>
                           </SelectItem>
                         </SelectContent>
                       </Select>
+                      {u.role === "seller" && (
+                        <TeamCouponInput key={(teamCoupons.data?.[u.id] ?? []).join(",")} userId={u.id} codes={teamCoupons.data?.[u.id] ?? []} />
+                      )}
                     </TableCell>
                     <TableCell>
                       {u.email_confirmed_at ? (

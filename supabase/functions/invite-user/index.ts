@@ -75,7 +75,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const assignedRole = role === "admin" ? "admin" : "viewer";
+    const assignedRole = role === "admin" ? "admin" : role === "seller" ? "seller" : "viewer";
 
     // Invite user via Admin API
     const siteUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "").replace("https://", "");

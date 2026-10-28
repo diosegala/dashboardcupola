@@ -6,12 +6,22 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { EventSelector } from "@/components/EventSelector";
 
 export function AppHeader() {
-  const { profile, signOut, user } = useAuth();
+  const { profile, signOut, user, viewingAsSeller, setViewingAsSeller } = useAuth();
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/70 px-4 backdrop-blur-[14px] backdrop-saturate-[1.2]">
       <SidebarTrigger className="h-9 w-9 rounded-full" title="Expandir ou recolher o menu" />
       <EventSelector />
+      {viewingAsSeller && (
+        <button
+          type="button"
+          onClick={() => setViewingAsSeller(false)}
+          className="hidden rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-85 sm:inline-flex"
+          title="Voltar ao painel completo"
+        >
+          Vendo como a equipe · voltar
+        </button>
+      )}
       <div className="ml-auto flex items-center gap-2">
         <ThemeToggle />
         <span className="hidden max-w-[160px] truncate text-[13px] text-muted-foreground sm:inline">

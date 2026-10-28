@@ -16,6 +16,11 @@ export interface EventRef {
   year: string;
 }
 
+export function eventRef(e: { slug: string; name: string; end_date: string }): EventRef {
+  const year = e.name.match(/\b(20\d{2})\b/)?.[1] ?? e.end_date.slice(0, 4);
+  return { slug: e.slug, name: e.name, year };
+}
+
 interface RawRecord {
   event: EventRef;
   role: Role;

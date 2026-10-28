@@ -16,7 +16,8 @@ import { InfoTip } from "@/components/InfoTip";
 import { SlidingTabsList } from "@/components/dashboard/SlidingTabsList";
 import { ProfileCharts } from "@/components/buyers/ProfileCharts";
 import { useAllTimeTicketSales, useFormAnswerCounts } from "@/hooks/useDashboardData";
-import { buildBuyers, formatPhone, maskCpf, pendingOrders, type DetailRow, type EventRef } from "@/lib/buyers";
+import { buildBuyers, eventRef, formatPhone, maskCpf, pendingOrders, type DetailRow, type EventRef } from "@/lib/buyers";
+import { SellerBuyerList } from "@/components/buyers/SellerBuyerList";
 
 const int = (n: number) => n.toLocaleString("pt-BR");
 const PAGE = 100;
@@ -32,11 +33,6 @@ const STATUS: Record<string, { label: string; variant: "warn" | "bad" | "neutral
   REFUNDED: { label: "Reembolsado", variant: "neutral" },
   R: { label: "Reembolsado", variant: "neutral" },
 };
-
-function eventRef(e: EventRow): EventRef {
-  const year = e.name.match(/\b(20\d{2})\b/)?.[1] ?? e.end_date.slice(0, 4);
-  return { slug: e.slug, name: e.name, year };
-}
 
 // Dados completos de um evento: os da Sympla e os guardados na base própria, sem repetir pedidos.
 async function loadEventRows(e: EventRow): Promise<DetailRow[]> {
@@ -79,8 +75,14 @@ function Kpi({ title, value }: { title: string; value: number }) {
   );
 }
 
-// Compradores e participantes de todos os eventos, com recorrência e pedidos a acompanhar. Só administradores.
+// A equipe de vendas vê só a lista para buscar e abordar; os demais veem a página completa.
 export default function Buyers() {
+  const { isSeller } = useAuth();
+  return isSeller ? <SellerBuyerList /> : <FullBuyers />;
+}
+
+// Compradores e participantes de todos os eventos, com recorrência e pedidos a acompanhar. Só administradores.
+function FullBuyers() {
   const { isAdmin, loading } = useAuth();
   const { events, event } = useEvent();
   const [aba, setAba] = useState("perfil");

@@ -12,6 +12,7 @@ import { SlidingTabsList } from "@/components/dashboard/SlidingTabsList";
 import { IntegrationsHealthCard } from "@/components/dashboard/IntegrationsHealthCard";
 import { CommercialOverview } from "@/components/dashboard/CommercialOverview";
 import { CommercialSegments } from "@/components/dashboard/CommercialSegments";
+import { SellerHome } from "@/components/dashboard/SellerHome";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 import { SalesSection } from "@/components/dashboard/SalesSection";
 import { MarketingSection } from "@/components/dashboard/MarketingSection";
@@ -58,7 +59,13 @@ function TabSkeleton() {
   );
 }
 
+// A equipe de vendas vê só o próprio ranking; os demais veem o painel completo.
 export default function Index() {
+  const { isSeller } = useAuth();
+  return isSeller ? <SellerHome /> : <Dashboard />;
+}
+
+function Dashboard() {
   const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   // A aba aberta fica na URL (?aba=marketing) para ser compartilhada e mantida ao recarregar.

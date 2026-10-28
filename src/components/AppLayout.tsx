@@ -1,11 +1,19 @@
 import { Suspense } from "react";
-import { Outlet } from "react-router-dom";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { EventProvider } from "@/hooks/useEvent";
 
+// Telas que a equipe de vendas pode abrir; as outras voltam para o ranking.
+const TELAS_EQUIPE = ["/", "/compradores"];
+
 export function AppLayout() {
+  const { isSeller } = useAuth();
+  const { pathname } = useLocation();
+  if (isSeller && !TELAS_EQUIPE.includes(pathname)) return <Navigate to="/" replace />;
+
   return (
     <EventProvider>
     <SidebarProvider>
