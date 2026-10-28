@@ -8,7 +8,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Ritmo atual":
     "Média de ingressos pagantes vendidos por dia útil nos últimos 10 dias úteis. Comparado com o ritmo necessário para indicar se a venda está no ritmo.",
   "Pagos na Sympla":
-    "Pedidos aprovados na Sympla com valor acima de zero e igual ou acima do valor mínimo configurado. Pendentes e cancelados não contam.",
+    "Pedidos aprovados na Sympla com qualquer valor acima de zero. Pendentes e cancelados não contam.",
   "Faturados internamente":
     "Ingressos vendidos pelo comercial fora da Sympla e resgatados com cupom que começa com FATURADO. Passa a contar quando a Sympla enviar o cupom.",
   Bonificados:
@@ -30,12 +30,17 @@ export const METRIC_INFO: Record<string, string> = {
   Cupons:
     "Cupons usados nos ingressos emitidos. Os que começam com FATURADO marcam vendas faturadas internamente pelo comercial.",
 
+  "Pessoas no evento": "Pessoas que compraram ou vão participar do evento selecionado, juntando comprador e participante quando têm o mesmo e-mail, CPF, telefone ou nome completo.",
+  "Já vieram antes": "Pessoas do evento selecionado que também compraram ou participaram de algum evento anterior.",
+  "Empresas no evento": "Empresas com compradores ou participantes no evento selecionado, juntando pelo CNPJ ou pelo nome da empresa.",
+  "Empresas que já vieram": "Empresas do evento selecionado que também estiveram em algum evento anterior.",
+
   // Vendas
   "Ingressos Vendidos (acumulado)":
-    "Todos os ingressos vendidos desde a abertura das vendas, respeitando o filtro de valor mínimo. Não muda com o período escolhido.",
+    "Todos os ingressos vendidos desde a abertura das vendas. Não muda com o período escolhido.",
   "Receita Total (acumulado)":
-    "Soma do valor de todos os ingressos vendidos desde a abertura das vendas, respeitando o filtro de valor mínimo.",
-  "Ingressos Vendidos": "Ingressos vendidos no período selecionado, respeitando o filtro de valor mínimo.",
+    "Soma do valor de todos os ingressos vendidos desde a abertura das vendas.",
+  "Ingressos Vendidos": "Ingressos vendidos no período selecionado.",
   "Receita Total": "Soma do valor dos ingressos vendidos no período selecionado.",
   "Ticket Médio": "Receita do período dividida pela quantidade de ingressos vendidos no mesmo período.",
   "Progresso por Lote": "Ingressos vendidos em cada lote comparados à meta do lote.",

@@ -106,13 +106,12 @@ function GoalRing({ progress: target }: { progress: number }) {
 interface CommercialOverviewProps {
   tickets: any[];
   goals: any[];
-  minTicketPrice: number;
   previousTickets?: any[];
   eventParams?: EventParams;
 }
 
-export function CommercialOverview({ tickets, goals, minTicketPrice, previousTickets = [], eventParams }: CommercialOverviewProps) {
-  const m = useCommercialMetrics(tickets, goals, minTicketPrice, previousTickets, eventParams);
+export function CommercialOverview({ tickets, goals, previousTickets = [], eventParams }: CommercialOverviewProps) {
+  const m = useCommercialMetrics(tickets, goals, previousTickets, eventParams);
   const weeklySeries = useSeriesVisibility();
   const chip = PACE_CHIP[m.paceStatus];
 

@@ -63,6 +63,19 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // Sincronização manual só para administradores (a agendada não passa por aqui).
+    const { data: isAdmin } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", data.user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    if (!isAdmin) {
+      return new Response(JSON.stringify({ error: "Apenas administradores podem sincronizar" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
   }
 
   try {
