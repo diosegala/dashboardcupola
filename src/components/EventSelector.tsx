@@ -17,7 +17,7 @@ export function EventSelector() {
 
   return (
     <Select value={event.slug} onValueChange={setEvent}>
-      <SelectTrigger className="h-9 w-auto min-w-[200px] gap-2 rounded-full border-line-strong text-[13px] font-semibold" aria-label="Evento">
+      <SelectTrigger className="h-9 w-auto min-w-0 gap-2 rounded-full border-line-strong text-[13px] font-semibold sm:min-w-[200px] [&>span]:truncate" aria-label="Evento">
         <span className="h-2 w-2 shrink-0 rounded-full bg-primary shadow-[0_0_0_3px_rgba(176,249,10,0.2)]" />
         <SelectValue />
       </SelectTrigger>

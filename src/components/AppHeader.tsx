@@ -10,8 +10,9 @@ export function AppHeader() {
   const { profile, signOut, user, viewingAsSeller, setViewingAsSeller } = useAuth();
 
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/70 px-4 backdrop-blur-[14px] backdrop-saturate-[1.2]">
-      <SidebarTrigger className="h-9 w-9 rounded-full" title="Expandir ou recolher o menu" />
+    <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b bg-background/70 px-3 sm:gap-3 sm:px-4 backdrop-blur-[14px] backdrop-saturate-[1.2]">
+      {/* O botão de recolher fica no próprio menu; aqui só no celular, onde o menu fica escondido */}
+      <SidebarTrigger className="h-9 w-9 shrink-0 rounded-full md:hidden" title="Abrir o menu" />
       {/* No celular o menu lateral fica escondido: o símbolo no topo leva ao início */}
       <Link to="/" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Ir para o início" className="shrink-0 md:hidden">
         <img src="/brand/simbolo-cupola-lima.svg" alt="CUPOLA" className="h-6 w-6" />

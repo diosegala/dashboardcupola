@@ -45,7 +45,8 @@ export function AppSidebar() {
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="h-16 justify-center px-4 group-data-[collapsible=icon]:px-2">
+      {/* Topo do menu: logo e o botão de recolher/expandir. Recolhido, o botão fica embaixo do símbolo. */}
+      <SidebarHeader className="h-16 flex-row items-center justify-between gap-2 pl-4 pr-2 group-data-[collapsible=icon]:h-auto group-data-[collapsible=icon]:flex-col group-data-[collapsible=icon]:px-2 group-data-[collapsible=icon]:py-3">
         {/* Logo leva ao início; se já estiver nele, volta ao topo da página */}
         <Link to="/" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Ir para o início" className="flex items-center gap-2.5 text-foreground">
           {recolhido ? (
@@ -54,6 +55,15 @@ export function AppSidebar() {
             <CupolaLogo className="h-[22px]" />
           )}
         </Link>
+        <button
+          type="button"
+          onClick={toggleSidebar}
+          title={recolhido ? "Expandir menu" : "Recolher menu"}
+          aria-label={recolhido ? "Expandir menu" : "Recolher menu"}
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground"
+        >
+          {recolhido ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
+        </button>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
@@ -95,17 +105,6 @@ export function AppSidebar() {
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}
-          <SidebarMenuItem>
-            <SidebarMenuButton
-              onClick={toggleSidebar}
-              title={recolhido ? "Expandir menu" : "Recolher menu"}
-              tooltip={recolhido ? "Expandir menu" : "Recolher menu"}
-              className={`${itemClass} w-10 justify-center px-0`}
-            >
-              {recolhido ? <PanelLeftOpen /> : <PanelLeftClose />}
-              <span className="sr-only">{recolhido ? "Expandir menu" : "Recolher menu"}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
     </Sidebar>
