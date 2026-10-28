@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Chip } from "@/components/Chip";
-import { isEventClosed, useEvent, type EventRow } from "@/hooks/useEvent";
+import { isEventClosed, previousEventOf, useEvent, type EventRow } from "@/hooks/useEvent";
 
 interface UserOption {
   id: string;
@@ -26,8 +26,6 @@ interface EventForm {
   start_date: string;
   end_date: string;
   sympla_event_id: string;
-  previous_event_slug: string;
-  paying_goal: string;
 }
 
 const EMPTY: EventForm = {
@@ -36,11 +34,7 @@ const EMPTY: EventForm = {
   start_date: "",
   end_date: "",
   sympla_event_id: "",
-  previous_event_slug: "",
-  paying_goal: "",
 };
-
-const NONE = "__nenhum__";
 
 function slugify(text: string) {
   return text
@@ -79,8 +73,8 @@ export function EventsManager({ users }: { users: UserOption[] }) {
         start_date: f.start_date || null,
         end_date: f.end_date,
         sympla_event_id: f.sympla_event_id.trim() || null,
-        previous_event_slug: f.previous_event_slug || null,
-        paying_goal: f.paying_goal ? Number(f.paying_goal) : null,
+        // Guardado para o acesso à comparação: é sempre o evento imediatamente anterior.
+        previous_event_slug: previousEventOf({ slug: f.slug, end_date: f.end_date }, events)?.slug ?? null,
       };
       let eventId = f.id;
       if (f.id) {
@@ -137,7 +131,7 @@ export function EventsManager({ users }: { users: UserOption[] }) {
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
         <div>
           <CardTitle>Eventos</CardTitle>
-          <CardDescription>Cada evento tem as suas datas, ID da Sympla, meta e quem pode ver.</CardDescription>
+          <CardDescription>Cada evento tem as suas datas, ID da Sympla e quem pode ver. As metas ficam na tela Metas.</CardDescription>
         </div>
         <Button onClick={() => setForm({ ...EMPTY })}>
           <CalendarPlus className="h-4 w-4" />
@@ -151,7 +145,6 @@ export function EventsManager({ users }: { users: UserOption[] }) {
               <TableHead>Evento</TableHead>
               <TableHead>Datas</TableHead>
               <TableHead>Compara com</TableHead>
-              <TableHead className="text-right">Meta</TableHead>
               <TableHead className="text-right">Acessos</TableHead>
               <TableHead />
             </TableRow>
@@ -170,7 +163,6 @@ export function EventsManager({ users }: { users: UserOption[] }) {
                   {fmtDate(e.start_date)} a {fmtDate(e.end_date)}
                 </TableCell>
                 <TableCell>{events.find((p) => p.slug === e.previous_event_slug)?.name ?? "—"}</TableCell>
-                <TableCell className="text-right tabular-nums">{e.paying_goal?.toLocaleString("pt-BR") ?? "—"}</TableCell>
                 <TableCell className="text-right">
                   <Button variant="outline" size="sm" onClick={() => setAccessEvent(e)}>
                     <Users className="h-4 w-4" />
@@ -190,8 +182,6 @@ export function EventsManager({ users }: { users: UserOption[] }) {
                         start_date: e.start_date ?? "",
                         end_date: e.end_date,
                         sympla_event_id: e.sympla_event_id ?? "",
-                        previous_event_slug: e.previous_event_slug ?? "",
-                        paying_goal: e.paying_goal ? String(e.paying_goal) : "",
                       })
                     }
                   >
@@ -231,33 +221,11 @@ export function EventsManager({ users }: { users: UserOption[] }) {
                   <Input id="ev-end" type="date" required value={form.end_date} onChange={(e) => set({ end_date: e.target.value })} />
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-3">
                 <div className="grid gap-1.5">
                   <Label htmlFor="ev-sympla">ID do evento na Sympla</Label>
                   <Input id="ev-sympla" value={form.sympla_event_id} onChange={(e) => set({ sympla_event_id: e.target.value })} />
                 </div>
-                <div className="grid gap-1.5">
-                  <Label htmlFor="ev-goal">Meta de pagantes</Label>
-                  <Input id="ev-goal" type="number" min={0} value={form.paying_goal} onChange={(e) => set({ paying_goal: e.target.value })} />
-                </div>
-              </div>
-              <div className="grid gap-1.5">
-                <Label>Compara com</Label>
-                <Select value={form.previous_event_slug || NONE} onValueChange={(v) => set({ previous_event_slug: v === NONE ? "" : v })}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NONE}>Sem comparação</SelectItem>
-                    {events
-                      .filter((e) => e.slug !== form.slug)
-                      .map((e) => (
-                        <SelectItem key={e.slug} value={e.slug}>
-                          {e.name}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
               </div>
               <DialogFooter>
                 <Button type="button" variant="outline" onClick={() => setForm(null)}>
