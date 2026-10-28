@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import { LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,10 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/70 px-4 backdrop-blur-[14px] backdrop-saturate-[1.2]">
       <SidebarTrigger className="h-9 w-9 rounded-full" title="Expandir ou recolher o menu" />
+      {/* No celular o menu lateral fica escondido: o símbolo no topo leva ao início */}
+      <Link to="/" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Ir para o início" className="shrink-0 md:hidden">
+        <img src="/brand/simbolo-cupola-lima.svg" alt="CUPOLA" className="h-6 w-6" />
+      </Link>
       <EventSelector />
       {viewingAsSeller && (
         <button

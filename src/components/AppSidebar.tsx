@@ -46,7 +46,8 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="h-16 justify-center px-4 group-data-[collapsible=icon]:px-2">
-        <Link to="/" className="flex items-center gap-2.5 text-foreground">
+        {/* Logo leva ao início; se já estiver nele, volta ao topo da página */}
+        <Link to="/" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} title="Ir para o início" className="flex items-center gap-2.5 text-foreground">
           {recolhido ? (
             <img src="/brand/simbolo-cupola-lima.svg" alt="CUPOLA" className="mx-auto h-6 w-6" />
           ) : (
