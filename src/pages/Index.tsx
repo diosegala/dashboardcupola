@@ -96,7 +96,7 @@ function Dashboard() {
 
   // Cada aba espera só os dados que usa; cabeçalho e abas aparecem na hora.
   const comercialLoading = eventLoading || tickets.isLoading || goals.isLoading || allTimeTickets.isLoading;
-  const marketingLoading = tickets.isLoading || goals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading;
+  const marketingLoading = tickets.isLoading || goals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading || allTimeTickets.isLoading;
 
   return (
     <CompareProvider rotulo={rotuloAnterior}>
@@ -157,6 +157,7 @@ function Dashboard() {
               previousSiteAnalytics={previousSiteAnalytics.data ?? []}
               goals={eventGoals}
               range={range}
+              tickets={allTimeTickets.data ?? []}
             />
             </>}
           </TabsContent>
