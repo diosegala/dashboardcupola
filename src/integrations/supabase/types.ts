@@ -86,6 +86,21 @@ export type Database = {
         }
         Relationships: []
       }
+      app_secrets: {
+        Row: {
+          key: string
+          value: string
+        }
+        Insert: {
+          key: string
+          value: string
+        }
+        Update: {
+          key?: string
+          value?: string
+        }
+        Relationships: []
+      }
       deals: {
         Row: {
           created_at_source: string | null
@@ -479,6 +494,21 @@ export type Database = {
         }
         Relationships: []
       }
+      team_coupons: {
+        Row: {
+          coupon_code: string
+          user_id: string
+        }
+        Insert: {
+          coupon_code: string
+          user_id: string
+        }
+        Update: {
+          coupon_code?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ticket_sales: {
         Row: {
           buyer_company: string | null
@@ -602,6 +632,30 @@ export type Database = {
     }
     Functions: {
       can_see_event: { Args: { _event_id: string }; Returns: boolean }
+      contact_key: { Args: { kind: string; v: string }; Returns: string }
+      contact_search_keys: {
+        Args: { p_term: string }
+        Returns: {
+          email_key: string
+          phone_key: string
+        }[]
+      }
+      get_buyer_events: {
+        Args: { p_slug: string }
+        Returns: {
+          end_date: string
+          name: string
+          slug: string
+        }[]
+      }
+      get_buyer_rows: {
+        Args: { p_slug: string }
+        Returns: {
+          order_data: Json
+          participant_data: Json
+          sympla_order_id: string
+        }[]
+      }
       get_current_sympla_event_id: { Args: never; Returns: string }
       get_form_answer_counts: {
         Args: { p_event_id: string }
@@ -626,9 +680,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_seller: { Args: never; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "viewer"
+      app_role: "admin" | "viewer" | "seller"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -756,7 +811,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "viewer"],
+      app_role: ["admin", "viewer", "seller"],
     },
   },
 } as const
