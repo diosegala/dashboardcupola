@@ -166,7 +166,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
       />
 
       {/* Linha 2: todos os ingressos emitidos (pizza) e receita */}
-      <IssuedTicketsCard tickets={tickets} goal={metaEmitidos} emitidosAnterior={m.anterior?.issuedCount} emitidosAtual={m.issuedCount} className="col-span-12 lg:col-span-8" />
+      <IssuedTicketsCard tickets={tickets} goal={metaEmitidos} emitidosAnterior={m.anterior?.issuedCount} emitidosAtual={m.issuedCount} goals={goals} allTimeTickets={tickets} previousYearTickets={previousTickets} className="col-span-12 lg:col-span-8" />
       <KpiCard
         className="col-span-12 lg:col-span-4"
         title="Receita acumulada"
