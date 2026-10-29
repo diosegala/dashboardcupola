@@ -30,7 +30,7 @@ const STORAGE_KEY = "cupola-evento";
 const FALLBACK_EVENT: EventRow = {
   id: null,
   slug: "summit-2027",
-  name: "CUPOLA Summit 2027",
+  name: "\n",
   start_date: "2027-05-19",
   end_date: "2027-05-21",
   sympla_event_id: null,
