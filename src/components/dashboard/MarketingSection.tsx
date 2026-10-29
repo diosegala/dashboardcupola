@@ -193,9 +193,6 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           const totalLinkClicks = sum(meta, "link_clicks");
           const totalSpend = sum(meta, "spend");
           const totalPurchases = sum(meta, "purchases");
-          const totalMessages = sum(meta, "messages");
-          const totalAddToCart = sum(meta, "add_to_cart");
-          const totalRemarketing = sum(meta, "remarketing_qualified");
           const uniqueCampaigns = new Set(meta.filter(m => m.campaign_id).map(m => m.campaign_id)).size;
           const cpc = totalLinkClicks > 0 ? totalSpend / totalLinkClicks : 0;
           const ctr = totalImpressions > 0 ? (totalLinkClicks / totalImpressions) * 100 : 0;
@@ -211,6 +208,16 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
               <MetricCard title="CTR" value={`${ctr.toFixed(2)}%`} icon={BarChart3} goal={findGoal(goals, "meta_ctr", range)} anterior={anteriorMeta?.ctr} description="Cliques no link / Impressões" />
               <MetricCard title="Compras (Pixel)" value={totalPurchases} icon={Target} goal={findGoal(goals, "meta_purchases", range)} anterior={anteriorMeta?.compras} />
               <MetricCard title="Taxa de Conversão" value={`${conversionRate.toFixed(2)}%`} icon={Target} goal={findGoal(goals, "meta_conversion_rate", range)} anterior={anteriorMeta?.conversao} description="Compras / Cliques no link" />
+            </div>
+          );
+        })()}
+        {/* Últimos indicadores em linha própria: 3 cards preenchem a largura inteira, sem buraco no grid. */}
+        {(() => {
+          const totalMessages = sum(meta, "messages");
+          const totalAddToCart = sum(meta, "add_to_cart");
+          const totalRemarketing = sum(meta, "remarketing_qualified");
+          return (
+            <div className="grid gap-4 mt-4 md:grid-cols-3">
               <MetricCard title="Mensagens" value={totalMessages} icon={MessageCircle} goal={findGoal(goals, "meta_messages", range)} anterior={anteriorMeta?.mensagens} description="Conversas iniciadas via anúncio" />
               <MetricCard title="Adição de Carrinho" value={totalAddToCart} icon={ShoppingCart} goal={findGoal(goals, "meta_add_to_cart", range)} anterior={anteriorMeta?.carrinho} description="Eventos add_to_cart do Pixel" />
               <MetricCard title="Remarketing Qualificado" value={totalRemarketing} icon={Crosshair} goal={findGoal(goals, "meta_remarketing", range)} anterior={anteriorMeta?.remarketing} description="Conversão customizada" />
@@ -218,7 +225,6 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           );
         })()}
       </div>
-
 
       {/* RD Station */}
       <div>

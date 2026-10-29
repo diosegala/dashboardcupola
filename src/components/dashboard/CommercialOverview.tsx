@@ -176,8 +176,15 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
         title="Receita acumulada"
         value={m.revenue}
         format={brl}
-        footer={<span>Ticket médio {brl(m.payingCount > 0 ? m.revenue / m.payingCount : 0)}</span>}
       >
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="text-muted-foreground">Ticket médio</span>
+          <span className="font-semibold text-foreground tabular-nums">{brl(m.payingCount > 0 ? m.revenue / m.payingCount : 0)}</span>
+        </div>
+        <div className="flex items-center justify-between gap-2 text-xs">
+          <span className="text-muted-foreground">Ingressos pagantes</span>
+          <span className="font-semibold text-foreground tabular-nums">{int(m.payingCount)}</span>
+        </div>
         <CompareLine anterior={m.anterior?.revenue} atual={m.revenue} formato={brl} />
         {m.revenueGoal !== null && (
           <div className="flex items-center justify-between gap-2 text-xs">
