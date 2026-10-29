@@ -193,9 +193,6 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
           const totalLinkClicks = sum(meta, "link_clicks");
           const totalSpend = sum(meta, "spend");
           const totalPurchases = sum(meta, "purchases");
-          const totalMessages = sum(meta, "messages");
-          const totalAddToCart = sum(meta, "add_to_cart");
-          const totalRemarketing = sum(meta, "remarketing_qualified");
           const uniqueCampaigns = new Set(meta.filter(m => m.campaign_id).map(m => m.campaign_id)).size;
           const cpc = totalLinkClicks > 0 ? totalSpend / totalLinkClicks : 0;
           const ctr = totalImpressions > 0 ? (totalLinkClicks / totalImpressions) * 100 : 0;
