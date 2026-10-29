@@ -127,11 +127,11 @@ export function IssuedTicketsCard({
                 data={fatias}
                 dataKey="value"
                 nameKey="label"
-                innerRadius="64%"
-                outerRadius="88%"
+                innerRadius="62%"
+                outerRadius="84%"
                 paddingAngle={2}
                 stroke="none"
-                animationDuration={1000}
+                isAnimationActive={false}
                 activeIndex={ativa ?? undefined}
                 activeShape={FatiaAtiva}
                 onMouseEnter={(_, i) => setAtiva(i)}
@@ -141,10 +141,6 @@ export function IssuedTicketsCard({
                   <Cell key={f.key} fill={f.color} opacity={ativa != null && ativa !== i ? 0.35 : 1} />
                 ))}
               </Pie>
-              <Tooltip
-                contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--line-strong))", borderRadius: 10, fontSize: 12 }}
-                formatter={(v: number, n: string) => [`${int(v)} (${pct(v, total)})`, n]}
-              />
             </PieChart>
           </ResponsiveContainer>
           <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
