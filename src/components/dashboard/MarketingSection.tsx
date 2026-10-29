@@ -224,7 +224,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
             </div>
           );
         })()}
-
+      </div>
 
       {/* RD Station */}
       <div>
