@@ -112,7 +112,7 @@ export function IssuedTicketsCard({
           <p className="mt-1 text-xs text-muted-foreground">Todos os ingressos do evento e quanto cada parte representa</p>
         </div>
         <Tabs value={visao} onValueChange={(v) => { setVisao(v as "categoria" | "tipo" | "lote"); setAtiva(null); }}>
-          <SlidingTabsList value={visao} className="h-9 max-w-full overflow-x-auto">
+          <SlidingTabsList value={visao} className="h-9">
             <TabsTrigger value="categoria" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
               Por categoria
             </TabsTrigger>
