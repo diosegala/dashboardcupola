@@ -9,6 +9,7 @@ import { TeamRanking, buildTeamRanking, findMe } from "@/components/dashboard/Te
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeamCoupons } from "@/hooks/useTeam";
 import { eventGoal } from "@/lib/goalMetrics";
+import { Kpi, brl, useCouponTotals } from "@/components/dashboard/CouponKpis";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -180,6 +181,9 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
 
   const porPagamento = useMemo(() => countBy(paying, (t) => (t.payment_method ? pagamentoDe(t.payment_method) : null)), [paying]);
 
+  // Espelho do "Descontos concedidos" da página Cupons: mesmo cálculo compartilhado (CouponKpis).
+  const totalsCupons = useCouponTotals(tickets);
+
   // Cupons agrupados pelo código, com o desconto e o tipo enviados pela Sympla.
   const cupons = useMemo(() => {
     const map = new Map<string, { code: string; discount: string | null; kind: CouponKind; group: CouponGroup; uses: number }>();
@@ -218,16 +222,24 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
     { title: "Pagantes por forma de pagamento", items: porPagamento, share: true },
   ].filter((s) => s.items.length > 0);
 
-  if (segmentos.length === 0) return null;
+  if (segmentos.length === 0 && totalsCupons.comCupom === 0) return null;
 
   const span = segmentos.length === 1 ? "lg:col-span-12" : segmentos.length % 2 === 0 ? "lg:col-span-6" : "lg:col-span-4";
 
   return (
-    <div className="grid grid-cols-12 gap-[14px]">
-      {segmentos.map((s) => (
-        <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className={cn("col-span-12", span)} />
-      ))}
-
+    <div className="space-y-[14px]">
+      {totalsCupons.comCupom > 0 && (
+        <div className="grid grid-cols-12 gap-[14px]">
+          <Kpi title="Descontos concedidos" value={brl(totalsCupons.descontos)} hint="só cupons menores que 100%" className="col-span-12 sm:col-span-6 lg:col-span-3" />
+        </div>
+      )}
+      {segmentos.length > 0 && (
+        <div className="grid grid-cols-12 gap-[14px]">
+          {segmentos.map((s) => (
+            <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className={cn("col-span-12", span)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
