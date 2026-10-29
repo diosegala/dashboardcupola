@@ -14,6 +14,8 @@ interface SalesSectionProps {
   goals: any[];
   allTimeTickets?: Ticket[];
   previousYearTickets?: Ticket[];
+  // Sem o card em volta: usado como aba dentro de "Ingressos emitidos".
+  embedded?: boolean;
 }
 
 interface Lote {
@@ -42,7 +44,7 @@ function porLote(tickets: Ticket[]) {
 }
 
 // Vendas por lote: cada lote deste ano com a meta do lote (se houver) e o mesmo lote do evento anterior (com a chave ligada).
-export function SalesSection({ goals, allTimeTickets = [], previousYearTickets = [] }: SalesSectionProps) {
+export function SalesSection({ goals, allTimeTickets = [], previousYearTickets = [], embedded = false }: SalesSectionProps) {
   const { ativo: comparar, rotulo } = useCompare();
 
   const { lotes, loteAtual } = useMemo(() => {
@@ -77,24 +79,19 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
     return { lotes, loteAtual };
   }, [allTimeTickets, previousYearTickets, goals]);
 
-  if (lotes.length === 0) return null;
+  if (lotes.length === 0) return embedded ? <p className="py-8 text-center text-xs text-muted-foreground">Nenhuma venda por lote ainda.</p> : null;
 
   const mostrarAnterior = comparar && lotes.some((l) => l.anterior !== null);
   const max = Math.max(...lotes.flatMap((l) => [l.pagantes, l.meta ?? 0, mostrarAnterior ? l.anterior ?? 0 : 0]), 1);
 
-  return (
-    <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          Vendas por lote <InfoTip title="Vendas por lote" />
-        </CardTitle>
+  const legenda = (
         <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><i className="inline-block h-2 w-3 rounded-full bg-data-blue" /> Pagantes</span>
           {lotes.some((l) => l.meta) && <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-[2px] rounded-full bg-foreground/45" /> Meta do lote</span>}
           {mostrarAnterior && <span className="flex items-center gap-1.5">{rotulo} no mesmo lote</span>}
         </div>
-      </CardHeader>
-      <CardContent>
+  );
+  const lista = (
         <ul className="flex flex-col gap-3.5">
           {lotes.map((l) => {
             const pctMeta = l.meta ? Math.round((l.pagantes / l.meta) * 100) : null;
@@ -133,7 +130,19 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
             );
           })}
         </ul>
-      </CardContent>
+  );
+
+  if (embedded) return <div className="space-y-4">{legenda}{lista}</div>;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          Vendas por lote <InfoTip title="Vendas por lote" />
+        </CardTitle>
+        {legenda}
+      </CardHeader>
+      <CardContent>{lista}</CardContent>
     </Card>
   );
 }
