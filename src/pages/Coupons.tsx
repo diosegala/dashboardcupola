@@ -96,7 +96,7 @@ export default function Coupons() {
           <div className="grid grid-cols-2 gap-[14px] lg:grid-cols-4">
             <Kpi title="Cupons gratuitos" value={int(gratuitos)} hint="ingressos com cupom de 100%" />
             <Kpi title="Descontos concedidos" value={brl(descontos)} hint="só cupons menores que 100%" />
-            <Kpi title="Cupons usados" value={int(cupons.length)} hint="códigos diferentes" />
+            <Kpi title="Cupons usados" value={int(cuponsUsados)} hint="códigos diferentes" />
             <Kpi title="Ingressos com cupom" value={int(comCupom)} />
           </div>
 
