@@ -21,9 +21,10 @@ export function CompareLine({ anterior, atual, formato = (n) => Math.round(n).to
   const variacao = anterior > 0 ? ((atual - anterior) / anterior) * 100 : null;
   const subiu = variacao !== null && variacao >= 0;
   return (
-    <p className={cn("flex flex-wrap items-center gap-x-1.5 text-xs", escuro ? "text-[#9A9FA7]" : "text-muted-foreground", className)}>
+    <p className={cn("text-xs", escuro ? "text-[#9A9FA7]" : "text-muted-foreground", className)}>
       <i className={cn("inline-block w-3 border-t-[1.5px] border-dashed", escuro ? "border-[#9A9FA7]" : "border-muted-foreground")} aria-hidden />
-      {rotulo} {quando}: <b className={cn("font-semibold", escuro ? "text-[#D6D2C8]" : "text-foreground/80")}>{formato(anterior)}</b>
+      {rotulo} {quando}:<br />
+      <b className={cn("font-semibold", escuro ? "text-[#D6D2C8]" : "text-foreground/80")}>{formato(anterior)}</b>
       {variacao !== null && Math.abs(variacao) >= 0.5 && (
         <span className={cn("inline-flex items-center font-semibold", subiu ? "text-ok" : "text-warn")}>
           {subiu ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
