@@ -14,6 +14,7 @@ import { useEvent } from "@/hooks/useEvent";
 import { useAllTimeTicketSales } from "@/hooks/useDashboardData";
 import { splitTickets } from "@/hooks/useCommercialMetrics";
 import { TeamRanking, buildTeamRanking, posicaoDe } from "@/components/dashboard/TeamRanking";
+import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
 import { COUPON_GROUPS, couponDiscountValue, formatDiscount, parseCoupon, type CouponGroup, type CouponKind } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
 
@@ -38,24 +39,11 @@ interface CupomLinha {
   desconto: number;
 }
 
-function Kpi({ title, value, hint }: { title: string; value: string; hint?: string }) {
-  return (
-    <Card>
-      <CardContent className="p-5">
-        <div className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
-          {title} <InfoTip title={title} />
-        </div>
-        <div className="mt-2 text-2xl font-semibold tracking-[-0.035em] tabular-nums">{value}</div>
-        {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}
-      </CardContent>
-    </Card>
-  );
-}
-
 export default function Coupons() {
   const { isSeller } = useAuth();
   const { event } = useEvent();
   const vendas = useAllTimeTicketSales(event.sympla_event_id ?? "");
+  const totals = useCouponTotals(vendas.data ?? []);
   const [grupo, setGrupo] = useState<CouponGroup | "todos">("todos");
   const [busca, setBusca] = useState("");
 
@@ -76,9 +64,7 @@ export default function Coupons() {
     return Array.from(map.values()).sort((a, b) => b.uses - a.uses || a.code.localeCompare(b.code));
   }, [paying, bonus]);
 
-  const gratuitos = cupons.filter((c) => c.kind === "cortesia").reduce((s, c) => s + c.uses, 0);
-  const descontos = cupons.reduce((s, c) => s + c.desconto, 0);
-  const comCupom = cupons.reduce((s, c) => s + c.uses, 0);
+  const { gratuitos, descontos, cuponsUsados, comCupom } = totals;
 
   const grupos = COUPON_GROUPS.map((g) => ({ ...g, uses: cupons.filter((c) => c.group === g.key).reduce((s, c) => s + c.uses, 0) })).filter((g) => g.uses > 0);
   const grupoAtivo = grupos.some((g) => g.key === grupo) ? grupo : "todos";
