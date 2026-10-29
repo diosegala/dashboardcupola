@@ -91,7 +91,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
         <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
           <span className="flex items-center gap-1.5"><i className="inline-block h-2 w-3 rounded-full bg-data-blue" /> Pagantes</span>
           {lotes.some((l) => l.meta) && <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-[2px] rounded-full bg-foreground/45" /> Meta do lote</span>}
-          {mostrarAnterior && <span className="flex items-center gap-1.5"><i className="inline-block w-3 border-t-[1.5px] border-dashed border-muted-foreground" />{rotulo} no mesmo lote</span>}
+          {mostrarAnterior && <span className="flex items-center gap-1.5">{rotulo} no mesmo lote</span>}
         </div>
       </CardHeader>
       <CardContent>
