@@ -9,14 +9,14 @@ Um novo item **Cupons** no menu lateral, visível para admins e viewers, mas nã
 -------------------------------------------------------------------------------------------
 Ranking da equipe por lote      |  Histórico de ganhadores (ranqueado)
 -------------------------------------------------------------------------------------------
-Ranking de todos os cupons (tabela com filtro por grupo e busca)
+Ranking de todos os cupons (tabela com filtro por grupo e busca) e tbm um grafico de pizza com os cupons mais usados.
 ```
 
 1. **Indicadores no topo**
-   - **Cupons gratuitos**: quantidade de ingressos emitidos com cupom de 100% (resgate, palestrantes, parceiros etc.).
-   - **Descontos concedidos**: soma em reais do desconto dado pelos cupons **menores que 100%**. Os de 100% ficam de fora dessa conta.
-   - **Cupons usados**: quantos códigos diferentes foram usados.
-   - **Ingressos com cupom**: quantos ingressos usaram algum cupom.
+  - **Cupons gratuitos**: quantidade de ingressos emitidos com cupom de 100% (resgate, palestrantes, parceiros etc.).
+  - **Descontos concedidos**: soma em reais do desconto dado pelos cupons **menores que 100%**. Os de 100% ficam de fora dessa conta.
+  - **Cupons usados**: quantos códigos diferentes foram usados.
+  - **Ingressos com cupom**: quantos ingressos usaram algum cupom.
 2. **Ranking da equipe**: a mesma lógica da visão da equipe (vendas pagantes por cupom da equipe, que recomeça a cada lote, com navegação entre lotes), mas mostrando **quantidade e receita** de cada pessoa, sem o destaque "Você".
 3. **Histórico de ganhadores**: o 1º lugar de cada lote encerrado, mais um ranking geral de quem venceu mais lotes, com 1º, 2º e 3º colocados de cada lote.
 4. **Ranking de todos os cupons**: tabela ordenada por usos com as colunas cupom, grupo, desconto, tipo, usos, receita gerada e desconto em R$. Tem filtro por grupo (Todos, Equipe, Resgate, Palestrantes, Parceiros, Faturados) e busca por código.
