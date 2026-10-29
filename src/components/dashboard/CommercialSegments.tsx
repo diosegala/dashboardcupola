@@ -179,7 +179,6 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
   const eu = useMemo(() => findMe(ranking, meusCupons.data ?? [], profile?.name), [ranking, meusCupons.data, profile?.name]);
 
   const porPagamento = useMemo(() => countBy(paying, (t) => (t.payment_method ? pagamentoDe(t.payment_method) : null)), [paying]);
-  const porOrigem = useMemo(() => countBy(paying, (t) => utmLabel(t.utm_source)).slice(0, 8), [paying]);
 
   // Cupons agrupados pelo código, com o desconto e o tipo enviados pela Sympla.
   const cupons = useMemo(() => {
@@ -217,7 +216,6 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
 
   const segmentos = [
     { title: "Pagantes por forma de pagamento", items: porPagamento, share: true },
-    { title: "Pagantes por origem (UTM)", items: porOrigem },
   ].filter((s) => s.items.length > 0);
 
   if (segmentos.length === 0) return null;
