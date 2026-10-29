@@ -142,14 +142,15 @@ export function ShareBar({ items }: { items: { label: string; value: number }[] 
 }
 
 // UTM às vezes vem como códigos de letra ("(99,97,110,...)"): converte de volta para texto.
-function utmLabel(v: string | null | undefined): string | null {
+// Exportado também para o MarketingSection (card "Pagantes por origem (UTM)" vive na aba Marketing).
+export function utmLabel(v: string | null | undefined): string | null {
   const t = (v ?? "").trim();
   if (!t) return null;
   const codes = t.match(/^[({[]?\s*(\d{2,3}(?:\s*,\s*\d{2,3})+)\s*[)}\]]?$/);
   return codes ? String.fromCharCode(...codes[1].split(",").map((n) => Number(n.trim()))) : t;
 }
 
-function SegmentCard({ title, items, className, share }: { title: string; items: { label: string; value: number }[]; className?: string; share?: boolean }) {
+export function SegmentCard({ title, items, className, share }: { title: string; items: { label: string; value: number }[]; className?: string; share?: boolean }) {
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
@@ -169,7 +170,7 @@ interface CommercialSegmentsProps {
   goals?: any[];
 }
 
-// Forma de pagamento, origem da venda e cupons. O perfil de quem compra fica na página Compradores.
+// Forma de pagamento e cupons. A origem da venda (UTM) está na aba Marketing; o perfil de quem compra fica na página Compradores.
 export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsProps) {
   const { paying, bonus } = useMemo(() => splitTickets(tickets), [tickets]);
   const { profile } = useAuth();
