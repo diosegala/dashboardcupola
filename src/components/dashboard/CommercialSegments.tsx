@@ -238,24 +238,20 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
     { title: "Pagantes por forma de pagamento", items: porPagamento, share: true },
   ].filter((s) => s.items.length > 0);
 
-  if (segmentos.length === 0 && totalsCupons.comCupom === 0) return null;
+  const mostrarDescontos = totalsCupons.comCupom > 0;
+  const mostrarSegmentos = segmentos.length > 0;
+  if (!mostrarDescontos && !mostrarSegmentos) return null;
 
-  const span = segmentos.length === 1 ? "lg:col-span-12" : segmentos.length % 2 === 0 ? "lg:col-span-6" : "lg:col-span-4";
-
+  // Descontos e forma de pagamento dividem a mesma linha: sem colunas vazias ao lado.
   return (
-    <div className="space-y-[14px]">
-      {totalsCupons.comCupom > 0 && (
-        <div className="grid grid-cols-12 gap-[14px]">
-          <Kpi title="Descontos concedidos" infoKey="Descontos concedidos (Comercial)" value={brl(descontosComercial.total)} hint={`${(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta (${brl(descontosComercial.bruta)})`} className="col-span-12 sm:col-span-6 lg:col-span-3" />
-        </div>
+    <div className="grid grid-cols-12 gap-[14px]">
+      {mostrarDescontos && (
+        <Kpi title="Descontos concedidos" infoKey="Descontos concedidos (Comercial)" value={brl(descontosComercial.total)} hint={`${(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta (${brl(descontosComercial.bruta)})`} className="col-span-12 sm:col-span-6 lg:col-span-4" />
       )}
-      {segmentos.length > 0 && (
-        <div className="grid grid-cols-12 gap-[14px]">
-          {segmentos.map((s) => (
-            <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className={cn("col-span-12", span)} />
-          ))}
-        </div>
-      )}
+      {mostrarSegmentos &&
+        segmentos.map((s) => (
+          <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className={cn("col-span-12", mostrarDescontos ? "lg:col-span-8" : "lg:col-span-12")} />
+        ))}
     </div>
   );
 }
