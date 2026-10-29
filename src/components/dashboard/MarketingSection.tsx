@@ -12,6 +12,8 @@ import { DemandGenByDayChart } from "./charts/DemandGenByDayChart";
 import { SourceBreakdownTable } from "./SourceBreakdownTable";
 import { SourceBreakdownDataTable } from "./SourceBreakdownDataTable";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
+import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
+import { countBy, utmLabel, SegmentCard } from "./CommercialSegments";
 import { CampaignFilter, type Campaign } from "./CampaignFilter";
 
 interface MarketingSectionProps {
@@ -23,6 +25,7 @@ interface MarketingSectionProps {
   ga4Events: any[];
   goals: any[];
   range: DateRange;
+  tickets: Ticket[];
 }
 
 export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range, previousAdMetrics = [], previousSiteAnalytics = [] }: MarketingSectionProps) {
