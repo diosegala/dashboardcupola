@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { addDays, addYears, differenceInCalendarWeeks, endOfWeek, format, startOfDay, startOfWeek, subYears } from "date-fns";
 import { businessDaysBetween, lastBusinessDays } from "@/lib/businessDays";
 import { parseCoupon } from "@/lib/coupons";
+import { ticketCategory } from "@/lib/ticketCategory";
 import { eventGoal } from "@/lib/goalMetrics";
 import {
   CURRENT_PACE_DAYS,
@@ -29,15 +30,15 @@ export interface Ticket {
 const qty = (t: Ticket) => t.quantity || 0;
 const dayKey = (d: Date) => format(d, "yyyy-MM-dd");
 
-// Separa as vendas aprovadas em pagos na Sympla, faturados (cupom FATURADO) e bonificados (valor zero).
+// Separa as vendas aprovadas em pagos na Sympla, faturados (cupom FATURADO) e bonificados (cortesias, credenciais, gratuitos).
 export function splitTickets(tickets: Ticket[]) {
     const approved = tickets.filter((t) => isApproved(t.status));
-    const invoiced = approved.filter((t) => parseCoupon(t.coupon_code)?.kind === "faturado");
-    const notInvoiced = approved.filter((t) => !invoiced.includes(t));
-    // Pagos na Sympla: aprovados com qualquer valor acima de zero.
-    const paidSympla = notInvoiced.filter((t) => Number(t.unit_price ?? t.total_price ?? 0) > 0);
-    // Bonificados: aprovados sem valor (cortesias, expositores, patrocinadores). Não somam na meta nem na receita.
-    const bonus = notInvoiced.filter((t) => Number(t.unit_price ?? t.total_price ?? 0) === 0);
+    const cat = (t: Ticket) => ticketCategory(t);
+    const invoiced = approved.filter((t) => cat(t) === "faturados");
+    // Pagos na Sympla: com valor, sem cupom 100% e fora das credenciais (com ou sem cupom de desconto).
+    const paidSympla = approved.filter((t) => cat(t) === "pagos" || cat(t) === "desconto");
+    // Bonificados: não somam na meta nem na receita.
+    const bonus = approved.filter((t) => ["cortesias", "credenciais", "gratuitos"].includes(cat(t)));
     const paying = [...paidSympla, ...invoiced];
     return { paidSympla, invoiced, bonus, paying };
 }
