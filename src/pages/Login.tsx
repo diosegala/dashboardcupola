@@ -46,8 +46,10 @@ export default function Login() {
       <Card className="w-full max-w-md p-2">
         <CardHeader className="text-center">
           <CupolaLogo className="mx-auto mb-5 h-7" />
-          <CardTitle className="font-display text-2xl font-normal leading-[1.45]">CUPOLA Summit</CardTitle>
-          <CardDescription>Entre para acessar o dashboard</CardDescription>
+          <CardTitle className="font-display text-2xl font-normal leading-[1.45]">Eventos</CardTitle>
+          <CardDescription>
+
+Entre para acessar o dashboard</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
