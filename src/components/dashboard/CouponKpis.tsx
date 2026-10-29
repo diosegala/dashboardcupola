@@ -1,5 +1,6 @@
 // KPIs de cupons e o cálculo dos totais, compartilhados entre a página Cupons e a aba Comercial do
 // dashboard. Os dois lugares usam a MESMA função, então os números são espelhados e nunca divergem.
+import { METRIC_INFO } from "@/lib/metricInfo";
 import { useMemo } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
@@ -45,12 +46,12 @@ export function brl(n: number) {
 }
 
 // Mesmo visual do KPI da página Cupons.
-export function Kpi({ title, value, hint, className }: { title: string; value: string; hint?: string; className?: string }) {
+export function Kpi({ title, value, hint, className, infoKey }: { title: string; value: string; hint?: string; className?: string; infoKey?: string }) {
   return (
     <Card className={cn(className)}>
       <CardContent className="p-5">
         <div className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
-          {title} <InfoTip title={title} />
+          {title} <InfoTip title={title} text={infoKey ? METRIC_INFO[infoKey] : undefined} />
         </div>
         <div className="mt-2 text-2xl font-semibold tracking-[-0.035em] tabular-nums">{value}</div>
         {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}

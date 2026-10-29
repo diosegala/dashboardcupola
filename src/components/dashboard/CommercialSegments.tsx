@@ -194,8 +194,8 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
   // Descontos concedidos na aba Comercial: cupons parciais + cortesias pelo preço cheio do lote, % sobre a receita bruta.
   const descontosComercial = useMemo(() => {
     const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
-    return commercialDiscounts([...paying, ...bonus], receita, tickets);
-  }, [paying, bonus, tickets]);
+    return commercialDiscounts([...paying, ...bonus], receita);
+  }, [paying, bonus]);
 
   // Espelho do "Descontos concedidos" da página Cupons: mesmo cálculo compartilhado (CouponKpis).
   const totalsCupons = useCouponTotals(tickets);
@@ -246,7 +246,7 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
     <div className="space-y-[14px]">
       {totalsCupons.comCupom > 0 && (
         <div className="grid grid-cols-12 gap-[14px]">
-          <Kpi title="Descontos e cortesias" value={brl(descontosComercial.total)} hint={`${(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta (${brl(descontosComercial.bruta)})`} className="col-span-12 sm:col-span-6 lg:col-span-3" />
+          <Kpi title="Descontos concedidos" infoKey="Descontos concedidos (Comercial)" value={brl(descontosComercial.total)} hint={`${(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta (${brl(descontosComercial.bruta)})`} className="col-span-12 sm:col-span-6 lg:col-span-3" />
         </div>
       )}
       {segmentos.length > 0 && (

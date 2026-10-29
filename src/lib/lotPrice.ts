@@ -37,18 +37,11 @@ export function fullPrices(tickets: T[]) {
   };
 }
 
-// Descontos concedidos (Comercial): cupons parciais pela diferença + cortesias (cupom 100%) pelo preço cheio do lote.
-// Receita bruta = receita paga + descontos. `priceSource` serve para achar o preço cheio (todas as vendas do evento).
-export function commercialDiscounts(couponTickets: T[], revenue: number, priceSource: T[] = couponTickets) {
-  const { priceOf } = fullPrices(priceSource);
-  let total = 0;
-  couponTickets.forEach((t) => {
-    const c = parseCoupon(t.coupon_code);
-    if (!c) return;
-    if (c.kind === "cortesia") total += priceOf(t) * (t.quantity || 1);
-    else total += couponDiscountValue(t);
-  });
-  total = Math.round(total * 100) / 100;
+// Descontos concedidos (Comercial): só cupons de desconto parcial (preço cheio − valor pago).
+// Cupons de 100% não entram (podem ser resgates de compras faturadas internamente).
+// Receita bruta = receita paga + descontos.
+export function commercialDiscounts(couponTickets: T[], revenue: number) {
+  const total = Math.round(couponTickets.reduce((s, t) => s + couponDiscountValue(t), 0) * 100) / 100;
   const bruta = revenue + total;
   return { total, bruta, pct: bruta > 0 ? total / bruta : 0 };
 }
