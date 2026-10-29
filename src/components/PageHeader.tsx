@@ -1,5 +1,4 @@
 import type { ReactNode } from "react";
-import { useOptionalEvent } from "@/hooks/useEvent";
 
 interface PageHeaderProps {
   kicker?: string;
@@ -10,15 +9,16 @@ interface PageHeaderProps {
 }
 
 // Cabeçalho de página no padrão do ds-summit: rótulo em verde, título leve e texto de apoio.
-export function PageHeader({ kicker: kickerProp, title, description, actions, badge }: PageHeaderProps) {
-  const kicker = kickerProp ?? useOptionalEvent()?.event.name ?? "\n";
+export function PageHeader({ kicker, title, description, actions, badge }: PageHeaderProps) {
   return (
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
       <div>
-        <div className="mb-2 flex items-center gap-2">
-          <span className="text-xs font-semibold tracking-[0.08em] text-accent-text">{kicker}</span>
-          {badge}
-        </div>
+        {(kicker || badge) && (
+          <div className="mb-2 flex items-center gap-2">
+            {kicker && <span className="text-xs font-semibold tracking-[0.08em] text-accent-text">{kicker}</span>}
+            {badge}
+          </div>
+        )}
         <h1 className="text-[clamp(24px,3vw,34px)] font-[650] leading-[1.15] tracking-[-0.02em]">{title}</h1>
         {description && <p className="mt-1.5 max-w-[60ch] text-muted-foreground">{description}</p>}
       </div>
