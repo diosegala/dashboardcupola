@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, type ReactNode, type Context } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -40,7 +40,7 @@ const FALLBACK_EVENT: EventRow = {
 };
 
 // Mantém o mesmo contexto quando o arquivo é recarregado durante o desenvolvimento.
-const globalScope = globalThis as { __cupolaEventContext?: React.Context<EventContextValue | null> };
+const globalScope = globalThis as { __cupolaEventContext?: Context<EventContextValue | null> };
 const EventContext = (globalScope.__cupolaEventContext ??= createContext<EventContextValue | null>(null));
 
 function lastChosen(): string | null {
