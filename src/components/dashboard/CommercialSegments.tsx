@@ -246,7 +246,7 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
     <div className="space-y-[14px]">
       {totalsCupons.comCupom > 0 && (
         <div className="grid grid-cols-12 gap-[14px]">
-          <Kpi title="Descontos concedidos (Comercial)" value={brl(descontosComercial.total)} hint={`${(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta (${brl(descontosComercial.bruta)})`} className="col-span-12 sm:col-span-6 lg:col-span-3" />
+          <Kpi title="Descontos e cortesias" value={brl(descontosComercial.total)} hint={`${(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta (${brl(descontosComercial.bruta)})`} className="col-span-12 sm:col-span-6 lg:col-span-3" />
         </div>
       )}
       {segmentos.length > 0 && (
