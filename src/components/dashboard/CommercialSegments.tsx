@@ -219,7 +219,7 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
     { title: "Pagantes por origem (UTM)", items: porOrigem },
   ].filter((s) => s.items.length > 0);
 
-  if (segmentos.length === 0 && cupons.length === 0) return null;
+  if (segmentos.length === 0) return null;
 
   const span = segmentos.length === 1 ? "lg:col-span-12" : segmentos.length % 2 === 0 ? "lg:col-span-6" : "lg:col-span-4";
 
@@ -229,47 +229,6 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
         <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className={cn("col-span-12", span)} />
       ))}
 
-      <TeamRanking data={ranking} eu={eu} metaPorPessoa={Number(eventGoal(goals, "team_sales")?.target_value ?? 0)} />
-
-      {cupons.length > 0 && (
-        <Card className="col-span-12">
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2">
-              Cupons <InfoTip title="Cupons" />
-            </CardTitle>
-            <div className="!mt-3 inline-flex w-fit flex-wrap items-center gap-0.5 rounded-[18px] border bg-secondary p-1">
-              {filtro("todos", "Todos", cupons.reduce((s, c) => s + c.uses, 0))}
-              {grupos.map((g) => filtro(g.key, g.label, g.uses))}
-            </div>
-          </CardHeader>
-          <CardContent className="max-h-[420px] overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cupom</TableHead>
-                  <TableHead>Grupo</TableHead>
-                  <TableHead>Desconto</TableHead>
-                  <TableHead>Tipo</TableHead>
-                  <TableHead className="text-right">Usos</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {cuponsVisiveis.map((c) => (
-                  <TableRow key={c.code}>
-                    <TableCell className="font-medium">{c.code}</TableCell>
-                    <TableCell className="text-muted-foreground">{rotuloGrupo(c.group)}</TableCell>
-                    <TableCell className="tabular-nums">{formatDiscount(c.discount)}</TableCell>
-                    <TableCell>
-                      <Chip variant={KIND_CHIP[c.kind].variant}>{KIND_CHIP[c.kind].label}</Chip>
-                    </TableCell>
-                    <TableCell className="text-right tabular-nums">{int(c.uses)}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }

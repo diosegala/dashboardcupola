@@ -20,6 +20,7 @@ interface Vendedor {
   nome: string;
   cupons: string[];
   vendas: number;
+  receita: number;
   // Vendas dos últimos 7 dias, para comparar o ritmo.
   recentes: number;
 }
@@ -51,9 +52,10 @@ export function buildTeamRanking(paying: Ticket[]): TeamRankingData {
     if (c?.group !== "equipe") return;
     const nome = teamMemberName(c.code);
     const pessoas = porLote.get(lote) ?? new Map<string, Vendedor>();
-    const v = pessoas.get(nome) ?? { nome, cupons: [], vendas: 0, recentes: 0 };
+    const v = pessoas.get(nome) ?? { nome, cupons: [], vendas: 0, receita: 0, recentes: 0 };
     if (!v.cupons.includes(c.code)) v.cupons.push(c.code);
     v.vendas += t.quantity || 0;
+    v.receita += Number(t.total_price || 0);
     if ((t.sold_at ?? "") >= limiteRecente) v.recentes += t.quantity || 0;
     pessoas.set(nome, v);
     porLote.set(lote, pessoas);
@@ -117,7 +119,9 @@ function NomeComCupom({ nome, cupons, className }: { nome: string; cupons: strin
 
 // Ranking da equipe CUPOLA: recomeça a cada lote. Só aparece quem vendeu. Quem está logado aparece destacado.
 // metaPorPessoa: meta de vendas de cada pessoa no lote (tela Metas). Sem meta, as barras ficam sem marca.
-export function TeamRanking({ data, eu, metaPorPessoa, className }: { data: TeamRankingData; eu?: Eu; metaPorPessoa?: number | null; className?: string }) {
+// gerencial: visão de admin, mostra a receita de cada pessoa e não destaca "Você".
+export function TeamRanking({ data, eu: euProp, metaPorPessoa, className, gerencial = false }: { data: TeamRankingData; eu?: Eu; metaPorPessoa?: number | null; className?: string; gerencial?: boolean }) {
+  const eu = gerencial ? null : euProp;
   const { lotes, loteAtual, campeoes } = data;
   const indiceAtual = Math.max(lotes.findIndex((l) => l.lote === loteAtual), 0);
   const [escolhido, setEscolhido] = useState<number | null>(null);
@@ -171,7 +175,10 @@ export function TeamRanking({ data, eu, metaPorPessoa, className }: { data: Team
                           <NomeComCupom nome={v.nome} cupons={v.cupons} className={pos === 1 || souEu ? "font-semibold" : undefined} />
                           {souEu && <Chip variant="paid" dot={false} className="px-2 py-0.5 text-[11px]">Você</Chip>}
                         </span>
-                        <b className="font-semibold tabular-nums">{int(v.vendas)}</b>
+                        <span className="shrink-0 tabular-nums">
+                          <b className="font-semibold">{int(v.vendas)}</b>
+                          {gerencial && <span className="ml-2 text-xs text-muted-foreground">{v.receita.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}</span>}
+                        </span>
                       </div>
                       <div className="relative h-2.5 rounded-full bg-secondary">
                         <i
