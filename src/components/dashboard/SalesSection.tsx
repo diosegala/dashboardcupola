@@ -5,6 +5,7 @@ import { Chip } from "@/components/Chip";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { useCompare } from "@/hooks/useCompare";
 import { batchOf, batchOrder } from "@/lib/batches";
+import { fullPrices } from "@/lib/lotPrice";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -23,6 +24,7 @@ interface Lote {
   pagantes: number;
   receita: number;
   meta: number | null;
+  preco: number | null;
   metaReceita: number | null;
   anterior: number | null;
   anteriorReceita: number | null;
@@ -65,6 +67,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
     const metasReceita = somaMetas("revenue");
     const nomes = new Set([...atual.keys(), ...metas.keys(), ...metasReceita.keys()]);
     const loteAtual = Array.from(atual.entries()).sort((a, b) => b[1].ultimaVenda.localeCompare(a[1].ultimaVenda))[0]?.[0] ?? null;
+    const { byBatch: precos } = fullPrices(allTimeTickets);
     const lotes: Lote[] = Array.from(nomes)
       .sort((a, b) => batchOrder(a) - batchOrder(b))
       .map((lote) => ({
@@ -72,6 +75,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
         pagantes: atual.get(lote)?.pagantes ?? 0,
         receita: atual.get(lote)?.receita ?? 0,
         meta: metas.get(lote) ?? null,
+        preco: precos.get(lote) ?? null,
         metaReceita: metasReceita.get(lote) ?? null,
         anterior: anterior.get(lote)?.pagantes ?? null,
         anteriorReceita: anterior.get(lote)?.receita ?? null,
@@ -82,57 +86,68 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
   if (lotes.length === 0) return embedded ? <p className="py-8 text-center text-xs text-muted-foreground">Nenhuma venda por lote ainda.</p> : null;
 
   const mostrarAnterior = comparar && lotes.some((l) => l.anterior !== null);
-  const max = Math.max(...lotes.flatMap((l) => [l.pagantes, l.meta ?? 0, mostrarAnterior ? l.anterior ?? 0 : 0]), 1);
 
-  const legenda = (
-        <div className="flex flex-wrap gap-4 text-xs text-muted-foreground">
-          <span className="flex items-center gap-1.5"><i className="inline-block h-2 w-3 rounded-full bg-data-blue" /> Pagantes</span>
-          {lotes.some((l) => l.meta) && <span className="flex items-center gap-1.5"><i className="inline-block h-3 w-[2px] rounded-full bg-foreground/45" /> Meta do lote</span>}
-          {mostrarAnterior && <span className="flex items-center gap-1.5">{rotulo} no mesmo lote</span>}
-        </div>
-  );
   const lista = (
-        <ul className="flex flex-col gap-3.5">
+    <div className="overflow-hidden rounded-xl border border-border">
+      <table className="w-full text-[13px] tabular-nums">
+        <thead className="bg-secondary/60 text-[11px] uppercase tracking-wide text-muted-foreground">
+          <tr>
+            <th className="px-3 py-2 text-left font-medium">Lote</th>
+            <th className="px-3 py-2 text-right font-medium">Preço</th>
+            <th className="px-3 py-2 text-right font-medium">Vendidos</th>
+            <th className="px-3 py-2 text-right font-medium">Saldo</th>
+            <th className="px-3 py-2 text-left font-medium">% vendido</th>
+            <th className="px-3 py-2 text-right font-medium">Receita</th>
+          </tr>
+        </thead>
+        <tbody>
           {lotes.map((l) => {
-            const pctMeta = l.meta ? Math.round((l.pagantes / l.meta) * 100) : null;
+            const vigente = l.lote === loteAtual;
+            const pct = l.meta ? l.pagantes / l.meta : null;
+            const saldo = l.meta ? Math.max(l.meta - l.pagantes, 0) : null;
             return (
-              <li key={l.lote} className="grid grid-cols-[96px_minmax(0,1fr)_auto] items-center gap-3">
-                <span className="flex items-center gap-1.5 text-[13px] font-semibold">
-                  {l.lote}
-                  {l.lote === loteAtual && <Chip variant="paid" dot={false} className="px-1.5 py-0 text-[10px]">atual</Chip>}
-                </span>
-                <div className="space-y-1">
-                  <div className="relative h-2.5 rounded-full bg-secondary">
-                    <i
-                      className={cn("block h-full origin-left animate-[grow_900ms_cubic-bezier(.16,1,.3,1)_both] rounded-full motion-reduce:animate-none", l.lote === loteAtual ? "bg-primary" : "bg-data-blue")}
-                      style={{ width: `${(l.pagantes / max) * 100}%` }}
-                    />
-                    {l.meta && (
-                      <span className="absolute -top-[3px] h-4 w-[2px] rounded-full bg-foreground/45" style={{ left: `calc(${(l.meta / max) * 100}% - 1px)` }} title={`Meta do lote: ${int(l.meta)}`} />
-                    )}
-                  </div>
-                  {mostrarAnterior && l.anterior !== null && (
-                    <div className="h-0 border-t-[1.5px] border-dashed border-muted-foreground/70" style={{ width: `${(l.anterior / max) * 100}%` }} title={`${rotulo}: ${int(l.anterior)} pagantes`} />
+              <tr key={l.lote} className={cn("border-t border-border", vigente && "bg-primary/10")}>
+                <td className="px-3 py-2.5 font-semibold">
+                  <span className="flex items-center gap-1.5">
+                    {l.lote}
+                    {vigente && <Chip variant="paid" dot={false} className="px-1.5 py-0 text-[10px]">Vigente</Chip>}
+                  </span>
+                </td>
+                <td className="px-3 py-2.5 text-right">{l.preco !== null ? brl(l.preco) : "—"}</td>
+                <td className="px-3 py-2.5 text-right font-semibold">
+                  {int(l.pagantes)}
+                  {mostrarAnterior && l.anterior !== null && <span className="block text-[11px] font-normal text-muted-foreground">{rotulo}: {int(l.anterior)}</span>}
+                </td>
+                <td className="px-3 py-2.5 text-right">{saldo !== null ? int(saldo) : "—"}</td>
+                <td className="px-3 py-2.5">
+                  {pct !== null ? (
+                    <div className="flex min-w-[90px] items-center gap-2">
+                      <div className="h-1.5 flex-1 rounded-full bg-secondary">
+                        <i className={cn("block h-full rounded-full", vigente ? "bg-primary" : "bg-data-blue")} style={{ width: `${Math.min(pct, 1) * 100}%` }} />
+                      </div>
+                      <span className="text-xs">{Math.round(pct * 100)}%</span>
+                    </div>
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
                   )}
-                </div>
-                <span className="min-w-[150px] text-right text-xs leading-tight">
-                  <b className="text-[13px] font-semibold tabular-nums">{int(l.pagantes)}</b>
-                  <span className="text-muted-foreground"> pagantes · {brl(l.receita)}</span>
-                  {pctMeta !== null && <span className="block text-muted-foreground">{pctMeta}% da meta de {int(l.meta as number)}</span>}
-                  {l.metaReceita ? <span className="block text-muted-foreground">{Math.round((l.receita / l.metaReceita) * 100)}% da meta de {brl(l.metaReceita)}</span> : null}
-                  {mostrarAnterior && l.anterior !== null && (
-                    <span className="block text-muted-foreground">
-                      {rotulo}: {int(l.anterior)} · {brl(l.anteriorReceita ?? 0)}
-                    </span>
-                  )}
-                </span>
-              </li>
+                </td>
+                <td className="px-3 py-2.5 text-right">
+                  {brl(l.receita)}
+                  {l.metaReceita ? <span className="block text-[11px] text-muted-foreground">{Math.round((l.receita / l.metaReceita) * 100)}% de {brl(l.metaReceita)}</span> : null}
+                  {mostrarAnterior && l.anteriorReceita !== null && <span className="block text-[11px] text-muted-foreground">{rotulo}: {brl(l.anteriorReceita)}</span>}
+                </td>
+              </tr>
             );
           })}
-        </ul>
+        </tbody>
+      </table>
+    </div>
+  );
+  const legenda = (
+    <p className="text-xs text-muted-foreground">Saldo e % vendido usam a meta "Ingressos do lote" da aba Metas. Preço: valor mais comum pago sem cupom.</p>
   );
 
-  if (embedded) return <div className="space-y-4">{legenda}{lista}</div>;
+  if (embedded) return <div className="space-y-3 overflow-x-auto">{lista}{legenda}</div>;
 
   return (
     <Card>

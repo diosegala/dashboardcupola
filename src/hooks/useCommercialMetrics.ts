@@ -76,10 +76,12 @@ export function useCommercialMetrics(
 
     // Vendas pagantes por dia.
     const byDay = new Map<string, number>();
+    const revByDay = new Map<string, number>();
     paying.forEach((t) => {
       if (!t.sold_at) return;
       const k = dayKey(new Date(t.sold_at));
       byDay.set(k, (byDay.get(k) || 0) + qty(t));
+      revByDay.set(k, (revByDay.get(k) || 0) + Number(t.total_price || 0));
     });
 
     // Ritmo atual: média dos últimos dias úteis completos.
@@ -112,6 +114,13 @@ export function useCommercialMetrics(
       .filter((t) => t.sold_at)
       .map((t) => [dayKey(addYears(new Date(t.sold_at as string), 1)), qty(t)] as const);
     const hasPrevious = previousDays.length > 0;
+    // Receita: meta de receita da tela Metas (única fonte) e receita do ano anterior por dia.
+    const revGoalRow = eventGoal(goals, "revenue");
+    const revenueGoal: number | null = revGoalRow && Number(revGoalRow.target_value) > 0 ? Number(revGoalRow.target_value) : null;
+    const sortedRevDays = Array.from(revByDay.entries());
+    const previousRevDays = previousPaying
+      .filter((t) => t.sold_at)
+      .map((t) => [dayKey(addYears(new Date(t.sold_at as string), 1)), Number(t.total_price || 0)] as const);
     const weekly = Array.from({ length: Math.max(weekCount, 1) }, (_, i) => {
       const weekStart = startOfWeek(addDays(start, i * 7), { weekStartsOn: 1 });
       const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
@@ -125,6 +134,20 @@ export function useCommercialMetrics(
         pagantes: weekStart <= today ? cumulative : null,
         ...(trajectory !== null ? { trajetoria: trajectory } : {}),
         ...(hasPrevious ? { anoAnterior: previousDays.filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0) } : {}),
+      };
+    });
+    // Receita acumulada por semana, no mesmo eixo do gráfico de pagantes.
+    const weeklyRevenue = weekly.map((w, i) => {
+      const weekStart = new Date(`${w.weekStart}T12:00:00`);
+      const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+      const limit = weekEnd < lastDayBeforeEvent ? weekEnd : lastDayBeforeEvent;
+      const endKey = dayKey(limit);
+      const sum = (arr: readonly (readonly [string, number])[]) => arr.filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0);
+      return {
+        label: `S${i + 1}`,
+        receita: startOfDay(weekStart) <= today ? sum(sortedRevDays) : null,
+        ...(revenueGoal !== null ? { trajetoria: Math.round((revenueGoal * businessDaysBetween(start, limit).length) / totalBusiness) } : {}),
+        ...(hasPrevious ? { anoAnterior: sum(previousRevDays) } : {}),
       };
     });
 
@@ -172,6 +195,8 @@ export function useCommercialMetrics(
       paidByDay: Object.fromEntries(byDay),
       firstSaleDate: start,
       weekly,
+      weeklyRevenue,
+      revenueGoal,
       hasPrevious,
       issuedCount: paidSymplaCount + invoicedCount + bonusCount,
     };

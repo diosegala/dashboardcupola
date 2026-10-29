@@ -33,6 +33,8 @@ const brl = (n: number) =>
     ? `R$ ${(n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 0 })} mil`
     : n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
+const brlEixo = (n: number) => (n >= 1000 ? `R$ ${Math.round(n / 1000).toLocaleString("pt-BR")} mil` : `R$ ${Math.round(n)}`);
+
 const PACE_CHIP: Record<PaceStatus, { label: string; variant: ChipVariant }> = {
   achieved: { label: "Meta atingida", variant: "paid" },
   above: { label: "Acima do ritmo", variant: "ok" },
@@ -117,12 +119,14 @@ interface CommercialOverviewProps {
 export function CommercialOverview({ tickets, goals, previousTickets = [], eventParams }: CommercialOverviewProps) {
   const m = useCommercialMetrics(tickets, goals, previousTickets, eventParams);
   const weeklySeries = useSeriesVisibility();
+  const revenueSeries = useSeriesVisibility();
   const [diaVisao, setDiaVisao] = useState<"uteis" | "semana">("semana");
   const chip = m.paceStatus ? PACE_CHIP[m.paceStatus] : null;
   // Metas do evento definidas na tela Metas (sem elas, os cards ficam só com os números).
   const metaReceita = eventGoal(goals, "revenue");
   const metaEmitidos = eventGoal(goals, "issued_tickets");
   const temMeta = m.goal !== null;
+  const temMetaReceita = m.revenueGoal !== null;
   // Comparação com o evento anterior só com a chave ligada.
   const { ativo: comparar, rotulo } = useCompare();
   const mostrarAnterior = comparar && m.hasPrevious;
@@ -175,6 +179,14 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
         footer={<span>Ticket médio {brl(m.payingCount > 0 ? m.revenue / m.payingCount : 0)}</span>}
       >
         <CompareLine anterior={m.anterior?.revenue} atual={m.revenue} formato={brl} />
+        {m.revenueGoal !== null && (
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="font-semibold text-foreground">{Math.round((m.revenue / m.revenueGoal) * 100)}% da meta</span>
+            <span className="text-muted-foreground">
+              {m.revenue >= m.revenueGoal ? "Meta atingida" : `Faltam ${brl(m.revenueGoal - m.revenue)}`}
+            </span>
+          </div>
+        )}
         {metaReceita && Number(metaReceita.target_value) > 0 && (
           <GoalMeter actual={m.revenue} target={Number(metaReceita.target_value)} unit="brl" periodStart={metaReceita.period_start} periodEnd={metaReceita.period_end} />
         )}
@@ -238,6 +250,45 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
                 strokeOpacity={weeklySeries.opacity("pagantes")}
                 animationDuration={1200}
               />
+            </LineChart>
+          </ResponsiveContainer>
+        </CardContent>
+      </Card>
+
+      {/* Linha 3b: receita acumulada x trajetória da meta de receita */}
+      <Card className="col-span-12">
+        <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-2">
+          <div>
+            <CardTitle className="flex items-center gap-2">
+              {temMetaReceita ? "Receita acumulada x meta" : "Receita acumulada"} <InfoTip title="Receita acumulada x meta" />
+            </CardTitle>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {temMetaReceita ? "Semanas desde a primeira venda" : "Defina a meta de receita na aba Metas"}
+            </p>
+          </div>
+          <ChartLegend
+            items={[
+              { key: "receita", label: "Receita", color: COLORS.blue, shape: "line" },
+              ...(temMetaReceita ? [{ key: "trajetoria", label: "Trajetória da meta", color: COLORS.amber, shape: "dashed" as const }] : []),
+              ...(mostrarAnterior ? [{ key: PREVIOUS_YEAR_KEY, label: rotulo, color: COLORS.muted, shape: "dotted" as const }] : []),
+            ]}
+            hidden={revenueSeries.hidden}
+            onToggle={revenueSeries.toggle}
+            onFocus={revenueSeries.setFocused}
+          />
+        </CardHeader>
+        <CardContent>
+          <ResponsiveContainer width="100%" height={260}>
+            <LineChart data={m.weeklyRevenue} margin={{ left: 4, right: 8, top: 8 }}>
+              <CartesianGrid vertical={false} className="stroke-border" />
+              <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" className="fill-muted-foreground" />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => brlEixo(v)} className="fill-muted-foreground" />
+              <Tooltip {...tooltipStyle} formatter={(v: number, n: string) => [brl(v), n]} />
+              {temMetaReceita && <Line dataKey="trajetoria" name="Trajetória da meta" stroke={COLORS.amber} strokeWidth={2} strokeDasharray="6 4" dot={false} hide={revenueSeries.hidden.has("trajetoria")} strokeOpacity={revenueSeries.opacity("trajetoria", 0.9)} animationDuration={1000} />}
+              {mostrarAnterior && (
+                <Line {...previousYearLineProps} name={rotulo} strokeDasharray="2 4" hide={revenueSeries.hidden.has(PREVIOUS_YEAR_KEY)} strokeOpacity={revenueSeries.opacity(PREVIOUS_YEAR_KEY, 0.55)} />
+              )}
+              <Line dataKey="receita" name="Receita" stroke={COLORS.blue} strokeWidth={2.5} dot={{ r: 2.5 }} connectNulls={false} hide={revenueSeries.hidden.has("receita")} strokeOpacity={revenueSeries.opacity("receita")} animationDuration={1200} />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>

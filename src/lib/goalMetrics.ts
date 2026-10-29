@@ -28,7 +28,7 @@ export const GOAL_SECTIONS: GoalSection[] = [
     description: "Um valor para o evento inteiro.",
     items: [
       { id: "paying_tickets", key: "paying_tickets", label: "Ingressos pagantes", where: "Meta do evento, Ritmo de vendas, Pagantes acumulados e Vendas por dia útil", unit: "num", scope: "evento" },
-      { id: "revenue", key: "revenue", label: "Receita", where: "Receita acumulada", unit: "brl", scope: "evento" },
+      { id: "revenue", key: "revenue", label: "Meta de receita (R$)", where: "Card Receita acumulada e gráfico Receita acumulada x meta", unit: "brl", scope: "evento" },
       { id: "issued_tickets", key: "issued_tickets", label: "Ingressos emitidos", where: "Ingressos emitidos (pagos, faturados e cortesias)", unit: "num", scope: "evento" },
     ],
   },
