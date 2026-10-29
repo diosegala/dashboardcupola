@@ -11,7 +11,7 @@ interface PageHeaderProps {
 
 // Cabeçalho de página no padrão do ds-summit: rótulo em verde, título leve e texto de apoio.
 export function PageHeader({ kicker: kickerProp, title, description, actions, badge }: PageHeaderProps) {
-  const kicker = kickerProp ?? useOptionalEvent()?.event.name ?? "CUPOLA Summit 2027";
+  const kicker = kickerProp ?? useOptionalEvent()?.event.name ?? "\n";
   return (
     <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
       <div>
