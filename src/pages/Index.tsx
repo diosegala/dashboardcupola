@@ -103,7 +103,6 @@ function Dashboard() {
     <CompareProvider rotulo={rotuloAnterior}>
     <div>
       <PageHeader
-        kicker={event.name}
         title="Dashboard"
         badge={encerrado ? <Chip variant="neutral">Encerrado</Chip> : undefined}
         description="Visão geral de vendas e marketing"
