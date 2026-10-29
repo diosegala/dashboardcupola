@@ -13,7 +13,7 @@ interface CompareLineProps {
   escuro?: boolean;
 }
 
-// Linha discreta do ano anterior, igual em todos os cards: tracinho cinza, valor de lá e a variação.
+// Linha discreta do ano anterior, igual em todos os cards: valor de lá e a variação.
 // Só aparece com a chave "Comparar" ligada e quando existe o dado do ano anterior.
 export function CompareLine({ anterior, atual, formato = (n) => Math.round(n).toLocaleString("pt-BR"), quando = "na mesma data", className, escuro }: CompareLineProps) {
   const { ativo, rotulo } = useCompare();
@@ -22,7 +22,6 @@ export function CompareLine({ anterior, atual, formato = (n) => Math.round(n).to
   const subiu = variacao !== null && variacao >= 0;
   return (
     <p className={cn("text-xs", escuro ? "text-[#9A9FA7]" : "text-muted-foreground", className)}>
-      <i className={cn("inline-block w-3 border-t-[1.5px] border-dashed", escuro ? "border-[#9A9FA7]" : "border-muted-foreground")} aria-hidden />
       {rotulo} {quando}:<br />
       <b className={cn("font-semibold", escuro ? "text-[#D6D2C8]" : "text-foreground/80")}>{formato(anterior)}</b>
       {variacao !== null && Math.abs(variacao) >= 0.5 && (
