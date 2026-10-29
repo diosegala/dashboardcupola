@@ -38,14 +38,16 @@ interface PeopleTableProps {
   // Equipe de vendas: sem e-mail, telefone e pedidos; contato só serve para localizar na busca.
   restrito?: boolean;
   escopoInicial?: Escopo;
+  // Só quem participou do evento selecionado: sem abas de escopo nem filtros de outros eventos (equipe de vendas).
+  soEsteEvento?: boolean;
 }
 
 // Lista de pessoas com filtros: quem veio neste evento, quem ainda não veio, clientes recorrentes de qualquer evento
 // CUPOLA, quem participou de um evento específico e quem usou cupom.
-export function PeopleTable({ people, eventos, eventSlug, restrito = false, escopoInicial = "neste" }: PeopleTableProps) {
+export function PeopleTable({ people, eventos, eventSlug, restrito = false, escopoInicial = "neste", soEsteEvento = false }: PeopleTableProps) {
   const [participouDe, setParticipouDe] = useState("qualquer");
   const [busca, setBusca] = useState("");
-  const [escopo, setEscopo] = useState<Escopo>(escopoInicial);
+  const [escopo, setEscopo] = useState<Escopo>(soEsteEvento ? "neste" : escopoInicial);
   const [marcas, setMarcas] = useState<Set<Marca>>(new Set());
   const [limite, setLimite] = useState(PAGE);
 
@@ -146,7 +148,7 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
   ];
   const ordemEscopos = escopoInicial === "fora" ? [escopos[1], escopos[0], escopos[2]] : escopos;
   const marcasDisponiveis: [Marca, string][] = [
-    ["recorrente", "Clientes recorrentes"],
+    ...(soEsteEvento ? [] : ([["recorrente", "Clientes recorrentes"]] as [Marca, string][])),
     ["cupom", "Usaram cupom"],
     ...(restrito ? [] : ([["pendente", "Pedido pendente"]] as [Marca, string][])),
   ];
@@ -162,7 +164,7 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
             placeholder="Buscar por nome, empresa, e-mail ou telefone"
             className="h-10 w-full max-w-sm rounded-full bg-card"
           />
-          <div className={cn("inline-flex flex-wrap items-center gap-0.5 rounded-[18px] border bg-secondary p-1", termo && "opacity-50")}>
+          {!soEsteEvento && <div className={cn("inline-flex flex-wrap items-center gap-0.5 rounded-[18px] border bg-secondary p-1", termo && "opacity-50")}>
             {ordemEscopos.map(([e, rotulo]) => (
               <button
                 key={e}
@@ -176,7 +178,7 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
                 {rotulo} <span className="tabular-nums opacity-70">{int(contaEscopo(e))}</span>
               </button>
             ))}
-          </div>
+          </div>}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-xs text-muted-foreground">Filtrar:</span>
@@ -194,7 +196,7 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
               {rotulo} <span className="tabular-nums opacity-70">{int(contaMarca(m))}</span>
             </button>
           ))}
-          {eventos.length > 1 && (
+          {!soEsteEvento && eventos.length > 1 && (
             <Select value={participouDe} onValueChange={(v) => { setParticipouDe(v); setLimite(PAGE); }}>
               <SelectTrigger
                 className={cn(

@@ -11,18 +11,14 @@ import { buildBuyers, eventRef, type DetailRow } from "@/lib/buyers";
 // Os dados vêm de uma função do banco que entrega só nome, empresa, cupom e situação. E-mail e telefone chegam
 // como chaves secretas: servem para achar quem a equipe já conhece (digitando o contato), nunca para mostrar.
 export function SellerBuyerList() {
-  const { events, event } = useEvent();
+  const { event } = useEvent();
 
   const dados = useQuery({
     queryKey: ["buyers-equipe", event.slug],
     staleTime: 10 * 60 * 1000,
     queryFn: async () => {
-      // Todos os eventos CUPOLA até o selecionado (edições, imersões…), mesmo os que a equipe não abre no painel.
-      const lista = await supabase.rpc("get_buyer_events" as any, { p_slug: event.slug });
-      const relevantes: { slug: string; name: string; end_date: string }[] =
-        !lista.error && (lista.data as any[])?.length
-          ? (lista.data as any[])
-          : events.filter((e) => e.slug === event.slug || e.end_date < event.end_date);
+      // A equipe vê só os participantes do evento selecionado.
+      const relevantes = [event];
       return Promise.all(
         relevantes.map(async (e) => {
           const { data, error } = await supabase.rpc("get_buyer_rows" as any, { p_slug: e.slug });
@@ -39,12 +35,12 @@ export function SellerBuyerList() {
     <div className="space-y-6">
       <PageHeader
         title="Compradores"
-        description="Comece por quem já veio e ainda não voltou: essas pessoas já conhecem o evento. Para achar alguém que você conhece, busque pelo nome, empresa, e-mail ou telefone."
+        description="Participantes deste evento. Para achar alguém que você conhece, busque pelo nome, empresa, e-mail ou telefone."
       />
       {dados.isLoading ? (
         <Skeleton className="h-96" />
       ) : (
-        <PeopleTable people={people} eventos={eventos} eventSlug={event.slug} restrito escopoInicial="fora" />
+        <PeopleTable people={people} eventos={eventos} eventSlug={event.slug} restrito soEsteEvento />
       )}
     </div>
   );
