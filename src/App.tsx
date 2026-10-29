@@ -17,6 +17,7 @@ const Index = lazy(() => import("./pages/Index"));
 const Goals = lazy(() => import("./pages/Goals"));
 const Integrations = lazy(() => import("./pages/Integrations"));
 const Buyers = lazy(() => import("./pages/Buyers"));
+const Coupons = lazy(() => import("./pages/Coupons"));
 const Settings = lazy(() => import("./pages/Settings"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
@@ -51,6 +52,7 @@ const App = () => (
                 <Route path="/goals" element={<Goals />} />
                 <Route path="/integrations" element={<Integrations />} />
                 <Route path="/compradores" element={<Buyers />} />
+                <Route path="/cupons" element={<Coupons />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />

@@ -1,5 +1,12 @@
 // Definições em linguagem de negócio usadas no botão "i" de cada indicador e gráfico.
 export const METRIC_INFO: Record<string, string> = {
+  // Página Cupons
+  "Cupons gratuitos": "Ingressos aprovados com cupom de 100% de desconto (resgate, palestrantes, parceiros etc.). Não contam na meta de pagantes.",
+  "Descontos concedidos": "Diferença entre o preço cheio e o valor pago, somada só nos cupons com desconto parcial (menor que 100%). Em cupom percentual, o preço cheio é calculado a partir do valor pago: valor pago ÷ (1 − desconto). Em cupom de valor fixo, soma-se o valor do cupom por ingresso. Cupons de 100% e faturados ficam de fora.",
+  "Cupons usados": "Quantidade de códigos de cupom diferentes usados em ingressos aprovados do evento.",
+  "Ingressos com cupom": "Ingressos aprovados que usaram algum cupom, de qualquer tipo.",
+  "Histórico de ganhadores": "Pódio (1º, 2º e 3º) de cada lote já encerrado, pelas vendas pagantes com o cupom de cada pessoa da equipe. Empates ficam na mesma posição e todos contam como vencedores.",
+  "Ranking de cupons": "Todos os cupons usados no evento, do mais usado para o menos usado. O grupo é identificado pelo código (equipe, resgate, palestrantes, parceiros, faturados). A pizza mostra os 5 mais usados do filtro atual; o resto fica em Outros.",
   // Aba Comercial (definições do ds-summit)
   "Meta de ingressos pagantes":
     "Soma dos ingressos pagos na Sympla com os faturados internamente. Cortesias, expositores e patrocinadores não entram. A meta é cadastrada na tela Metas.",

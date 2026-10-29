@@ -1,5 +1,5 @@
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Target, Plug, Settings, UsersRound, PanelLeftClose, PanelLeftOpen, Trophy, Eye, EyeOff } from "lucide-react";
+import { LayoutDashboard, Target, Plug, Settings, UsersRound, PanelLeftClose, PanelLeftOpen, Trophy, Eye, EyeOff, Ticket } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { CupolaLogo } from "@/components/CupolaLogo";
 import {
@@ -19,6 +19,7 @@ const publicItems = [
   { title: "Dashboard", url: "/", icon: LayoutDashboard },
   { title: "Metas", url: "/goals", icon: Target },
   { title: "Compradores", url: "/compradores", icon: UsersRound },
+  { title: "Cupons", url: "/cupons", icon: Ticket },
 ];
 
 // A equipe de vendas só vê o ranking e a lista de compradores.
