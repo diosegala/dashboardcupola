@@ -121,7 +121,7 @@ export default function Goals() {
       ) : (
         <>
           <p className="text-sm text-muted-foreground">
-            <b className="font-semibold text-foreground">{definidas}</b> de {GOAL_DEFS.length} metas definidas para {event.name}.
+            <b className="font-semibold text-foreground">{definidas}</b> de {GOAL_DEFS.length} metas definidas.
           </p>
 
           {GOAL_SECTIONS.map((sec) => (
