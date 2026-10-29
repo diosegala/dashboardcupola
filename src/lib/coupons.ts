@@ -52,8 +52,10 @@ export function formatDiscount(discount: string | null): string {
   return valor.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 
-// Nome da pessoa a partir do cupom da equipe: EMILLYN5 → Emillyn.
+// Nome da pessoa a partir do cupom da equipe, só o primeiro nome: EMILLYN5 → Emillyn, ALINEB5 → Aline.
+// A letra solta no fim (inicial do sobrenome) sai quando é uma consoante em que nome brasileiro não costuma terminar.
 export function teamMemberName(code: string): string {
-  const base = code.replace(/\d+$/, "").toLowerCase();
+  let base = code.replace(/\d+$/, "").toLowerCase();
+  if (base.length > 4 && /[bcdfgjkpqtvwx]$/.test(base)) base = base.slice(0, -1);
   return base.charAt(0).toUpperCase() + base.slice(1);
 }

@@ -62,11 +62,27 @@ export function IntegrationCard({ integration, isAdmin, onToggle, onSync, onSave
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          {integration.last_synced_at && (
+          {/* Atualiza sozinho pelo agendamento; o ícone força uma atualização na hora (só administradores). */}
+          <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">
-              Última sync: {formatDistanceToNow(new Date(integration.last_synced_at), { addSuffix: true, locale: ptBR })}
+              {integration.is_active ? "Atualiza sozinho" : "Desligada"}
+              {integration.last_synced_at && (
+                <> · última vez {formatDistanceToNow(new Date(integration.last_synced_at), { addSuffix: true, locale: ptBR })}</>
+              )}
             </p>
-          )}
+            {isAdmin && integration.is_active && (
+              <button
+                type="button"
+                onClick={() => onSync(integration.name)}
+                disabled={isSyncing}
+                title="Atualizar agora"
+                aria-label="Atualizar agora"
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? "animate-spin" : ""}`} />
+              </button>
+            )}
+          </div>
 
           {isError && integration.error_message && (
             <Alert variant="destructive" className="py-2">
@@ -87,15 +103,6 @@ export function IntegrationCard({ integration, isAdmin, onToggle, onSync, onSave
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onSync(integration.name)}
-              disabled={!isAdmin || !integration.is_active || isSyncing}
-            >
-              <RefreshCw className={`h-4 w-4 mr-1 ${isSyncing ? "animate-spin" : ""}`} />
-              Sincronizar
-            </Button>
             <Button
               size="sm"
               variant="outline"
