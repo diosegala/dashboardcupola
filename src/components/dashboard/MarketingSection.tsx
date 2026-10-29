@@ -28,7 +28,7 @@ interface MarketingSectionProps {
   tickets: Ticket[];
 }
 
-export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range, previousAdMetrics = [], previousSiteAnalytics = [] }: MarketingSectionProps) {
+export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4Events, goals, range, tickets = [], previousAdMetrics = [], previousSiteAnalytics = [] }: MarketingSectionProps) {
   const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
   const [selectedEmailCampaigns, setSelectedEmailCampaigns] = useState<string[]>([]);
   const [compareA, setCompareA] = useState<string | null>(null);
@@ -81,6 +81,10 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
 
   const sum = (arr: any[], key: string) => arr.reduce((s, r) => s + Number(r[key] || 0), 0);
   const avg = (arr: any[], key: string) => arr.length > 0 ? sum(arr, key) / arr.length : 0;
+
+  // Origem da venda (utm_source): mesmo card que antes ficava na aba Comercial.
+  const { paying } = useMemo(() => splitTickets(tickets), [tickets]);
+  const porOrigem = useMemo(() => countBy(paying, (t) => utmLabel(t.utm_source)).slice(0, 8), [paying]);
 
   // Build filtered adMetrics for charts (replace meta rows with filtered ones)
   const filteredAdMetrics = useMemo(() => {
@@ -377,6 +381,13 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
         <ClicksByDayChart adMetrics={filteredAdMetrics} previousAdMetrics={previousAdMetrics} />
         <SessionsByDayChart siteAnalytics={siteAnalytics} previousSiteAnalytics={previousSiteAnalytics} />
       </div>
+
+      {/* Origem da venda (UTM) */}
+      {porOrigem.length > 0 && (
+        <div className="grid grid-cols-12 gap-[14px]">
+          <SegmentCard title="Pagantes por origem (UTM)" items={porOrigem} className="col-span-12" />
+        </div>
+      )}
     </section>
   );
 }
