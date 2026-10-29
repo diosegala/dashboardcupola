@@ -45,12 +45,12 @@ export function brl(n: number) {
 }
 
 // Mesmo visual do KPI da página Cupons.
-export function Kpi({ title, value, hint, className }: { title: string; value: string; hint?: string; className?: string }) {
+export function Kpi({ title, value, hint, className, infoKey }: { title: string; value: string; hint?: string; className?: string; infoKey?: string }) {
   return (
     <Card className={cn(className)}>
       <CardContent className="p-5">
         <div className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
-          {title} <InfoTip title={title} />
+          {title} <InfoTip title={infoKey ?? title} />
         </div>
         <div className="mt-2 text-2xl font-semibold tracking-[-0.035em] tabular-nums">{value}</div>
         {hint && <div className="mt-1 text-xs text-muted-foreground">{hint}</div>}

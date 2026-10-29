@@ -25,7 +25,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Ingressos pagantes":
     "Soma dos ingressos pagos na Sympla com os faturados internamente. Cortesias, expositores e patrocinadores não entram. Para acompanhar uma meta, defina-a na tela Metas.",
   "Pagantes acumulados": "Total de pagantes semana a semana desde a primeira venda. Com uma meta de pagantes na tela Metas, aparece também a trajetória até ela.",
-  "Descontos e cortesias": "Total em R$ que deixou de entrar por cupons no período escolhido. Cupons parciais entram pela diferença entre o preço cheio e o valor pago; cortesias (cupom 100%) entram pelo preço cheio do lote (o valor mais comum pago sem cupom naquele ingresso). O % é sobre a receita bruta: receita paga + descontos. Na página Cupons, o card 'Descontos concedidos' segue a versão simples, só com cupons parciais.",
+  "Descontos concedidos (Comercial)": "Soma do que deixou de ser cobrado com cupons de desconto parcial. Cupons de 100% não entram. O % é sobre a receita bruta: receita paga + descontos.",
   "Receita acumulada x meta": "Receita dos pagantes somada semana a semana desde a primeira venda. A linha tracejada é a trajetória até a meta de receita definida na aba Metas, distribuída pelos dias úteis até o evento. A linha pontilhada é o evento anterior na mesma data, quando 'Comparar' está ligado.",
   "Receita acumulada": "Valor dos ingressos pagantes desde a abertura das vendas. Com a meta de receita da aba Metas, mostra o % atingido e quanto falta.",
   "Pagantes acumulados x meta":
