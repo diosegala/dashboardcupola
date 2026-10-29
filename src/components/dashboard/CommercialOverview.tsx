@@ -192,8 +192,8 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
           <ChartLegend
             items={[
               { key: "pagantes", label: "Pagantes", color: COLORS.blue, shape: "line" },
-              ...(temMeta ? [{ key: "trajetoria", label: "Trajetória da meta", color: COLORS.muted, shape: "dashed" as const }] : []),
-              ...(mostrarAnterior ? [{ key: PREVIOUS_YEAR_KEY, label: rotulo, color: COLORS.muted, shape: "dashed" as const }] : []),
+              ...(temMeta ? [{ key: "trajetoria", label: "Trajetória da meta", color: COLORS.amber, shape: "dashed" as const }] : []),
+              ...(mostrarAnterior ? [{ key: PREVIOUS_YEAR_KEY, label: rotulo, color: COLORS.muted, shape: "dotted" as const }] : []),
             ]}
             hidden={weeklySeries.hidden}
             onToggle={weeklySeries.toggle}
@@ -210,12 +210,12 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
               {temMeta && <Line
                 dataKey="trajetoria"
                 name="Trajetória da meta"
-                stroke={COLORS.muted}
-                strokeWidth={1.25}
-                strokeDasharray="4 4"
+                stroke={COLORS.amber}
+                strokeWidth={2}
+                strokeDasharray="6 4"
                 dot={false}
                 hide={weeklySeries.hidden.has("trajetoria")}
-                strokeOpacity={weeklySeries.opacity("trajetoria", 0.8)}
+                strokeOpacity={weeklySeries.opacity("trajetoria", 0.9)}
                 animationDuration={1000}
               />}
               {mostrarAnterior && (

@@ -4,7 +4,7 @@ export interface LegendItem {
   key: string;
   label: string;
   color: string;
-  shape?: "line" | "dashed" | "square";
+  shape?: "line" | "dashed" | "dotted" | "square";
 }
 
 interface ChartLegendProps {
@@ -18,7 +18,7 @@ interface ChartLegendProps {
 // Legenda interativa do ds-summit: hover destaca a série, clique oculta ou mostra.
 export function ChartLegend({ items, hidden, onToggle, onFocus, className }: ChartLegendProps) {
   return (
-    <div className={cn("flex flex-wrap gap-3.5 text-xs text-foreground/75", className)}>
+    <div className={cn("flex flex-wrap gap-x-2 gap-y-1 text-xs text-foreground/75", className)}>
       {items.map((item) => (
         <button
           key={item.key}
@@ -30,17 +30,19 @@ export function ChartLegend({ items, hidden, onToggle, onFocus, className }: Cha
           onFocus={() => onFocus(item.key)}
           onBlur={() => onFocus(null)}
           className={cn(
-            "-mx-1 inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 transition-[background-color,opacity] duration-150 hover:bg-secondary",
+            "inline-flex items-center gap-2 rounded-full px-2 py-0.5 transition-[background-color,opacity] duration-150 hover:bg-secondary",
             hidden.has(item.key) && "opacity-35",
           )}
         >
-          {item.shape === "dashed" ? (
+          {item.shape === "dashed" || item.shape === "dotted" ? (
             <i
-              className="inline-block h-0.5 w-4"
-              style={{ background: `repeating-linear-gradient(90deg, ${item.color} 0 4px, transparent 4px 7px)` }}
+              className="inline-block h-[3px] w-5 shrink-0 rounded-full"
+              style={{ background: item.shape === "dotted"
+                ? `repeating-linear-gradient(90deg, ${item.color} 0 3px, transparent 3px 6px)`
+                : `repeating-linear-gradient(90deg, ${item.color} 0 6px, transparent 6px 9px)` }}
             />
           ) : item.shape === "line" ? (
-            <i className="inline-block h-0.5 w-3.5 rounded-sm" style={{ background: item.color }} />
+            <i className="inline-block h-[3px] w-5 shrink-0 rounded-full" style={{ background: item.color }} />
           ) : (
             <i className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: item.color }} />
           )}
