@@ -13,7 +13,6 @@ import { SellerHome } from "@/components/dashboard/SellerHome";
 import { CompareProvider } from "@/hooks/useCompare";
 import { CompareToggle } from "@/components/CompareToggle";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
-import { SalesSection } from "@/components/dashboard/SalesSection";
 import { MarketingSection } from "@/components/dashboard/MarketingSection";
 import { FunnelKPISection } from "@/components/dashboard/FunnelKPISection";
 import { useAuth } from "@/hooks/useAuth";
@@ -133,11 +132,6 @@ function Dashboard() {
               <div className="space-y-8">
                 <CommercialOverview tickets={allTimeTickets.data ?? []} goals={eventGoals} previousTickets={previousTickets.data ?? []} eventParams={eventParams} />
                 <CommercialSegments tickets={allTimeTickets.data ?? []} goals={eventGoals} />
-                <SalesSection
-                  goals={eventGoals}
-                  allTimeTickets={allTimeTickets.data ?? []}
-                  previousYearTickets={previousTickets.data ?? []}
-                />
               </div>
             )}
           </TabsContent>
