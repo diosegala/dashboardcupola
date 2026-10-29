@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMyTeamCoupons } from "@/hooks/useTeam";
 import { eventGoal } from "@/lib/goalMetrics";
 import { Kpi, brl, useCouponTotals } from "@/components/dashboard/CouponKpis";
+import { commercialDiscounts } from "@/lib/lotPrice";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -101,7 +102,7 @@ export function HBars({ items }: { items: { label: string; value: number }[] }) 
 const CORES_PARTE = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--muted-foreground))"];
 
 // Barra única de 100% dividida em partes, com legenda de quantidade e %. Cabe quantas opções aparecerem.
-export function ShareBar({ items }: { items: { label: string; value: number }[] }) {
+export function ShareBar({ items }: { items: { label: string; value: number; amount?: number }[] }) {
   const [hover, setHover] = useState<string | null>(null);
   const total = items.reduce((s, i) => s + i.value, 0) || 1;
   const pct = (v: number) => `${((v / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
@@ -134,6 +135,7 @@ export function ShareBar({ items }: { items: { label: string; value: number }[] 
             <span className="shrink-0 tabular-nums">
               <b className="font-semibold">{int(i.value)}</b>
               <span className="ml-2 text-muted-foreground">{pct(i.value)}</span>
+              {i.amount !== undefined && <span className="ml-2 text-muted-foreground">· {i.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}</span>}
             </span>
           </li>
         ))}
@@ -151,7 +153,7 @@ export function utmLabel(v: string | null | undefined): string | null {
   return codes ? String.fromCharCode(...codes[1].split(",").map((n) => Number(n.trim()))) : t;
 }
 
-export function SegmentCard({ title, items, className, share }: { title: string; items: { label: string; value: number }[]; className?: string; share?: boolean }) {
+export function SegmentCard({ title, items, className, share }: { title: string; items: { label: string; value: number; amount?: number }[]; className?: string; share?: boolean }) {
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
@@ -179,7 +181,21 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
   const ranking = useMemo(() => buildTeamRanking(paying), [paying]);
   const eu = useMemo(() => findMe(ranking, meusCupons.data ?? [], profile?.name), [ranking, meusCupons.data, profile?.name]);
 
-  const porPagamento = useMemo(() => countBy(paying, (t) => (t.payment_method ? pagamentoDe(t.payment_method) : null)), [paying]);
+  const porPagamento = useMemo(() => {
+    const forma = (t: Ticket) => (t.payment_method ? pagamentoDe(t.payment_method) : null);
+    const valores = new Map<string, number>();
+    paying.forEach((t) => {
+      const k = forma(t);
+      if (k) valores.set(k, (valores.get(k) ?? 0) + Number(t.total_price || 0));
+    });
+    return countBy(paying, forma).map((i) => ({ ...i, amount: valores.get(i.label) ?? 0 }));
+  }, [paying]);
+
+  // Descontos concedidos na aba Comercial: cupons parciais + cortesias pelo preço cheio do lote, % sobre a receita bruta.
+  const descontosComercial = useMemo(() => {
+    const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
+    return commercialDiscounts([...paying, ...bonus], receita, tickets);
+  }, [paying, bonus, tickets]);
 
   // Espelho do "Descontos concedidos" da página Cupons: mesmo cálculo compartilhado (CouponKpis).
   const totalsCupons = useCouponTotals(tickets);
@@ -230,7 +246,7 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
     <div className="space-y-[14px]">
       {totalsCupons.comCupom > 0 && (
         <div className="grid grid-cols-12 gap-[14px]">
-          <Kpi title="Descontos concedidos" value={brl(totalsCupons.descontos)} hint="só cupons menores que 100%" className="col-span-12 sm:col-span-6 lg:col-span-3" />
+          <Kpi title="Descontos concedidos (Comercial)" value={brl(descontosComercial.total)} hint={`${(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta (${brl(descontosComercial.bruta)})`} className="col-span-12 sm:col-span-6 lg:col-span-3" />
         </div>
       )}
       {segmentos.length > 0 && (
