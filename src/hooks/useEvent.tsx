@@ -39,7 +39,9 @@ const FALLBACK_EVENT: EventRow = {
   is_active: true,
 };
 
-const EventContext = createContext<EventContextValue | null>(null);
+// Mantém o mesmo contexto quando o arquivo é recarregado durante o desenvolvimento.
+const globalScope = globalThis as { __cupolaEventContext?: React.Context<EventContextValue | null> };
+const EventContext = (globalScope.__cupolaEventContext ??= createContext<EventContextValue | null>(null));
 
 function lastChosen(): string | null {
   try {
