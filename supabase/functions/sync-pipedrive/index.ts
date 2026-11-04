@@ -71,7 +71,7 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
     }
     guard();const pendencias=await avaliarPendencias(db,account);guard();
     if(work.pipelines.length)cursors.deals=work.started;
-    delete cursors.work;
+    cursors.work=null;
     await saveRate(db,account,api,cursors,{last_success_at:new Date().toISOString(),last_error:null});
     return {account,...writer.stats,pendencias_abertas:pendencias,rate:api.rate};
   }catch(e){
@@ -89,6 +89,8 @@ Deno.serve(async req=>{
     const parsed=schema.safeParse(await req.json().catch(()=>({})));if(!parsed.success)return json({error:'Parâmetros inválidos para sincronizar o CRM'},400);
     const configs=await configsFor(db,parsed.data.crm_account);
     if(!configs.length)return json({error:'Nenhuma conta do Pipedrive vinculada a evento ativo'},400);
+    const integration=await checked(db.from('integrations').select('is_active').eq('name','pipedrive').maybeSingle());
+    if(!integration?.is_active)return json({error:'Ative a integração Pipedrive antes de sincronizar'},400);
     await checked(db.from('integrations').update({sync_status:'syncing',error_message:null}).eq('name','pipedrive'));
     const results:Row[]=[];const deadline=Date.now()+110000;
     for(const account of [...new Set(configs.map(c=>c.crm_account))]){

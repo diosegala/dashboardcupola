@@ -1,6 +1,6 @@
 import { z } from 'npm:zod@3';
-import { authorize, checked, errorResponse, json, matchesTerm, PipedriveClient, preflight, resolveAccount, resolveToken, saveRate, serverClient } from '../_shared/pipedrive.ts';
-import { safeFields, type Row } from '../_shared/pipedrive-rules.ts';
+import { authorize, errorResponse, json, matchesTerm, PipedriveClient, PipedriveError, preflight, resolveAccount, resolveToken, saveRate, serverClient } from '../_shared/pipedrive.ts';
+import { LOW_RATE_MESSAGE, safeFields, type Row } from '../_shared/pipedrive-rules.ts';
 const schema=z.object({event_id:z.string().uuid().optional(),crm_account:z.string().min(1).max(100).optional(),product_term:z.string().max(255).optional()}).strict().refine(v=>v.event_id || v.crm_account);
 Deno.serve(async req=>{
   const options=preflight(req); if(options) return options;
@@ -19,7 +19,7 @@ Deno.serve(async req=>{
     const deal_fields=safeFields(await api.all('/api/v1/dealFields'));
     const organization_fields=safeFields(await api.all('/api/v1/organizationFields'));
     const users=(await api.all('/api/v1/users')).map(r=>pick(r,['id','name','active_flag']));
-    if(api.rate.limit>0 && api.rate.remaining<api.rate.limit*.05) throw new Error('low-rate');
+    if(api.rate.limit>0 && api.rate.remaining<api.rate.limit*.05) throw new PipedriveError(LOW_RATE_MESSAGE,503,429);
     return json({pipelines,stages,products,variations,deal_fields,organization_fields,users,account:{domain:account,rate:api.rate}});
   }catch(e){return errorResponse(e);} finally{if(db && api && account) try{await saveRate(db,account,api,{});}catch{console.error('list-crm-options: erro ao registrar consumo');}}
 });

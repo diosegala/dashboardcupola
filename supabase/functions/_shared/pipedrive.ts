@@ -19,7 +19,19 @@ export async function checked<T>(query: PromiseLike<{ data: T; error: any }>): P
 export async function authorize(req: Request, db: SupabaseClient, scheduled = false) {
   if (req.method !== 'POST') throw new PipedriveError('Use uma chamada POST', 405);
   const auth = req.headers.get('Authorization');
-  if (scheduled && !auth && await constantEqual(req.headers.get('x-pipedrive-schedule-secret') ?? '', Deno.env.get('PIPEDRIVE_SCHEDULE_SECRET') ?? '')) return;
+  if (scheduled && !auth) {
+    const timestamp = req.headers.get('x-crm-time') ?? '';
+    const account = req.headers.get('x-crm-account') ?? '';
+    const signature = req.headers.get('x-crm-signature') ?? '';
+    if (timestamp && account && Math.abs(Date.now() - Date.parse(timestamp)) < 300000 && /^[a-f0-9]{64}$/.test(signature)) {
+      const body = await req.clone().json().catch(() => null);
+      if (body?.crm_account === account && body?.scheduled_at === timestamp && Object.keys(body).every(k => ['crm_account','scheduled_at'].includes(k))) {
+        const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(await resolveToken(db, accountDomain(account))), { name:'HMAC', hash:'SHA-256' }, false, ['verify']);
+        const bytes = new Uint8Array(signature.match(/.{2}/g)?.map(x => parseInt(x,16)) ?? []);
+        if (await crypto.subtle.verify('HMAC', key, bytes, new TextEncoder().encode(`${account}:${timestamp}`))) return;
+      }
+    }
+  }
   if (!auth?.startsWith('Bearer ')) throw new PipedriveError('Não autorizado', 401);
   const url = Deno.env.get('SUPABASE_URL'); const key = Deno.env.get('SUPABASE_ANON_KEY');
   if (!url || !key) throw new PipedriveError('Configuração de autenticação indisponível', 500);
@@ -110,7 +122,7 @@ export class CrmWriter {
   async history(deal: Row, from: number | null, to: number, changed: unknown, source: string) {
     const at = iso(changed) ?? deal.stage_changed_at ?? deal.created_at_source;
     if (!at) throw new PipedriveError('Negócio sem data válida para o histórico de etapa', 422);
-    await this.upsert('deal_stage_history', [{ crm_account: this.account, deal_id: deal.id, from_stage_pd_id: from, to_stage_pd_id: to, changed_at: at, source }], 'deal_id,to_stage_pd_id,changed_at');
+    await checked(this.db.from('deal_stage_history').upsert({ crm_account: this.account, deal_id: deal.id, from_stage_pd_id: from, to_stage_pd_id: to, changed_at: at, source }, {onConflict:'deal_id,to_stage_pd_id,changed_at',ignoreDuplicates:true}));
   }
   async deal(d: Row, source = 'sync', change?: Row): Promise<Row> {
     const old = await checked(this.db.from('deals').select('*').eq('crm_account', this.account).eq('pipedrive_deal_id', String(d.id)).maybeSingle());
@@ -185,13 +197,15 @@ export async function avaliarPendencias(db: SupabaseClient, account: string): Pr
   const wanted=new Set(candidates.map(c=>`${c.event_id}:${c.kind}:${c.ref_key}`));
   const obsolete=open.filter(p=>!wanted.has(`${p.event_id}:${p.kind}:${p.ref_key}`));
   for(const batch of chunks(obsolete)) await checked(db.from('sponsorship_pending').update({status:'resolvida',resolved_at:new Date().toISOString(),resolved_by:null}).eq('status','aberta').in('id',batch.map(p=>p.id)));
-  const counts=await checked(db.from('sponsorship_pending').select('id',{count:'exact',head:false}).in('event_id',configs.map(c=>c.event_id)).eq('status','aberta'));
-  return counts?.length??0;
+  const {count,error}=await db.from('sponsorship_pending').select('id',{count:'exact',head:true}).in('event_id',configs.map(c=>c.event_id)).eq('status','aberta');
+  if(error)throw new PipedriveError('Não foi possível contar as pendências',500);
+  return count??0;
 }
 export async function saveRate(db: SupabaseClient,account:string,api:PipedriveClient,cursors:Row, extra:Row={}) {
   const current=await checked(db.from('crm_sync_state').select('cursors,tokens_day,tokens_used_today').eq('crm_account',account).maybeSingle());
   const day=new Date().toISOString().slice(0,10); const rate=api.rate.limit !== undefined ? api.rate : current?.cursors?.rate;
   const merged={...(current?.cursors??{}),...cursors,...(rate?{rate}: {})};
+  if(Object.hasOwn(cursors,'work') && cursors.work===null)delete merged.work;
   await checked(db.from('crm_sync_state').upsert({crm_account:account,cursors:merged,tokens_day:day,tokens_used_today:rate?.limit!==undefined?Math.max(0,rate.limit-rate.remaining):current?.tokens_day===day?current.tokens_used_today:0,...extra},{onConflict:'crm_account'}));
 }
 export function errorResponse(e: unknown) { return json({error:e instanceof PipedriveError ? e.message : 'Não foi possível concluir a operação do CRM'},e instanceof PipedriveError?e.status:500); }
