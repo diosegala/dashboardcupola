@@ -1,7 +1,6 @@
 import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
-import { Trophy } from "lucide-react";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,7 +12,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEvent } from "@/hooks/useEvent";
 import { useAllTimeTicketSales } from "@/hooks/useDashboardData";
 import { splitTickets } from "@/hooks/useCommercialMetrics";
-import { TeamRanking, buildTeamRanking, posicaoDe } from "@/components/dashboard/TeamRanking";
+import { TeamRanking, buildTeamRanking } from "@/components/dashboard/TeamRanking";
 import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
 import { COUPON_GROUPS, couponDiscountValue, formatDiscount, parseCoupon, type CouponGroup, type CouponKind } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
@@ -80,75 +79,37 @@ export default function Coupons() {
   }, [visiveis]);
   const totalPizza = pizza.reduce((s, p) => s + p.value, 0);
 
-  // Histórico: pódio de cada lote encerrado.
-  const historico = ranking.lotes.filter((l) => l.lote !== ranking.loteAtual && l.ranking.length > 0);
-
   if (isSeller) return <Navigate to="/" replace />;
 
   return (
     <div className="space-y-6">
-      <PageHeader title="Cupons" description="Uso dos cupons no evento, ranking da equipe e histórico de ganhadores por lote." />
+      <PageHeader title="Cupons" description="Quem vende com cupom, quanto cada código rendeu e quanto foi abatido do preço." />
 
       {vendas.isLoading ? (
         <Skeleton className="h-96" />
       ) : (
         <>
           <div className="grid grid-cols-2 gap-[14px] lg:grid-cols-4">
-            <Kpi title="Cupons gratuitos" value={int(gratuitos)} hint="ingressos com cupom de 100%" />
-            <Kpi title="Descontos concedidos" value={brl(descontos)} hint="só cupons menores que 100%" />
-            <Kpi title="Cupons usados" value={int(cuponsUsados)} hint="códigos diferentes" />
-            <Kpi title="Ingressos com cupom" value={int(comCupom)} />
+            <Kpi title="Entradas liberadas" value={int(gratuitos)} hint="ingressos sem cobrança, com cupom de 100%" />
+            <Kpi title="Descontos concedidos" value={brl(descontos)} hint="abatido do preço em cupons parciais" />
+            <Kpi title="Códigos em circulação" value={int(cuponsUsados)} hint="cupons diferentes já usados" />
+            <Kpi title="Vendas com cupom" value={int(comCupom)} hint="somando todos os tipos de cupom" />
           </div>
 
           <div className="grid grid-cols-12 gap-[14px]">
             {ranking.lotes.some((l) => l.ranking.length > 0) ? (
-              <TeamRanking data={ranking} gerencial className="lg:col-span-8" />
+              <TeamRanking data={ranking} gerencial />
             ) : (
-              <Card className="col-span-12 p-8 text-center text-sm text-muted-foreground lg:col-span-8">Ninguém da equipe vendeu com cupom neste evento ainda.</Card>
+              <Card className="col-span-12 p-8 text-center text-sm text-muted-foreground">Ninguém da equipe vendeu com cupom neste evento ainda.</Card>
             )}
-            <Card className="col-span-12 lg:col-span-4">
-              <CardHeader className="pb-3">
-                <CardTitle className="flex items-center gap-2">
-                  <Trophy className="h-4 w-4" /> Histórico de ganhadores <InfoTip title="Histórico de ganhadores" />
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                {historico.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">Aparece quando o primeiro lote com vendas da equipe for encerrado.</p>
-                ) : (
-                  <ul className="space-y-4">
-                    {historico.map((l) => (
-                      <li key={l.lote}>
-                        <div className="mb-1.5 text-[13px] font-semibold">{l.lote}</div>
-                        <ol className="space-y-1">
-                          {l.ranking.filter((v) => posicaoDe(l.ranking, v) <= 3).map((v) => {
-                            const pos = posicaoDe(l.ranking, v);
-                            return (
-                              <li key={v.nome} className="flex items-center justify-between gap-2 text-[13px]">
-                                <span className={cn("flex items-center gap-2", pos === 1 && "font-semibold")}>
-                                  <span className="w-6 text-muted-foreground tabular-nums">{pos}º</span>
-                                  {v.nome}
-                                </span>
-                                <span className="tabular-nums text-muted-foreground">
-                                  <b className="font-semibold text-foreground">{int(v.vendas)}</b> · {brl(v.receita)}
-                                </span>
-                              </li>
-                            );
-                          })}
-                        </ol>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </CardContent>
-            </Card>
           </div>
 
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2">
-                Ranking de cupons <InfoTip title="Ranking de cupons" />
+                Cupons em uso <InfoTip title="Cupons em uso" />
               </CardTitle>
+              <p className="text-xs text-muted-foreground">Cada código, o grupo a que pertence e o quanto ele já rendeu.</p>
               <div className="!mt-3 flex flex-wrap items-center gap-3">
                 <div className="inline-flex w-fit flex-wrap items-center gap-0.5 rounded-[18px] border bg-secondary p-1">
                   {[{ key: "todos" as const, label: "Todos", uses: comCupom }, ...grupos].map((g) => (
