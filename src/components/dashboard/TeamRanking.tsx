@@ -150,7 +150,12 @@ export function TeamRanking({ data, eu: euProp, metaPorPessoa, className, gerenc
             <Button variant="ghost" size="icon" className="h-8 w-8" title="Próximo lote" disabled={indice >= lotes.length - 1} onClick={() => setEscolhido(indice + 1)}>
               <ChevronRight className="h-4 w-4" />
             </Button>
-            {lote?.lote === loteAtual && <span className="ml-1 text-xs text-muted-foreground">lote atual</span>}
+            {lote?.lote === loteAtual && (
+              <span className="ml-2 inline-flex items-center gap-1.5 rounded-full bg-primary/15 px-2.5 py-0.5 text-xs font-semibold text-foreground ring-1 ring-primary/60">
+                <i className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
+                Lote atual
+              </span>
+            )}
             {meta && (
               <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground">
                 <i className="inline-block h-3 w-[2px] rounded-full bg-foreground/45" /> Meta {int(meta)} por pessoa
