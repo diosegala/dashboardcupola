@@ -10,7 +10,7 @@ import { Chip } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { TEAM_DISCOUNT, parseCoupon, teamMemberName } from "@/lib/coupons";
-import { batchOf, batchOrder } from "@/lib/batches";
+import { PRE_VENDA, batchOf, batchOrder } from "@/lib/batches";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -143,13 +143,17 @@ function NomeComCupom({ nome, cupons, className }: { nome: string; cupons: strin
 // Quantos lotes futuros aparecem esmaecidos na linha do tempo.
 const LOTES_A_FRENTE = 3;
 
-// Linha do tempo dos lotes: os já encerrados (clicáveis) à esquerda, o atual em destaque e os próximos esmaecidos à direita.
+// Linha do tempo dos lotes: Pré-venda, Lote 0, Lote 1… Os já encerrados (clicáveis) ficam à esquerda, o atual em destaque
+// e os próximos esmaecidos à direita. A linha cresce sozinha: mostra sempre até o atual mais os próximos.
 function LinhaDoTempo({ atual, selecionado, onSelect }: { atual: string; selecionado: string; onSelect: (lote: string) => void }) {
   const n = batchOrder(atual);
-  const itens = Array.from({ length: n + 1 + LOTES_A_FRENTE }, (_, i) => ({
-    lote: `Lote ${i}`,
-    estado: i < n ? ("passado" as const) : i === n ? ("atual" as const) : ("futuro" as const),
-  }));
+  const itens = Array.from({ length: n + 2 + LOTES_A_FRENTE }, (_, k) => {
+    const i = k - 1;
+    return {
+      lote: i === -1 ? PRE_VENDA : `Lote ${i}`,
+      estado: i < n ? ("passado" as const) : i === n ? ("atual" as const) : ("futuro" as const),
+    };
+  });
 
   return (
     <div role="group" aria-label="Linha do tempo dos lotes" className="-mx-1 flex items-center overflow-x-auto px-1 py-2">
@@ -226,7 +230,7 @@ const brlCurto = (n: number) => n.toLocaleString("pt-BR", { style: "currency", c
 export function TeamRanking({ data, eu: euProp, metaPorPessoa, className, gerencial = false }: { data: TeamRankingData; eu?: Eu; metaPorPessoa?: number | null; className?: string; gerencial?: boolean }) {
   const eu = gerencial ? null : euProp;
   const { lotes, loteAtual, geral } = data;
-  const atual = loteAtual ?? lotes[0]?.lote ?? "Lote 0";
+  const atual = loteAtual ?? lotes[0]?.lote ?? PRE_VENDA;
   const [escolhido, setEscolhido] = useState<string | null>(null);
   const [verMais, setVerMais] = useState(false);
   const [verMaisGeral, setVerMaisGeral] = useState(false);
@@ -255,7 +259,7 @@ export function TeamRanking({ data, eu: euProp, metaPorPessoa, className, gerenc
         </CardTitle>
         <p className="text-xs text-muted-foreground">Quem mais vendeu com o próprio cupom em cada lote. A disputa recomeça do zero quando o lote vira.</p>
       </CardHeader>
-      <CardContent className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <CardContent className="grid gap-6">
         <div>
           <LinhaDoTempo atual={atual} selecionado={selecionado} onSelect={escolher} />
           {meta && (
@@ -331,11 +335,11 @@ export function TeamRanking({ data, eu: euProp, metaPorPessoa, className, gerenc
           )}
         </div>
 
-        <div className="self-start rounded-2xl border bg-secondary/50 p-4">
+        <div className="rounded-2xl border bg-secondary/50 p-4">
           <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
             <Trophy className="h-4 w-4" /> Hall da fama <InfoTip title="Hall da fama" />
           </div>
-          <p className="mb-3 mt-1 text-xs text-muted-foreground">Vendas somadas de todos os lotes, do Lote 0 até agora.</p>
+          <p className="mb-3 mt-1 text-xs text-muted-foreground">Vendas somadas de todos os lotes, da pré-venda até agora.</p>
           <ol className="flex flex-col gap-2">
             {(verMaisGeral ? geral : geralTopo).map((v) => {
               const pos = posicaoDe(geral, v);

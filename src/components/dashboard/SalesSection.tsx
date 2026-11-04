@@ -30,7 +30,7 @@ interface Lote {
   anteriorReceita: number | null;
 }
 
-// Soma pagantes e receita por lote (Lote 0, Lote 1, Lote 2…), juntando os nomes que mudam a cada ano.
+// Soma pagantes e receita por lote (Pré-venda, Lote 0, Lote 1…), juntando os nomes que mudam a cada ano.
 function porLote(tickets: Ticket[]) {
   const map = new Map<string, { pagantes: number; receita: number; ultimaVenda: string }>();
   splitTickets(tickets).paying.forEach((t) => {
