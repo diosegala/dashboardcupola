@@ -86,13 +86,11 @@ export default function Coupons() {
     <div className="space-y-6">
       <PageHeader title="Cupons" description="Quem vende com cupom, quanto cada código rendeu e quanto foi abatido do preço." />
 
-      {/* Aviso temporário: remover quando as vendas faturadas internamente entrarem nesta página. */}
-      <div role="status" className="flex items-start gap-3 rounded-2xl border bg-warn-bg px-4 py-3 text-[13px] leading-snug">
-        <Info className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
-        <p>
-          <b className="font-semibold">Aviso temporário:</b> esta página considera só as vendas da Sympla. As vendas faturadas internamente ainda não entram nesses números.
-        </p>
-      </div>
+      {/* Aviso discreto: remover quando as vendas faturadas internamente entrarem nesta página. */}
+      <p role="status" className="flex items-start gap-2 text-xs leading-snug text-muted-foreground">
+        <Info className="mt-px h-3.5 w-3.5 shrink-0" />
+        <span>Os números desta página vêm das vendas da Sympla. Estamos trabalhando para trazer também as vendas faturadas internamente.</span>
+      </p>
 
       {vendas.isLoading ? (
         <Skeleton className="h-96" />
