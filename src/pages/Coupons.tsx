@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
+import { Info } from "lucide-react";
 import { Cell, Pie, PieChart, ResponsiveContainer } from "recharts";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -84,6 +85,14 @@ export default function Coupons() {
   return (
     <div className="space-y-6">
       <PageHeader title="Cupons" description="Quem vende com cupom, quanto cada código rendeu e quanto foi abatido do preço." />
+
+      {/* Aviso temporário: remover quando as vendas faturadas internamente entrarem nesta página. */}
+      <div role="status" className="flex items-start gap-3 rounded-2xl border bg-warn-bg px-4 py-3 text-[13px] leading-snug">
+        <Info className="mt-0.5 h-4 w-4 shrink-0 text-warn" />
+        <p>
+          <b className="font-semibold">Aviso temporário:</b> esta página considera só as vendas da Sympla. As vendas faturadas internamente ainda não entram nesses números.
+        </p>
+      </div>
 
       {vendas.isLoading ? (
         <Skeleton className="h-96" />

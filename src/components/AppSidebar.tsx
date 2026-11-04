@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Target, Plug, Settings, UsersRound, PanelLeftClose, PanelLeftOpen, Megaphone, Trophy, Eye, EyeOff, Ticket } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,7 +41,12 @@ const itemClass =
 export function AppSidebar() {
   const { isAdmin, isSeller, viewingAsSeller, setViewingAsSeller } = useAuth();
   const { pathname } = useLocation();
-  const { state, toggleSidebar } = useSidebar();
+  const { state, toggleSidebar, setOpenMobile } = useSidebar();
+
+  // No celular o menu abre por cima da tela: ao escolher uma página ele fecha sozinho e mostra a página.
+  useEffect(() => {
+    setOpenMobile(false);
+  }, [pathname, setOpenMobile]);
   const recolhido = state === "collapsed";
   const items = isSeller ? sellerItems : isAdmin ? [...publicItems, ...adminItems] : publicItems;
 
