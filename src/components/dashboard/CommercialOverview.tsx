@@ -7,7 +7,9 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Kpi, brl as brlCompleto, useCouponTotals } from "./CouponKpis";
+import { commercialDiscounts } from "@/lib/lotPrice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/CountUp";
 import { IssuedTicketsCard } from "./IssuedTicketsCard";
@@ -18,7 +20,7 @@ import { BusinessDaysView } from "./BusinessDaysView";
 import { Tabs, TabsTrigger } from "@/components/ui/tabs";
 import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
-import { useCommercialMetrics, type EventParams, type PaceStatus } from "@/hooks/useCommercialMetrics";
+import { splitTickets, useCommercialMetrics, type EventParams, type PaceStatus } from "@/hooks/useCommercialMetrics";
 import { cn } from "@/lib/utils";
 import { GoalMeter } from "@/components/GoalMeter";
 import { CompareLine } from "@/components/CompareLine";
@@ -131,6 +133,14 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
   const { ativo: comparar, rotulo } = useCompare();
   const mostrarAnterior = comparar && m.hasPrevious;
 
+  // Descontos concedidos: cupons parciais + cortesias pelo preço cheio do lote, % sobre a receita bruta.
+  const descontosComercial = useMemo(() => {
+    const { paying, bonus } = splitTickets(tickets);
+    const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
+    return commercialDiscounts([...paying, ...bonus], receita);
+  }, [tickets]);
+  const mostrarDescontos = useCouponTotals(tickets).comCupom > 0;
+
   return (
     <div className="grid grid-cols-12 gap-[14px]">
       {/* Linha 1: meta, ritmo necessário e ritmo atual */}
@@ -171,8 +181,10 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
 
       {/* Linha 2: todos os ingressos emitidos (pizza) e receita */}
       <IssuedTicketsCard tickets={tickets} goal={metaEmitidos} emitidosAnterior={m.anterior?.issuedCount} emitidosAtual={m.issuedCount} goals={goals} allTimeTickets={tickets} previousYearTickets={previousTickets} className="col-span-12 lg:col-span-8" />
+      {/* Coluna da direita: Receita acumulada com Descontos concedidos logo abaixo, sem sobrar espaço vazio ao lado do gráfico de pizza. */}
+      <div className="col-span-12 flex flex-col gap-[14px] lg:col-span-4">
       <KpiCard
-        className="col-span-12 lg:col-span-4"
+        className="flex-1"
         title="Receita acumulada"
         value={m.revenue}
         format={brl}
@@ -198,6 +210,15 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
           <GoalMeter actual={m.revenue} target={Number(metaReceita.target_value)} unit="brl" periodStart={metaReceita.period_start} periodEnd={metaReceita.period_end} />
         )}
       </KpiCard>
+      {mostrarDescontos && (
+        <Kpi
+          title="Descontos concedidos"
+          infoKey="Descontos concedidos (Comercial)"
+          value={brlCompleto(descontosComercial.total)}
+          hint={`${(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta (${brlCompleto(descontosComercial.bruta)})`}
+        />
+      )}
+      </div>
 
       {/* Linha 3: pagantes acumulados x trajetória */}
       <Card className="col-span-12">

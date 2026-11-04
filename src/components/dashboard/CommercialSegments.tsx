@@ -9,8 +9,6 @@ import { TeamRanking, buildTeamRanking, findMe } from "@/components/dashboard/Te
 import { useAuth } from "@/hooks/useAuth";
 import { useMyTeamCoupons } from "@/hooks/useTeam";
 import { eventGoal } from "@/lib/goalMetrics";
-import { Kpi, brl, useCouponTotals } from "@/components/dashboard/CouponKpis";
-import { commercialDiscounts } from "@/lib/lotPrice";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -191,15 +189,6 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
     return countBy(paying, forma).map((i) => ({ ...i, amount: valores.get(i.label) ?? 0 }));
   }, [paying]);
 
-  // Descontos concedidos na aba Comercial: cupons parciais + cortesias pelo preço cheio do lote, % sobre a receita bruta.
-  const descontosComercial = useMemo(() => {
-    const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
-    return commercialDiscounts([...paying, ...bonus], receita);
-  }, [paying, bonus]);
-
-  // Espelho do "Descontos concedidos" da página Cupons: mesmo cálculo compartilhado (CouponKpis).
-  const totalsCupons = useCouponTotals(tickets);
-
   // Cupons agrupados pelo código, com o desconto e o tipo enviados pela Sympla.
   const cupons = useMemo(() => {
     const map = new Map<string, { code: string; discount: string | null; kind: CouponKind; group: CouponGroup; uses: number }>();
@@ -238,20 +227,14 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
     { title: "Pagantes por forma de pagamento", items: porPagamento, share: true },
   ].filter((s) => s.items.length > 0);
 
-  const mostrarDescontos = totalsCupons.comCupom > 0;
-  const mostrarSegmentos = segmentos.length > 0;
-  if (!mostrarDescontos && !mostrarSegmentos) return null;
+  if (segmentos.length === 0) return null;
 
-  // Descontos e forma de pagamento dividem a mesma linha: sem colunas vazias ao lado.
+  // Descontos concedidos agora fica ao lado da Receita acumulada (CommercialOverview).
   return (
     <div className="grid grid-cols-12 gap-[14px]">
-      {mostrarDescontos && (
-        <Kpi title="Descontos concedidos" infoKey="Descontos concedidos (Comercial)" value={brl(descontosComercial.total)} hint={`${(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta (${brl(descontosComercial.bruta)})`} className="col-span-12 sm:col-span-6 lg:col-span-4" />
-      )}
-      {mostrarSegmentos &&
-        segmentos.map((s) => (
-          <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className={cn("col-span-12", mostrarDescontos ? "lg:col-span-8" : "lg:col-span-12")} />
-        ))}
+      {segmentos.map((s) => (
+        <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className="col-span-12" />
+      ))}
     </div>
   );
 }

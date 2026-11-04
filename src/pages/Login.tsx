@@ -1,3 +1,4 @@
+import { traduzirErro } from "@/lib/mensagensErro";
 import { useState } from "react";
 import { useNavigate, Navigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -28,7 +29,7 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
-      toast({ variant: "destructive", title: "Erro", description: error.message });
+      toast({ variant: "destructive", title: "Não foi possível entrar", description: traduzirErro(error) });
       setLoading(false);
     } else {
       navigate("/");

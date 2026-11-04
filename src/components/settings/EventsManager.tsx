@@ -1,3 +1,4 @@
+import { traduzirErro } from "@/lib/mensagensErro";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { CalendarPlus, Pencil, Users } from "lucide-react";
@@ -109,7 +110,7 @@ export function EventsManager({ users }: { users: UserOption[] }) {
       setForm(null);
       queryClient.invalidateQueries({ queryKey: ["events"] });
     },
-    onError: (err: any) => toast.error("Erro ao salvar evento: " + err.message),
+    onError: (err: any) => toast.error("Erro ao salvar evento: " + traduzirErro(err)),
   });
 
   const toggleAccess = useMutation({
@@ -121,7 +122,7 @@ export function EventsManager({ users }: { users: UserOption[] }) {
       if (error) throw error;
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["event_users"] }),
-    onError: (err: any) => toast.error("Erro ao alterar acesso: " + err.message),
+    onError: (err: any) => toast.error("Erro ao alterar acesso: " + traduzirErro(err)),
   });
 
   if (!hasEventsTable) {

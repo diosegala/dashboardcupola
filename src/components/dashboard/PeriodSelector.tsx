@@ -71,8 +71,8 @@ export function PeriodSelector({ range, onChange }: PeriodSelectorProps) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="outline" className={cn("justify-start text-left font-normal gap-2")}>
-          <CalendarIcon className="h-4 w-4" />
+        <Button variant="outline" className={cn("h-9 justify-start gap-2 rounded-full px-3.5 text-left text-xs font-medium")}>
+          <CalendarIcon className="h-3.5 w-3.5" />
           {format(range.from, "dd MMM", { locale: ptBR })} – {format(range.to, "dd MMM yyyy", { locale: ptBR })}
         </Button>
       </PopoverTrigger>
