@@ -1,3 +1,4 @@
+import { traduzirErro } from "@/lib/mensagensErro";
 import { PageHeader } from "@/components/PageHeader";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
@@ -82,7 +83,7 @@ function TeamCouponInput({ userId, codes }: { userId: string; codes: string[] })
     const inserir = apagar.error || novos.length === 0 ? apagar : await supabase.from("team_coupons" as any).insert(novos.map((coupon_code) => ({ user_id: userId, coupon_code })));
     setSalvando(false);
     if (inserir.error) {
-      toast({ variant: "destructive", title: "Não deu para salvar o cupom", description: inserir.error.message });
+      toast({ variant: "destructive", title: "Não deu para salvar o cupom", description: traduzirErro(inserir.error) });
       setValor(atual);
       return;
     }
@@ -126,7 +127,7 @@ function useManageUser() {
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
     },
     onError: (err: Error) => {
-      toast({ variant: "destructive", title: "Erro", description: err.message });
+      toast({ variant: "destructive", title: "Erro", description: traduzirErro(err) });
     },
   });
 }
@@ -163,7 +164,7 @@ export default function Settings() {
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
     },
     onError: (err: Error) => {
-      toast({ variant: "destructive", title: "Erro ao convidar", description: err.message });
+      toast({ variant: "destructive", title: "Erro ao convidar", description: traduzirErro(err) });
     },
   });
 

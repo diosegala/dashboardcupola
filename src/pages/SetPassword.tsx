@@ -1,3 +1,4 @@
+import { traduzirErro } from "@/lib/mensagensErro";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -46,7 +47,7 @@ export default function SetPassword() {
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      toast({ variant: "destructive", title: "Erro", description: error.message });
+      toast({ variant: "destructive", title: "Erro", description: traduzirErro(error) });
       setLoading(false);
     } else {
       toast({ title: "Sucesso", description: "Senha definida com sucesso!" });

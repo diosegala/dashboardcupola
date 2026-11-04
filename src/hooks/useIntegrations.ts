@@ -1,3 +1,4 @@
+import { traduzirErro } from "@/lib/mensagensErro";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables } from "@/integrations/supabase/types";
@@ -40,7 +41,7 @@ export function useIntegrations() {
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
     },
     onError: (err) => {
-      toast.error("Erro ao atualizar integração: " + err.message);
+      toast.error("Erro ao atualizar integração: " + traduzirErro(err));
     },
   });
 
@@ -57,7 +58,7 @@ export function useIntegrations() {
       queryClient.invalidateQueries({ queryKey: ["integrations_health"] });
     },
     onError: (err) => {
-      toast.error("Erro ao sincronizar: " + err.message);
+      toast.error("Erro ao sincronizar: " + traduzirErro(err));
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
       queryClient.invalidateQueries({ queryKey: ["integrations_health"] });
     },

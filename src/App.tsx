@@ -14,6 +14,7 @@ const Login = lazy(() => import("./pages/Login"));
 const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const SetPassword = lazy(() => import("./pages/SetPassword"));
 const Index = lazy(() => import("./pages/Index"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Goals = lazy(() => import("./pages/Goals"));
 const Integrations = lazy(() => import("./pages/Integrations"));
 const Buyers = lazy(() => import("./pages/Buyers"));
@@ -49,6 +50,8 @@ const App = () => (
                 }
               >
                 <Route path="/" element={<Index />} />
+                <Route path="/comercial" element={<Dashboard pagina="comercial" />} />
+                <Route path="/marketing" element={<Dashboard pagina="marketing" />} />
                 <Route path="/goals" element={<Goals />} />
                 <Route path="/integrations" element={<Integrations />} />
                 <Route path="/compradores" element={<Buyers />} />

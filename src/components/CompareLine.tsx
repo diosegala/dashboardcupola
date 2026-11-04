@@ -21,18 +21,17 @@ export function CompareLine({ anterior, atual, formato = (n) => Math.round(n).to
   const variacao = anterior > 0 ? ((atual - anterior) / anterior) * 100 : null;
   const subiu = variacao !== null && variacao >= 0;
   return (
-    <p className={cn("text-xs", escuro ? "text-[#9A9FA7]" : "text-muted-foreground", className)}>
-      {rotulo} {quando}:<br />
-      <b className={cn("font-semibold", escuro ? "text-[#D6D2C8]" : "text-foreground/80")}>{formato(anterior)}</b>
-      {variacao !== null && Math.abs(variacao) >= 0.5 && (
-        <>
-        <br />
-        <span className={cn("inline-flex items-center font-semibold", subiu ? "text-ok" : "text-warn")}>
-          {subiu ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
-          {Math.abs(variacao).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%
-        </span>
-        </>
-      )}
+    <p className={cn("flex flex-wrap items-center gap-x-1.5 text-xs", escuro ? "text-[#9A9FA7]" : "text-muted-foreground", className)}>
+      <span>{rotulo} {quando}:</span>
+      <span className="inline-flex items-center gap-1.5 whitespace-nowrap">
+        <b className={cn("font-semibold", escuro ? "text-[#D6D2C8]" : "text-foreground/80")}>{formato(anterior)}</b>
+        {variacao !== null && Math.abs(variacao) >= 0.5 && (
+          <span className={cn("inline-flex items-center font-semibold", subiu ? "text-ok" : "text-warn")}>
+            {subiu ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+            {Math.abs(variacao).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%
+          </span>
+        )}
+      </span>
     </p>
   );
 }

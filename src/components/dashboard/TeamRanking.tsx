@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { subDays } from "date-fns";
 import { toast } from "sonner";
-import { ChevronLeft, ChevronRight, Copy, Flame, Trophy, UsersRound } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Flame, Trophy, UsersRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -10,7 +10,7 @@ import { Chip } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { TEAM_DISCOUNT, parseCoupon, teamMemberName } from "@/lib/coupons";
-import { batchOf, batchOrder } from "@/lib/batches";
+import { PRE_VENDA, batchOf, batchOrder } from "@/lib/batches";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -25,14 +25,21 @@ interface Vendedor {
   recentes: number;
 }
 
+// Acumulado de todos os lotes de uma pessoa (Hall da fama).
+interface VendedorGeral extends Vendedor {
+  lotesVencidos: number;
+}
+
 export interface TeamRankingData {
   lotes: { lote: string; ranking: Vendedor[] }[];
   loteAtual: string | null;
   campeoes: { nome: string; cupons: string[]; lotes: string[] }[];
+  // Soma de todos os lotes, do maior vendedor para o menor.
+  geral: VendedorGeral[];
 }
 
 // Posição com empate: quem tem as mesmas vendas fica na mesma colocação.
-export const posicaoDe = (ranking: Vendedor[], v: Vendedor) => 1 + ranking.filter((x) => x.vendas > v.vendas).length;
+export const posicaoDe = <T extends { vendas: number }>(ranking: T[], v: T) => 1 + ranking.filter((x) => x.vendas > v.vendas).length;
 
 // Ranking da equipe por lote, a partir das vendas pagantes. O lote atual é o da venda mais recente do evento.
 export function buildTeamRanking(paying: Ticket[]): TeamRankingData {
@@ -88,7 +95,23 @@ export function buildTeamRanking(paying: Ticket[]): TeamRankingData {
     });
   const campeoes = Array.from(map.values()).sort((a, b) => b.lotes.length - a.lotes.length || a.nome.localeCompare(b.nome));
 
-  return { lotes, loteAtual, campeoes };
+  // Hall da fama: vendas somadas de todos os lotes (inclusive o atual), com quantos lotes a pessoa venceu.
+  const acumulado = new Map<string, Vendedor>();
+  lotes.forEach((l) =>
+    l.ranking.forEach((v) => {
+      const a = acumulado.get(v.nome) ?? { nome: v.nome, cupons: [], vendas: 0, receita: 0, recentes: 0 };
+      v.cupons.forEach((code) => !a.cupons.includes(code) && a.cupons.push(code));
+      a.vendas += v.vendas;
+      a.receita += v.receita;
+      a.recentes += v.recentes;
+      acumulado.set(v.nome, a);
+    }),
+  );
+  const geral: VendedorGeral[] = Array.from(acumulado.values())
+    .map((v) => ({ ...v, lotesVencidos: map.get(v.nome)?.lotes.length ?? 0 }))
+    .sort((a, b) => b.vendas - a.vendas || b.lotesVencidos - a.lotesVencidos || a.nome.localeCompare(b.nome));
+
+  return { lotes, loteAtual, campeoes, geral };
 }
 
 // Quem é a pessoa logada no ranking: pelo cupom cadastrado; sem cadastro, pelo primeiro nome (se só um cupom bater).
@@ -117,21 +140,116 @@ function NomeComCupom({ nome, cupons, className }: { nome: string; cupons: strin
   );
 }
 
+// Quantos lotes futuros aparecem esmaecidos na linha do tempo.
+const LOTES_A_FRENTE = 3;
+
+// Linha do tempo dos lotes: Pré-venda, Lote 0, Lote 1… Os já encerrados (clicáveis) ficam à esquerda, o atual em destaque
+// e os próximos esmaecidos à direita. A linha cresce sozinha: mostra sempre até o atual mais os próximos.
+function LinhaDoTempo({ atual, selecionado, onSelect }: { atual: string; selecionado: string; onSelect: (lote: string) => void }) {
+  const n = batchOrder(atual);
+  const itens = Array.from({ length: n + 2 + LOTES_A_FRENTE }, (_, k) => {
+    const i = k - 1;
+    return {
+      lote: i === -1 ? PRE_VENDA : `Lote ${i}`,
+      estado: i < n ? ("passado" as const) : i === n ? ("atual" as const) : ("futuro" as const),
+    };
+  });
+
+  return (
+    <div role="group" aria-label="Linha do tempo dos lotes" className="-mx-1 flex items-center overflow-x-auto px-1 py-2">
+      {itens.map((it, i) => (
+        <div key={it.lote} className="flex shrink-0 items-center">
+          {i > 0 && <span className={cn("w-5", it.estado === "futuro" ? "border-t border-dashed border-border" : "h-px bg-border")} />}
+          {it.estado === "passado" && (
+            <button
+              type="button"
+              onClick={() => onSelect(it.lote)}
+              aria-pressed={selecionado === it.lote}
+              className={cn(
+                "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors duration-150",
+                selecionado === it.lote ? "border-foreground bg-foreground text-background" : "bg-card text-foreground hover:bg-secondary",
+              )}
+            >
+              {it.lote}
+            </button>
+          )}
+          {it.estado === "atual" && (
+            <Tooltip delayDuration={80}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => onSelect(it.lote)}
+                  aria-pressed={selecionado === it.lote}
+                  className={cn(
+                    "inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-shadow duration-150",
+                    selecionado === it.lote ? "ring-2 ring-foreground/80 ring-offset-2 ring-offset-card" : "opacity-90 hover:opacity-100",
+                  )}
+                >
+                  <span className="relative flex h-2 w-2">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-foreground/50 motion-reduce:animate-none" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-foreground" />
+                  </span>
+                  {it.lote}
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>Este é o lote atual: as vendas de agora entram nele. Quando o próximo lote abrir, o destaque passa para ele.</TooltipContent>
+            </Tooltip>
+          )}
+          {it.estado === "futuro" && (
+            <span aria-disabled="true" title="Ainda não abriu" className="cursor-not-allowed select-none rounded-full border border-dashed px-3.5 py-1.5 text-xs font-medium text-muted-foreground opacity-45">
+              {it.lote}
+            </span>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Barra de vendas com a marca da meta por pessoa (quando existe).
+function BarraDeVendas({ vendas, max, meta, destaque }: { vendas: number; max: number; meta: number | null; destaque: boolean }) {
+  return (
+    <div className="relative h-2.5 rounded-full bg-secondary">
+      <i
+        className={cn("block h-full origin-left animate-[grow_900ms_cubic-bezier(.16,1,.3,1)_both] rounded-full motion-reduce:animate-none", destaque ? "bg-primary" : "bg-data-blue")}
+        style={{ width: `${(vendas / max) * 100}%` }}
+      />
+      {meta && (
+        <span className="absolute -top-[3px] h-4 w-[2px] rounded-full bg-foreground/45" style={{ left: `calc(${(meta / max) * 100}% - 1px)` }} title={`Meta: ${int(meta)} por pessoa`} />
+      )}
+    </div>
+  );
+}
+
+const brlCurto = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
 // Ranking da equipe CUPOLA: recomeça a cada lote. Só aparece quem vendeu. Quem está logado aparece destacado.
+// Os 3 primeiros ficam em destaque; "Ver mais" abre os demais. À direita, o Hall da fama soma todos os lotes.
 // metaPorPessoa: meta de vendas de cada pessoa no lote (tela Metas). Sem meta, as barras ficam sem marca.
 // gerencial: visão de admin, mostra a receita de cada pessoa e não destaca "Você".
 export function TeamRanking({ data, eu: euProp, metaPorPessoa, className, gerencial = false }: { data: TeamRankingData; eu?: Eu; metaPorPessoa?: number | null; className?: string; gerencial?: boolean }) {
   const eu = gerencial ? null : euProp;
-  const { lotes, loteAtual, campeoes } = data;
-  const indiceAtual = Math.max(lotes.findIndex((l) => l.lote === loteAtual), 0);
-  const [escolhido, setEscolhido] = useState<number | null>(null);
-  const indice = escolhido !== null && escolhido < lotes.length ? escolhido : indiceAtual;
-  const lote = lotes[indice];
+  const { lotes, loteAtual, geral } = data;
+  const atual = loteAtual ?? lotes[0]?.lote ?? PRE_VENDA;
+  const [escolhido, setEscolhido] = useState<string | null>(null);
+  const [verMais, setVerMais] = useState(false);
+  const [verMaisGeral, setVerMaisGeral] = useState(false);
+  const selecionado = escolhido ?? atual;
+  const ranking = lotes.find((l) => l.lote === selecionado)?.ranking ?? [];
 
   if (!lotes.some((l) => l.ranking.length > 0)) return null;
 
   const meta = metaPorPessoa && metaPorPessoa > 0 ? metaPorPessoa : null;
-  const max = Math.max(...(lote?.ranking.map((v) => v.vendas) ?? [1]), meta ?? 0, 1);
+  const max = Math.max(...ranking.map((v) => v.vendas), meta ?? 0, 1);
+  const topo = ranking.filter((v) => posicaoDe(ranking, v) <= 3);
+  const resto = ranking.filter((v) => posicaoDe(ranking, v) > 3);
+  const geralTopo = geral.filter((v) => posicaoDe(geral, v) <= 3);
+  const geralResto = geral.filter((v) => posicaoDe(geral, v) > 3);
+
+  const escolher = (lote: string) => {
+    setEscolhido(lote);
+    setVerMais(false);
+  };
 
   return (
     <Card className={cn("col-span-12", className)}>
@@ -139,90 +257,116 @@ export function TeamRanking({ data, eu: euProp, metaPorPessoa, className, gerenc
         <CardTitle className="flex items-center gap-2">
           Ranking da equipe <InfoTip title="Ranking da equipe" />
         </CardTitle>
+        <p className="text-xs text-muted-foreground">Quem mais vendeu com o próprio cupom em cada lote. A disputa recomeça do zero quando o lote vira.</p>
       </CardHeader>
-      <CardContent className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+      <CardContent className="grid gap-6">
         <div>
-          <div className="mb-4 flex items-center gap-1">
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Lote anterior" disabled={indice <= 0} onClick={() => setEscolhido(indice - 1)}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <span className="min-w-[110px] text-center text-sm font-semibold">{lote?.lote}</span>
-            <Button variant="ghost" size="icon" className="h-8 w-8" title="Próximo lote" disabled={indice >= lotes.length - 1} onClick={() => setEscolhido(indice + 1)}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-            {lote?.lote === loteAtual && <span className="ml-1 text-xs text-muted-foreground">lote atual</span>}
-            {meta && (
-              <span className="ml-auto inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <i className="inline-block h-3 w-[2px] rounded-full bg-foreground/45" /> Meta {int(meta)} por pessoa
-              </span>
-            )}
-          </div>
+          <LinhaDoTempo atual={atual} selecionado={selecionado} onSelect={escolher} />
+          {meta && (
+            <div className="mb-2 mt-1 flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
+              <i className="inline-block h-3 w-[2px] rounded-full bg-foreground/45" /> Meta de {int(meta)} por pessoa
+            </div>
+          )}
 
-          {lote && lote.ranking.length > 0 ? (
-            <ol className="flex flex-col gap-1">
-              {lote.ranking.map((v) => {
-                const pos = posicaoDe(lote.ranking, v);
-                const souEu = eu?.nome === v.nome;
-                return (
-                  <li
-                    key={v.nome}
-                    className={cn("grid grid-cols-[28px_minmax(0,1fr)] items-center gap-2 rounded-2xl px-2 py-1.5", souEu && "bg-primary/15 ring-1 ring-primary/60")}
-                  >
-                    <span className={cn("text-center text-sm font-semibold tabular-nums", pos === 1 ? "text-foreground" : "text-muted-foreground")}>{pos}º</span>
-                    <div>
-                      <div className="mb-1 flex items-center justify-between gap-3 text-[13px]">
-                        <span className="flex min-w-0 items-center gap-2">
-                          <NomeComCupom nome={v.nome} cupons={v.cupons} className={pos === 1 || souEu ? "font-semibold" : undefined} />
-                          {souEu && <Chip variant="paid" dot={false} className="px-2 py-0.5 text-[11px]">Você</Chip>}
-                        </span>
-                        <span className="shrink-0 tabular-nums">
-                          <b className="font-semibold">{int(v.vendas)}</b>
-                          {gerencial && <span className="ml-2 text-xs text-muted-foreground">{v.receita.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}</span>}
-                        </span>
+          {ranking.length > 0 ? (
+            <div className="mt-2">
+              <div className="grid gap-2.5 sm:grid-cols-[repeat(auto-fill,minmax(150px,1fr))]">
+                {topo.map((v) => {
+                  const pos = posicaoDe(ranking, v);
+                  const souEu = eu?.nome === v.nome;
+                  return (
+                    <div key={v.nome} className={cn("flex flex-col gap-2 rounded-2xl border p-3.5", pos === 1 ? "border-primary/50 bg-primary/10" : "bg-card", souEu && "ring-1 ring-primary/60")}>
+                      <div className="flex items-center justify-between">
+                        <span className="text-2xl font-semibold leading-none tracking-[-0.04em]">{pos}º</span>
+                        {souEu && <Chip variant="paid" dot={false} className="px-2 py-0.5 text-[11px]">Você</Chip>}
                       </div>
-                      <div className="relative h-2.5 rounded-full bg-secondary">
-                        <i
-                          className={cn(
-                            "block h-full origin-left animate-[grow_900ms_cubic-bezier(.16,1,.3,1)_both] rounded-full motion-reduce:animate-none",
-                            pos === 1 || souEu ? "bg-primary" : "bg-data-blue",
-                          )}
-                          style={{ width: `${(v.vendas / max) * 100}%` }}
-                        />
-                        {meta && (
-                          <span
-                            className="absolute -top-[3px] h-4 w-[2px] rounded-full bg-foreground/45"
-                            style={{ left: `calc(${(meta / max) * 100}% - 1px)` }}
-                            title={`Meta: ${int(meta)} por pessoa`}
-                          />
-                        )}
+                      <div className="min-w-0">
+                        <NomeComCupom nome={v.nome} cupons={v.cupons} className="block text-sm font-semibold" />
+                        <div className="text-xs text-muted-foreground tabular-nums">
+                          <b className="font-semibold text-foreground">{int(v.vendas)}</b> {v.vendas === 1 ? "venda" : "vendas"}
+                          {gerencial && <> · {brlCurto(v.receita)}</>}
+                        </div>
                       </div>
+                      <BarraDeVendas vendas={v.vendas} max={max} meta={meta} destaque={pos === 1 || souEu} />
                     </div>
-                  </li>
-                );
-              })}
-            </ol>
+                  );
+                })}
+              </div>
+
+              {resto.length > 0 && (
+                <>
+                  {verMais && (
+                    <ol className="mt-3 flex flex-col gap-1">
+                      {resto.map((v) => {
+                        const pos = posicaoDe(ranking, v);
+                        const souEu = eu?.nome === v.nome;
+                        return (
+                          <li key={v.nome} className={cn("grid grid-cols-[28px_minmax(0,1fr)] items-center gap-2 rounded-2xl px-2 py-1.5", souEu && "bg-primary/15 ring-1 ring-primary/60")}>
+                            <span className="text-center text-sm font-semibold tabular-nums text-muted-foreground">{pos}º</span>
+                            <div>
+                              <div className="mb-1 flex items-center justify-between gap-3 text-[13px]">
+                                <span className="flex min-w-0 items-center gap-2">
+                                  <NomeComCupom nome={v.nome} cupons={v.cupons} className={souEu ? "font-semibold" : undefined} />
+                                  {souEu && <Chip variant="paid" dot={false} className="px-2 py-0.5 text-[11px]">Você</Chip>}
+                                </span>
+                                <span className="shrink-0 tabular-nums">
+                                  <b className="font-semibold">{int(v.vendas)}</b>
+                                  {gerencial && <span className="ml-2 text-xs text-muted-foreground">{brlCurto(v.receita)}</span>}
+                                </span>
+                              </div>
+                              <BarraDeVendas vendas={v.vendas} max={max} meta={meta} destaque={souEu} />
+                            </div>
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  )}
+                  <button type="button" onClick={() => setVerMais((v) => !v)} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
+                    {verMais ? "Ver menos" : `Ver mais (${int(resto.length)})`}
+                    {verMais ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+                  </button>
+                </>
+              )}
+            </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Ninguém da equipe vendeu neste lote ainda.</p>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {selecionado === atual ? "Ninguém da equipe vendeu neste lote ainda. A primeira venda abre o placar." : "Ninguém da equipe vendeu neste lote."}
+            </p>
           )}
         </div>
 
         <div className="rounded-2xl border bg-secondary/50 p-4">
-          <div className="mb-3 flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
-            <Trophy className="h-4 w-4" /> Quem mais venceu lotes
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
+            <Trophy className="h-4 w-4" /> Hall da fama <InfoTip title="Hall da fama" />
           </div>
-          {campeoes.length > 0 ? (
-            <ul className="flex flex-col gap-2">
-              {campeoes.map((c) => (
-                <li key={c.nome} className="flex items-center justify-between gap-3 text-[13px]">
-                  <NomeComCupom nome={c.nome} cupons={c.cupons} className={eu?.nome === c.nome ? "font-semibold" : undefined} />
-                  <span className="shrink-0 text-muted-foreground" title={c.lotes.join(", ")}>
-                    <b className="font-semibold text-foreground tabular-nums">{c.lotes.length}</b> {c.lotes.length === 1 ? "lote" : "lotes"}
+          <p className="mb-3 mt-1 text-xs text-muted-foreground">Vendas somadas de todos os lotes, da pré-venda até agora.</p>
+          <ol className="flex flex-col gap-2">
+            {(verMaisGeral ? geral : geralTopo).map((v) => {
+              const pos = posicaoDe(geral, v);
+              const souEu = eu?.nome === v.nome;
+              return (
+                <li key={v.nome} className={cn("grid grid-cols-[24px_minmax(0,1fr)_auto] items-center gap-2 rounded-xl px-1.5 py-1 text-[13px]", souEu && "bg-primary/15 ring-1 ring-primary/60")}>
+                  <span className={cn("text-center font-semibold tabular-nums", pos === 1 ? "text-foreground" : "text-muted-foreground")}>{pos}º</span>
+                  <div className="min-w-0">
+                    <NomeComCupom nome={v.nome} cupons={v.cupons} className={cn("block", pos === 1 || souEu ? "font-semibold" : undefined)} />
+                    {v.lotesVencidos > 0 && (
+                      <span className="block text-[11px] text-muted-foreground">
+                        {v.lotesVencidos === 1 ? "venceu 1 lote" : `venceu ${v.lotesVencidos} lotes`}
+                      </span>
+                    )}
+                  </div>
+                  <span className="tabular-nums text-muted-foreground">
+                    <b className="font-semibold text-foreground">{int(v.vendas)}</b> {v.vendas === 1 ? "venda" : "vendas"}
                   </span>
                 </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-xs text-muted-foreground">Aparece quando o primeiro lote com vendas da equipe virar.</p>
+              );
+            })}
+          </ol>
+          {geralResto.length > 0 && (
+            <button type="button" onClick={() => setVerMaisGeral((v) => !v)} className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground">
+              {verMaisGeral ? "Ver menos" : `Ver mais (${int(geralResto.length)})`}
+              {verMaisGeral ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
+            </button>
           )}
         </div>
       </CardContent>

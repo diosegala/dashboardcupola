@@ -1,3 +1,4 @@
+import { traduzirErro } from "@/lib/mensagensErro";
 import { useMemo, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
@@ -83,7 +84,7 @@ export default function Goals() {
       setEditando(null);
       toast.success(goal ? "Meta alterada" : "Meta definida");
     },
-    onError: (err: any) => toast.error(`Não deu para salvar a meta: ${err.message}`),
+    onError: (err: any) => toast.error(`Não deu para salvar a meta: ${traduzirErro(err)}`),
   });
 
   const excluir = useMutation({
@@ -96,7 +97,7 @@ export default function Goals() {
       setExcluindo(null);
       toast.success("Meta removida. O gráfico volta a aparecer sem meta.");
     },
-    onError: (err: any) => toast.error(`Não deu para remover a meta: ${err.message}`),
+    onError: (err: any) => toast.error(`Não deu para remover a meta: ${traduzirErro(err)}`),
   });
 
   const definidas = GOAL_DEFS.filter((d) => (porItem.map.get(d.id) ?? []).length > 0).length;

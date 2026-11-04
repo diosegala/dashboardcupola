@@ -7,7 +7,10 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { brl as brlCompleto, useCouponTotals } from "./CouponKpis";
+import { METRIC_INFO } from "@/lib/metricInfo";
+import { commercialDiscounts } from "@/lib/lotPrice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/CountUp";
 import { IssuedTicketsCard } from "./IssuedTicketsCard";
@@ -18,7 +21,7 @@ import { BusinessDaysView } from "./BusinessDaysView";
 import { Tabs, TabsTrigger } from "@/components/ui/tabs";
 import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
-import { useCommercialMetrics, type EventParams, type PaceStatus } from "@/hooks/useCommercialMetrics";
+import { splitTickets, useCommercialMetrics, type EventParams, type PaceStatus } from "@/hooks/useCommercialMetrics";
 import { cn } from "@/lib/utils";
 import { GoalMeter } from "@/components/GoalMeter";
 import { CompareLine } from "@/components/CompareLine";
@@ -60,23 +63,6 @@ const tooltipStyle = {
   },
   labelStyle: { color: "hsl(var(--foreground))", fontWeight: 600 },
 };
-
-function KpiCard({ title, value, format, unit, footer, className, children }: { title: string; value: number; format: (n: number) => string; unit?: string; footer?: React.ReactNode; className?: string; children?: React.ReactNode }) {
-  return (
-    <Card className={cn("flex flex-col gap-2.5 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
-      <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
-        {title}
-        <InfoTip title={title} />
-      </div>
-      <div className="whitespace-nowrap text-[clamp(24px,2.4vw,36px)] font-semibold leading-[1.1] tracking-[-0.035em]">
-        <CountUp value={value} format={format} />
-        {unit && <small className="ml-1 text-sm font-medium tracking-normal text-muted-foreground">{unit}</small>}
-      </div>
-      {footer && <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">{footer}</div>}
-      {children && <div className="mt-auto space-y-2 pt-1">{children}</div>}
-    </Card>
-  );
-}
 
 function GoalRing({ progress: target }: { progress: number }) {
   const [progress, setProgress] = useState(0);
@@ -131,6 +117,14 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
   const { ativo: comparar, rotulo } = useCompare();
   const mostrarAnterior = comparar && m.hasPrevious;
 
+  // Descontos concedidos: cupons parciais + cortesias pelo preço cheio do lote, % sobre a receita bruta.
+  const descontosComercial = useMemo(() => {
+    const { paying, bonus } = splitTickets(tickets);
+    const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
+    return commercialDiscounts([...paying, ...bonus], receita);
+  }, [tickets]);
+  const mostrarDescontos = useCouponTotals(tickets).comCupom > 0;
+
   return (
     <div className="grid grid-cols-12 gap-[14px]">
       {/* Linha 1: meta, ritmo necessário e ritmo atual */}
@@ -171,21 +165,30 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
 
       {/* Linha 2: todos os ingressos emitidos (pizza) e receita */}
       <IssuedTicketsCard tickets={tickets} goal={metaEmitidos} emitidosAnterior={m.anterior?.issuedCount} emitidosAtual={m.issuedCount} goals={goals} allTimeTickets={tickets} previousYearTickets={previousTickets} className="col-span-12 lg:col-span-8" />
-      <KpiCard
-        className="col-span-12 lg:col-span-4"
-        title="Receita acumulada"
-        value={m.revenue}
-        format={brl}
-      >
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="text-muted-foreground">Ticket médio</span>
-          <span className="font-semibold text-foreground tabular-nums">{brl(m.payingCount > 0 ? m.revenue / m.payingCount : 0)}</span>
+      {/* Receita acumulada e Descontos concedidos num único card: ticket médio e pagantes lado a lado, descontos no rodapé. */}
+      <Card className="col-span-12 flex flex-col gap-4 p-5 hover:-translate-y-[3px] hover:border-line-strong lg:col-span-4">
+        <div className="space-y-2">
+          <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
+            Receita acumulada
+            <InfoTip title="Receita acumulada" />
+          </div>
+          <div className="whitespace-nowrap text-[clamp(28px,2.8vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]">
+            <CountUp value={m.revenue} format={brl} />
+          </div>
+          <CompareLine anterior={m.anterior?.revenue} atual={m.revenue} formato={brl} />
         </div>
-        <div className="flex items-center justify-between gap-2 text-xs">
-          <span className="text-muted-foreground">Ingressos pagantes</span>
-          <span className="font-semibold text-foreground tabular-nums">{int(m.payingCount)}</span>
+
+        <div className="grid grid-cols-2 gap-2">
+          <div className="rounded-2xl bg-secondary/60 px-3.5 py-3">
+            <div className="text-[11px] text-muted-foreground">Ticket médio</div>
+            <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{brl(m.payingCount > 0 ? m.revenue / m.payingCount : 0)}</div>
+          </div>
+          <div className="rounded-2xl bg-secondary/60 px-3.5 py-3">
+            <div className="text-[11px] text-muted-foreground">Ingressos pagantes</div>
+            <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{int(m.payingCount)}</div>
+          </div>
         </div>
-        <CompareLine anterior={m.anterior?.revenue} atual={m.revenue} formato={brl} />
+
         {m.revenueGoal !== null && (
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className="font-semibold text-foreground">{Math.round((m.revenue / m.revenueGoal) * 100)}% da meta</span>
@@ -197,7 +200,22 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
         {metaReceita && Number(metaReceita.target_value) > 0 && (
           <GoalMeter actual={m.revenue} target={Number(metaReceita.target_value)} unit="brl" periodStart={metaReceita.period_start} periodEnd={metaReceita.period_end} />
         )}
-      </KpiCard>
+
+        {mostrarDescontos && (
+          <div className="mt-auto space-y-1 border-t pt-4">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2 text-[13px] font-medium text-muted-foreground">
+                Descontos concedidos
+                <InfoTip title="Descontos concedidos" text={METRIC_INFO["Descontos concedidos (Comercial)"]} />
+              </div>
+              <div className="text-lg font-semibold tabular-nums tracking-[-0.02em]">{brlCompleto(descontosComercial.total)}</div>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              {(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta ({brlCompleto(descontosComercial.bruta)})
+            </div>
+          </div>
+        )}
+      </Card>
 
       {/* Linha 3: pagantes acumulados x trajetória */}
       <Card className="col-span-12">

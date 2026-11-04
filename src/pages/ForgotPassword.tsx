@@ -1,3 +1,4 @@
+import { traduzirErro } from "@/lib/mensagensErro";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -27,7 +28,7 @@ export default function ForgotPassword() {
     setLoading(false);
 
     if (error) {
-      toast({ variant: "destructive", title: "Erro", description: error.message });
+      toast({ variant: "destructive", title: "Erro", description: traduzirErro(error) });
     } else {
       setSent(true);
     }
