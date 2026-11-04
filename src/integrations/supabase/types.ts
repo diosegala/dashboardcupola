@@ -101,49 +101,517 @@ export type Database = {
         }
         Relationships: []
       }
-      deals: {
+      crm_leads: {
         Row: {
-          created_at_source: string | null
+          added_at: string | null
+          crm_account: string
+          custom_fields: Json
+          expected_close_date: string | null
+          id: string
+          is_archived: boolean
+          label_ids: string[]
+          org_name: string | null
+          org_pd_id: number | null
+          owner_name: string | null
+          owner_pd_id: number | null
+          pd_lead_id: string
+          person_pd_id: number | null
+          source_name: string | null
+          synced_at: string
+          title: string | null
+          updated_at_source: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          crm_account: string
+          custom_fields?: Json
+          expected_close_date?: string | null
+          id?: string
+          is_archived?: boolean
+          label_ids?: string[]
+          org_name?: string | null
+          org_pd_id?: number | null
+          owner_name?: string | null
+          owner_pd_id?: number | null
+          pd_lead_id: string
+          person_pd_id?: number | null
+          source_name?: string | null
+          synced_at?: string
+          title?: string | null
+          updated_at_source?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          crm_account?: string
+          custom_fields?: Json
+          expected_close_date?: string | null
+          id?: string
+          is_archived?: boolean
+          label_ids?: string[]
+          org_name?: string | null
+          org_pd_id?: number | null
+          owner_name?: string | null
+          owner_pd_id?: number | null
+          pd_lead_id?: string
+          person_pd_id?: number | null
+          source_name?: string | null
+          synced_at?: string
+          title?: string | null
+          updated_at_source?: string | null
+        }
+        Relationships: []
+      }
+      crm_organizations: {
+        Row: {
+          crm_account: string
+          custom_fields: Json
+          id: string
+          is_deleted: boolean
+          name: string | null
+          pd_id: number
+          synced_at: string
+          updated_at_source: string | null
+        }
+        Insert: {
+          crm_account: string
+          custom_fields?: Json
+          id?: string
+          is_deleted?: boolean
+          name?: string | null
+          pd_id: number
+          synced_at?: string
+          updated_at_source?: string | null
+        }
+        Update: {
+          crm_account?: string
+          custom_fields?: Json
+          id?: string
+          is_deleted?: boolean
+          name?: string | null
+          pd_id?: number
+          synced_at?: string
+          updated_at_source?: string | null
+        }
+        Relationships: []
+      }
+      crm_pipelines: {
+        Row: {
+          crm_account: string
+          id: string
+          is_active: boolean
+          is_deleted: boolean
+          name: string
+          order_nr: number | null
+          pd_id: number
+          synced_at: string
+        }
+        Insert: {
+          crm_account: string
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          name: string
+          order_nr?: number | null
+          pd_id: number
+          synced_at?: string
+        }
+        Update: {
+          crm_account?: string
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          name?: string
+          order_nr?: number | null
+          pd_id?: number
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      crm_products: {
+        Row: {
+          code: string | null
+          crm_account: string
           currency: string | null
           id: string
+          is_active: boolean
+          is_deleted: boolean
+          kind: string
+          list_price: number | null
+          name: string
+          parent_pd_id: number | null
+          pd_id: number
+          synced_at: string
+        }
+        Insert: {
+          code?: string | null
+          crm_account: string
+          currency?: string | null
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          kind?: string
+          list_price?: number | null
+          name: string
+          parent_pd_id?: number | null
+          pd_id: number
+          synced_at?: string
+        }
+        Update: {
+          code?: string | null
+          crm_account?: string
+          currency?: string | null
+          id?: string
+          is_active?: boolean
+          is_deleted?: boolean
+          kind?: string
+          list_price?: number | null
+          name?: string
+          parent_pd_id?: number | null
+          pd_id?: number
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      crm_stages: {
+        Row: {
+          crm_account: string
+          days_to_rotten: number | null
+          deal_probability: number | null
+          id: string
+          is_deleted: boolean
+          name: string
+          order_nr: number | null
+          pd_id: number
+          pipeline_pd_id: number
+          synced_at: string
+        }
+        Insert: {
+          crm_account: string
+          days_to_rotten?: number | null
+          deal_probability?: number | null
+          id?: string
+          is_deleted?: boolean
+          name: string
+          order_nr?: number | null
+          pd_id: number
+          pipeline_pd_id: number
+          synced_at?: string
+        }
+        Update: {
+          crm_account?: string
+          days_to_rotten?: number | null
+          deal_probability?: number | null
+          id?: string
+          is_deleted?: boolean
+          name?: string
+          order_nr?: number | null
+          pd_id?: number
+          pipeline_pd_id?: number
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      crm_sync_state: {
+        Row: {
+          crm_account: string
+          cursors: Json
+          last_error: string | null
+          last_started_at: string | null
+          last_success_at: string | null
+          tokens_day: string | null
+          tokens_used_today: number
+        }
+        Insert: {
+          crm_account: string
+          cursors?: Json
+          last_error?: string | null
+          last_started_at?: string | null
+          last_success_at?: string | null
+          tokens_day?: string | null
+          tokens_used_today?: number
+        }
+        Update: {
+          crm_account?: string
+          cursors?: Json
+          last_error?: string | null
+          last_started_at?: string | null
+          last_success_at?: string | null
+          tokens_day?: string | null
+          tokens_used_today?: number
+        }
+        Relationships: []
+      }
+      crm_users: {
+        Row: {
+          crm_account: string
+          id: string
+          is_active: boolean
+          name: string | null
+          pd_id: number
+          synced_at: string
+        }
+        Insert: {
+          crm_account: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          pd_id: number
+          synced_at?: string
+        }
+        Update: {
+          crm_account?: string
+          id?: string
+          is_active?: boolean
+          name?: string | null
+          pd_id?: number
+          synced_at?: string
+        }
+        Relationships: []
+      }
+      deal_installments: {
+        Row: {
+          amount: number
+          billing_date: string | null
+          crm_account: string
+          deal_id: string
+          deal_product_pd_id: number | null
+          description: string | null
+          id: string
+          pd_id: number
+          synced_at: string
+        }
+        Insert: {
+          amount?: number
+          billing_date?: string | null
+          crm_account: string
+          deal_id: string
+          deal_product_pd_id?: number | null
+          description?: string | null
+          id?: string
+          pd_id: number
+          synced_at?: string
+        }
+        Update: {
+          amount?: number
+          billing_date?: string | null
+          crm_account?: string
+          deal_id?: string
+          deal_product_pd_id?: number | null
+          description?: string | null
+          id?: string
+          pd_id?: number
+          synced_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_installments_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_products: {
+        Row: {
+          comments: string | null
+          crm_account: string
+          currency: string | null
+          deal_id: string
+          discount: number
+          discount_type: string | null
+          id: string
+          is_enabled: boolean
+          item_price: number
+          name: string | null
+          pd_id: number
+          product_pd_id: number | null
+          quantity: number
+          sum: number
+          synced_at: string
+          variation_pd_id: number | null
+        }
+        Insert: {
+          comments?: string | null
+          crm_account: string
+          currency?: string | null
+          deal_id: string
+          discount?: number
+          discount_type?: string | null
+          id?: string
+          is_enabled?: boolean
+          item_price?: number
+          name?: string | null
+          pd_id: number
+          product_pd_id?: number | null
+          quantity?: number
+          sum?: number
+          synced_at?: string
+          variation_pd_id?: number | null
+        }
+        Update: {
+          comments?: string | null
+          crm_account?: string
+          currency?: string | null
+          deal_id?: string
+          discount?: number
+          discount_type?: string | null
+          id?: string
+          is_enabled?: boolean
+          item_price?: number
+          name?: string | null
+          pd_id?: number
+          product_pd_id?: number | null
+          quantity?: number
+          sum?: number
+          synced_at?: string
+          variation_pd_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_products_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deal_stage_history: {
+        Row: {
+          changed_at: string
+          crm_account: string
+          deal_id: string
+          from_stage_pd_id: number | null
+          id: string
+          source: string
+          to_stage_pd_id: number
+        }
+        Insert: {
+          changed_at: string
+          crm_account: string
+          deal_id: string
+          from_stage_pd_id?: number | null
+          id?: string
+          source?: string
+          to_stage_pd_id: number
+        }
+        Update: {
+          changed_at?: string
+          crm_account?: string
+          deal_id?: string
+          from_stage_pd_id?: number | null
+          id?: string
+          source?: string
+          to_stage_pd_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_stage_history_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      deals: {
+        Row: {
+          activities_count: number
+          created_at_source: string | null
+          crm_account: string | null
+          currency: string | null
+          custom_fields: Json
+          expected_close_date: string | null
+          id: string
+          is_deleted: boolean
+          label_ids: number[]
           lost_at: string | null
+          lost_reason: string | null
+          next_activity_id: number | null
+          org_name: string | null
+          org_pd_id: number | null
           owner_name: string | null
+          owner_pd_id: number | null
+          person_name: string | null
+          person_pd_id: number | null
           pipedrive_deal_id: string
+          pipeline_pd_id: number | null
+          probability: number | null
+          products_count: number
+          stage_changed_at: string | null
           stage_id: string | null
           stage_name: string | null
           status: string | null
           synced_at: string
           title: string | null
+          updated_at_source: string | null
           value: number | null
           won_at: string | null
         }
         Insert: {
+          activities_count?: number
           created_at_source?: string | null
+          crm_account?: string | null
           currency?: string | null
+          custom_fields?: Json
+          expected_close_date?: string | null
           id?: string
+          is_deleted?: boolean
+          label_ids?: number[]
           lost_at?: string | null
+          lost_reason?: string | null
+          next_activity_id?: number | null
+          org_name?: string | null
+          org_pd_id?: number | null
           owner_name?: string | null
+          owner_pd_id?: number | null
+          person_name?: string | null
+          person_pd_id?: number | null
           pipedrive_deal_id: string
+          pipeline_pd_id?: number | null
+          probability?: number | null
+          products_count?: number
+          stage_changed_at?: string | null
           stage_id?: string | null
           stage_name?: string | null
           status?: string | null
           synced_at?: string
           title?: string | null
+          updated_at_source?: string | null
           value?: number | null
           won_at?: string | null
         }
         Update: {
+          activities_count?: number
           created_at_source?: string | null
+          crm_account?: string | null
           currency?: string | null
+          custom_fields?: Json
+          expected_close_date?: string | null
           id?: string
+          is_deleted?: boolean
+          label_ids?: number[]
           lost_at?: string | null
+          lost_reason?: string | null
+          next_activity_id?: number | null
+          org_name?: string | null
+          org_pd_id?: number | null
           owner_name?: string | null
+          owner_pd_id?: number | null
+          person_name?: string | null
+          person_pd_id?: number | null
           pipedrive_deal_id?: string
+          pipeline_pd_id?: number | null
+          probability?: number | null
+          products_count?: number
+          stage_changed_at?: string | null
           stage_id?: string | null
           stage_name?: string | null
           status?: string | null
           synced_at?: string
           title?: string | null
+          updated_at_source?: string | null
           value?: number | null
           won_at?: string | null
         }
@@ -355,6 +823,8 @@ export type Database = {
           metric_key: string
           period_end: string
           period_start: string
+          quota_key: string | null
+          receipt_year: number | null
           target_value: number
           ticket_type: string | null
           updated_at: string
@@ -368,6 +838,8 @@ export type Database = {
           metric_key: string
           period_end: string
           period_start: string
+          quota_key?: string | null
+          receipt_year?: number | null
           target_value: number
           ticket_type?: string | null
           updated_at?: string
@@ -381,6 +853,8 @@ export type Database = {
           metric_key?: string
           period_end?: string
           period_start?: string
+          quota_key?: string | null
+          receipt_year?: number | null
           target_value?: number
           ticket_type?: string | null
           updated_at?: string
@@ -493,6 +967,138 @@ export type Database = {
           users?: number | null
         }
         Relationships: []
+      }
+      sponsorship_config: {
+        Row: {
+          copied_from_event_id: string | null
+          created_at: string
+          crm_account: string | null
+          deliverables: Json
+          event_id: string
+          field_mapping: Json
+          pipelines: Json
+          product_rules: Json
+          product_term: string | null
+          quotas: Json
+          sales_deadline: string | null
+          sales_window_end: string | null
+          sales_window_start: string | null
+          stage_groups: Json
+          temperature_labels: Json
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          copied_from_event_id?: string | null
+          created_at?: string
+          crm_account?: string | null
+          deliverables?: Json
+          event_id: string
+          field_mapping?: Json
+          pipelines?: Json
+          product_rules?: Json
+          product_term?: string | null
+          quotas?: Json
+          sales_deadline?: string | null
+          sales_window_end?: string | null
+          sales_window_start?: string | null
+          stage_groups?: Json
+          temperature_labels?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          copied_from_event_id?: string | null
+          created_at?: string
+          crm_account?: string | null
+          deliverables?: Json
+          event_id?: string
+          field_mapping?: Json
+          pipelines?: Json
+          product_rules?: Json
+          product_term?: string | null
+          quotas?: Json
+          sales_deadline?: string | null
+          sales_window_end?: string | null
+          sales_window_start?: string | null
+          stage_groups?: Json
+          temperature_labels?: Json
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsorship_config_copied_from_event_id_fkey"
+            columns: ["copied_from_event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sponsorship_config_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: true
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sponsorship_pending: {
+        Row: {
+          created_at: string
+          deal_id: string | null
+          details: Json
+          event_id: string
+          id: string
+          kind: string
+          ref_key: string
+          resolution: Json | null
+          resolved_at: string | null
+          resolved_by: string | null
+          status: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id?: string | null
+          details?: Json
+          event_id: string
+          id?: string
+          kind: string
+          ref_key: string
+          resolution?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string | null
+          details?: Json
+          event_id?: string
+          id?: string
+          kind?: string
+          ref_key?: string
+          resolution?: Json | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sponsorship_pending_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sponsorship_pending_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       team_coupons: {
         Row: {
@@ -631,6 +1237,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      can_see_crm_account: { Args: { _account: string }; Returns: boolean }
       can_see_event: { Args: { _event_id: string }; Returns: boolean }
       contact_key: { Args: { kind: string; v: string }; Returns: string }
       contact_search_keys: {
