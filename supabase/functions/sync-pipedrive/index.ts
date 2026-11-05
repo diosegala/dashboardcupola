@@ -59,7 +59,7 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
       const modes=work.initial?['open','all','deleted']:['all','deleted'];
       if(work.mode>=modes.length){work.pipeline++;work.mode=0;await checkpoint();continue;}
       const mode=modes[work.mode];
-      const page=await api.page('/api/v2/deals',{pipeline_id:work.pipelines[work.pipeline],...(mode!=='all'?{status:mode}:{}),...(mode!=='open'?{updated_since:work.since}:{}),include_fields:'products_count,activities_count,next_activity_id',limit:100},work.cursor);
+      const page=await api.page('/api/v2/deals',{pipeline_id:work.pipelines[work.pipeline],...(mode!=='all'?{status:mode}:{}),...(mode!=='open'?{updated_since:String(work.since).replace(/\.\d{3}Z$/,'Z')}:{}),include_fields:'products_count,activities_count,next_activity_id',limit:100},work.cursor);
       // Stops before the next write; cursor stays on this page so replay is idempotent.
       const saved:Row[]=[];for(const r of page.rows){guard();saved.push(await writer.deal(mode==='deleted'?{...r,status:'deleted'}:r));}
       work.pending=saved.map(d=>d.pipedrive_deal_id);work.pageDone=true;work.nextCursor=page.next??null;await checkpoint();
