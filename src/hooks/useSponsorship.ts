@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { parseCoupon } from "@/lib/coupons";
 import { draftFromRow, rowFromDraft, type CrmOptions, type SponsorshipDraft } from "@/lib/sponsorship";
 import type { CatalogRow, DealProductRow, DealRow } from "@/lib/sponsorshipMetrics";
 import type { HistorySale, InstallmentRow, OrgRow, StageRow, UserRow, ValueHistoryRow } from "@/lib/sponsorshipExtra";
@@ -107,6 +108,19 @@ export function useSponsorshipData(config: SponsorshipDraft | undefined) {
     enabled: !!account && pipes.length > 0,
     staleTime: 60 * 1000,
     queryFn: async () => {
+      // O que não depende dos negócios é lido ao mesmo tempo que eles, e não depois.
+      const resto = Promise.all([
+        allPages<CatalogRow>((from, to) =>
+          supabase.from("crm_products").select("pd_id, name, code, kind, parent_pd_id, is_deleted").eq("crm_account", account).order("pd_id").range(from, to),
+        ),
+        allPages<StageRow>((from, to) =>
+          supabase.from("crm_stages").select("pd_id, pipeline_pd_id, name, order_nr, days_to_rotten").eq("crm_account", account).eq("is_deleted", false).in("pipeline_pd_id", pipes).order("pd_id").range(from, to),
+        ),
+        allPages<UserRow>((from, to) => supabase.from("crm_users").select("pd_id, name").eq("crm_account", account).order("pd_id").range(from, to)),
+        supabase.from("crm_sync_state").select("last_success_at").eq("crm_account", account).maybeSingle(),
+      ]);
+      // Se os negócios falharem, o erro deles é o que importa; o resto não deve gerar aviso solto.
+      resto.catch(() => undefined);
       const deals = await allPages<DealRow>((from, to) =>
         supabase
           .from("deals")
@@ -122,36 +136,25 @@ export function useSponsorshipData(config: SponsorshipDraft | undefined) {
       );
       // Produtos e parcelas só dos ganhos e abertos (os perdidos entram só na prospecção).
       const ids = deals.filter((d) => d.status !== "lost").map((d) => d.id);
-      const lines: DealProductRow[] = [];
-      const installments: InstallmentRow[] = [];
-      for (let i = 0; i < ids.length; i += 200) {
-        const chunk = ids.slice(i, i + 200);
-        lines.push(
-          ...(await allPages<DealProductRow>((from, to) =>
-            supabase.from("deal_products").select("deal_id, product_pd_id, variation_pd_id, name, quantity, sum, is_enabled").in("deal_id", chunk).order("id").range(from, to),
-          )),
-        );
-        installments.push(
-          ...(await allPages<InstallmentRow>((from, to) => supabase.from("deal_installments").select("deal_id, amount, billing_date").in("deal_id", chunk).order("id").range(from, to))),
-        );
-      }
-      const catalog = await allPages<CatalogRow>((from, to) =>
-        supabase.from("crm_products").select("pd_id, name, code, kind, parent_pd_id, is_deleted").eq("crm_account", account).order("pd_id").range(from, to),
-      );
-      const stages = await allPages<StageRow>((from, to) =>
-        supabase.from("crm_stages").select("pd_id, pipeline_pd_id, name, order_nr, days_to_rotten").eq("crm_account", account).eq("is_deleted", false).in("pipeline_pd_id", pipes).order("pd_id").range(from, to),
-      );
       const orgIds = [...new Set(deals.filter((d) => d.status !== "lost").map((d) => d.org_pd_id).filter((x): x is number => x != null))];
-      const orgs: OrgRow[] = [];
-      for (let i = 0; i < orgIds.length; i += 200) {
-        orgs.push(
-          ...(await allPages<OrgRow>((from, to) =>
-            supabase.from("crm_organizations").select("pd_id, name, custom_fields").eq("crm_account", account).in("pd_id", orgIds.slice(i, i + 200)).order("pd_id").range(from, to),
-          )),
-        );
-      }
-      const users = await allPages<UserRow>((from, to) => supabase.from("crm_users").select("pd_id, name").eq("crm_account", account).order("pd_id").range(from, to));
-      const { data: sync } = await supabase.from("crm_sync_state").select("last_success_at").eq("crm_account", account).maybeSingle();
+      // Cada grupo de 200 negócios (ou empresas) é lido ao mesmo tempo que os outros; a ordem final é a mesma de antes.
+      const emGrupos = async <K, T>(lista: K[], ler: (grupo: K[]) => Promise<T[]>): Promise<T[]> => {
+        const grupos: K[][] = [];
+        for (let i = 0; i < lista.length; i += 200) grupos.push(lista.slice(i, i + 200));
+        return (await Promise.all(grupos.map(ler))).flat();
+      };
+      const [lines, installments, orgs, [catalog, stages, users, { data: sync }]] = await Promise.all([
+        emGrupos(ids, (chunk) =>
+          allPages<DealProductRow>((from, to) =>
+            supabase.from("deal_products").select("deal_id, product_pd_id, variation_pd_id, name, quantity, sum, is_enabled").in("deal_id", chunk).order("id").range(from, to),
+          ),
+        ),
+        emGrupos(ids, (chunk) => allPages<InstallmentRow>((from, to) => supabase.from("deal_installments").select("deal_id, amount, billing_date").in("deal_id", chunk).order("id").range(from, to))),
+        emGrupos(orgIds, (chunk) =>
+          allPages<OrgRow>((from, to) => supabase.from("crm_organizations").select("pd_id, name, custom_fields").eq("crm_account", account).in("pd_id", chunk).order("pd_id").range(from, to)),
+        ),
+        resto,
+      ]);
       return { deals, lines, catalog, stages, orgs, users, installments, lastSync: (sync as { last_success_at?: string | null } | null)?.last_success_at ?? null };
     },
   });
@@ -190,6 +193,34 @@ export function usePipedriveAutoSync(enabled: boolean) {
   }, [enabled, qc]);
 }
 
+// Cupons usados nas vendas da Sympla do evento, só para marcar a entrega do cupom. Lê apenas a coluna do cupom,
+// e não todos os ingressos como a tela Comercial.
+export function useSponsorCoupons(eventId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["sponsorship", "coupons", eventId],
+    enabled: !!eventId,
+    queryFn: async () => {
+      const codigos = new Set<string>();
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from("ticket_sales")
+          .select("coupon_code")
+          .eq("event_id", eventId as string)
+          .not("coupon_code", "is", null)
+          .order("id")
+          .range(from, from + 999);
+        if (error) throw error;
+        for (const r of data ?? []) {
+          const codigo = parseCoupon(r.coupon_code)?.code;
+          if (codigo) codigos.add(codigo);
+        }
+        if (!data || data.length < 1000) break;
+      }
+      return [...codigos];
+    },
+  });
+}
+
 // Vendas de patrocínio da edição anterior importadas da planilha (vazio até a importação).
 export function useSponsorshipHistory(eventKey: string | null | undefined) {
   return useQuery({
@@ -220,21 +251,30 @@ export function useValueHistory(account: string | null | undefined, dealIds: str
     enabled: !!account && dealIds.length > 0,
     staleTime: 60 * 1000,
     queryFn: async () => {
-      const out: ValueHistoryRow[] = [];
-      for (let i = 0; i < dealIds.length; i += 200) {
-        const chunk = dealIds.slice(i, i + 200);
-        for (let from = 0; ; from += 1000) {
-          const { data, error } = await (supabase.from("deal_product_value_history" as any) as any)
-            .select("deal_id, deal_product_pd_id, product_pd_id, sum, is_enabled, changed_at")
-            .in("deal_id", chunk)
-            .order("changed_at")
-            .range(from, from + 999);
-          if (error) return [];
-          out.push(...((data ?? []) as ValueHistoryRow[]));
-          if (!data || data.length < 1000) break;
-        }
-      }
-      return out;
+      // Cada grupo de 200 negócios é lido ao mesmo tempo que os outros. Qualquer falha deixa a evolução vazia, como antes.
+      const grupos: string[][] = [];
+      for (let i = 0; i < dealIds.length; i += 200) grupos.push(dealIds.slice(i, i + 200));
+      let falhou = false;
+      const partes = await Promise.all(
+        grupos.map(async (chunk) => {
+          const out: ValueHistoryRow[] = [];
+          for (let from = 0; ; from += 1000) {
+            const { data, error } = await (supabase.from("deal_product_value_history" as any) as any)
+              .select("deal_id, deal_product_pd_id, product_pd_id, sum, is_enabled, changed_at")
+              .in("deal_id", chunk)
+              .order("changed_at")
+              .range(from, from + 999);
+            if (error) {
+              falhou = true;
+              return out;
+            }
+            out.push(...((data ?? []) as ValueHistoryRow[]));
+            if (!data || data.length < 1000) break;
+          }
+          return out;
+        }),
+      );
+      return falhou ? [] : partes.flat();
     },
   });
 }

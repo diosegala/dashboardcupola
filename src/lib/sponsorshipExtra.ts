@@ -546,32 +546,53 @@ export function valueEvolution(
 ): ValueEvolution {
   const linhas = history.filter((h) => isEventLine(h.product_pd_id)).sort((a, b) => a.changed_at.localeCompare(b.changed_at));
   if (!linhas.length) return { serie: [], mudancas: [] };
-  const dia = (iso: string) => saoPauloDate(iso);
-  // Valor do negócio (soma dos produtos do evento) depois de cada registro.
-  const atualPorLinha = new Map<string, number>();
-  const valorNegocio = new Map<string, { em: string; valor: number }[]>();
+  // Converter data é caro e o mesmo instante se repete muito: cada um é convertido uma vez só.
+  const diasDeInstante = new Map<string, string>();
+  const dia = (iso: string) => {
+    let d = diasDeInstante.get(iso);
+    if (d === undefined) {
+      d = saoPauloDate(iso);
+      diasDeInstante.set(iso, d);
+    }
+    return d;
+  };
+  // Valor de cada produto do negócio e valor do negócio (soma dos produtos do evento) depois de cada registro.
+  const produtosDoNegocio = new Map<string, Map<string, number>>();
+  const valorAtual = new Map<string, number>();
+  const pontosDoNegocio = new Map<string, { dia: string; valor: number }[]>();
   const mudancas: ValueChange[] = [];
   for (const h of linhas) {
     const d = deals.get(h.deal_id);
     if (!d) continue;
-    const antes = [...atualPorLinha.entries()].filter(([k]) => k.startsWith(`${h.deal_id}:`)).reduce((t, [, v]) => t + v, 0);
-    const primeiroDoNegocio = !valorNegocio.has(h.deal_id);
-    atualPorLinha.set(`${h.deal_id}:${h.deal_product_pd_id}`, h.is_enabled ? Number(h.sum) || 0 : 0);
-    const depois = [...atualPorLinha.entries()].filter(([k]) => k.startsWith(`${h.deal_id}:`)).reduce((t, [, v]) => t + v, 0);
-    valorNegocio.set(h.deal_id, [...(valorNegocio.get(h.deal_id) ?? []), { em: h.changed_at, valor: depois }]);
-    if (!primeiroDoNegocio && Math.abs(depois - antes) >= 0.5) mudancas.push({ dealId: h.deal_id, empresa: d.org_name || d.title || "Sem empresa", de: antes, para: depois, em: dia(h.changed_at) });
+    const antes = valorAtual.get(h.deal_id) ?? 0;
+    const primeiroDoNegocio = !pontosDoNegocio.has(h.deal_id);
+    let produtos = produtosDoNegocio.get(h.deal_id);
+    if (!produtos) produtosDoNegocio.set(h.deal_id, (produtos = new Map()));
+    produtos.set(String(h.deal_product_pd_id), h.is_enabled ? Number(h.sum) || 0 : 0);
+    let depois = 0;
+    for (const v of produtos.values()) depois += v;
+    valorAtual.set(h.deal_id, depois);
+    const quando = dia(h.changed_at);
+    const pontos = pontosDoNegocio.get(h.deal_id);
+    if (pontos) pontos.push({ dia: quando, valor: depois });
+    else pontosDoNegocio.set(h.deal_id, [{ dia: quando, valor: depois }]);
+    if (!primeiroDoNegocio && Math.abs(depois - antes) >= 0.5) mudancas.push({ dealId: h.deal_id, empresa: d.org_name || d.title || "Sem empresa", de: antes, para: depois, em: quando });
   }
+  // Cada negócio guarda o dia em que fechou (ganho ou perdido) e um marcador de qual ponto já vale; os pontos
+  // estão em ordem de data, então o marcador só anda para frente enquanto os dias avançam.
+  const negocios = [...pontosDoNegocio.entries()].map(([id, pontos]) => {
+    const d = deals.get(id) as DealRow;
+    const fechouEm = d.status === "won" && d.won_at ? dia(d.won_at) : d.status === "lost" && d.lost_at ? dia(d.lost_at) : null;
+    return { pontos, fechouEm, atual: 0 };
+  });
   const inicio = dia(linhas[0].changed_at);
   const serie: { dia: string; valor: number }[] = [];
   for (let x = inicio; x <= hoje; x = addDays(x, 1)) {
     let total = 0;
-    for (const [id, pontos] of valorNegocio) {
-      const d = deals.get(id);
-      if (!d) continue;
-      const fechou = (d.status === "won" && d.won_at && dia(d.won_at) <= x) || (d.status === "lost" && d.lost_at && dia(d.lost_at) <= x);
-      if (fechou) continue;
-      const ultimo = pontos.filter((p) => dia(p.em) <= x).pop();
-      if (ultimo) total += ultimo.valor;
+    for (const n of negocios) {
+      if (n.fechouEm && n.fechouEm <= x) continue;
+      while (n.atual < n.pontos.length && n.pontos[n.atual].dia <= x) n.atual++;
+      if (n.atual > 0) total += n.pontos[n.atual - 1].valor;
     }
     serie.push({ dia: x, valor: total });
   }
