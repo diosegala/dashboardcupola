@@ -45,6 +45,22 @@ describe("faturados internos (Pipedrive)", () => {
     expect(parseDealTitle("[SUM] Copa Azul Imóveis | 03 ingressos VIP")).toMatchObject({ empresa: "Copa Azul Imóveis", quantidade: 3, tipo: "Ingresso VIP" });
   });
 
+  it("título com vários tipos conta cada ingresso no seu tipo", () => {
+    const r = parseDealTitle("[SUM] Imob Y | 02 ingressos VIP + 05 padrão + 1 combo VIP");
+    expect(r.itens).toEqual([
+      { quantidade: 2, tipo: "Ingresso VIP" },
+      { quantidade: 5, tipo: "Ingresso Padrão" },
+      { quantidade: 1, tipo: "Combo VIP" },
+    ]);
+    expect(parseDealTitle("[SUM] CUPOLA Summit 2027 | 10 ingressos").itens).toEqual([{ quantidade: 10, tipo: "Ingresso Padrão" }]);
+    const vendas = invoicedToTickets(
+      [{ id: "d", pipedrive_deal_id: "2", title: "[SUM] Imob Y | 02 ingressos VIP + 05 padrão", status: "won", won_at: "2026-11-05T12:00:00Z", value: 7000, custom_fields: {} }],
+      [],
+      [],
+    );
+    expect(vendas.map((v) => [v.ticket_type, v.quantity, v.total_price])).toEqual([["Pré-venda | Ingresso VIP", 2, 2000], ["Pré-venda | Ingresso Padrão", 5, 5000]]);
+  });
+
   it("corrige quantidade e preço trocados no produto (Copa Azul: 1775.65 x 3)", () => {
     const [t] = invoicedToTickets(
       [{ id: "d", pipedrive_deal_id: "38004", title: "[SUM] Copa Azul Imóveis | 03 ingressos VIP", status: "won", won_at: "2026-11-05T12:00:00Z", org_name: "Copa Azul Imóveis", custom_fields: {} }],

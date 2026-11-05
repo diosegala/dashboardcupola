@@ -13,6 +13,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEvent } from "@/hooks/useEvent";
 import { useAllTimeTicketSales } from "@/hooks/useDashboardData";
 import { splitTickets } from "@/hooks/useCommercialMetrics";
+import { CRM_DISCOUNT_HINT, crmDiscountCoverage } from "@/lib/invoicedTickets";
 import { TeamRanking, buildTeamRanking } from "@/components/dashboard/TeamRanking";
 import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
 import { COUPON_GROUPS, couponDiscountValue, formatDiscount, parseCoupon, type CouponGroup, type CouponKind } from "@/lib/coupons";
@@ -69,8 +70,7 @@ export default function Coupons() {
   }, [paying, bonus]);
 
   const { gratuitos, descontos, cuponsUsados, comCupom } = totals;
-  const faturadosGanhos = paying.filter((t) => t.source === "pipedrive");
-  const semDescontoNoCrm = faturadosGanhos.length > 0 && faturadosGanhos.every((t) => !t.discount_value);
+  const cobertura = crmDiscountCoverage(paying);
 
   const grupos = COUPON_GROUPS.map((g) => ({ ...g, uses: cupons.filter((c) => c.group === g.key).reduce((s, c) => s + c.uses, 0) })).filter((g) => g.uses > 0);
   const grupoAtivo = grupos.some((g) => g.key === grupo) ? grupo : "todos";
@@ -96,7 +96,7 @@ export default function Coupons() {
         <Info className="mt-px h-3.5 w-3.5 shrink-0" />
         <span>
           Vendas da Sympla e faturados internamente (negócios ganhos no Pipedrive com ingresso do Summit). O faturado soma no ranking de quem está no campo "ID do canal de origem" do negócio.
-          {semDescontoNoCrm && " Para investigar no CRM: os faturados não têm desconto preenchido no produto, então não entram em Descontos concedidos."}
+          {cobertura.faltam > 0 && ` Para investigar no CRM: ${cobertura.faltam} de ${cobertura.negocios} negócios faturados sem desconto preenchido. ${CRM_DISCOUNT_HINT}`}
         </span>
       </p>
 
@@ -106,7 +106,7 @@ export default function Coupons() {
         <>
           <div className="grid grid-cols-2 gap-[14px] lg:grid-cols-4">
             <Kpi title="Entradas liberadas" value={int(gratuitos)} hint="ingressos sem cobrança, com cupom de 100%" />
-            <Kpi title="Descontos concedidos" value={brl(descontos)} hint="abatido do preço em cupons parciais" />
+            <Kpi title="Descontos concedidos" value={brl(descontos)} hint={cobertura.negocios ? `cupons parciais e faturados · ${cobertura.comDesconto} de ${cobertura.negocios} faturados com desconto no CRM` : "abatido do preço em cupons parciais"} infoKey="Descontos concedidos" />
             <Kpi title="Códigos em circulação" value={int(cuponsUsados)} hint="cupons diferentes já usados" />
             <Kpi title="Vendas com cupom" value={int(comCupom)} hint="somando todos os tipos de cupom" />
           </div>

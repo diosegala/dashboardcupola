@@ -22,18 +22,27 @@ export function ticketTypeName(text: unknown): string {
   return "Ingresso Padrão";
 }
 
-// Título no padrão do comercial: "[SUM] Copa Azul Imóveis | 03 ingressos VIP".
-// Empresa entre "]" e "|"; quantidade e tipo depois do "|". Fora do padrão, devolve o que der para ler.
+// Título no padrão do comercial: "[SUM] Copa Azul Imóveis | 03 ingressos VIP" ou com vários tipos,
+// "[SUM] Empresa | 02 ingressos VIP + 05 padrão". Empresa entre "]" e "|"; depois do "|", cada número seguido de
+// "ingresso" ou de um tipo vira um item (quantidade e tipo). Sem tipo escrito, é Padrão.
+const ITEM_TITULO = /(\d+)\s*(?:x\s*)?(ingressos?|ingr\.?)?\s*(combo\s*vip|combo\s*padr[aã]o|combo|vip|padr[aã]o|visita(?:\s*presencial)?)?/gi;
 export function parseDealTitle(title: unknown) {
   const t = String(title ?? "");
   const [antes, ...resto] = t.split("|");
-  const depois = resto.join("|");
-  const empresa = antes.replace(/\[[^\]]*\]/g, "").trim() || null;
-  const qtd = depois.match(/(\d+)\s*(?:ingresso|ingr|un|x\b)/i) ?? t.match(/(\d+)\s*ingresso/i);
+  const depois = resto.length ? resto.join("|") : t;
+  const empresa = resto.length ? antes.replace(/\[[^\]]*\]/g, "").trim() || null : null;
+  const itens: { quantidade: number; tipo: string }[] = [];
+  for (const m of depois.matchAll(ITEM_TITULO)) {
+    if (!m[2] && !m[3]) continue; // número solto (ano, lote): não é quantidade de ingresso
+    // Item só com o tipo e sem "ingresso" logo depois de outro item: "02 ingressos VIP + 03 padrão".
+    itens.push({ quantidade: Number(m[1]), tipo: ticketTypeName(m[3] ?? "padrão") });
+  }
+  const quantidade = itens.length ? itens.reduce((s, i) => s + i.quantidade, 0) : null;
   return {
     empresa,
-    quantidade: qtd ? Number(qtd[1]) : null,
-    tipo: /ingress|vip|combo|visita/i.test(depois || t) ? ticketTypeName(depois || t) : null,
+    itens,
+    quantidade,
+    tipo: itens[0]?.tipo ?? null,
     ehSummit: /\[\s*sum/i.test(t) || /summit/i.test(t),
     temIngresso: /ingress/i.test(t),
   };
@@ -76,6 +85,16 @@ export function batchAt(date: string, symplaSales: { sold_at: string | null; tic
   }
   return melhor?.lote ?? PRE_VENDA;
 }
+
+// Quantos negócios faturados ganhos têm o desconto do produto preenchido no Pipedrive. Serve para pedir ao comercial
+// que preencha: sem o campo, o desconto desses ingressos não entra nos cards de desconto.
+export function crmDiscountCoverage(tickets: { source?: string; status?: string | null; deal_id?: string; discount_value?: number }[]) {
+  const ganhos = tickets.filter((t) => t.source === "pipedrive" && t.status === "approved");
+  const negocios = new Set(ganhos.map((t) => t.deal_id));
+  const comDesconto = new Set(ganhos.filter((t) => (t.discount_value || 0) > 0).map((t) => t.deal_id));
+  return { negocios: negocios.size, comDesconto: comDesconto.size, faltam: negocios.size - comDesconto.size };
+}
+export const CRM_DISCOUNT_HINT = "Preencha o desconto do produto no negócio do Pipedrive (percentual ou valor) para o desconto dos faturados entrar aqui.";
 
 // Canal dos faturados internos na origem da venda.
 export const INVOICED_CHANNEL = "Venda direta";
@@ -123,6 +142,14 @@ export function discountValue(l: { quantity?: number | null; item_price?: number
   return Math.round(((cheio > 0 ? cheio : Number(l.sum || 0) / (1 - d / 100)) * (d / 100)) * 100) / 100;
 }
 
+// Itens do título viram linhas: cada tipo com sua quantidade. O valor do negócio é dividido pela quantidade
+// (o título não traz preço por tipo); sem itens no título, uma linha de 1 ingresso Padrão para conferir.
+function tituloEmLinhas(itens: { quantidade: number; tipo: string }[], valor: number) {
+  const lista = itens.length ? itens : [{ quantidade: 1, tipo: "Ingresso Padrão" }];
+  const total = lista.reduce((s, i) => s + i.quantidade, 0) || 1;
+  return lista.map((i) => ({ name: i.tipo, quantity: i.quantidade, item_price: Math.round((valor / total) * 100) / 100, sum: Math.round(((valor * i.quantidade) / total) * 100) / 100 }));
+}
+
 export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], symplaSales: { sold_at: string | null; ticket_type?: string | null }[]) {
   const porNegocio = new Map<string, InvoicedLine[]>();
   lines.filter((l) => isTicketProduct(l.name)).forEach((l) => porNegocio.set(l.deal_id, [...(porNegocio.get(l.deal_id) ?? []), l]));
@@ -135,7 +162,7 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
       const doTitulo = !itens.length;
       if (doTitulo && !(titulo.ehSummit && titulo.temIngresso)) return [];
       const linhas: Omit<InvoicedLine, "deal_id">[] = doTitulo
-        ? [{ name: titulo.tipo ?? "Ingresso Padrão", quantity: titulo.quantidade ?? 1, item_price: null, sum: Number(d.value ?? 0) }]
+        ? tituloEmLinhas(titulo.itens, Number(d.value ?? 0))
         : itens.map(corrigeLinha);
       const trocados = !doTitulo && itens.some(linhaTrocada);
       const qtdProdutos = linhas.reduce((s, l) => s + (Number(l.quantity) || 1), 0);
@@ -162,7 +189,7 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
         // Na origem da venda (Marketing) o faturado aparece como venda direta: nem sempre é da equipe do ranking
         // (o site pede para grandes quantidades chamarem o comercial).
         utm_source: INVOICED_CHANNEL,
-        ticket_type: `${batchAt(quando, symplaSales)} | ${ticketTypeName(doTitulo ? titulo.tipo : l.name)}`,
+        ticket_type: `${batchAt(quando, symplaSales)} | ${ticketTypeName(l.name)}`,
         seller: vendedor,
         seller_name: sellerFirstName(vendedor),
         company: d.org_name || titulo.empresa,

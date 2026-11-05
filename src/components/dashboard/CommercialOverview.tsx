@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { brl as brlCompleto, useCouponTotals } from "./CouponKpis";
 import { METRIC_INFO } from "@/lib/metricInfo";
+import { CRM_DISCOUNT_HINT, crmDiscountCoverage } from "@/lib/invoicedTickets";
 import { commercialDiscounts } from "@/lib/lotPrice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/CountUp";
@@ -154,7 +155,8 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
     const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
     return commercialDiscounts([...paying, ...bonus], receita);
   }, [doPeriodo]);
-  const mostrarDescontos = useCouponTotals(doPeriodo).comCupom > 0;
+  const coberturaCrm = useMemo(() => crmDiscountCoverage(doPeriodo), [doPeriodo]);
+  const mostrarDescontos = useCouponTotals(doPeriodo).comCupom > 0 || coberturaCrm.negocios > 0;
 
   return (
     <div className="grid grid-cols-12 gap-[14px]">
@@ -261,6 +263,11 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
             <div className="text-xs text-muted-foreground">
               {(descontosComercial.pct * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% da receita bruta ({brlCompleto(descontosComercial.bruta)})
             </div>
+            {coberturaCrm.faltam > 0 && (
+              <div className="text-xs text-warn">
+                Para investigar no CRM: {coberturaCrm.faltam} de {coberturaCrm.negocios} {coberturaCrm.negocios === 1 ? "negócio faturado está" : "negócios faturados estão"} sem desconto preenchido. {CRM_DISCOUNT_HINT}
+              </div>
+            )}
           </div>
         )}
       </Card>

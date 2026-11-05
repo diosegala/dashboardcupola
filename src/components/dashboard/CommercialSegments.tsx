@@ -171,13 +171,15 @@ export function origensDeVenda(pagantes: Ticket[]) {
     total += q;
     const canal = utmLabel(t.utm_source);
     if (!canal) return;
-    comUtm += q;
+    // Faturado interno aparece como "Venda direta", mas não tem UTM: não entra na cobertura de UTM.
+    if (t.source !== "pipedrive") comUtm += q;
     valores.set(canal, (valores.get(canal) ?? 0) + Number(t.total_price || 0));
   });
   const itens = countBy(pagantes, (t) => utmLabel(t.utm_source))
     .slice(0, 8)
     .map((i) => ({ ...i, amount: valores.get(i.label) ?? 0 }));
-  const rodape = total > 0 ? `${int(comUtm)} de ${int(total)} ingressos pagantes (${Math.round((comUtm / total) * 100)}%) têm UTM. Os demais não aparecem aqui.` : null;
+  const sympla = pagantes.filter((t) => t.source !== "pipedrive").reduce((s, t) => s + (t.quantity || 0), 0);
+  const rodape = sympla > 0 ? `${int(comUtm)} de ${int(sympla)} ingressos pagantes da Sympla (${Math.round((comUtm / sympla) * 100)}%) têm UTM. Faturados internos entram como Venda direta.` : null;
   return { itens, rodape };
 }
 
