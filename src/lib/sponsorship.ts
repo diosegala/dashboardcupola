@@ -66,6 +66,17 @@ export interface ProductRule {
 export interface FieldRef {
   object: "deal" | "organization";
   field_key: string;
+  // Guardados ao ler a conta, para a página traduzir o valor (opção, usuário) sem chamar o Pipedrive.
+  name?: string;
+  field_type?: string;
+  options?: { id: number | string; label: string }[];
+}
+
+// Dados da última leitura da conta, guardados junto com o mapeamento de campos.
+export interface CrmReadInfo {
+  read_at: string | null;
+  // Etiquetas de negócio da conta (para a temperatura).
+  labels: { id: number | string; label: string }[];
 }
 export interface Deliverable {
   key: string;
@@ -87,6 +98,7 @@ export interface SponsorshipDraft {
   quotas: Quota[];
   product_rules: ProductRule[];
   field_mapping: Record<string, FieldRef>;
+  crm_read: CrmReadInfo;
   deliverables: Deliverable[];
   copied_from_event_id: string | null;
 }
@@ -104,6 +116,7 @@ export const EMPTY_DRAFT: SponsorshipDraft = {
   quotas: [],
   product_rules: [],
   field_mapping: {},
+  crm_read: { read_at: null, labels: [] },
   deliverables: [],
   copied_from_event_id: null,
 };
@@ -121,13 +134,18 @@ export function draftFromRow(row: Record<string, any> | null | undefined): Spons
     sales_window_end: row.sales_window_end ?? "",
     sales_deadline: row.sales_deadline ?? "",
     product_term: row.product_term ?? "",
-    product_code: row.product_code ?? "",
+    // Até a coluna product_code existir no banco, o código fica guardado junto do mapeamento de campos.
+    product_code: row.product_code ?? asObject<any>(row.field_mapping)._config?.product_code ?? "",
     pipelines: asArray<PipelineLink>(row.pipelines),
     stage_groups: asObject<string>(row.stage_groups),
     temperature_labels: asObject<number[]>(row.temperature_labels),
     quotas: asArray<Quota>(row.quotas),
     product_rules: asArray<ProductRule>(row.product_rules),
-    field_mapping: asObject<FieldRef>(row.field_mapping),
+    field_mapping: Object.fromEntries(Object.entries(asObject<FieldRef>(row.field_mapping)).filter(([k]) => k !== "_config")),
+    crm_read: {
+      read_at: asObject<any>(row.field_mapping)._config?.read_at ?? null,
+      labels: asObject<any>(row.field_mapping)._config?.labels ?? [],
+    },
     deliverables: asArray<Deliverable>(row.deliverables),
     copied_from_event_id: row.copied_from_event_id ?? null,
   };
@@ -148,7 +166,7 @@ export function rowFromDraft(eventId: string, d: SponsorshipDraft, userId: strin
     temperature_labels: d.temperature_labels as unknown as Json,
     quotas: d.quotas as unknown as Json,
     product_rules: d.product_rules as unknown as Json,
-    field_mapping: d.field_mapping as unknown as Json,
+    field_mapping: { ...d.field_mapping, _config: { product_code: d.product_code.trim() || null, read_at: d.crm_read.read_at, labels: d.crm_read.labels } } as unknown as Json,
     deliverables: d.deliverables as unknown as Json,
     copied_from_event_id: d.copied_from_event_id,
     updated_by: userId,
@@ -170,6 +188,7 @@ export function draftFromTemplate(source: SponsorshipDraft, sourceEventId: strin
     quotas: source.quotas.map((q) => ({ ...q })),
     product_rules: source.product_rules.map((r) => ({ ...r })),
     field_mapping: { ...source.field_mapping },
+    crm_read: { ...source.crm_read },
     deliverables: source.deliverables.map((d) => ({ ...d })),
     copied_from_event_id: sourceEventId,
   };
@@ -247,6 +266,29 @@ export function quotasFromProducts(products: { name: string }[], existing: Quota
   return out;
 }
 
+// Cotas do evento sempre a partir do catálogo do CRM: cada produto do evento chamado "Cota <nome> - ..." é uma cota,
+// com o nome exatamente como está no CRM. A configuração só acrescenta o que o CRM não tem (ordem, vagas e valor de
+// referência). Cota configurada que sumiu do catálogo continua só se ainda tiver venda (keepKeys).
+export function quotasFromCatalog(
+  products: { name?: string | null; code?: string | null; kind?: string | null; is_deleted?: boolean | null }[],
+  term: string,
+  code: string,
+  configured: Quota[],
+  keepKeys: Set<string> = new Set(),
+): Quota[] {
+  const doEvento = products.filter((p) => (p.kind ?? "product") === "product" && !p.is_deleted && isEventProduct(p, term, code)) as { name: string }[];
+  const auto = quotasFromProducts(doEvento, []);
+  const porChave = new Map(configured.map((q) => [q.key, q]));
+  const maiorOrdem = Math.max(0, ...configured.map((q) => q.order));
+  let extra = 0;
+  const lista = auto.map((q) => {
+    const c = porChave.get(q.key);
+    return c ? { ...q, order: c.order, list_price: c.list_price, max_slots: c.max_slots } : { ...q, order: maiorOrdem + ++extra };
+  });
+  for (const c of configured) if (!lista.some((q) => q.key === c.key) && keepKeys.has(c.key)) lista.push(c);
+  return lista.sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "pt-BR"));
+}
+
 export function suggestProductRule(p: { name: string }, quotas: Quota[]): { classification: string; quota_key: string | null } | null {
   const n = norm(p.name);
   if (/\bingresso/.test(n)) return { classification: "ingresso", quota_key: null };
@@ -305,12 +347,15 @@ const tokens = (s: string) => norm(s).split(/[^a-z0-9]+/).filter((t) => t.length
 // Quanto o campo parece responder à informação (0 = não serve).
 export function scoreField(info: InfoField, f: CrmField): number {
   if (f.active_flag === false || !info.types.includes(f.field_type)) return 0;
+  // Perguntas de formulário ("O empreendimento já tem nome, marca ou book?") não são o campo da informação.
+  if (String(f.name ?? "").trim().endsWith("?")) return 0;
   const name = norm(f.name);
   let score = 0;
   for (const phrase of info.names.map(norm)) {
     if (name === phrase) score = Math.max(score, 10);
     else if (name.includes(phrase)) score = Math.max(score, 6);
-    else if (phrase.includes(name) && name.length > 2) score = Math.max(score, 4);
+    // Nome curto do campo dentro da frase só vale como palavra inteira ("tipo" não casa com "logotipo").
+    else if (name.length > 2 && tokens(phrase).includes(name)) score = Math.max(score, 4);
     else {
       const a = tokens(phrase);
       const b = new Set(tokens(name));
@@ -347,7 +392,18 @@ export function suggestFieldMapping(dealFields: CrmField[], orgFields: CrmField[
   return result;
 }
 
-// Informações sem campo correspondente (para avisar e abrir pendência).
+// Mapeamento completo a partir da leitura da conta: guarda nome, tipo e opções de cada campo encontrado.
+export function mappingFromCrm(dealFields: CrmField[], orgFields: CrmField[]): Record<string, FieldRef> {
+  const base = suggestFieldMapping(dealFields, orgFields);
+  const out: Record<string, FieldRef> = {};
+  for (const [k, ref] of Object.entries(base)) {
+    const f = (ref.object === "deal" ? dealFields : orgFields).find((x) => x.key === ref.field_key);
+    out[k] = { ...ref, name: f?.name, field_type: f?.field_type, options: f?.options };
+  }
+  return out;
+}
+
+// Informações sem campo correspondente.
 export const missingInfoKeys = (mapping: Record<string, FieldRef>) => INFO_FIELDS.filter((i) => !mapping[i.key]?.field_key).map((i) => i.key);
 
 // ---------- textos do "i" ----------
@@ -357,11 +413,12 @@ export const SP_INFO = {
   termo: "Texto que aparece no nome dos produtos do evento no Pipedrive. Produto novo com o termo e o código entra sozinho na receita.",
   codigo: "Código do produto no Pipedrive que marca a venda de patrocínio. Produtos com o termo e outro código (por exemplo, ingressos) ficam fora da receita de patrocínio.",
   funis: "Funil do Pipedrive cujos negócios ganhos entram neste evento. A prospecção usa as etapas do próprio funil, na ordem do Pipedrive.",
-  cotas: "Níveis de patrocínio do evento. A cota de cada produto vem do nome (\"Cota Prata - ...\" vira Prata). Produto do evento sem cota pelo nome entra em \"Outros produtos do evento\".",
-  cotaNome: "Nome do nível de cota, como aparece no nome do produto no Pipedrive e na página.",
-  cotaPreco: "Preço de tabela da cota em reais. O Pipedrive desta conta guarda R$ 0 nos produtos, então o preço vem daqui e mostra o desconto dado.",
+  cotas: "As cotas vêm sozinhas dos produtos do evento no Pipedrive, com o mesmo nome do CRM (\"Cota Prata - ...\" vira Prata). Produto novo no CRM vira cota nova; produto apagado sai. Aqui só se ajusta a ordem, as vagas e o valor de referência.",
+  cotaNome: "Nome do nível de cota, lido do nome do produto no Pipedrive. Para mudar, mude o produto no Pipedrive.",
+  cotaPreco: "Valor de referência da cota, ligado ao que ela entrega. Fica só como referência: não entra em nenhuma conta da página.",
   cotaVagas: "Quantidade máxima de patrocinadores nesta cota. Vazio = sem limite.",
   entregas: "Contrapartidas prometidas ao patrocinador. O prazo é em dias antes do evento. O item de chave \"cupom\" se marca sozinho quando o cupom do patrocinador aparece na Sympla.",
   entregaPrazo: "Quantos dias antes do evento a entrega deve estar pronta. Vazio = sem prazo.",
+  campos: "Campos do Pipedrive que respondem às informações da planilha (pagamento, contrato, SDR, entregas, parcelas, dados da empresa). O painel encontra cada um pelo nome, pelo tipo e pelas opções ao ler a conta.",
   copiar: "Traz termo, código, cotas e entregas de outro evento como modelo. Os funis voltam como sugestão para você confirmar.",
 } as const;

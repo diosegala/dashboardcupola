@@ -22,6 +22,7 @@ interface Props {
   vendido: number;
   emNegociacao: number;
   negociosAbertos: number;
+  abertosSemValor?: number;
   goals: SponsorshipGoals;
   anterior?: number | null;
   exemplo?: boolean;
@@ -29,7 +30,7 @@ interface Props {
 }
 
 // Card de destaque da página Patrocínios, no modelo de "Meta de ingressos pagantes".
-export function SponsorRevenueCard({ vendido, emNegociacao, negociosAbertos, goals, anterior, exemplo, className }: Props) {
+export function SponsorRevenueCard({ vendido, emNegociacao, negociosAbertos, abertosSemValor = 0, goals, anterior, exemplo, className }: Props) {
   const meta = goals.ampliada && goals.ampliada > 0 ? goals.ampliada : null;
   const falta = meta ? Math.max(meta - vendido, 0) : 0;
   const cobertura = meta && falta > 0 ? emNegociacao / falta : null;
@@ -110,7 +111,10 @@ export function SponsorRevenueCard({ vendido, emNegociacao, negociosAbertos, goa
                 <InfoTip title="Em negociação" text={REVENUE_INFO.negociacao} className="text-[#9A9FA7]" />
               </div>
               <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{brl(emNegociacao)}</div>
-              <div className="text-[11px] text-[#9A9FA7]">{negociosAbertos.toLocaleString("pt-BR")} negócios abertos</div>
+              <div className="text-[11px] text-[#9A9FA7]">
+                {negociosAbertos.toLocaleString("pt-BR")} negócios abertos
+                {abertosSemValor > 0 && <span className="text-warn"> · {abertosSemValor.toLocaleString("pt-BR")} sem valor no Pipedrive</span>}
+              </div>
             </div>
             {cobertura !== null && (
               <div className="rounded-2xl bg-[#1A1E23] px-3.5 py-3">

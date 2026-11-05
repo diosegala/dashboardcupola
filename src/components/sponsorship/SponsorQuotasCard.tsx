@@ -2,32 +2,19 @@ import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardTabs } from "./CardTabs";
 import { InfoTip } from "@/components/InfoTip";
-import type { QuotaRow } from "@/lib/sponsorshipMetrics";
+import { CompareLine } from "@/components/CompareLine";
+import { ADDONS_KEY, type QuotaRow } from "@/lib/sponsorshipMetrics";
 import { cn } from "@/lib/utils";
 import { brl } from "./SponsorRevenueCard";
 
 export const QUOTAS_INFO = {
-  card: "Quantidade do produto da cota em negócios ganhos. Preço médio abaixo da tabela mostra o desconto dado.",
+  card: "Quantidade do produto da cota em negócios ganhos. Um negócio com 2 unidades conta 2 cotas.",
   porCota: "Cotas vendidas contra a meta de cada cota (menu Metas), vagas que ainda restam e unidades em negócios abertos. Produto do evento sem cota pelo nome entra em \"Outros produtos do evento\".",
-  preco: "Receita da cota ÷ cotas vendidas, comparado com o preço de tabela da configuração do evento. Sem preço de tabela, o desconto não aparece.",
-  colPrecoMedio: "Receita da cota ÷ quantidade vendida.",
-  colTabela: "Preço de tabela da cota, da configuração do evento.",
-  colDesconto: "Quanto o preço médio ficou abaixo da tabela.",
+  receita: "Quanto cada cota somou em vendas, a parte de cada uma no total vendido e o valor médio de cada cota vendida (receita da cota ÷ cotas vendidas).",
 };
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const pct = (n: number) => `${Math.round(n * 100).toLocaleString("pt-BR")}%`;
-
-function Th({ text, info, className }: { text: string; info: string; className?: string }) {
-  return (
-    <th className={cn("pb-2 text-[11px] font-medium text-muted-foreground", className)}>
-      <span className="inline-flex items-center gap-1.5">
-        {text}
-        <InfoTip title={text} text={info} />
-      </span>
-    </th>
-  );
-}
 
 function QuotaBar({ row, escala }: { row: QuotaRow; escala: number }) {
   const total = row.meta ?? row.vagas ?? escala;
@@ -35,7 +22,7 @@ function QuotaBar({ row, escala }: { row: QuotaRow; escala: number }) {
   return (
     <div className="space-y-1.5">
       <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
-        <span className={cn("font-semibold", row.key === "" && "text-muted-foreground")}>{row.nome}</span>
+        <span className={cn("font-semibold", (row.key === "" || row.key === ADDONS_KEY) && "text-muted-foreground")}>{row.nome}</span>
         <span className="tabular-nums text-foreground/85">
           <b className="font-semibold">{int(row.vendidas)}</b>
           {row.meta != null && <span className="text-muted-foreground"> de {int(row.meta)}</span>}
@@ -54,13 +41,34 @@ function QuotaBar({ row, escala }: { row: QuotaRow; escala: number }) {
   );
 }
 
-export function SponsorQuotasCard({ rows, className }: { rows: QuotaRow[]; className?: string }) {
-  const [aba, setAba] = useState<"cota" | "preco">("cota");
-  // Total do cabeçalho: só as cotas (a linha "Outros produtos do evento" não é cota).
-  const vendidas = rows.filter((r) => r.key !== "").reduce((s, r) => s + r.vendidas, 0);
+function RevenueBar({ row, total, maior }: { row: QuotaRow; total: number; maior: number }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm">
+        <span className={cn("font-semibold", row.key === "" && "text-muted-foreground")}>{row.nome}</span>
+        <span className="tabular-nums">
+          <b className="font-semibold">{brl(row.receita)}</b>
+          <span className="ml-1.5 text-muted-foreground">{total > 0 ? pct(row.receita / total) : "0%"}</span>
+        </span>
+      </div>
+      <div className="h-2 overflow-hidden rounded-full bg-secondary">
+        <div className="h-full bg-data-blue transition-[width] duration-700 ease-cupola" style={{ width: `${maior > 0 ? (row.receita / maior) * 100 : 0}%` }} />
+      </div>
+      <div className="text-[11px] text-muted-foreground">
+        {row.vendidas > 0 ? `${int(row.vendidas)} ${row.vendidas === 1 ? "vendida" : "vendidas"} · média de ${brl(row.receita / row.vendidas)} por cota` : "Nenhuma vendida"}
+      </div>
+    </div>
+  );
+}
+
+export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { rows: QuotaRow[]; cotasAnterior?: number | null; className?: string }) {
+  const [aba, setAba] = useState<"cota" | "receita">("cota");
+  // Total do cabeçalho: só as cotas (adicionais e "Outros produtos do evento" não são cota).
+  const vendidas = rows.filter((r) => r.key !== "" && r.key !== ADDONS_KEY).reduce((s, r) => s + r.vendidas, 0);
   const meta = rows.reduce((s, r) => s + (r.meta ?? 0), 0);
   const escala = Math.max(...rows.map((r) => r.vendidas + r.emNegociacao), 1);
-  const comPreco = rows.filter((r) => r.key !== "" && r.vendidas > 0);
+  const receitaTotal = rows.reduce((s, r) => s + r.receita, 0);
+  const maiorReceita = Math.max(...rows.map((r) => r.receita), 0);
 
   return (
     <Card className={className}>
@@ -73,51 +81,29 @@ export function SponsorQuotasCard({ rows, className }: { rows: QuotaRow[]; class
             <b className="font-semibold text-foreground">{int(vendidas)}</b> {vendidas === 1 ? "cota vendida" : "cotas vendidas"}
             {meta > 0 && <> de {int(meta)} na meta</>}
           </p>
+          <CompareLine className="mt-1" anterior={cotasAnterior} atual={vendidas} />
         </div>
         <CardTabs
           value={aba}
           onChange={(v) => setAba(v as typeof aba)}
           tabs={[
             { value: "cota", label: "Por cota", info: QUOTAS_INFO.porCota },
-            { value: "preco", label: "Preço médio x tabela", info: QUOTAS_INFO.preco },
+            { value: "receita", label: "Receita por cota", info: QUOTAS_INFO.receita },
           ]}
         />
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
           <p className="text-sm text-muted-foreground">Nenhuma cota configurada para este evento.</p>
-        ) : aba === "cota" ? (
-          <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
-            {rows.map((r) => (
-              <QuotaBar key={r.key || "outros"} row={r} escala={escala} />
-            ))}
-          </div>
-        ) : comPreco.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Nenhuma cota vendida ainda.</p>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[420px] text-left text-sm">
-              <thead>
-                <tr>
-                  <Th text="Cota" info="Nível de cota da configuração do evento. Só aparecem as cotas com venda." />
-                  <Th text="Preço médio" info={QUOTAS_INFO.colPrecoMedio} className="text-right" />
-                  <Th text="Tabela" info={QUOTAS_INFO.colTabela} className="text-right" />
-                  <Th text="Desconto" info={QUOTAS_INFO.colDesconto} className="text-right" />
-                </tr>
-              </thead>
-              <tbody>
-                {comPreco.map((r) => (
-                  <tr key={r.key} className="border-t">
-                    <td className="py-2.5 font-medium">{r.nome}</td>
-                    <td className="py-2.5 text-right tabular-nums">{r.precoMedio != null ? brl(r.precoMedio) : "—"}</td>
-                    <td className="py-2.5 text-right tabular-nums text-muted-foreground">{r.precoTabela != null ? brl(r.precoTabela) : "—"}</td>
-                    <td className={cn("py-2.5 text-right font-semibold tabular-nums", r.desconto != null && r.desconto > 0.005 ? "text-warn" : "text-foreground/70")}>
-                      {r.desconto == null ? "—" : r.desconto > 0.005 ? pct(r.desconto) : "Sem desconto"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="grid gap-x-8 gap-y-5 sm:grid-cols-2">
+            {rows.map((r) =>
+              aba === "cota" ? (
+                <QuotaBar key={r.key || "outros"} row={r} escala={escala} />
+              ) : (
+                <RevenueBar key={r.key || "outros"} row={r} total={receitaTotal} maior={maiorReceita} />
+              ),
+            )}
           </div>
         )}
       </CardContent>

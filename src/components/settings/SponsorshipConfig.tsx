@@ -7,11 +7,13 @@ import { useAllSponsorshipConfigs, useReadCrmAccount, useSaveSponsorshipConfig, 
 import {
   DEFAULT_DELIVERABLES,
   EMPTY_DRAFT,
+  INFO_FIELDS,
+  mappingFromCrm,
   SP_INFO,
   draftFromTemplate,
   isEventProduct,
   quotaOfProduct,
-  quotasFromProducts,
+  quotasFromCatalog,
   slug,
   type CrmOptions,
   type SponsorshipDraft,
@@ -127,7 +129,14 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
       await save.mutateAsync({ eventId, draft });
       const result = await read.mutateAsync({ eventId, productTerm: draft.product_term });
       setOptions(result);
-      toast.success(`Conta lida: ${result.pipelines.length} funis e ${result.products.length} produtos`);
+      // Guarda quais campos a conta tem: a página usa para mostrar as colunas e avisar o que falta criar no Pipedrive.
+      set({
+        // Cotas exatamente como estão no catálogo do CRM; ficam a ordem, as vagas e o valor já configurados.
+        quotas: quotasFromCatalog(result.products, draft.product_term, draft.product_code, draft.quotas),
+        field_mapping: mappingFromCrm(result.deal_fields, result.organization_fields),
+        crm_read: { read_at: new Date().toISOString(), labels: result.deal_fields.find((f) => f.key === "label")?.options ?? [] },
+      });
+      toast.success(`Conta lida: ${result.pipelines.length} funis e ${result.products.length} produtos. Confira e salve.`);
     } catch (err: any) {
       toast.error(err?.message ?? "Não foi possível ler a conta do Pipedrive");
     }
@@ -218,37 +227,17 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
           <Block
             title="Cotas"
             info={SP_INFO.cotas}
-            actions={
-              <div className="flex gap-2">
-                {hasOptions && (
-                  <Button type="button" size="sm" variant="outline" onClick={() => set({ quotas: quotasFromProducts(eventProducts, draft.quotas) })}>
-                    <Wand2 className="h-4 w-4" />
-                    Criar a partir dos produtos
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() => set({ quotas: [...draft.quotas, { key: `cota_${draft.quotas.length + 1}`, name: "", order: draft.quotas.length + 1, list_price: null, max_slots: null }] })}
-                >
-                  <Plus className="h-4 w-4" />
-                  Adicionar cota
-                </Button>
-              </div>
-            }
           >
             {draft.quotas.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Nenhuma cota. Adicione à mão ou crie a partir dos produtos do evento.</p>
+              <p className="text-sm text-muted-foreground">Leia a conta do Pipedrive: as cotas aparecem sozinhas a partir dos produtos do evento.</p>
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
                     <Th text="Ordem" info="Posição da cota na página." className="w-20" />
                     <Th text="Nome" info={SP_INFO.cotaNome} />
-                    <Th text="Preço de tabela (R$)" info={SP_INFO.cotaPreco} />
+                    <Th text="Valor de referência (R$)" info={SP_INFO.cotaPreco} />
                     <Th text="Vagas" info={SP_INFO.cotaVagas} />
-                    <TableHead className="w-12" />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -263,7 +252,7 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
                             <Input type="number" min={1} aria-label="Ordem da cota" value={q.order} onChange={(e) => patch({ order: Number(e.target.value) || 1 })} />
                           </TableCell>
                           <TableCell>
-                            <Input aria-label="Nome da cota" value={q.name} onChange={(e) => patch({ name: e.target.value, key: q.key.startsWith("cota_") ? slug(e.target.value) || q.key : q.key })} />
+                            <span className="font-medium">{q.name}</span>
                             {hasOptions && (
                               <span className="mt-1 block text-[11px] text-muted-foreground">
                                 {produtos.length ? produtos.map((p) => p.name).join(", ") : "Nenhum produto com este nome"}
@@ -271,21 +260,42 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
                             )}
                           </TableCell>
                           <TableCell>
-                            <Input type="number" min={0} aria-label="Preço de tabela" value={q.list_price ?? ""} onChange={(e) => patch({ list_price: numOrNull(e.target.value) })} />
+                            <Input type="number" min={0} aria-label="Valor de referência" value={q.list_price ?? ""} onChange={(e) => patch({ list_price: numOrNull(e.target.value) })} />
                           </TableCell>
                           <TableCell>
                             <Input type="number" min={0} aria-label="Vagas" value={q.max_slots ?? ""} onChange={(e) => patch({ max_slots: numOrNull(e.target.value) })} />
-                          </TableCell>
-                          <TableCell>
-                            <Button type="button" variant="ghost" size="icon" title="Remover cota" onClick={() => set({ quotas: draft.quotas.filter((x) => x.key !== q.key) })}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
                           </TableCell>
                         </TableRow>
                       );
                     })}
                 </TableBody>
               </Table>
+            )}
+          </Block>
+
+          <Block title="Campos do CRM" info={SP_INFO.campos}>
+            {!draft.crm_read.read_at ? (
+              <p className="text-sm text-muted-foreground">Leia a conta do Pipedrive para o painel encontrar os campos.</p>
+            ) : (
+              <>
+                <p className="text-xs text-muted-foreground">
+                  Lidos em {new Date(draft.crm_read.read_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}. Campo que não existe esconde só a coluna ou o card que depende dele, com um aviso na página.
+                </p>
+                <div className="grid gap-1.5 sm:grid-cols-2">
+                  {INFO_FIELDS.map((i) => {
+                    const ref = draft.field_mapping[i.key];
+                    return (
+                      <div key={i.key} className="flex items-center justify-between gap-2 rounded-xl border px-3 py-1.5 text-sm">
+                        <span className="inline-flex items-center gap-1.5">
+                          {i.label}
+                          <InfoTip title={i.label} text={i.info} />
+                        </span>
+                        {ref ? <Chip variant="ok" className="truncate">{ref.name ?? "Encontrado"}</Chip> : <Chip variant="warn">Não existe no CRM</Chip>}
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </Block>
 

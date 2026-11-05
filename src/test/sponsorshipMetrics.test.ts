@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EMPTY_DRAFT, quotaOfProduct, type SponsorshipDraft } from "@/lib/sponsorship";
+import { EMPTY_DRAFT, quotaOfProduct, quotasFromCatalog, type SponsorshipDraft } from "@/lib/sponsorship";
 import { computeSponsorship, exampleDataset, inEdition, quotaBreakdown, weeklySeries, type DealProductRow, type DealRow } from "@/lib/sponsorshipMetrics";
 
 // Configuração genérica de teste: nomes inventados, nada do código depende deles.
@@ -86,13 +86,12 @@ describe("receita de patrocínio", () => {
     expect(quotaOfProduct("Cota Prata - Feira", config.quotas)?.key).toBe("prata");
   });
 
-  it("cotas: vendidas, vagas, em negociação, desconto e a linha de outros produtos", () => {
+  it("cotas: vendidas, vagas, em negociação, receita e a linha de outros produtos", () => {
     const deals = [deal("a", "won", "2026-08-10T15:00:00Z"), deal("b", "won", "2026-08-11T15:00:00Z"), deal("c", "open", null)];
     const lines = [line("a", 1, 85000), line("b", 5, 20000), line("c", 1, 100000, { quantity: 2 })];
     const m = computeSponsorship(config, deals, lines, catalog, window);
     const rows = quotaBreakdown(m, config.quotas, { ouro: 4 });
     expect(rows[0]).toMatchObject({ nome: "Ouro", vendidas: 1, meta: 4, restantes: 3, emNegociacao: 2, precoMedio: 85000 });
-    expect(rows[0].desconto).toBeCloseTo(0.15);
     expect(rows[1]).toMatchObject({ nome: "Prata", vendidas: 0, meta: null });
     expect(rows[2]).toMatchObject({ key: "", nome: "Outros produtos do evento", vendidas: 1 });
   });
@@ -114,4 +113,19 @@ describe("receita de patrocínio", () => {
     expect(new Set(m.vendas.map((v) => v.cota))).toEqual(new Set(["Ouro", "Prata", null]));
     expect(m.ganhosSemProduto).toHaveLength(1);
   });
+
+  it("cotas seguem o catálogo do CRM: nome do CRM, produto novo entra, apagado sai, configuração só dá ordem e vagas", () => {
+    const cat = [
+      { name: "Cota Ouro - Feira", code: "PAT" },
+      { name: "Cota Diamante - Feira", code: "PAT" },
+      { name: "Cota Prata - Feira", code: "PAT", is_deleted: true },
+      { name: "Cota Bronze - Feira", code: "EDU" },
+      { name: "Cota Ouro - Outro Evento", code: "PAT" },
+    ];
+    const q = quotasFromCatalog(cat, "Feira", "PAT", config.quotas);
+    expect(q.map((x) => x.name)).toEqual(["Ouro", "Diamante"]);
+    expect(q[0]).toMatchObject({ key: "ouro", order: 1, max_slots: 4 });
+    expect(quotasFromCatalog(cat, "Feira", "PAT", config.quotas, new Set(["prata"])).map((x) => x.name)).toContain("Prata");
+  });
 });
+

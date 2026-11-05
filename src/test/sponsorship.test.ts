@@ -59,6 +59,12 @@ describe("mapeamento de campos do CRM", () => {
     expect(missing).not.toContain("payment_method");
   });
 
+  it("ignora perguntas de formulário: pergunta que cita marca não vira o campo Marca", () => {
+    const m = suggestFieldMapping([{ key: "q1", name: "O empreendimento já tem nome, marca ou book?", field_type: "text", edit_flag: true }], []);
+    expect(m.brand).toBeUndefined();
+    expect(suggestFieldMapping([{ key: "t1", name: "Tipo", field_type: "varchar", edit_flag: true }], []).brand).toBeUndefined();
+  });
+
   it("respeita o tipo: campo de texto não vira SDR nem data", () => {
     const m = suggestFieldMapping([{ key: "x", name: "SDR responsável", field_type: "varchar", edit_flag: true }], []);
     expect(m.sdr).toBeUndefined();

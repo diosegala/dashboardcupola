@@ -4,7 +4,9 @@ import { format, parseISO } from "date-fns";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { InfoTip } from "@/components/InfoTip";
-import type { SponsorshipMetrics } from "@/lib/sponsorshipMetrics";
+import type { SaleLine, SponsorshipMetrics } from "@/lib/sponsorshipMetrics";
+import type { FieldStatus } from "@/lib/sponsorshipExtra";
+import { CrmWarning } from "./parts";
 import { cn } from "@/lib/utils";
 import { brl } from "./SponsorRevenueCard";
 
@@ -13,9 +15,10 @@ export const SALES_INFO = {
   data: "Data do ganho do negócio, no fuso de São Paulo.",
   empresa: "Empresa vinculada ao negócio no Pipedrive.",
   produto: "Produto do evento no negócio.",
-  cota: "Cota pelo nome do produto. Sem cota pelo nome, o produto entra em \"Outros produtos do evento\".",
+  cota: "Cota pelo nome do produto. Adicional mostra o item (variação do produto). Sem cota pelo nome, entra em \"Outros produtos do evento\".",
   qtd: "Quantidade do produto no negócio. Duas unidades contam duas cotas.",
-  valor: "Valor do produto no negócio (já com desconto), sem centavos.",
+  valor: "Valor do produto no negócio, sem centavos.",
+  closer: "Responsável do negócio no Pipedrive.",
   semProduto: "Negócio ganho nesta edição sem nenhum produto do evento. Fica fora da receita até alguém colocar o produto no Pipedrive.",
 };
 
@@ -32,15 +35,25 @@ function Th({ text, info, className }: { text: string; info: string; className?:
   );
 }
 
+// Coluna que vem de um campo do CRM: só aparece quando o campo existe na conta.
+export interface SalesColumn {
+  key: string;
+  label: string;
+  info: string;
+  value: (v: SaleLine) => string | null;
+}
+
 interface Props {
   metrics: SponsorshipMetrics;
+  columns?: SalesColumn[];
+  campos?: (FieldStatus | undefined)[];
   // Domínio da conta, para o link do negócio. Sem ele (exemplo), a linha fica sem link.
   account: string | null;
   className?: string;
 }
 
 // Lista detalhada das vendas: fica fechada em "Ver detalhes", como pediu a revisão.
-export function SponsorSalesCard({ metrics, account, className }: Props) {
+export function SponsorSalesCard({ metrics, account, columns = [], campos = [], className }: Props) {
   const [aberto, setAberto] = useState(false);
   const vendas = [...metrics.vendas].sort((a, b) => b.ganhoEm.localeCompare(a.ganhoEm) || b.valor - a.valor);
   const link = (id: string) => (account ? `https://${account}.pipedrive.com/deal/${id}` : null);
@@ -88,11 +101,12 @@ export function SponsorSalesCard({ metrics, account, className }: Props) {
               })}
             </div>
           )}
+          <CrmWarning fields={campos.filter((c) => c && c.state !== "ok")} />
           {vendas.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma venda nesta edição ainda.</p>
           ) : (
             <div className="max-h-[420px] overflow-auto">
-              <table className="w-full min-w-[640px] text-left text-sm">
+              <table className="w-full min-w-[760px] text-left text-sm">
                 <thead className="sticky top-0 bg-card">
                   <tr>
                     <Th text="Data" info={SALES_INFO.data} />
@@ -101,6 +115,10 @@ export function SponsorSalesCard({ metrics, account, className }: Props) {
                     <Th text="Cota" info={SALES_INFO.cota} />
                     <Th text="Qtd." info={SALES_INFO.qtd} className="text-right" />
                     <Th text="Valor" info={SALES_INFO.valor} className="text-right" />
+                    <Th text="Closer" info={SALES_INFO.closer} />
+                    {columns.map((c) => (
+                      <Th key={c.key} text={c.label} info={c.info} />
+                    ))}
                     <th className="w-8" />
                   </tr>
                 </thead>
@@ -112,9 +130,24 @@ export function SponsorSalesCard({ metrics, account, className }: Props) {
                         <td className="whitespace-nowrap py-2 pr-2 tabular-nums text-muted-foreground">{dia(v.ganhoEm)}</td>
                         <td className="px-2 py-2 font-medium">{v.empresa}</td>
                         <td className="px-2 py-2 text-foreground/80">{v.produto}</td>
-                        <td className="px-2 py-2">{v.cota ?? <span className="text-muted-foreground">Outros</span>}</td>
+                        <td className="px-2 py-2">{v.cota ?? (v.adicional ? `Adicional${v.item ? ` · ${v.item}` : ""}` : <span className="text-muted-foreground">Outros</span>)}</td>
                         <td className="px-2 py-2 text-right tabular-nums">{v.quantidade.toLocaleString("pt-BR")}</td>
                         <td className="whitespace-nowrap px-2 py-2 text-right font-semibold tabular-nums">{brl(v.valor)}</td>
+                        <td className="whitespace-nowrap px-2 py-2 text-foreground/80">{v.closer ?? "—"}</td>
+                        {columns.map((c) => {
+                          const t = c.value(v);
+                          return (
+                            <td key={c.key} className="max-w-[180px] truncate px-2 py-2 text-foreground/80" title={t ?? undefined}>
+                              {t && /^https?:\/\//.test(t) ? (
+                                <a href={t} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
+                                  {t.replace(/^https?:\/\/(www\.)?/, "").slice(0, 28)}
+                                </a>
+                              ) : (
+                                t ?? <span className="text-muted-foreground">—</span>
+                              )}
+                            </td>
+                          );
+                        })}
                         <td className="py-2 pl-2">
                           {href && (
                             <a href={href} target="_blank" rel="noreferrer" title="Abrir o negócio no Pipedrive" className="text-muted-foreground hover:text-foreground">
