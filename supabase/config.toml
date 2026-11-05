@@ -20,3 +20,12 @@ verify_jwt = false
 
 [functions.list-sympla-events]
 verify_jwt = false
+
+[functions.sync-pipedrive]
+verify_jwt = false
+
+[functions.pipedrive-webhook]
+verify_jwt = false
+
+[functions.list-crm-options]
+verify_jwt = false

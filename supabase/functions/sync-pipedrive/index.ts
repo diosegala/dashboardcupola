@@ -1,5 +1,5 @@
 import { z } from 'npm:zod@3';
-import { authorize, avaliarPendencias, checked, configsFor, CrmWriter, errorResponse, json, PartialRun, PipedriveClient, PipedriveError, pipelineIds, preflight, resolveToken, saveRate, serverClient, type Row } from '../_shared/pipedrive.ts';
+import { authorize, checked, configsFor, CrmWriter, errorResponse, json, PartialRun, PipedriveClient, PipedriveError, pipelineIds, preflight, resolveToken, saveRate, serverClient, type Row } from '../_shared/pipedrive.ts';
 import { isBusy, LOW_RATE_MESSAGE, matchesTerm, scalarId } from '../_shared/pipedrive-rules.ts';
 const schema=z.object({crm_account:z.string().min(1).max(100).optional(),full:z.boolean().optional(),scheduled_at:z.string().datetime().optional()}).strict();
 async function runAccount(db:ReturnType<typeof serverClient>, account:string, configs:Row[], full:boolean, deadline:number) {
@@ -17,7 +17,7 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
     if(!work){
       const startDates=configs.map(c=>c.sales_window_start).filter(Boolean).sort();
       const fallback=new Date(); fallback.setUTCMonth(fallback.getUTCMonth()-18);
-      work={started,structure:full || !cursors.structure_at || Date.now()-Date.parse(cursors.structure_at)>86400000,phase:'structure',step:0,seen:[],pipeline:0,mode:0,since:cursors.deals?new Date(Date.parse(cursors.deals)-120000).toISOString():new Date(`${startDates[0]??fallback.toISOString().slice(0,10)}T00:00:00Z`).toISOString(),initial:!cursors.deals,pipelines:[...new Set(configs.flatMap(pipelineIds))],pending:[],leadMode:0}; cursors.work=work;
+      work={started,structure:full || !cursors.structure_at || Date.now()-Date.parse(cursors.structure_at)>86400000,phase:'structure',step:0,seen:[],pipeline:0,mode:0,since:(cursors.deals?new Date(Date.parse(cursors.deals)-120000).toISOString():new Date(`${startDates[0]??fallback.toISOString().slice(0,10)}T00:00:00Z`).toISOString()).replace(/\.\d{3}Z$/,'Z'),initial:!cursors.deals,pipelines:[...new Set(configs.flatMap(pipelineIds))],pending:[],leadMode:0}; cursors.work=work;
     }
     const checkpoint=async()=>saveRate(db,account,api as PipedriveClient,cursors);
     const guard=()=>{if(Date.now()>deadline-10000)throw new PartialRun(); if(api && api.rate.limit>0 && api.rate.remaining<api.rate.limit*.05)throw new PipedriveError(LOW_RATE_MESSAGE,503,429);};
@@ -59,8 +59,9 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
       const modes=work.initial?['open','all','deleted']:['all','deleted'];
       if(work.mode>=modes.length){work.pipeline++;work.mode=0;await checkpoint();continue;}
       const mode=modes[work.mode];
-      const page=await api.page('/api/v2/deals',{pipeline_id:work.pipelines[work.pipeline],...(mode!=='all'?{status:mode}:{}),...(mode!=='open'?{updated_since:work.since}:{}),include_fields:'products_count,activities_count,next_activity_id'},work.cursor);
-      const saved:Row[]=[];for(const r of page.rows)saved.push(await writer.deal(mode==='deleted'?{...r,status:'deleted'}:r));
+      const page=await api.page('/api/v2/deals',{pipeline_id:work.pipelines[work.pipeline],...(mode!=='all'?{status:mode}:{}),...(mode!=='open'?{updated_since:work.since}:{}),include_fields:'products_count,activities_count,next_activity_id',limit:100},work.cursor);
+      // Stops before the next write; cursor stays on this page so replay is idempotent.
+      const saved:Row[]=[];for(const r of page.rows){guard();saved.push(await writer.deal(mode==='deleted'?{...r,status:'deleted'}:r));}
       work.pending=saved.map(d=>d.pipedrive_deal_id);work.pageDone=true;work.nextCursor=page.next??null;await checkpoint();
     }
     while(work.phase==='leads'){
@@ -69,11 +70,11 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
       for(const r of page.rows)await writer.lead(r,work.leadMode===1);
       if(page.next!==undefined)work.cursor=page.next;else{delete work.cursor;work.leadMode++;}await checkpoint();
     }
-    guard();const pendencias=await avaliarPendencias(db,account);guard();
+    guard();
     if(work.pipelines.length)cursors.deals=work.started;
     cursors.work=null;
     await saveRate(db,account,api,cursors,{last_success_at:new Date().toISOString(),last_error:null});
-    return {account,...writer.stats,pendencias_abertas:pendencias,rate:api.rate};
+    return {account,...writer.stats,rate:api.rate};
   }catch(e){
     if(e instanceof PartialRun){if(api)await saveRate(db,account,api,cursors,{last_started_at:null,last_error:null});return {account,parcial:true,rate:api?.rate??{}};}
     const error=e instanceof PipedriveError?e.message:'Erro ao sincronizar os dados do CRM';
