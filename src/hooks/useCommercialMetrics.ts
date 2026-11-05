@@ -83,12 +83,20 @@ export function useCommercialMetrics(
     // Vendas pagantes por dia.
     const byDay = new Map<string, number>();
     const revByDay = new Map<string, number>();
+    // A parte faturada internamente (Pipedrive), para os gráficos mostrarem quanto do total veio de cada fonte.
+    const internoByDay = new Map<string, number>();
+    const revInternoByDay = new Map<string, number>();
     paying.forEach((t) => {
       if (!t.sold_at) return;
       const k = dayKey(new Date(t.sold_at));
       byDay.set(k, (byDay.get(k) || 0) + qty(t));
       revByDay.set(k, (revByDay.get(k) || 0) + Number(t.total_price || 0));
+      if (t.source === "pipedrive") {
+        internoByDay.set(k, (internoByDay.get(k) || 0) + qty(t));
+        revInternoByDay.set(k, (revInternoByDay.get(k) || 0) + Number(t.total_price || 0));
+      }
     });
+    const ate = (mapa: Map<string, number>, endKey: string) => Array.from(mapa.entries()).filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0);
 
     // Ritmo atual: média dos últimos dias úteis completos.
     const paceDays = lastBusinessDays(today, CURRENT_PACE_DAYS);
@@ -133,11 +141,14 @@ export function useCommercialMetrics(
       const limit = weekEnd < lastDayBeforeEvent ? weekEnd : lastDayBeforeEvent;
       const endKey = dayKey(limit);
       const cumulative = sortedDays.filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0);
+      const interno = ate(internoByDay, endKey);
       const trajectory = goal !== null ? Math.round((goal * businessDaysBetween(start, limit).length) / totalBusiness) : null;
       return {
         label: `S${i + 1}`,
         weekStart: dayKey(weekStart),
         pagantes: weekStart <= today ? cumulative : null,
+        sympla: weekStart <= today ? cumulative - interno : null,
+        interno: weekStart <= today ? interno : null,
         ...(trajectory !== null ? { trajetoria: trajectory } : {}),
         ...(hasPrevious ? { anoAnterior: previousDays.filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0) } : {}),
       };
@@ -152,6 +163,8 @@ export function useCommercialMetrics(
       return {
         label: `S${i + 1}`,
         receita: startOfDay(weekStart) <= today ? sum(sortedRevDays) : null,
+        receitaSympla: startOfDay(weekStart) <= today ? sum(sortedRevDays) - ate(revInternoByDay, endKey) : null,
+        receitaInterno: startOfDay(weekStart) <= today ? ate(revInternoByDay, endKey) : null,
         ...(revenueGoal !== null ? { trajetoria: Math.round((revenueGoal * businessDaysBetween(start, limit).length) / totalBusiness) } : {}),
         ...(hasPrevious ? { anoAnterior: sum(previousRevDays) } : {}),
       };
@@ -199,6 +212,7 @@ export function useCommercialMetrics(
       dailyBusiness,
       // Vendas pagantes por dia (aaaa-mm-dd) e a data da primeira venda, para navegar pelos dias úteis.
       paidByDay: Object.fromEntries(byDay),
+      internoByDay: Object.fromEntries(internoByDay),
       firstSaleDate: start,
       weekly,
       weeklyRevenue,

@@ -40,6 +40,9 @@ export function batchAt(date: string, symplaSales: { sold_at: string | null; tic
   return melhor?.lote ?? PRE_VENDA;
 }
 
+// Canal dos faturados internos na origem da venda.
+export const INVOICED_CHANNEL = "Venda direta";
+
 export interface InvoicedDeal {
   pipedrive_deal_id: string;
   title: string | null;
@@ -76,6 +79,9 @@ export function invoicedToTickets(
         paid_at: null as string | null,
         status: "approved",
         coupon_code: null,
+        // Na origem da venda (Marketing) o faturado aparece como venda direta: nem sempre é da equipe do ranking
+        // (o site pede para grandes quantidades chamarem o comercial).
+        utm_source: INVOICED_CHANNEL,
         ticket_type: `${batchAt(quando, symplaSales)} | ${ticketTypeName(l.name)}`,
         seller: vendedor,
         seller_name: sellerFirstName(vendedor),

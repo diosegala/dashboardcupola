@@ -1,7 +1,8 @@
 import {
+  Area,
   CartesianGrid,
+  ComposedChart,
   Line,
-  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -144,6 +145,8 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   // Comparação com o evento anterior só com a chave ligada.
   const { ativo: comparar, rotulo } = useCompare();
   const mostrarAnterior = comparar && m.hasPrevious;
+  // Só separa as fontes nos gráficos quando já existe venda faturada internamente.
+  const temInterno = m.invoicedCount > 0;
 
   // Descontos concedidos: cupons parciais + cortesias pelo preço cheio do lote, % sobre a receita bruta.
   const descontosComercial = useMemo(() => {
@@ -275,6 +278,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
           <ChartLegend
             items={[
               { key: "pagantes", label: "Pagantes", color: COLORS.blue, shape: "line" },
+              ...(temInterno ? [{ key: "sympla", label: "Sympla", color: COLORS.sympla, shape: "square" as const }, { key: "interno", label: "Faturado interno", color: COLORS.invoiced, shape: "square" as const }] : []),
               ...(temMeta ? [{ key: "trajetoria", label: "Trajetória da meta", color: COLORS.amber, shape: "dashed" as const }] : []),
               ...(mostrarAnterior ? [{ key: PREVIOUS_YEAR_KEY, label: rotulo, color: COLORS.muted, shape: "dotted" as const }] : []),
             ]}
@@ -285,7 +289,10 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={m.weekly} margin={{ left: -12, right: 8, top: 8 }}>
+            <ComposedChart data={m.weekly} margin={{ left: -12, right: 8, top: 8 }}>
+              {/* Faixas empilhadas: quanto do total acumulado veio da Sympla e quanto foi faturado internamente. */}
+              {temInterno && <Area dataKey="sympla" name="Sympla" stackId="fonte" stroke="none" fill={COLORS.sympla} fillOpacity={0.18} hide={weeklySeries.hidden.has("sympla")} isAnimationActive={false} />}
+              {temInterno && <Area dataKey="interno" name="Faturado interno" stackId="fonte" stroke="none" fill={COLORS.invoiced} fillOpacity={0.45} hide={weeklySeries.hidden.has("interno")} isAnimationActive={false} />}
               <CartesianGrid vertical={false} className="stroke-border" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" className="fill-muted-foreground" />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => int(v)} className="fill-muted-foreground" />
@@ -321,7 +328,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
                 strokeOpacity={weeklySeries.opacity("pagantes")}
                 animationDuration={1200}
               />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
@@ -341,6 +348,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
           <ChartLegend
             items={[
               { key: "receita", label: "Receita", color: COLORS.blue, shape: "line" },
+              ...(temInterno ? [{ key: "receitaSympla", label: "Sympla", color: COLORS.sympla, shape: "square" as const }, { key: "receitaInterno", label: "Faturado interno", color: COLORS.invoiced, shape: "square" as const }] : []),
               ...(temMetaReceita ? [{ key: "trajetoria", label: "Trajetória da meta", color: COLORS.amber, shape: "dashed" as const }] : []),
               ...(mostrarAnterior ? [{ key: PREVIOUS_YEAR_KEY, label: rotulo, color: COLORS.muted, shape: "dotted" as const }] : []),
             ]}
@@ -351,7 +359,9 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         </CardHeader>
         <CardContent>
           <ResponsiveContainer width="100%" height={260}>
-            <LineChart data={m.weeklyRevenue} margin={{ left: 4, right: 8, top: 8 }}>
+            <ComposedChart data={m.weeklyRevenue} margin={{ left: 4, right: 8, top: 8 }}>
+              {temInterno && <Area dataKey="receitaSympla" name="Sympla" stackId="fonte" stroke="none" fill={COLORS.sympla} fillOpacity={0.18} hide={revenueSeries.hidden.has("receitaSympla")} isAnimationActive={false} />}
+              {temInterno && <Area dataKey="receitaInterno" name="Faturado interno" stackId="fonte" stroke="none" fill={COLORS.invoiced} fillOpacity={0.45} hide={revenueSeries.hidden.has("receitaInterno")} isAnimationActive={false} />}
               <CartesianGrid vertical={false} className="stroke-border" />
               <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" className="fill-muted-foreground" />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => brlEixo(v)} className="fill-muted-foreground" />
@@ -361,7 +371,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
                 <Line {...previousYearLineProps} name={rotulo} strokeDasharray="2 4" hide={revenueSeries.hidden.has(PREVIOUS_YEAR_KEY)} strokeOpacity={revenueSeries.opacity(PREVIOUS_YEAR_KEY, 0.55)} />
               )}
               <Line dataKey="receita" name="Receita" stroke={COLORS.blue} strokeWidth={2.5} dot={{ r: 2.5 }} connectNulls={false} hide={revenueSeries.hidden.has("receita")} strokeOpacity={revenueSeries.opacity("receita")} animationDuration={1200} />
-            </LineChart>
+            </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
@@ -394,7 +404,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
           {diaVisao === "semana" ? (
             <WeekdayView tickets={doPeriodo} />
           ) : (
-            <BusinessDaysView paidByDay={m.paidByDay} firstSaleDate={m.firstSaleDate} requiredPace={m.requiredPace} paidByDayAnterior={mostrarAnterior ? m.anterior?.paidByDay : undefined} />
+            <BusinessDaysView paidByDay={m.paidByDay} internoByDay={m.internoByDay} firstSaleDate={m.firstSaleDate} requiredPace={m.requiredPace} paidByDayAnterior={mostrarAnterior ? m.anterior?.paidByDay : undefined} />
           )}
         </CardContent>
       </Card>

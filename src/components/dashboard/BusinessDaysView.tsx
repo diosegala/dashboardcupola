@@ -13,6 +13,8 @@ type Modo = "15" | "mes" | "tudo";
 
 interface BusinessDaysViewProps {
   paidByDay: Record<string, number>;
+  // Parte das vendas de cada dia faturada internamente (Pipedrive).
+  internoByDay?: Record<string, number>;
   firstSaleDate: Date;
   // Sem meta de pagantes: barras numa cor só e sem a linha do necessário.
   requiredPace: number | null;
@@ -21,10 +23,10 @@ interface BusinessDaysViewProps {
 }
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
-const COR = { ok: "hsl(var(--data-blue))", abaixo: "hsl(var(--warn))", muted: "hsl(var(--muted-foreground))" };
+const COR = { ok: "hsl(var(--data-blue))", abaixo: "hsl(var(--warn))", muted: "hsl(var(--muted-foreground))", interno: "hsl(var(--chart-2))" };
 
 // Vendas em cada dia útil até hoje (nunca dias futuros): últimos 15, um mês por vez ou tudo desde a primeira venda.
-export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace, paidByDayAnterior }: BusinessDaysViewProps) {
+export function BusinessDaysView({ paidByDay, internoByDay = {}, firstSaleDate, requiredPace, paidByDayAnterior }: BusinessDaysViewProps) {
   const { rotulo } = useCompare();
   const hoje = startOfDay(new Date());
   const [modo, setModo] = useState<Modo>("15");
@@ -46,9 +48,12 @@ export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace, paidB
   const data = dias.map((d) => {
     const vendas = paidByDay[format(d, "yyyy-MM-dd")] || 0;
     const anterior = paidByDayAnterior ? paidByDayAnterior[format(d, "yyyy-MM-dd")] || 0 : undefined;
-    return { date: format(d, "yyyy-MM-dd"), label: format(d, "dd/MM"), vendas, anterior, onPace: requiredPace === null || vendas >= requiredPace };
+    const interno = internoByDay[format(d, "yyyy-MM-dd")] || 0;
+    return { date: format(d, "yyyy-MM-dd"), label: format(d, "dd/MM"), vendas, sympla: vendas - interno, interno, anterior, onPace: requiredPace === null || vendas >= requiredPace };
   });
   const total = data.reduce((s, d) => s + d.vendas, 0);
+  const totalInterno = data.reduce((s, d) => s + d.interno, 0);
+  const temInterno = Object.keys(internoByDay).length > 0;
   const diasNoRitmo = data.filter((d) => d.onPace).length;
   const totalAnterior = paidByDayAnterior ? data.reduce((s, d) => s + (d.anterior ?? 0), 0) : null;
 
@@ -91,11 +96,14 @@ export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace, paidB
           <span className="inline-flex items-center gap-1.5">
             <i className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: COR.abaixo }} /> Abaixo
           </span>
+          {temInterno && <span className="inline-flex items-center gap-1.5">
+            <i className="inline-block h-2.5 w-2.5 rounded-[3px]" style={{ background: COR.interno }} /> Faturado interno
+          </span>}
         </div>}
       </div>
 
       <p className="mb-2 text-xs text-muted-foreground">
-        {int(total)} vendas em {int(data.length)} dias úteis{requiredPace !== null && <> · {int(diasNoRitmo)} {diasNoRitmo === 1 ? "dia" : "dias"} no ritmo</>}{totalAnterior !== null && <> · {rotulo} nos mesmos dias: {int(totalAnterior)}</>}
+        {int(total)} vendas em {int(data.length)} dias úteis{temInterno && <> ({int(total - totalInterno)} Sympla · {int(totalInterno)} faturado interno)</>}{requiredPace !== null && <> · {int(diasNoRitmo)} {diasNoRitmo === 1 ? "dia" : "dias"} no ritmo</>}{totalAnterior !== null && <> · {rotulo} nos mesmos dias: {int(totalAnterior)}</>}
       </p>
 
       <ResponsiveContainer width="100%" height={240}>
@@ -106,7 +114,7 @@ export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace, paidB
           <Tooltip
             cursor={{ fill: "hsl(var(--secondary))" }}
             contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--line-strong))", borderRadius: 10, fontSize: 12 }}
-            formatter={(v: number, n: string) => [int(v), n === "anterior" ? rotulo : "Pagantes"]}
+            formatter={(v: number, n: string) => [int(v), n === "anterior" ? rotulo : n === "interno" ? "Faturado interno" : temInterno ? "Sympla" : "Pagantes"]}
           />
           {requiredPace !== null && <ReferenceLine
             y={requiredPace}
@@ -115,11 +123,13 @@ export function BusinessDaysView({ paidByDay, firstSaleDate, requiredPace, paidB
             strokeDasharray="4 4"
             label={{ value: `Necessário ${int(Math.ceil(requiredPace))}`, position: "insideTopRight", fontSize: 11, fill: COR.muted }}
           />}
-          <Bar dataKey="vendas" radius={[6, 6, 0, 0]} animationDuration={900}>
+          {/* A cor da barra diz se o dia ficou no ritmo; a parte de cima, em outra cor, é o faturado interno. */}
+          <Bar dataKey="sympla" stackId="dia" radius={temInterno ? undefined : [6, 6, 0, 0]} animationDuration={900}>
             {data.map((d) => (
               <Cell key={d.date} fill={d.onPace ? COR.ok : COR.abaixo} />
             ))}
           </Bar>
+          {temInterno && <Bar dataKey="interno" stackId="dia" fill={COR.interno} radius={[6, 6, 0, 0]} animationDuration={900} />}
           {paidByDayAnterior && (
             <Line dataKey="anterior" name="anterior" type="monotone" stroke="hsl(var(--muted-foreground))" strokeWidth={1.25} strokeDasharray="4 4" dot={false} activeDot={false} animationDuration={1000} />
           )}
