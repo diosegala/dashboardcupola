@@ -13,7 +13,7 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
   try {
     api=new PipedriveClient(account,await resolveToken(db,account),deadline);
     const writer=new CrmWriter(db,api,account,cursors);
-    let work=cursors.work;
+    let work=full?undefined:cursors.work;
     if(!work){
       const startDates=configs.map(c=>c.sales_window_start).filter(Boolean).sort();
       const fallback=new Date(); fallback.setUTCMonth(fallback.getUTCMonth()-18);
