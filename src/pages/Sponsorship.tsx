@@ -9,13 +9,12 @@ import { CompareProvider } from "@/hooks/useCompare";
 import { CompareToggle } from "@/components/CompareToggle";
 import { goalsOfEvent, isEventClosed, useEvent } from "@/hooks/useEvent";
 import { useAuth } from "@/hooks/useAuth";
-import { useAllTimeTicketSales, useGoals } from "@/hooks/useDashboardData";
-import { useReadCrmAccount, useSaveSponsorshipConfig, useSponsorshipConfig, useSponsorshipData, useSponsorshipHistory, useValueHistory } from "@/hooks/useSponsorship";
+import { useGoals } from "@/hooks/useDashboardData";
+import { useReadCrmAccount, useSaveSponsorshipConfig, useSponsorCoupons, useSponsorshipConfig, useSponsorshipData, useSponsorshipHistory, useValueHistory } from "@/hooks/useSponsorship";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { eventGoal } from "@/lib/goalMetrics";
-import { parseCoupon } from "@/lib/coupons";
 import { EMPTY_DRAFT, FEATURES, HIDDEN_INFO_KEYS, channelGroup, isEventProduct, visibleInfoFields, mappingFromCrm, quotaOfProduct, quotasFromCatalog, type SponsorshipDraft } from "@/lib/sponsorship";
 import {
   EXAMPLE_GOALS,
@@ -88,7 +87,7 @@ export default function Sponsorship() {
   const config = useSponsorshipConfig(event.id);
   const data = useSponsorshipData(config.data);
   const goalsQuery = useGoals();
-  const tickets = useAllTimeTicketSales(event.sympla_event_id ?? "");
+  const cuponsDoEvento = useSponsorCoupons(event.sympla_event_id);
   const [responsavel, setResponsavel] = useState<string | null>(null);
   const read = useReadCrmAccount();
   const save = useSaveSponsorshipConfig();
@@ -153,7 +152,7 @@ export default function Sponsorship() {
     const diasAteAbertura = Math.max(Math.round((Date.parse(`${abertura}T12:00:00Z`) - Date.parse(`${hoje}T12:00:00Z`)) / 86400000), 0);
     const histAteHoje = prev ? hist.filter((h) => h.data && Math.round((Date.parse(`${prev.abertura}T12:00:00Z`) - Date.parse(`${h.data}T12:00:00Z`)) / 86400000) >= diasAteAbertura) : [];
     const cotasAnterior = oficial ? histAteHoje.filter((h) => !h.adicional).length : null;
-    const cupons = (tickets.data ?? []).map((t: any) => parseCoupon(t.coupon_code)?.code).filter(Boolean) as string[];
+    const cupons = cuponsDoEvento.data ?? [];
     // Situação dos campos: sempre da configuração real (no exemplo, mostra o que falta de verdade).
     const wonReal = exemplo ? [] : [...new Set(m.vendas.map((v) => v.dealId))].map((id) => dealsById.get(id)!).filter(Boolean);
     const status = fieldStatuses(realConfig, wonReal, exemplo ? new Map() : orgs);
@@ -187,24 +186,31 @@ export default function Sponsorship() {
         : undefined),
       oficial,
       cotasAnterior,
-      evolucao: exemplo
-        ? undefined
-        : valueEvolution(
-            valorHist.data ?? [],
-            new Map(src.deals.filter((d) => share(d).doEvento).map((d) => [d.id, d])),
-            (pid) => {
-              const p = src.catalog.find((c) => c.pd_id === pid && (c.kind ?? "product") === "product");
-              return !!p && isEventProduct(p, cfg.product_term, cfg.product_code);
-            },
-            hoje,
-          ),
       receb: receipts(cfg, m, dealsById, exemplo ? src.installments : instReal, event.end_date),
       entregas: deliveries(cfg, m, dealsById, cupons),
       adicionais: addonItems(m),
       semParcelas: !exemplo && m.vendas.length > 0 && !instReal.some((p) => m.vendas.some((v) => v.dealId === p.deal_id)),
       account: exemplo ? null : realConfig.crm_account,
     };
-  }, [exemplo, config.data, data.data, goalsQuery.data, tickets.data, historico.data, valorHist.data, event, anterior, retrasada, inicio, hoje, abertura, responsavel, realConfig]);
+  }, [exemplo, config.data, data.data, goalsQuery.data, cuponsDoEvento.data, historico.data, event, anterior, retrasada, inicio, hoje, abertura, responsavel, realConfig]);
+
+  // Evolução do valor em negociação: conta pesada, separada do resto para só refazer quando o histórico de valor
+  // ou os negócios mudam (e não ao trocar o responsável, por exemplo).
+  const evolucao = useMemo(() => {
+    if (exemplo || !data.data) return undefined;
+    const { deals, lines, catalog } = data.data;
+    const share = eventShare(realConfig, lines, catalog);
+    const produtos = new Map(catalog.filter((c) => (c.kind ?? "product") === "product").map((c) => [c.pd_id, c]));
+    return valueEvolution(
+      valorHist.data ?? [],
+      new Map(deals.filter((d) => share(d).doEvento).map((d) => [d.id, d])),
+      (pid) => {
+        const p = produtos.get(pid ?? -1);
+        return !!p && isEventProduct(p, realConfig.product_term, realConfig.product_code);
+      },
+      hoje,
+    );
+  }, [exemplo, data.data, valorHist.data, realConfig, hoje]);
 
   const quotaRows = useMemo(() => quotaBreakdown(view.m, view.cfg.quotas, view.quotaGoals), [view]);
   const metaCotas = Object.values(view.quotaGoals).reduce((s, v) => s + v, 0) || null;
@@ -298,7 +304,7 @@ export default function Sponsorship() {
                   metaAbordagens={view.metaAbordagens}
                   origem={view.statusOf("origin")}
                   abertosSemValor={view.m.abertosSemValor}
-                  evolucao={view.evolucao}
+                  evolucao={evolucao}
                 />
                 <div className="col-span-12 flex flex-col gap-[14px] lg:col-span-5">
                   <SponsorRenewalCard
