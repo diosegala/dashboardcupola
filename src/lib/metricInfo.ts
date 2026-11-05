@@ -41,7 +41,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes por região": "Região do comprador a partir do estado informado no formulário de inscrição da Sympla.",
   "Pagantes por perfil da empresa":
     "Perfil da empresa do comprador, informado no formulário de inscrição da Sympla. O formulário não pergunta o porte, então este é o dado mais próximo.",
-  "Pagantes por forma de pagamento": "Como cada ingresso pagante foi pago na Sympla: cartão, boleto, Pix e outros.",
+  "Pagantes por forma de pagamento": "Como cada ingresso pagante foi pago: cartão, boleto, Pix e outros. Soma a Sympla e os faturados internos (campo Forma de pagamento do negócio no Pipedrive; Hotmart conta junto). Passe o mouse em cada forma para ver quanto veio da Sympla e do faturamento interno; no cartão, a média de parcelas dos faturados (a Sympla não envia as parcelas).",
   "Pagantes por origem (UTM)": "Origem da venda pela UTM do link usado na compra (utm_source). Maiúsculas e minúsculas contam como o mesmo canal, e \"ig\" e \"instagram\" são juntados em Instagram. Ao lado de cada origem está o valor pago pelos ingressos. Vendas sem UTM não aparecem; embaixo, o card diz quantos ingressos pagantes têm UTM.",
   Cupons:
     "Cupons usados nos ingressos emitidos, separados por grupo: Faturados (negócios ganhos no Pipedrive, por vendedor), Resgate (GANHADOR ou RESGATE), Palestrantes, Equipe CUPOLA (nome + 5, com 5% de desconto) e Parceiros e outros.",

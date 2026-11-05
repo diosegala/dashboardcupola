@@ -106,6 +106,8 @@ const parcelasDe = (v: unknown) => {
   const id = Number(typeof v === "object" && v ? (v as any).id ?? (v as any).value : v);
   return id >= 680 && id <= 693 ? id - 679 : null;
 };
+// Opções da Forma de pagamento no mesmo código da Sympla, para somar no mesmo card (Hotmart conta junto).
+const PAGAMENTO_CODIGO: Record<number, string> = { 672: "PIX", 673: "CREDIT_CARD", 674: "BOLETO", 694: "CREDIT_CARD", 695: "PIX", 696: "BOLETO" };
 const opcao = (v: unknown) => Number(typeof v === "object" && v ? (v as any).id ?? (v as any).value : v);
 
 // Canal dos faturados internos na origem da venda.
@@ -202,6 +204,9 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
         // Bonificação / Permuta: não é venda, conta como bonificado. Parcelado: só indica, as datas ficam com o financeiro.
         bonus: bonificado,
         installments: parcelas && parcelas > 1 ? parcelas : null,
+        payment_method: PAGAMENTO_CODIGO[opcao(d.custom_fields?.[CAMPO_PAGAMENTO])] ?? null,
+        // Parcelas escolhidas (1 = à vista), para a média no cartão de crédito.
+        installments_count: parcelas,
         coupon_code: null,
         // Na origem da venda (Marketing) o faturado aparece como venda direta: nem sempre é da equipe do ranking
         // (o site pede para grandes quantidades chamarem o comercial).
