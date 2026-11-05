@@ -18,12 +18,12 @@ export const RENEWAL_INFO = {
   colSituacao: "Renovou (mesmo valor), subiu, desceu, em negociação ou sem negócio.",
 };
 
-const ESTADOS: Record<RenewalState, { label: string; tone?: "warn" | "muted" }> = {
-  subiu: { label: "Subiu" },
-  renovou: { label: "Renovou" },
-  desceu: { label: "Desceu", tone: "warn" },
-  negociando: { label: "Em negociação", tone: "muted" },
-  sem_negocio: { label: "Sem negócio", tone: "warn" },
+const ESTADOS: Record<RenewalState, { label: string; tone?: "warn" | "muted"; cor: string; info: string }> = {
+  subiu: { label: "Renovou com valor maior", cor: "bg-primary", info: "Patrocinou a edição anterior e já fechou nesta, pagando mais do que pagou antes." },
+  renovou: { label: "Renovou com o mesmo valor", cor: "bg-primary", info: "Patrocinou a edição anterior e já fechou nesta, pelo mesmo valor." },
+  desceu: { label: "Renovou com valor menor", tone: "warn", cor: "bg-primary", info: "Patrocinou a edição anterior e já fechou nesta, pagando menos do que pagou antes." },
+  negociando: { label: "Em negociação", cor: "bg-primary/35", info: "Patrocinou a edição anterior e tem um negócio aberto nesta, ainda sem fechar." },
+  sem_negocio: { label: "Ainda sem negócio", tone: "warn", cor: "bg-warn", info: "Patrocinou a edição anterior e ainda não tem negócio aberto nem ganho nesta. É a receita em risco." },
 };
 
 export function SponsorRenewalCard({ rows, rotuloAnterior, cotaAnteriorFalta, oficial = false, className }: { rows: RenewalRow[]; rotuloAnterior: string; cotaAnteriorFalta: boolean; oficial?: boolean; className?: string }) {
@@ -73,12 +73,27 @@ export function SponsorRenewalCard({ rows, rotuloAnterior, cotaAnteriorFalta, of
               <MiniStat label="Receita em risco" value={brlShort(risco)} info={RENEWAL_INFO.risco} tone={risco > 0 ? "warn" : undefined} sub={`${int(rows.filter((r) => r.estado === "sem_negocio").length)} empresas sem negócio`} />
             </div>
             {aba === "empresa" ? (
-              <BarList
-                items={(Object.keys(ESTADOS) as RenewalState[]).map((k) => {
+              <div className="space-y-4">
+                {(Object.keys(ESTADOS) as RenewalState[]).map((k) => {
                   const n = rows.filter((r) => r.estado === k).length;
-                  return { key: k, label: ESTADOS[k].label, value: n, text: int(n), tone: ESTADOS[k].tone };
+                  return (
+                    <div key={k} className="space-y-1">
+                      <div className="flex items-baseline justify-between gap-3 text-sm">
+                        <span className="inline-flex min-w-0 items-center gap-1.5 font-medium">
+                          {ESTADOS[k].label}
+                          <InfoTip title={ESTADOS[k].label} text={ESTADOS[k].info} />
+                        </span>
+                        <span className="shrink-0 font-semibold tabular-nums">
+                          {int(n)} <span className="font-normal text-muted-foreground">de {int(rows.length)}</span>
+                        </span>
+                      </div>
+                      <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                        <div className={cn("sp-grow h-full", ESTADOS[k].cor)} style={{ width: `${rows.length ? (n / rows.length) * 100 : 0}%` }} />
+                      </div>
+                    </div>
+                  );
                 })}
-              />
+              </div>
             ) : cotas.size === 0 ? (
               <p className="text-sm text-muted-foreground">Sem cota identificada nas duas edições.</p>
             ) : (
