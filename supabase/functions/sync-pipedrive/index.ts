@@ -17,7 +17,7 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
     if(!work){
       const startDates=configs.map(c=>c.sales_window_start).filter(Boolean).sort();
       const fallback=new Date(); fallback.setUTCMonth(fallback.getUTCMonth()-18);
-      work={started,structure:full || !cursors.structure_at || Date.now()-Date.parse(cursors.structure_at)>86400000,phase:'structure',step:0,seen:[],pipeline:0,mode:0,since:(cursors.deals?new Date(Date.parse(cursors.deals)-120000).toISOString():new Date(`${startDates[0]??fallback.toISOString().slice(0,10)}T00:00:00Z`).toISOString()).replace(/\.\d{3}Z$/,'Z'),initial:!cursors.deals,pipelines:[...new Set(configs.flatMap(pipelineIds))],pending:[],leadMode:0}; cursors.work=work;
+      work={started,structure:full || !cursors.structure_at || Date.now()-Date.parse(cursors.structure_at)>86400000,phase:'structure',step:0,seen:[],pipeline:0,mode:0,since:(cursors.deals&&!full?new Date(Date.parse(cursors.deals)-120000).toISOString():new Date(`${startDates[0]??fallback.toISOString().slice(0,10)}T00:00:00Z`).toISOString()).replace(/\.\d{3}Z$/,'Z'),initial:!cursors.deals,pipelines:[...new Set(configs.flatMap(pipelineIds))],pending:[],leadMode:0}; cursors.work=work;
     }
     const checkpoint=async()=>saveRate(db,account,api as PipedriveClient,cursors);
     const guard=()=>{if(Date.now()>deadline-10000)throw new PartialRun(); if(api && api.rate.limit>0 && api.rate.remaining<api.rate.limit*.05)throw new PipedriveError(LOW_RATE_MESSAGE,503,429);};
