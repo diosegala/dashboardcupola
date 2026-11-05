@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { invoiceCompany, invoiceState, PENDING_PREFIX, pendingTickets } from "../_shared/sympla-rules.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -190,6 +191,49 @@ Deno.serve(async (req) => {
     });
     const rows = Array.from(rowMap.values());
 
+    // 5a. Ingressos vendidos ainda sem participante (o comprador não preencheu os nomes): uma linha por pedido com a
+    // quantidade que falta, para a meta contar tudo o que foi vendido. Quando as pessoas são vinculadas, elas entram como
+    // participantes e esta linha encolhe até sumir, sem contar ninguém duas vezes. Só roda se os pedidos vieram.
+    const pendingRows: any[] = [];
+    if (ordersById.size) {
+      const byOrder = new Map<string, any[]>();
+      allParticipants.forEach((p: any) => {
+        const k = String(p.order_id ?? "");
+        byOrder.set(k, [...(byOrder.get(k) ?? []), p]);
+      });
+      for (const o of ordersById.values()) {
+        const pending = pendingTickets(o, byOrder.get(String(o.id)) ?? [], allParticipants);
+        if (!pending) continue;
+        const coupon = o.discount_code ?? o.coupon_code ?? null;
+        pendingRows.push({
+          sympla_order_id: `${PENDING_PREFIX}${o.id}`,
+          ticket_type: pending.ticketName,
+          ticket_type_id: null,
+          quantity: pending.quantity,
+          unit_price: pending.unitPrice,
+          total_price: pending.total,
+          buyer_name: [o.buyer_first_name, o.buyer_last_name].filter(Boolean).join(" ") || null,
+          buyer_email: o.buyer_email ?? null,
+          sold_at: o.order_date || o.approved_date || null,
+          status: "approved",
+          event_id: eventId,
+          order_id: String(o.id),
+          coupon_code: coupon ? String(coupon).trim().toUpperCase() : null,
+          buyer_state: invoiceState(o),
+          company_size: null,
+          buyer_company: invoiceCompany(o),
+          buyer_role: null,
+          payment_method: o.transaction_type ?? o.payment_method ?? null,
+          utm_source: o.utm?.utm_source ?? o.utm_data?.utm_source ?? null,
+          utm_medium: o.utm?.utm_medium ?? o.utm_data?.utm_medium ?? null,
+          utm_campaign: o.utm?.utm_campaign ?? o.utm_data?.utm_campaign ?? null,
+          synced_at: new Date().toISOString(),
+        });
+      }
+      rows.push(...pendingRows);
+      console.log("sync-sympla - pedidos com ingressos sem participante:", pendingRows.length);
+    }
+
     // Batch upsert in chunks of 500
     for (let i = 0; i < rows.length; i += 500) {
       const chunk = rows.slice(i, i + 500);
@@ -197,6 +241,34 @@ Deno.serve(async (req) => {
         .from("ticket_sales")
         .upsert(chunk, { onConflict: "sympla_order_id" });
       if (error) throw error;
+    }
+
+    // Pedidos que já tiveram todos os ingressos vinculados (ou foram cancelados) deixam de ter a linha de pendentes.
+    if (ordersById.size) {
+      let stale = supabase.from("ticket_sales").delete().eq("event_id", eventId).like("sympla_order_id", `${PENDING_PREFIX}%`);
+      if (pendingRows.length) stale = stale.not("sympla_order_id", "in", `(${pendingRows.map((r) => r.sympla_order_id).join(",")})`);
+      const { error } = await stale;
+      if (error) throw error;
+    }
+
+    // Participantes que a Sympla deixou de devolver (pedido cancelado ou estornado) não contam mais como aprovados.
+    if (allParticipants.length) {
+      const { data: saved, error } = await supabase
+        .from("ticket_sales")
+        .select("sympla_order_id")
+        .eq("event_id", eventId)
+        .not("sympla_order_id", "like", `${PENDING_PREFIX}%`)
+        .neq("status", "cancelled");
+      if (error) throw error;
+      const gone = (saved ?? []).map((r: any) => String(r.sympla_order_id)).filter((id: string) => !rowMap.has(id));
+      for (let i = 0; i < gone.length; i += 200) {
+        const { error: cancelError } = await supabase
+          .from("ticket_sales")
+          .update({ status: "cancelled", synced_at: new Date().toISOString() })
+          .in("sympla_order_id", gone.slice(i, i + 200));
+        if (cancelError) throw cancelError;
+      }
+      if (gone.length) console.log("sync-sympla - participantes que saíram da Sympla:", gone.length);
     }
 
     // 5b. Dados completos do participante e do pedido, numa tabela só para administradores.
