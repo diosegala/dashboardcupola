@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { batchAt, invoicedToTickets, isTicketProduct, sellerFirstName } from "./invoicedTickets";
+import { batchAt, couponForSeller, invoicedToTickets, isTicketProduct, parseDealTitle, redeemedDeal, sellerFirstName } from "./invoicedTickets";
+import { ticketCategory } from "./ticketCategory";
 import { splitTickets } from "@/hooks/useCommercialMetrics";
 import { buildTeamRanking } from "@/components/dashboard/TeamRanking";
 
@@ -28,7 +29,7 @@ describe("faturados internos (Pipedrive)", () => {
 
   it("soma na meta, na receita e no ranking da mesma pessoa do cupom", () => {
     const faturados = invoicedToTickets(
-      [{ id: "d1", pipedrive_deal_id: "38004", title: "Copa Azul", won_at: "2026-11-05T12:00:00Z", custom_fields: { __channel_id: "ISABELLE SALDANHA" } }],
+      [{ id: "d1", pipedrive_deal_id: "38004", title: "[SUM] Copa Azul Imóveis | 03 ingressos VIP", status: "won", won_at: "2026-11-05T12:00:00Z", custom_fields: { __channel_id: "ISABELLE SALDANHA" } }],
       [{ deal_id: "d1", name: "Ingressos Summit - VIP", quantity: 3, item_price: 1775.65, sum: 5326.95 }],
       sympla,
     );
@@ -38,5 +39,46 @@ describe("faturados internos (Pipedrive)", () => {
     const lote0 = buildTeamRanking(paying).lotes.find((l) => l.lote === "Lote 0")!;
     expect(lote0.ranking).toHaveLength(1);
     expect(lote0.ranking[0].vendas).toBe(4);
+  });
+
+  it("lê empresa, quantidade e tipo do título", () => {
+    expect(parseDealTitle("[SUM] Copa Azul Imóveis | 03 ingressos VIP")).toMatchObject({ empresa: "Copa Azul Imóveis", quantidade: 3, tipo: "Ingresso VIP" });
+  });
+
+  it("corrige quantidade e preço trocados no produto (Copa Azul: 1775.65 x 3)", () => {
+    const [t] = invoicedToTickets(
+      [{ id: "d", pipedrive_deal_id: "38004", title: "[SUM] Copa Azul Imóveis | 03 ingressos VIP", status: "won", won_at: "2026-11-05T12:00:00Z", org_name: "Copa Azul Imóveis", custom_fields: {} }],
+      [{ deal_id: "d", name: "Ingressos Summit - VIP", quantity: 1775.65, item_price: 3, sum: 5326.95 }],
+      [],
+    );
+    expect(t.quantity).toBe(3);
+    expect(t.total_price).toBeCloseTo(5326.95);
+    expect(t.conferir).toMatch(/trocados/);
+  });
+
+  it("negócio sem produto entra pelo título; aberto fica em negociação", () => {
+    const [t] = invoicedToTickets(
+      [{ id: "d", pipedrive_deal_id: "1", title: "[SUM] Imob X | 2 ingressos padrão", status: "open", stage_name: "Fechamento", won_at: null, created_at_source: "2026-11-04T12:00:00Z", value: 1800, custom_fields: {} }],
+      [],
+      [],
+    );
+    expect(t.quantity).toBe(2);
+    expect(ticketCategory(t)).toBe("negociacao");
+  });
+
+  it("vendedor do Pipedrive casa com o cupom da equipe", () => {
+    const equipe = ["SUELLEN5", "ALINEB5", "ALINEP5", "ALINEPAVEZI5", "ISABELLE5"];
+    expect(couponForSeller("Suelen Moreira", equipe)).toBe("SUELLEN5");
+    expect(couponForSeller("ISABELLE SALDANHA", equipe)).toBe("ISABELLE5");
+    expect(couponForSeller("Aline Borges", equipe)).toBe("ALINEB5");
+    expect(couponForSeller("Aline Pavezi", equipe)).toBe("ALINEPAVEZI5");
+  });
+
+  it("resgate na Sympla com o nome da empresa não duplica a venda", () => {
+    const empresas = [{ deal_id: "38004", company: "Copa Azul Imóveis" }];
+    expect(redeemedDeal("100.00% - COPAAZUL100", empresas)).toBe("38004");
+    expect(redeemedDeal("100.00% - INGRESSO_VIP_COPAZUL100", empresas)).toBe("38004");
+    expect(redeemedDeal("100.00% - GANHADORSUMMIT26_BRUNOHANS", empresas)).toBeNull();
+    expect(ticketCategory({ status: "approved", coupon_code: "100.00% - COPAAZUL100", redeems: "38004" })).toBe("resgates");
   });
 });

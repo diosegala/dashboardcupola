@@ -56,11 +56,11 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
       }
       if(work.pageDone){delete work.pageDone;if(work.nextCursor!==undefined && work.nextCursor!==null)work.cursor=work.nextCursor;else{delete work.cursor;work.mode++;}delete work.nextCursor;await checkpoint();}
       if(work.pipeline>=work.pipelines.length){work.phase=work.pipelines.length?'leads':'pending';await checkpoint();break;}
-      // Funil de ingressos faturados (milhares de negócios, quase todos perdidos): só os ganhos na primeira leitura;
-      // depois, os ganhos, perdidos e excluídos alterados desde a última leitura, para um ganho desfeito sair da conta.
+      // Funil de ingressos faturados (milhares de negócios, quase todos perdidos): abertos e ganhos na primeira leitura;
+      // depois, os abertos e o que mudou (ganho, perdido, excluído) desde a última leitura. Perdidos antigos nunca são lidos.
       const ingressos=(work.ticketPipelines??[]).includes(work.pipelines[work.pipeline]);
       const novoIngressos=ingressos&&!(cursors.ticket_done??[]).includes(work.pipelines[work.pipeline]);
-      const modes=ingressos?(novoIngressos?['won']:['won','lost','deleted']):work.initial?['open','all','deleted']:['all','deleted'];
+      const modes=ingressos?(novoIngressos?['open','won']:['open','won','lost','deleted']):work.initial?['open','all','deleted']:['all','deleted'];
       if(work.mode>=modes.length){work.pipeline++;work.mode=0;await checkpoint();continue;}
       const mode=modes[work.mode];
       const page=await api.page('/api/v2/deals',{pipeline_id:work.pipelines[work.pipeline],...(mode!=='all'?{status:mode}:{}),...(mode!=='open'?{updated_since:String(novoIngressos&&work.fullSince?work.fullSince:work.since).replace(/\.\d{3}Z$/,'Z')}:{}),include_fields:'products_count,activities_count,next_activity_id',limit:100},work.cursor);

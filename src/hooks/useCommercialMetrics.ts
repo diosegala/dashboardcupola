@@ -31,6 +31,15 @@ export interface Ticket {
   seller_name?: string | null;
   deal_id?: string;
   deal_title?: string | null;
+  // Negócio aberto: etapa no funil (ex.: Fechamento). Empresa do negócio, para casar com o cupom de resgate.
+  stage_name?: string | null;
+  company?: string | null;
+  // Venda lida pelo título ou com quantidades diferentes entre título e produtos.
+  conferir?: string | null;
+  // Resgate na Sympla de um faturado: id do negócio no Pipedrive (não conta como venda nem cortesia).
+  redeems?: string | null;
+  // Desconto em R$ dado no negócio do Pipedrive (linha do produto), quando preenchido.
+  discount_value?: number;
 }
 
 const qty = (t: Ticket) => t.quantity || 0;

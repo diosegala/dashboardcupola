@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfMonth, endOfMonth, format, subYears } from "date-fns";
 import { withSaleDate } from "@/lib/period";
-import { invoicedToTickets, isTicketProduct } from "@/lib/invoicedTickets";
+import { invoicedToTickets, isTicketProduct, redeemedDeal } from "@/lib/invoicedTickets";
 
 export interface DateRange {
   from: Date;
@@ -183,24 +183,32 @@ export function useFormAnswerCounts(eventId: string) {
   });
 }
 
-// Faturados internamente do evento: negócios ganhos no Pipedrive com produto de ingresso do Summit, ganhos entre o fim
-// do evento anterior e o fim deste (o produto é o mesmo todo ano). Quem não pode ler o CRM recebe lista vazia.
+// Faturados internamente do evento: negócios do Pipedrive com ingresso do Summit (produto "Ingressos Summit" ou, sem
+// produto, título "[SUM] ... | N ingressos"), entre o fim do evento anterior e o fim deste (o produto é o mesmo todo ano).
+// Ganhos contam como venda; abertos ficam "em negociação". Quem não pode ler o CRM recebe lista vazia.
+const DEAL_COLUMNS = "id, pipedrive_deal_id, title, status, stage_name, org_name, value, won_at, created_at_source, custom_fields, pipeline_pd_id";
 async function fetchInvoicedTickets(symplaEventId: string, symplaSales: any[]) {
   const { data: ev } = await supabase.from("events").select("id, end_date").eq("sympla_event_id", symplaEventId).maybeSingle();
   if (!ev) return [];
-  const { data: cfg } = await supabase.from("sponsorship_config").select("crm_account").eq("event_id", ev.id).maybeSingle();
+  const { data: cfg } = await supabase.from("sponsorship_config").select("crm_account, pipelines").eq("event_id", ev.id).maybeSingle();
   const account = cfg?.crm_account?.trim();
   if (!account) return [];
+  const funis = ((cfg?.pipelines as any[]) ?? []).filter((p) => p.represents === "ingressos").map((p) => Number(p.pipeline_pd_id));
   const { data: antes } = await supabase.from("events").select("end_date").lt("end_date", ev.end_date).order("end_date", { ascending: false }).limit(1);
-  const inicio = antes?.[0]?.end_date ?? "1900-01-01";
+  const inicio = `${antes?.[0]?.end_date ?? "1900-01-01"}T23:59:59`;
+  const fim = `${ev.end_date}T23:59:59`;
+  const doEvento = (d: any) => {
+    const quando = d.status === "won" ? d.won_at : d.created_at_source;
+    return !!quando && quando > inicio && quando <= fim;
+  };
+
   const { data: produtos } = await supabase.from("crm_products").select("pd_id, name").eq("crm_account", account).eq("kind", "product");
   const ids = (produtos ?? []).filter((p) => isTicketProduct(p.name)).map((p) => p.pd_id);
-  if (!ids.length) return [];
   const linhas: any[] = [];
-  for (let from = 0; ; from += 1000) {
+  for (let from = 0; ids.length; from += 1000) {
     const { data, error } = await supabase
       .from("deal_products")
-      .select("deal_id, name, quantity, item_price, sum")
+      .select("deal_id, name, quantity, item_price, sum, discount, discount_type")
       .eq("crm_account", account)
       .eq("is_enabled", true)
       .in("product_pd_id", ids)
@@ -209,21 +217,31 @@ async function fetchInvoicedTickets(symplaEventId: string, symplaSales: any[]) {
     linhas.push(...(data ?? []));
     if (!data || data.length < 1000) break;
   }
+  const negocios = new Map<string, any>();
   const dealIds = [...new Set(linhas.map((l) => l.deal_id))];
-  const negocios: any[] = [];
   for (let i = 0; i < dealIds.length; i += 200) {
-    const { data, error } = await supabase
-      .from("deals")
-      .select("id, pipedrive_deal_id, title, won_at, custom_fields")
-      .in("id", dealIds.slice(i, i + 200))
-      .eq("status", "won")
-      .eq("is_deleted", false)
-      .gt("won_at", `${inicio}T23:59:59`)
-      .lte("won_at", `${ev.end_date}T23:59:59`);
+    const { data, error } = await supabase.from("deals").select(DEAL_COLUMNS).in("id", dealIds.slice(i, i + 200)).in("status", ["won", "open"]).eq("is_deleted", false);
     if (error) return [];
-    negocios.push(...(data ?? []));
+    (data ?? []).forEach((d) => negocios.set(d.id, d));
   }
-  return invoicedToTickets(negocios, linhas, symplaSales);
+  // Negócios do funil de ingressos sem produto cadastrado: entram pelo título, para nenhuma venda ficar de fora.
+  if (funis.length) {
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from("deals")
+        .select(DEAL_COLUMNS)
+        .eq("crm_account", account)
+        .in("pipeline_pd_id", funis)
+        .in("status", ["won", "open"])
+        .eq("is_deleted", false)
+        .ilike("title", "%ingress%")
+        .range(from, from + 999);
+      if (error) break;
+      (data ?? []).forEach((d) => negocios.has(d.id) || negocios.set(d.id, d));
+      if (!data || data.length < 1000) break;
+    }
+  }
+  return invoicedToTickets([...negocios.values()].filter(doEvento), linhas, symplaSales);
 }
 
 // Todas as vendas do evento: Sympla + faturados internamente (Pipedrive), no mesmo formato.
@@ -241,7 +259,13 @@ export function useAllTimeTicketSales(eventId: string) {
         sympla = await fetchAllTimeTickets(eventId, BASE_TICKET_COLUMNS);
       }
       const faturados = await fetchInvoicedTickets(eventId, sympla).catch(() => []);
-      return [...sympla, ...faturados];
+      // Resgate na Sympla de um faturado ganho (cupom com o nome da empresa): vira baixa, não cortesia nem venda.
+      const empresas = faturados.filter((f) => f.status === "approved").map((f) => ({ deal_id: f.deal_id, company: f.company }));
+      const comResgate = sympla.map((t) => {
+        const deal = redeemedDeal(t.coupon_code, empresas);
+        return deal ? { ...t, redeems: deal } : t;
+      });
+      return [...comResgate, ...faturados];
     },
   });
 }

@@ -60,13 +60,48 @@ function porCategoria(todos: Ticket[]): Fatia[] {
 
 // Agrupa pelo tipo (Padrão, VIP, combos, grupo...), não pelo nome de cada lote.
 function porTipo(todos: Ticket[]): Fatia[] {
-  const tickets = todos.filter((t) => !isCancelled(t.status));
+  // Negócio aberto no CRM e resgate de faturado não são ingressos emitidos a mais.
+  const tickets = todos.filter((t) => !isCancelled(t.status) && !["negociacao", "resgates"].includes(ticketCategory(t)));
   const soma = new Map<TicketKind, number>();
   tickets.forEach((t) => {
     const tipo = ticketKind(t.ticket_type);
     soma.set(tipo, (soma.get(tipo) || 0) + qty(t));
   });
   return TICKET_KINDS.filter((k) => soma.get(k)).map((k) => ({ key: k, label: k, value: soma.get(k) as number, color: COR_TIPO[k] }));
+}
+
+// Faturados internos: quanto já foi resgatado na Sympla e o que ainda está aberto no CRM, por etapa do funil.
+// Os abertos não contam na meta: só aparecem para acompanhar o que está para entrar.
+function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
+  const ganhos = tickets.filter((t) => ticketCategory(t) === "faturados").reduce((s, t) => s + qty(t), 0);
+  const resgatados = tickets.filter((t) => ticketCategory(t) === "resgates").reduce((s, t) => s + qty(t), 0);
+  const abertos = tickets.filter((t) => ticketCategory(t) === "negociacao");
+  const conferir = new Set(tickets.filter((t) => t.source === "pipedrive" && t.conferir).map((t) => t.deal_id)).size;
+  if (!ganhos && !abertos.length) return null;
+  const etapas = new Map<string, { ingressos: number; negocios: Set<string> }>();
+  abertos.forEach((t) => {
+    const e = etapas.get(t.stage_name || "Sem etapa") ?? { ingressos: 0, negocios: new Set<string>() };
+    e.ingressos += qty(t);
+    e.negocios.add(t.deal_id ?? "");
+    etapas.set(t.stage_name || "Sem etapa", e);
+  });
+  return (
+    <div className="space-y-1.5 rounded-xl border border-dashed px-3 py-2.5 text-xs md:col-span-2">
+      {ganhos > 0 && (
+        <p>
+          <b className="font-semibold">Faturados internamente:</b> {int(ganhos)} ganhos no CRM, {int(resgatados)} já resgatados na Sympla.{" "}
+          <span className="text-muted-foreground">Ganho = contrato assinado ou primeira parcela paga.</span>
+        </p>
+      )}
+      {abertos.length > 0 && (
+        <p className="text-muted-foreground">
+          <b className="font-semibold text-foreground">Em negociação no CRM (não contam):</b>{" "}
+          {Array.from(etapas.entries()).map(([etapa, e]) => `${etapa}: ${int(e.ingressos)} ${e.ingressos === 1 ? "ingresso" : "ingressos"} (${e.negocios.size} ${e.negocios.size === 1 ? "negócio" : "negócios"})`).join(" · ")}
+        </p>
+      )}
+      {conferir > 0 && <p className="text-warn">Para investigar no CRM: {conferir} {conferir === 1 ? "negócio" : "negócios"} com quantidade lida pelo título ou corrigida.</p>}
+    </div>
+  );
 }
 
 // Fatia em destaque no hover: engrossa um pouco, como no ds-summit.
@@ -207,6 +242,7 @@ export function IssuedTicketsCard({
             );
           })}
         </div>
+        <FaturadosNoCrm tickets={tickets} />
         <CompareLine className="md:col-span-2" anterior={emitidosAnterior} atual={emitidosAtual ?? 0} quando={quando} />
         {goal && Number(goal.target_value) > 0 && (
           <GoalMeter

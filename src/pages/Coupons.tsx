@@ -62,13 +62,15 @@ export default function Coupons() {
       const atual = map.get(c.code) ?? { ...c, uses: 0, receita: 0, desconto: 0 };
       atual.uses += t.quantity || 0;
       atual.receita += Number(t.total_price || 0);
-      atual.desconto += couponDiscountValue(t);
+      atual.desconto += couponDiscountValue(t) + (t.discount_value || 0);
       map.set(c.code, atual);
     });
     return Array.from(map.values()).sort((a, b) => b.uses - a.uses || a.code.localeCompare(b.code));
   }, [paying, bonus]);
 
   const { gratuitos, descontos, cuponsUsados, comCupom } = totals;
+  const faturadosGanhos = paying.filter((t) => t.source === "pipedrive");
+  const semDescontoNoCrm = faturadosGanhos.length > 0 && faturadosGanhos.every((t) => !t.discount_value);
 
   const grupos = COUPON_GROUPS.map((g) => ({ ...g, uses: cupons.filter((c) => c.group === g.key).reduce((s, c) => s + c.uses, 0) })).filter((g) => g.uses > 0);
   const grupoAtivo = grupos.some((g) => g.key === grupo) ? grupo : "todos";
@@ -92,7 +94,10 @@ export default function Coupons() {
 
       <p role="status" className="flex items-start gap-2 text-xs leading-snug text-muted-foreground">
         <Info className="mt-px h-3.5 w-3.5 shrink-0" />
-        <span>Vendas da Sympla e faturados internamente (negócios ganhos no Pipedrive com ingresso do Summit). O faturado soma no ranking de quem está no campo "ID da fonte do canal" do negócio.</span>
+        <span>
+          Vendas da Sympla e faturados internamente (negócios ganhos no Pipedrive com ingresso do Summit). O faturado soma no ranking de quem está no campo "ID do canal de origem" do negócio.
+          {semDescontoNoCrm && " Para investigar no CRM: os faturados não têm desconto preenchido no produto, então não entram em Descontos concedidos."}
+        </span>
       </p>
 
       {vendas.isLoading ? (

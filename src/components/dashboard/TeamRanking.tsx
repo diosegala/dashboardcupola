@@ -10,6 +10,7 @@ import { Chip } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { TEAM_DISCOUNT, parseCoupon, teamMemberName } from "@/lib/coupons";
+import { couponForSeller } from "@/lib/invoicedTickets";
 import { PRE_VENDA, batchOf, batchOrder } from "@/lib/batches";
 import { cn } from "@/lib/utils";
 
@@ -45,16 +46,19 @@ export const FATURADO_LABEL = "Faturado interno";
 export const posicaoDe = <T extends { vendas: number }>(ranking: T[], v: T) => 1 + ranking.filter((x) => x.vendas > v.vendas).length;
 
 // Ranking da equipe por lote, a partir das vendas pagantes. O lote atual é o da venda mais recente do evento.
-export function buildTeamRanking(paying: Ticket[]): TeamRankingData {
+export function buildTeamRanking(paying: Ticket[], extraCoupons: string[] = []): TeamRankingData {
   const porLote = new Map<string, Map<string, Vendedor>>();
   const limiteRecente = subDays(new Date(), 7).toISOString();
   let ultimaVenda = "";
   let loteAtual: string | null = null;
 
-  // Nomes que já vêm dos cupons da equipe: o vendedor do faturado entra no mesmo nome quando o cupom começa
-  // pelo primeiro nome dele ("Isabelle" no Pipedrive → cupom ISABELLESA5 → mesma pessoa no ranking).
-  const nomesCupom = [...new Set(paying.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => teamMemberName(c!.code)))];
-  const nomeDoFaturado = (primeiro: string) => nomesCupom.find((n) => sem(n) === sem(primeiro)) ?? nomesCupom.find((n) => sem(n).startsWith(sem(primeiro))) ?? primeiro;
+  // O vendedor do faturado entra no nome do cupom dele: "ISABELLE SALDANHA" → ISABELLE5, "Suelen Moreira" → SUELLEN5,
+  // "Aline Borges" → ALINEB5. Os cupons vêm das vendas da Sympla e dos cadastrados em Configurações.
+  const cuponsEquipe = [...new Set([...extraCoupons, ...paying.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code)])];
+  const nomeDoFaturado = (t: Ticket) => {
+    const cupom = couponForSeller(t.seller, cuponsEquipe);
+    return { nome: cupom ? teamMemberName(cupom) : (t.seller_name as string), cupom };
+  };
 
   paying.forEach((t) => {
     const lote = batchOf(t.ticket_type);
@@ -68,11 +72,13 @@ export function buildTeamRanking(paying: Ticket[]): TeamRankingData {
     const c = parseCoupon(t.coupon_code);
     const faturado = t.source === "pipedrive";
     if (faturado ? !t.seller_name : c?.group !== "equipe") return;
-    const nome = faturado ? nomeDoFaturado(t.seller_name as string) : teamMemberName(c!.code);
+    const doFaturado = faturado ? nomeDoFaturado(t) : null;
+    const nome = doFaturado ? doFaturado.nome : teamMemberName(c!.code);
     const marca = faturado ? FATURADO_LABEL : c!.code;
     const pessoas = porLote.get(lote) ?? new Map<string, Vendedor>();
     const v = pessoas.get(nome) ?? { nome, cupons: [], vendas: 0, receita: 0, recentes: 0 };
     if (!v.cupons.includes(marca)) v.cupons.push(marca);
+    if (doFaturado?.cupom && !v.cupons.includes(doFaturado.cupom)) v.cupons.push(doFaturado.cupom);
     v.vendas += t.quantity || 0;
     v.receita += Number(t.total_price || 0);
     if ((t.sold_at ?? "") >= limiteRecente) v.recentes += t.quantity || 0;
