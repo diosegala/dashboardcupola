@@ -7,6 +7,8 @@ import { useAllSponsorshipConfigs, useReadCrmAccount, useSaveSponsorshipConfig, 
 import {
   DEFAULT_DELIVERABLES,
   EMPTY_DRAFT,
+  FEATURES,
+  visibleInfoFields,
   INFO_FIELDS,
   mappingFromCrm,
   SP_INFO,
@@ -282,7 +284,7 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
                   Lidos em {new Date(draft.crm_read.read_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}. Campo que não existe esconde só a coluna ou o card que depende dele, com um aviso na página.
                 </p>
                 <div className="grid gap-1.5 sm:grid-cols-2">
-                  {INFO_FIELDS.map((i) => {
+                  {visibleInfoFields().map((i) => {
                     const ref = draft.field_mapping[i.key];
                     return (
                       <div key={i.key} className="flex items-center justify-between gap-2 rounded-xl border px-3 py-1.5 text-sm">
@@ -299,6 +301,8 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
             )}
           </Block>
 
+          {/* Entregas desligado (FEATURES.entregas): o bloco volta quando a parte for religada. */}
+          {FEATURES.entregas && (
           <Block
             title="Entregas"
             info={SP_INFO.entregas}
@@ -356,6 +360,7 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
               </Table>
             )}
           </Block>
+          )}
 
           <Block title="Copiar de outro evento" info={SP_INFO.copiar}>
             <div className="flex flex-wrap items-center gap-3">

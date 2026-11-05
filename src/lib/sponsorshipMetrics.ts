@@ -93,6 +93,8 @@ export interface SponsorshipMetrics {
   negociosAbertos: number;
   // Unidades de cada cota em negócios abertos (chave da cota; "" = produto do evento sem cota pelo nome).
   abertasPorCota: Record<string, number>;
+  // Valor (R$) de cada cota em negócios abertos.
+  abertasValorPorCota: Record<string, number>;
   // Adicionais em negócios abertos: item -> { quantidade, valor }.
   adicionaisAbertos: Record<string, { quantidade: number; valor: number }>;
   // Negócios abertos com produto do evento sem valor (R$ 0) no Pipedrive: o valor em negociação fica incompleto.
@@ -131,7 +133,7 @@ export function computeSponsorship(
     return isEventProduct({ name: p?.name ?? l.name, code: p?.code ?? null }, config.product_term, config.product_code);
   };
 
-  const out: SponsorshipMetrics = { vendido: 0, vendas: [], ganhosSemProduto: [], emNegociacao: 0, negociosAbertos: 0, abertasPorCota: {}, adicionaisAbertos: {}, abertosSemValor: 0 };
+  const out: SponsorshipMetrics = { vendido: 0, vendas: [], ganhosSemProduto: [], emNegociacao: 0, negociosAbertos: 0, abertasPorCota: {}, abertasValorPorCota: {}, adicionaisAbertos: {}, abertosSemValor: 0 };
   // Linha de cota: cota pelo nome; sem cota, adicional ou "outros".
   const keyOf = (l: DealProductRow, nome: string) => quotaOfProduct(nome, config.quotas)?.key ?? (isAddonProduct(nome, l.variation_pd_id != null) ? ADDONS_KEY : "");
   const nameOf = (l: DealProductRow) => (l.product_pd_id != null ? byId.get(l.product_pd_id)?.name : null) ?? l.name ?? "Produto";
@@ -177,6 +179,7 @@ export function computeSponsorship(
       for (const l of own) {
         const k = keyOf(l, nameOf(l));
         out.abertasPorCota[k] = (out.abertasPorCota[k] ?? 0) + (Number(l.quantity) || 0);
+        out.abertasValorPorCota[k] = (out.abertasValorPorCota[k] ?? 0) + (Number(l.sum) || 0);
         if (k === ADDONS_KEY) {
           const item = itemOf(l) ?? "";
           const a = (out.adicionaisAbertos[item] ??= { quantidade: 0, valor: 0 });
@@ -198,6 +201,8 @@ export interface QuotaRow {
   vagas: number | null;
   restantes: number | null;
   emNegociacao: number;
+  // Valor (R$) da cota em negócios abertos.
+  valorNegociacao: number;
   receita: number;
   precoMedio: number | null;
 }
@@ -217,6 +222,7 @@ export function quotaBreakdown(m: SponsorshipMetrics, quotas: Quota[], quotaGoal
       vagas,
       restantes: vagas != null ? Math.max(vagas - vendidas, 0) : null,
       emNegociacao: m.abertasPorCota[key] ?? 0,
+      valorNegociacao: m.abertasValorPorCota[key] ?? 0,
       receita,
       precoMedio,
     };

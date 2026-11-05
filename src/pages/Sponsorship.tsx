@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { eventGoal } from "@/lib/goalMetrics";
 import { parseCoupon } from "@/lib/coupons";
-import { EMPTY_DRAFT, INFO_FIELDS, isEventProduct, mappingFromCrm, quotaOfProduct, quotasFromCatalog, type SponsorshipDraft } from "@/lib/sponsorship";
+import { EMPTY_DRAFT, FEATURES, HIDDEN_INFO_KEYS, isEventProduct, visibleInfoFields, mappingFromCrm, quotaOfProduct, quotasFromCatalog, type SponsorshipDraft } from "@/lib/sponsorship";
 import {
   EXAMPLE_GOALS,
   SPONSOR_GOAL_KEYS,
@@ -158,7 +158,7 @@ export default function Sponsorship() {
     const wonReal = exemplo ? [] : [...new Set(m.vendas.map((v) => v.dealId))].map((id) => dealsById.get(id)!).filter(Boolean);
     const status = fieldStatuses(realConfig, wonReal, exemplo ? new Map() : orgs);
     const statusOf = (k: string) => status.find((s) => s.key === k);
-    const columns: SalesColumn[] = SALES_FIELD_COLUMNS.filter((c) => cfg.field_mapping[c.key]).map((c) => ({
+    const columns: SalesColumn[] = SALES_FIELD_COLUMNS.filter((c) => cfg.field_mapping[c.key] && !HIDDEN_INFO_KEYS.includes(c.key)).map((c) => ({
       ...c,
       value: (v) => {
         const ref = cfg.field_mapping[c.key];
@@ -209,7 +209,7 @@ export default function Sponsorship() {
   const semanal = useMemo(() => weeklySeries(view.m, { inicio, abertura, hoje, meta: view.goals.ampliada, anterior: view.curva }), [view, inicio, abertura, hoje]);
   const diasAntes = Math.max(Math.round((Date.parse(`${abertura}T12:00:00Z`) - Date.parse(`${hoje}T12:00:00Z`)) / 86400000), 0);
   const vendidoAnterior = view.curva ? view.curva(diasAntes) : null;
-  const pendentes = view.status.filter((s) => s.state !== "ok");
+  const pendentes = view.status.filter((s) => s.state !== "ok" && !HIDDEN_INFO_KEYS.includes(s.key));
 
   // Lê a conta do Pipedrive de novo e guarda os campos: campo criado no CRM ativa a parte da página que depende dele
   // e o aviso some (quando também estiver preenchido nas vendas).
@@ -274,6 +274,9 @@ export default function Sponsorship() {
                   abertosSemValor={view.m.abertosSemValor}
                   goals={view.goals}
                   anterior={vendidoAnterior}
+                  anteriorTotal={view.curva ? view.curva(-100000) : null}
+                  semanas={semanal.semanas}
+                  lastSync={exemplo ? null : data.data?.lastSync ?? null}
                   exemplo={exemplo}
                 />
                 <SponsorQuotasCard className="col-span-12 lg:col-span-5" rows={quotaRows} cotasAnterior={view.cotasAnterior} />
@@ -295,22 +298,24 @@ export default function Sponsorship() {
                   abertosSemValor={view.m.abertosSemValor}
                   evolucao={view.evolucao}
                 />
-                <SponsorRenewalCard
-                  className="col-span-12 lg:col-span-5"
-                  rows={view.renov}
-                  rotuloAnterior={rotuloAnterior}
-                  cotaAnteriorFalta={view.renov.length > 0 && view.renov.every((r) => !r.cotaAnterior)}
-                  oficial={view.oficial}
-                />
+                <div className="col-span-12 flex flex-col gap-[14px] lg:col-span-5">
+                  <SponsorRenewalCard
+                    rows={view.renov}
+                    rotuloAnterior={rotuloAnterior}
+                    cotaAnteriorFalta={view.renov.length > 0 && view.renov.every((r) => !r.cotaAnterior)}
+                    oficial={view.oficial}
+                  />
+                  <SponsorAddonsCard className="flex-1" {...view.adicionais} />
+                </div>
                 <SponsorReceiptsCard
-                  className="col-span-12 lg:col-span-7"
+                  className="col-span-12"
                   data={view.receb}
                   vendido={view.m.vendido}
                   metaPorAno={view.receiptGoals}
-                  campos={[view.statusOf("installments_count"), view.statusOf("first_due_date"), view.statusOf("payment_method")]}
-                  semParcelasNoCrm={view.semParcelas}
+                  campos={[]}
+                  semParcelasNoCrm={false}
                 />
-                <SponsorAddonsCard className="col-span-12 lg:col-span-5" {...view.adicionais} />
+                {FEATURES.entregas && (
                 <SponsorDeliveriesCard
                   className="col-span-12"
                   rows={view.entregas}
@@ -319,6 +324,7 @@ export default function Sponsorship() {
                   hoje={hoje}
                   campos={[view.statusOf("deliveries"), view.statusOf("brand")]}
                 />
+                )}
                 <SponsorSalesCard
                   className="col-span-12"
                   metrics={view.m}
@@ -338,7 +344,7 @@ export default function Sponsorship() {
                         />
                       </CardTitle>
                       <p className="text-xs text-muted-foreground">
-                        {pendentes.length} de {INFO_FIELDS.length} informações pendentes. Cada card também mostra o aviso do que depende dele.
+                        {pendentes.length} de {visibleInfoFields().length} informações pendentes. Cada card também mostra o aviso do que depende dele.
                         {realConfig.crm_read.read_at && ` Campos conferidos em ${new Date(realConfig.crm_read.read_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}.`}
                       </p>
                       </div>

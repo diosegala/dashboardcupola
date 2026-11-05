@@ -7,6 +7,7 @@ import { InfoTip } from "@/components/InfoTip";
 import type { SaleLine, SponsorshipMetrics } from "@/lib/sponsorshipMetrics";
 import type { FieldStatus } from "@/lib/sponsorshipExtra";
 import { CrmWarning } from "./parts";
+import { HIDDEN_INFO_KEYS } from "@/lib/sponsorship";
 import { cn } from "@/lib/utils";
 import { brl } from "./SponsorRevenueCard";
 
@@ -57,7 +58,6 @@ export function SponsorSalesCard({ metrics, account, columns = [], campos = [], 
   const [aberto, setAberto] = useState(false);
   const vendas = [...metrics.vendas].sort((a, b) => b.ganhoEm.localeCompare(a.ganhoEm) || b.valor - a.valor);
   const link = (id: string) => (account ? `https://${account}.pipedrive.com/deal/${id}` : null);
-  const semProduto = metrics.ganhosSemProduto;
 
   return (
     <Card className={className}>
@@ -77,31 +77,7 @@ export function SponsorSalesCard({ metrics, account, columns = [], campos = [], 
       </CardHeader>
       {aberto && (
         <CardContent className="space-y-4">
-          {semProduto.length > 0 && (
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-warn-bg/60 px-3 py-2 text-xs text-foreground/80">
-              <span className="inline-flex items-center gap-1.5 font-medium">
-                {semProduto.length} {semProduto.length === 1 ? "negócio ganho sem produto do evento" : "negócios ganhos sem produto do evento"}
-                <InfoTip title="Ganho sem produto" text={SALES_INFO.semProduto} />
-              </span>
-              <span className="text-muted-foreground">·</span>
-              {semProduto.map((g, i) => {
-                const href = link(g.pipedriveDealId);
-                return (
-                  <span key={g.pipedriveDealId}>
-                    {href ? (
-                      <a href={href} target="_blank" rel="noreferrer" className="underline-offset-2 hover:underline">
-                        {g.empresa}
-                      </a>
-                    ) : (
-                      g.empresa
-                    )}
-                    {i < semProduto.length - 1 && ","}
-                  </span>
-                );
-              })}
-            </div>
-          )}
-          <CrmWarning fields={campos.filter((c) => c && c.state !== "ok")} />
+          <CrmWarning fields={campos.filter((c) => c && c.state !== "ok" && !HIDDEN_INFO_KEYS.includes(c.key))} />
           {vendas.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma venda nesta edição ainda.</p>
           ) : (

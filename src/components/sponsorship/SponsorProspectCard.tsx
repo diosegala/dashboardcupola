@@ -9,16 +9,17 @@ import { BarList, CrmWarning, DetailsToggle, MiniStat, brlShort, int, pct } from
 
 export const PROSPECT_INFO = {
   card: "Empresas e valor em cada etapa do funil do evento, na ordem do Pipedrive. Conversão = ganhos ÷ negócios que saíram da primeira etapa. Etapa travada = mediana de dias acima do limite da etapa (sem limite, 14 dias).",
-  etapas: "Negócios abertos em cada etapa do funil e o valor deles. Ganhos e perdidos vêm do status do negócio.",
-  conversao: "Quantos negócios chegaram até cada etapa (estão nela ou já passaram por ela). Perdidos contam até a etapa em que pararam.",
-  tempo: "Mediana de dias que os negócios abertos estão parados na etapa atual, desde a última mudança de etapa. Acima do limite da etapa (sem limite, 14 dias), a etapa fica travada.",
+  etapas: "Quantos negócios abertos estão em cada etapa do funil agora. A barra é a parte dos negócios abertos que está naquela etapa.",
+  conversao: "Quantos negócios chegaram até cada etapa, separados em quem seguiu (está nela, passou dela ou ganhou) e quem foi perdido nela. Ganho e perdido nunca se misturam.",
+  tempo: "Há quantos dias, em geral, os negócios abertos estão na etapa em que estão (o valor do meio: metade está há menos tempo, metade há mais). O risco é o limite de dias da etapa no Pipedrive; sem limite, 14 dias. Passou do limite, a parte que passou fica laranja.",
   evolucao: "Valor em negociação dia a dia: a soma do valor dos produtos do evento nos negócios abertos naquele dia. Mostra a negociação subindo conforme os vendedores colocam o valor proposto no Pipedrive. Conta a partir do dia em que o histórico começou a ser guardado.",
   motivos: "Motivo de perda dos negócios perdidos nesta edição. Perda sem motivo não ensina nada à oferta: o guia de motivos de perda da CUPOLA pede motivo em toda perda e sem motivos genéricos.",
   responsavel: "Filtra a prospecção pelo responsável do negócio no Pipedrive (closer ou SDR dono do negócio).",
   abordadas: "Empresas com negócio no funil nesta edição: abertas agora, ganhas e perdidas no período da edição.",
   emNegociacao: "Negócios abertos no funil, com o valor dos negócios.",
   quentes: "Negócios abertos com a etiqueta de temperatura quente no Pipedrive.",
-  ganhosPerdidos: "Negócios ganhos e perdidos nesta edição.",
+  ganhos: "Negócios ganhos nesta edição, com produto do evento. Conversão = ganhos ÷ negócios que saíram da primeira etapa.",
+  perdidos: "Negócios perdidos nesta edição. Perda sem motivo não ensina nada à oferta.",
   conversaoStat: "Ganhos ÷ negócios que saíram da primeira etapa.",
 };
 
@@ -80,7 +81,7 @@ export function SponsorProspectCard({ data, responsavel, onResponsavel, metaAbor
         />
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           <MiniStat
             label="Abordadas"
             value={int(data.abordadas)}
@@ -95,46 +96,121 @@ export function SponsorProspectCard({ data, responsavel, onResponsavel, metaAbor
             sub={data.quentes == null ? "Sem etiqueta de temperatura" : undefined}
             tone={data.quentes == null ? "warn" : undefined}
           />
+          <MiniStat label="Ganhos" value={int(data.ganhos)} info={PROSPECT_INFO.ganhos} sub={data.conversao != null ? `Conversão de ${pct(data.conversao)}` : undefined} tone="ok" />
           <MiniStat
-            label="Ganhos e perdidos"
-            value={`${int(data.ganhos)} · ${int(data.perdidos)}`}
-            info={PROSPECT_INFO.ganhosPerdidos}
-            sub={data.conversao != null ? `Conversão de ${pct(data.conversao)}` : undefined}
+            label="Perdidos"
+            value={int(data.perdidos)}
+            info={PROSPECT_INFO.perdidos}
+            sub={data.perdidos ? `${int(data.perdidosSemMotivo)} sem motivo` : undefined}
+            tone={data.perdidosSemMotivo > 0 ? "warn" : undefined}
           />
         </div>
 
         {aba === "etapas" && (
-          <BarList
-            items={data.etapas.map((e) => ({ key: String(e.id), label: e.nome, value: e.abertos, text: int(e.abertos), sub: e.abertos ? brlShort(e.valor) : undefined }))}
-            empty="O funil do evento ainda não tem etapas lidas do Pipedrive."
-          />
+          <div className="space-y-4">
+            {data.etapas.length === 0 && <p className="text-sm text-muted-foreground">O funil do evento ainda não tem etapas lidas do Pipedrive.</p>}
+            {data.etapas.map((e) => {
+              const total = Math.max(data.emNegociacao, 1);
+              return (
+                <div key={e.id} className="space-y-1">
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-medium">{e.nome}</span>
+                    <span className="shrink-0 font-semibold tabular-nums">
+                      {int(e.abertos)} <span className="font-normal text-muted-foreground">{e.abertos === 1 ? "negócio" : "negócios"}</span>
+                    </span>
+                  </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                    <div className="sp-grow h-full bg-primary" style={{ width: `${(e.abertos / total) * 100}%` }} />
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {pct(e.abertos / total)} dos negócios abertos{e.valor > 0 ? ` · ${brlShort(e.valor)} em negociação` : ""}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         )}
         {aba === "conversao" && (
-          <BarList
-            color="bg-data-blue"
-            items={data.etapas.map((e, i) => ({
-              key: String(e.id),
-              label: e.nome,
-              value: e.chegaram,
-              text: int(e.chegaram),
-              sub: i > 0 && data.etapas[i - 1].chegaram > 0 ? `${pct(e.chegaram / data.etapas[i - 1].chegaram)} da etapa anterior` : undefined,
-            }))}
-          />
+          <div className="space-y-3">
+            <div className="flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <i className="h-2 w-3 rounded-full bg-data-blue" /> Seguiram
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <i className="h-2 w-3 rounded-full bg-bad" /> Perdidos nesta etapa
+              </span>
+            </div>
+            {data.etapas.map((e, i) => {
+              const max = Math.max(...data.etapas.map((x) => x.chegaram), 1);
+              const seguiram = Math.max(e.chegaram - e.perdidosAqui, 0);
+              const anterior = i > 0 ? data.etapas[i - 1].chegaram : null;
+              return (
+                <div key={e.id} className="space-y-1">
+                  <div className="flex items-baseline justify-between gap-3 text-sm">
+                    <span className="min-w-0 truncate font-medium">{e.nome}</span>
+                    <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+                      <b className="font-semibold text-foreground">{int(seguiram)}</b> seguiram
+                      {e.perdidosAqui > 0 && (
+                        <>
+                          {" "}· <b className="font-semibold text-bad">{int(e.perdidosAqui)}</b> {e.perdidosAqui === 1 ? "perdido" : "perdidos"}
+                        </>
+                      )}
+                    </span>
+                  </div>
+                  <div className="flex h-2 overflow-hidden rounded-full bg-secondary">
+                    <div className="sp-grow h-full bg-data-blue" style={{ width: `${(seguiram / max) * 100}%` }} />
+                    <div className="sp-grow h-full bg-bad/80" style={{ width: `${(e.perdidosAqui / max) * 100}%` }} />
+                  </div>
+                  {anterior != null && anterior > 0 && <div className="text-[11px] text-muted-foreground">{pct(e.chegaram / anterior)} da etapa anterior chegou aqui</div>}
+                </div>
+              );
+            })}
+          </div>
         )}
         {aba === "tempo" && (
-          <BarList
-            items={data.etapas
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-x-3 text-[11px] text-muted-foreground">
+              <span className="inline-flex items-center gap-1.5">
+                <i className="h-2 w-3 rounded-full bg-primary" /> Dentro do limite
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <i className="h-2 w-3 rounded-full bg-warn" /> Passou do limite
+              </span>
+              <span className="inline-flex items-center gap-1.5">
+                <i className="h-3 w-[2px] bg-foreground/60" /> Limite da etapa
+              </span>
+            </div>
+            {data.etapas.filter((e) => e.medianaDias != null).length === 0 && <p className="text-sm text-muted-foreground">Nenhum negócio aberto no funil.</p>}
+            {data.etapas
               .filter((e) => e.medianaDias != null)
-              .map((e) => ({
-                key: String(e.id),
-                label: e.nome,
-                value: e.medianaDias as number,
-                text: `${int(e.medianaDias as number)} dias`,
-                sub: `${e.travada ? "Travada: " : ""}limite de ${int(e.limiteDias)} dias · ${int(e.abertos)} abertos`,
-                tone: e.travada ? ("warn" as const) : undefined,
-              }))}
-            empty="Nenhum negócio aberto no funil."
-          />
+              .map((e, _, lista) => {
+                const dias = e.medianaDias as number;
+                const max = Math.max(...lista.map((x) => Math.max(x.medianaDias as number, x.limiteDias)), 1);
+                const dentro = Math.min(dias, e.limiteDias);
+                const fora = Math.max(dias - e.limiteDias, 0);
+                return (
+                  <div key={e.id} className="space-y-1">
+                    <div className="flex items-baseline justify-between gap-3 text-sm">
+                      <span className="min-w-0 truncate font-medium">{e.nome}</span>
+                      <span className="shrink-0 font-semibold tabular-nums">
+                        {int(dias)} <span className="font-normal text-muted-foreground">{dias === 1 ? "dia" : "dias"}</span>
+                      </span>
+                    </div>
+                    <div className="relative flex h-2 overflow-visible rounded-full bg-secondary">
+                      <div className="sp-grow h-full rounded-l-full bg-primary" style={{ width: `${(dentro / max) * 100}%` }} />
+                      <div className="sp-grow h-full rounded-r-full bg-warn" style={{ width: `${(fora / max) * 100}%` }} />
+                      <span className="absolute -top-1 h-4 w-[2px] rounded-full bg-foreground/60" style={{ left: `calc(${(e.limiteDias / max) * 100}% - 1px)` }} />
+                    </div>
+                    <div className={e.travada ? "text-[11px] text-warn" : "text-[11px] text-muted-foreground"}>
+                      {e.travada
+                        ? `Parada demais: os negócios estão aqui há ${int(dias)} dias, em geral. O limite é ${int(e.limiteDias)}.`
+                        : `Os negócios estão aqui há ${int(dias)} ${dias === 1 ? "dia" : "dias"}, em geral. O limite é ${int(e.limiteDias)}.`}{" "}
+                      {int(e.abertos)} {e.abertos === 1 ? "negócio aberto" : "negócios abertos"}.
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
         )}
         {aba === "evolucao" && (
           <div className="space-y-3">

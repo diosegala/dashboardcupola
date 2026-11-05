@@ -310,6 +310,27 @@ export const DEFAULT_DELIVERABLES: Deliverable[] = [
   { key: "estande", name: "Escolha do estande", days_before_event: null },
 ];
 
+// ---------- partes da página ligadas ou desligadas ----------
+// Entregas (contrapartidas por patrocinador) ficou desligado em 05/11/2026: a planilha tinha as colunas, mas
+// ninguém usava e o significado não estava claro. O código fica pronto para religar trocando para true.
+export const FEATURES = { entregas: false } as const;
+// Informações do CRM que só servem a partes desligadas: não aparecem na configuração nem nos avisos.
+// Também ficam fora: pagamento, contrato, assinatura e parcelas (virão do painel financeiro), SDR (é um cargo da
+// equipe, não um campo) e redes sociais (não são pendência agora).
+export const HIDDEN_INFO_KEYS: string[] = [
+  ...(FEATURES.entregas ? [] : ["deliveries", "brand"]),
+  "payment_method",
+  "installments_count",
+  "first_due_date",
+  "contract_status",
+  "payment_status",
+  "signing_date",
+  "sdr",
+  "instagram",
+  "linkedin",
+];
+export const visibleInfoFields = () => INFO_FIELDS.filter((i) => !HIDDEN_INFO_KEYS.includes(i.key));
+
 // ---------- mapeamento de campos do CRM ----------
 // Cada informação que a página usa, o tipo de campo esperado e as pistas para achar o campo certo:
 // pelo nome, pelo tipo e pelas opções.
