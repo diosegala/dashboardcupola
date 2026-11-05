@@ -38,6 +38,9 @@ export interface TeamRankingData {
   geral: VendedorGeral[];
 }
 
+// Aparece junto dos cupons da pessoa quando ela tem venda faturada no Pipedrive.
+export const FATURADO_LABEL = "Faturado interno";
+
 // Posição com empate: quem tem as mesmas vendas fica na mesma colocação.
 export const posicaoDe = <T extends { vendas: number }>(ranking: T[], v: T) => 1 + ranking.filter((x) => x.vendas > v.vendas).length;
 
@@ -55,12 +58,16 @@ export function buildTeamRanking(paying: Ticket[]): TeamRankingData {
       ultimaVenda = t.sold_at ?? "";
       loteAtual = lote;
     }
+    // Quem vendeu: o cupom da equipe na Sympla ou, no faturado interno, o "ID da fonte do canal" do negócio no Pipedrive.
+    // Os dois caminhos usam o primeiro nome, então o faturado da Suelen soma no mesmo total do cupom SUELEN5.
     const c = parseCoupon(t.coupon_code);
-    if (c?.group !== "equipe") return;
-    const nome = teamMemberName(c.code);
+    const faturado = t.source === "pipedrive";
+    if (faturado ? !t.seller_name : c?.group !== "equipe") return;
+    const nome = faturado ? (t.seller_name as string) : teamMemberName(c!.code);
+    const marca = faturado ? FATURADO_LABEL : c!.code;
     const pessoas = porLote.get(lote) ?? new Map<string, Vendedor>();
     const v = pessoas.get(nome) ?? { nome, cupons: [], vendas: 0, receita: 0, recentes: 0 };
-    if (!v.cupons.includes(c.code)) v.cupons.push(c.code);
+    if (!v.cupons.includes(marca)) v.cupons.push(marca);
     v.vendas += t.quantity || 0;
     v.receita += Number(t.total_price || 0);
     if ((t.sold_at ?? "") >= limiteRecente) v.recentes += t.quantity || 0;
@@ -120,9 +127,13 @@ export function findMe(data: TeamRankingData, meusCupons: string[], nomePerfil: 
   data.lotes.forEach((l) => l.ranking.forEach((v) => pessoas.set(v.nome, [...new Set([...(pessoas.get(v.nome) ?? []), ...v.cupons])])));
   if (meusCupons.length > 0) {
     const achada = Array.from(pessoas.entries()).find(([, cupons]) => cupons.some((c) => meusCupons.includes(c)));
+    // O cupom cadastrado não vendeu ainda, mas a pessoa pode ter faturado: procura pelo nome do cupom.
+    const peloNome = !achada && pessoas.has(teamMemberName(meusCupons[0]));
+    if (peloNome) return { nome: teamMemberName(meusCupons[0]), cupons: meusCupons };
     return { nome: achada?.[0] ?? teamMemberName(meusCupons[0]), cupons: meusCupons };
   }
-  const primeiro = sem((nomePerfil ?? "").trim().split(/\s+/)[0] ?? "");
+  // O nome do perfil pode ser o e-mail (suelen.moreira@cupola.com.br): o primeiro nome é o que vem antes do ponto.
+  const primeiro = sem((nomePerfil ?? "").trim().split(/[\s.@_]+/)[0] ?? "");
   const candidatos = primeiro ? Array.from(pessoas.entries()).filter(([nome]) => sem(nome) === primeiro) : [];
   return candidatos.length === 1 ? { nome: candidatos[0][0], cupons: candidatos[0][1] } : null;
 }
@@ -384,7 +395,7 @@ export function TeamStanding({ data, eu, eventName }: { data: TeamRankingData; e
   const pos = minha ? posicaoDe(ranking, minha) : null;
   const lider = ranking[0];
   const vitorias = eu ? data.campeoes.find((c) => c.nome === eu.nome)?.lotes.length ?? 0 : 0;
-  const cupom = eu?.cupons[0];
+  const cupom = eu?.cupons.find((c) => c !== FATURADO_LABEL);
 
   // Quanto falta para passar a pessoa logo acima (ou o líder, se já estiver perto).
   const acima = minha ? [...ranking].reverse().find((v) => v.vendas > minha.vendas) : undefined;

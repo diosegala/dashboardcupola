@@ -25,12 +25,18 @@ export interface Ticket {
   company_size?: string | null;
   payment_method?: string | null;
   utm_source?: string | null;
+  // Faturados internamente vêm do Pipedrive (negócio ganho); o resto vem da Sympla.
+  source?: "sympla" | "pipedrive";
+  seller?: string | null;
+  seller_name?: string | null;
+  deal_id?: string;
+  deal_title?: string | null;
 }
 
 const qty = (t: Ticket) => t.quantity || 0;
 const dayKey = (d: Date) => format(d, "yyyy-MM-dd");
 
-// Separa as vendas aprovadas em pagos na Sympla, faturados (cupom FATURADO) e bonificados (cortesias, credenciais, gratuitos).
+// Separa as vendas aprovadas em pagos na Sympla, faturados (negócios ganhos no Pipedrive) e bonificados (cortesias, credenciais, gratuitos).
 export function splitTickets(tickets: Ticket[]) {
     const approved = tickets.filter((t) => isApproved(t.status));
     const cat = (t: Ticket) => ticketCategory(t);

@@ -19,7 +19,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagos na Sympla":
     "Pedidos aprovados na Sympla com qualquer valor acima de zero. Pendentes e cancelados não contam.",
   "Faturados internamente":
-    "Ingressos vendidos pelo comercial fora da Sympla e resgatados com cupom que começa com FATURADO. Passa a contar quando a Sympla enviar o cupom.",
+    "Ingressos vendidos pelo comercial fora da Sympla: negócios ganhos no Pipedrive com produto Ingressos Summit, pela quantidade e pelo valor do produto, na data em que o negócio foi ganho. O resgate na Sympla com cupom FATURADO não conta de novo.",
   Bonificados:
     "Ingressos aprovados sem valor: cortesias, expositores, patrocinadores, convidados e equipe. Ficam visíveis para controle de lotação, mas não somam na meta nem na receita.",
   "Ingressos pagantes":
@@ -44,7 +44,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes por forma de pagamento": "Como cada ingresso pagante foi pago na Sympla: cartão, boleto, Pix e outros.",
   "Pagantes por origem (UTM)": "Origem da venda pela UTM do link usado na compra (utm_source). Maiúsculas e minúsculas contam como o mesmo canal, e \"ig\" e \"instagram\" são juntados em Instagram. Ao lado de cada origem está o valor pago pelos ingressos. Vendas sem UTM não aparecem; embaixo, o card diz quantos ingressos pagantes têm UTM.",
   Cupons:
-    "Cupons usados nos ingressos emitidos, separados por grupo: Faturados (começam com FATURADO), Resgate (GANHADOR ou RESGATE), Palestrantes, Equipe CUPOLA (nome + 5, com 5% de desconto) e Parceiros e outros.",
+    "Cupons usados nos ingressos emitidos, separados por grupo: Faturados (negócios ganhos no Pipedrive, por vendedor), Resgate (GANHADOR ou RESGATE), Palestrantes, Equipe CUPOLA (nome + 5, com 5% de desconto) e Parceiros e outros.",
   "Ranking da equipe":
     "Pagantes vendidos com o cupom de cada pessoa da equipe CUPOLA, lote a lote. Na linha do tempo, o lote atual (o da venda mais recente) abre sozinho; os lotes anteriores podem ser consultados e os próximos aparecem esmaecidos. Os 3 primeiros ficam em destaque e Ver mais abre os demais. Passe o mouse no nome para ver o cupom.",
 

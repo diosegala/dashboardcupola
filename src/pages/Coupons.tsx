@@ -53,7 +53,11 @@ export default function Coupons() {
   const cupons = useMemo(() => {
     const map = new Map<string, CupomLinha>();
     [...paying, ...bonus].forEach((t) => {
-      const c = parseCoupon(t.coupon_code);
+      // Faturado interno (Pipedrive) não tem cupom: entra no grupo Faturados, uma linha por vendedor.
+      const c =
+        t.source === "pipedrive"
+          ? { code: `FATURADO · ${t.seller_name ?? "vendedor não informado"}`, discount: null, kind: "faturado" as const, group: "faturado" as const }
+          : parseCoupon(t.coupon_code);
       if (!c) return;
       const atual = map.get(c.code) ?? { ...c, uses: 0, receita: 0, desconto: 0 };
       atual.uses += t.quantity || 0;
@@ -86,10 +90,9 @@ export default function Coupons() {
     <div className="space-y-6">
       <PageHeader title="Cupons" description="Quem vende com cupom, quanto cada código rendeu e quanto foi abatido do preço." />
 
-      {/* Aviso discreto: remover quando as vendas faturadas internamente entrarem nesta página. */}
       <p role="status" className="flex items-start gap-2 text-xs leading-snug text-muted-foreground">
         <Info className="mt-px h-3.5 w-3.5 shrink-0" />
-        <span>Os números desta página vêm das vendas da Sympla. Estamos trabalhando para trazer também as vendas faturadas internamente.</span>
+        <span>Vendas da Sympla e faturados internamente (negócios ganhos no Pipedrive com ingresso do Summit). O faturado soma no ranking de quem está no campo "ID da fonte do canal" do negócio.</span>
       </p>
 
       {vendas.isLoading ? (
