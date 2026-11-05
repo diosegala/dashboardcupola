@@ -142,13 +142,20 @@ export function ShareBar({ items }: { items: { label: string; value: number; amo
   );
 }
 
+// Apelidos que valem o mesmo canal ("ig" ou "instagram" = Instagram, como no painel de vendas do Summit 2027).
+// Só entra aqui o que foi confirmado; o resto aparece como veio. Acrescentar conforme os valores reais do UTM.
+const CANAL_POR_APELIDO: Record<string, string> = { ig: "Instagram", instagram: "Instagram" };
+
 // UTM às vezes vem como códigos de letra ("(99,97,110,...)"): converte de volta para texto.
+// Maiúsculas, minúsculas e espaços sobrando não separam o mesmo canal ("Instagram" e "instagram " são um só).
 // Exportado também para o MarketingSection (card "Pagantes por origem (UTM)" vive na aba Marketing).
 export function utmLabel(v: string | null | undefined): string | null {
   const t = (v ?? "").trim();
   if (!t) return null;
   const codes = t.match(/^[({[]?\s*(\d{2,3}(?:\s*,\s*\d{2,3})+)\s*[)}\]]?$/);
-  return codes ? String.fromCharCode(...codes[1].split(",").map((n) => Number(n.trim()))) : t;
+  const texto = (codes ? String.fromCharCode(...codes[1].split(",").map((n) => Number(n.trim()))) : t).trim().replace(/\s+/g, " ").toLowerCase();
+  if (!texto) return null;
+  return CANAL_POR_APELIDO[texto] ?? texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
 export function SegmentCard({ title, items, className, share }: { title: string; items: { label: string; value: number; amount?: number }[]; className?: string; share?: boolean }) {
