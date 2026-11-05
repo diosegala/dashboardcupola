@@ -8,6 +8,13 @@
       "when": 1793130363110,
       "tag": "0000_restrict_integrations_and_goals_to_admins",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793920014717,
+      "tag": "0001_restrict_pipedrive_seller_reads",
+      "breakpoints": true
     }
   ]
 }
