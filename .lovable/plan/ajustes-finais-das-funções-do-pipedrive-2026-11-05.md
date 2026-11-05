@@ -16,4 +16,6 @@ Mantido como está (não refazer nem desfazer): remoção da chave de `copied_fr
 ## Detalhes técnicos
 
 - Antes do passo 8, ler `authorize` em `_shared/pipedrive.ts` para reproduzir exatamente cabeçalhos, formato do horário e origem do token (usando `pgcrypto` `hmac()` dentro do job). Se o token ainda não estiver salvo para alguma conta, o job pula essa conta e eu aviso.
-- O job é criado por SQL direto (não por migração), pois contém o endereço do projeto.
+- O job é criado por SQL direto (não por migração), pois contém o endereço do projeto.  
+  
+Aprovado. No job, não envie o cabeçalho `Authorization`, e mande no corpo só `crm_account` e `scheduled_at`, com o mesmo valor do cabeçalho `x-crm-time`.
