@@ -412,6 +412,50 @@ export type Database = {
           },
         ]
       }
+      deal_product_value_history: {
+        Row: {
+          changed_at: string
+          crm_account: string
+          deal_id: string
+          deal_product_pd_id: number
+          id: string
+          is_enabled: boolean
+          product_pd_id: number | null
+          quantity: number
+          sum: number
+        }
+        Insert: {
+          changed_at?: string
+          crm_account: string
+          deal_id: string
+          deal_product_pd_id: number
+          id?: string
+          is_enabled?: boolean
+          product_pd_id?: number | null
+          quantity?: number
+          sum?: number
+        }
+        Update: {
+          changed_at?: string
+          crm_account?: string
+          deal_id?: string
+          deal_product_pd_id?: number
+          id?: string
+          is_enabled?: boolean
+          product_pd_id?: number | null
+          quantity?: number
+          sum?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "deal_product_value_history_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deal_products: {
         Row: {
           comments: string | null
@@ -977,6 +1021,7 @@ export type Database = {
           event_id: string
           field_mapping: Json
           pipelines: Json
+          product_code: string | null
           product_rules: Json
           product_term: string | null
           quotas: Json
@@ -996,6 +1041,7 @@ export type Database = {
           event_id: string
           field_mapping?: Json
           pipelines?: Json
+          product_code?: string | null
           product_rules?: Json
           product_term?: string | null
           quotas?: Json
@@ -1015,6 +1061,7 @@ export type Database = {
           event_id?: string
           field_mapping?: Json
           pipelines?: Json
+          product_code?: string | null
           product_rules?: Json
           product_term?: string | null
           quotas?: Json
@@ -1027,13 +1074,6 @@ export type Database = {
           updated_by?: string | null
         }
         Relationships: [
-          {
-            foreignKeyName: "sponsorship_config_copied_from_event_id_fkey"
-            columns: ["copied_from_event_id"]
-            isOneToOne: false
-            referencedRelation: "events"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "sponsorship_config_event_id_fkey"
             columns: ["event_id"]
