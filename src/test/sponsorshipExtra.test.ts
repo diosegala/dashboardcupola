@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_DRAFT, type SponsorshipDraft } from "@/lib/sponsorship";
 import { computeSponsorship, type DealRow } from "@/lib/sponsorshipMetrics";
-import { deliveries, documentType, eventShare, fieldStatuses, fieldText, prospecting, receipts, renewals, valueEvolution } from "@/lib/sponsorshipExtra";
+import { deliveries, documentType, eventShare, renewalsFromHistory, fieldStatuses, fieldText, prospecting, receipts, renewals, valueEvolution } from "@/lib/sponsorshipExtra";
 
 // Configuração genérica de teste: nomes inventados, nada do código depende deles.
 const config: SponsorshipDraft = {
@@ -144,6 +144,18 @@ describe("evolução do valor em negociação", () => {
       { dia: "2026-11-04", valor: 30 },
     ]);
     expect(ev.mudancas).toEqual([{ dealId: "a", empresa: "Empresa a", de: 0, para: 30, em: "2026-11-02" }]);
+  });
+});
+
+describe("renovação pela planilha", () => {
+  it("reconhece a mesma empresa escrita de outro jeito no CRM", () => {
+    const hist = [
+      { data: "2025-10-01", empresa: "FLEXPRO SISTEMAS", produto: null, cota: "Prata", valor: 90, adicional: false },
+      { data: "2025-10-01", empresa: "ALPOP", produto: null, cota: "Bronze", valor: 50, adicional: false },
+    ];
+    const m = computeSponsorship(config, [], [], catalog, window);
+    const r = renewalsFromHistory(hist, m, [deal("x", { status: "open", won_at: null, org_name: "Flexpro" })]);
+    expect(Object.fromEntries(r.map((x) => [x.empresa, x.estado]))).toEqual({ "FLEXPRO SISTEMAS": "negociando", ALPOP: "sem_negocio" });
   });
 });
 

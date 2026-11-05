@@ -472,13 +472,17 @@ export function renewalsFromHistory(history: HistorySale[], m: SponsorshipMetric
     atual.set(k, a);
   }
   const abertos = new Set(openDeals.map((d) => chave(d.org_name || d.title)));
+  // A mesma empresa costuma vir escrita de jeitos diferentes na planilha e no CRM ("Flexpro Sistemas" e "Flexpro",
+  // "Auxiliadora Predial" e "Auxiliadora Predial - Porto Alegre"): vale quando um nome contém o outro.
+  const parecido = (a: string, b: string) => a === b || (Math.min(a.length, b.length) >= 5 && (a.includes(b) || b.includes(a)));
+  const achar = <T,>(mapa: Map<string, T>, k: string) => mapa.get(k) ?? [...mapa.entries()].find(([x]) => parecido(x, k))?.[1];
   for (const [k, r] of anteriores) {
-    const a = atual.get(k);
+    const a = achar(atual, k);
     if (a) {
       r.atual = a.valor;
       r.cotaAtual = a.cota;
       r.estado = a.valor > r.anterior * 1.005 ? "subiu" : a.valor < r.anterior * 0.995 ? "desceu" : "renovou";
-    } else r.estado = abertos.has(k) ? "negociando" : "sem_negocio";
+    } else r.estado = [...abertos].some((x) => parecido(x, k)) ? "negociando" : "sem_negocio";
   }
   return [...anteriores.values()].sort((a, b) => b.anterior - a.anterior);
 }
