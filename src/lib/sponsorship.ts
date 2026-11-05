@@ -328,6 +328,9 @@ export const HIDDEN_INFO_KEYS: string[] = [
   "sdr",
   "instagram",
   "linkedin",
+  // Origem: o campo certo é o "Canal de origem" do Pipedrive (campo padrão), que a sincronização ainda não guarda.
+  // Reutilizar esta mesma informação quando o canal chegar, em vez de criar outra.
+  "origin",
 ];
 export const visibleInfoFields = () => INFO_FIELDS.filter((i) => !HIDDEN_INFO_KEYS.includes(i.key));
 
@@ -368,6 +371,9 @@ const tokens = (s: string) => norm(s).split(/[^a-z0-9]+/).filter((t) => t.length
 // Quanto o campo parece responder à informação (0 = não serve).
 export function scoreField(info: InfoField, f: CrmField): number {
   if (f.active_flag === false || !info.types.includes(f.field_type)) return 0;
+  // Só campos personalizados: campos padrão do sistema (o Pipedrive marca com edit_flag = false), como "Origem"
+  // (como o negócio foi criado), não respondem às informações da planilha.
+  if (f.edit_flag === false) return 0;
   // Perguntas de formulário ("O empreendimento já tem nome, marca ou book?") não são o campo da informação.
   if (String(f.name ?? "").trim().endsWith("?")) return 0;
   const name = norm(f.name);
