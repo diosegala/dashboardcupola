@@ -43,7 +43,6 @@ export interface Ticket {
   // Faturado com Forma de pagamento "Bonificação / Permuta" e número de parcelas (quando parcelado).
   bonus?: boolean;
   installments?: number | null;
-  installments_count?: number | null;
 }
 
 const qty = (t: Ticket) => t.quantity || 0;

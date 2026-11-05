@@ -19,7 +19,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagos na Sympla":
     "Pedidos aprovados na Sympla com qualquer valor acima de zero. Pendentes e cancelados não contam.",
   "Faturados internamente":
-    "Ingressos vendidos pelo comercial fora da Sympla: negócios ganhos no Pipedrive com produto Ingressos Summit, pela quantidade e pelo valor do produto, na data em que o negócio foi ganho. O comercial só marca como ganho depois do contrato assinado ou da primeira parcela paga, então ganho conta como vendido, mesmo parcelado. Negócios abertos (negociação, fechamento) aparecem à parte e não contam. Forma de pagamento \"Bonificação / Permuta\" conta como bonificado. Parcelado só é indicado. O ano anterior não tem faturados internos. O resgate na Sympla (cupom de 100% com o nome da empresa, como COPAAZUL100) só dá baixa: não conta de novo.",
+    "Ingressos vendidos pelo comercial fora da Sympla: negócios ganhos no Pipedrive com produto Ingressos Summit, pela quantidade e pelo valor do produto, na data em que o negócio foi ganho. O comercial só marca como ganho depois do contrato assinado ou da primeira parcela paga, então ganho conta como vendido, mesmo parcelado. Negócios abertos (negociação, fechamento) aparecem à parte e não contam. Forma de pagamento \"Bonificação / Permuta\" conta como bonificado. Parcelado só é indicado. 2 ou mais ingressos Padrão no mesmo negócio contam como Grupo. O ano anterior não tem faturados internos. O resgate na Sympla (cupom de 100% com o nome da empresa, como COPAAZUL100) só dá baixa: não conta de novo.",
   Bonificados:
     "Ingressos aprovados sem valor: cortesias, expositores, patrocinadores, convidados e equipe. Ficam visíveis para controle de lotação, mas não somam na meta nem na receita.",
   "Ingressos pagantes":
@@ -41,7 +41,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes por região": "Região do comprador a partir do estado informado no formulário de inscrição da Sympla.",
   "Pagantes por perfil da empresa":
     "Perfil da empresa do comprador, informado no formulário de inscrição da Sympla. O formulário não pergunta o porte, então este é o dado mais próximo.",
-  "Pagantes por forma de pagamento": "Como cada ingresso pagante foi pago: cartão, boleto, Pix e outros. Soma a Sympla e os faturados internos (campo Forma de pagamento do negócio no Pipedrive; Hotmart conta junto). Passe o mouse em cada forma para ver quanto veio da Sympla e do faturamento interno; no cartão, a média de parcelas dos faturados (a Sympla não envia as parcelas).",
+  "Pagantes por forma de pagamento": "Como cada ingresso pagante foi pago: cartão, boleto, Pix e outros. Soma a Sympla e os faturados internos (campo Forma de pagamento do negócio no Pipedrive; Hotmart conta junto). Passe o mouse em cada forma para ver quanto veio da Sympla e do faturamento interno.",
   "Pagantes por origem (UTM)": "Origem da venda pela UTM do link usado na compra (utm_source). Maiúsculas e minúsculas contam como o mesmo canal, e \"ig\" e \"instagram\" são juntados em Instagram. Ao lado de cada origem está o valor pago pelos ingressos. Vendas sem UTM não aparecem; embaixo, o card diz quantos ingressos pagantes têm UTM.",
   Cupons:
     "Cupons usados nos ingressos emitidos, separados por grupo: Faturados (negócios ganhos no Pipedrive, por vendedor), Resgate (GANHADOR ou RESGATE), Palestrantes, Equipe CUPOLA (nome + 5, com 5% de desconto) e Parceiros e outros.",

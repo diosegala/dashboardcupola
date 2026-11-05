@@ -227,14 +227,6 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
       const daForma = paying.filter((t) => forma(t) === i.label);
       const interno = daForma.filter((t) => t.source === "pipedrive");
       const partes = interno.length ? [`${int(qtd(daForma) - qtd(interno))} Sympla · ${int(qtd(interno))} faturamento interno`] : [];
-      // Média de parcelas escolhidas pelo cliente: só nos faturados (a Sympla não envia o número de parcelas).
-      if (i.label === "Cartão de crédito") {
-        const negocios = new Map(interno.filter((t) => t.installments_count).map((t) => [t.deal_id, t.installments_count as number]));
-        if (negocios.size) {
-          const media = Array.from(negocios.values()).reduce((s, n) => s + n, 0) / negocios.size;
-          partes.push(`média de ${media.toLocaleString("pt-BR", { maximumFractionDigits: 1 })} parcelas nos faturados internos (${negocios.size} ${negocios.size === 1 ? "negócio" : "negócios"}); a Sympla não envia as parcelas`);
-        }
-      }
       return { ...i, amount: valores.get(i.label) ?? 0, detail: partes.join(" · ") || null };
     });
   }, [paying]);

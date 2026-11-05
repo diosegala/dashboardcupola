@@ -58,7 +58,7 @@ describe("faturados internos (Pipedrive)", () => {
       [],
       [],
     );
-    expect(vendas.map((v) => [v.ticket_type, v.quantity, v.total_price])).toEqual([["Pré-venda | Ingresso VIP", 2, 2000], ["Pré-venda | Ingresso Padrão", 5, 5000]]);
+    expect(vendas.map((v) => [v.ticket_type, v.quantity, v.total_price])).toEqual([["Pré-venda | Ingresso VIP", 2, 2000], ["Pré-venda | Grupo de Ingressos Padrão", 5, 5000]]);
   });
 
   it("corrige quantidade e preço trocados no produto (Copa Azul: 1775.65 x 3)", () => {
@@ -88,6 +88,10 @@ describe("faturados internos (Pipedrive)", () => {
     expect(couponForSeller("ISABELLE SALDANHA", equipe)).toBe("ISABELLE5");
     expect(couponForSeller("Aline Borges", equipe)).toBe("ALINEB5");
     expect(couponForSeller("Aline Pavezi", equipe)).toBe("ALINEPAVEZI5");
+    // "Indicação Rodrigo" conta para o Rodrigo; só "Indicação", sem nome, não conta para ninguém.
+    expect(couponForSeller("Indicação Rodrigo", [...equipe, "RODRIGO5"])).toBe("RODRIGO5");
+    expect(couponForSeller("Indicação", equipe)).toBeNull();
+    expect(sellerFirstName("Indicação")).toBeNull();
   });
 
   it("resgate na Sympla com o nome da empresa não duplica a venda", () => {

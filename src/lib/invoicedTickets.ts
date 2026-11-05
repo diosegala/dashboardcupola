@@ -179,6 +179,9 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
         ? tituloEmLinhas(titulo.itens, Number(d.value ?? 0))
         : itens.map(corrigeLinha);
       const trocados = !doTitulo && itens.some(linhaTrocada);
+      // 2 ou mais ingressos Padrão no mesmo negócio contam como Grupo, como o ingresso "2 a 5 Ingressos Padrão" da Sympla.
+      const padroes = linhas.filter((l) => ticketTypeName(l.name) === "Ingresso Padrão").reduce((s, l) => s + (Number(l.quantity) || 1), 0);
+      const tipoDe = (nome: unknown) => (ticketTypeName(nome) === "Ingresso Padrão" && padroes >= 2 ? "Grupo de Ingressos Padrão" : ticketTypeName(nome));
       const qtdProdutos = linhas.reduce((s, l) => s + (Number(l.quantity) || 1), 0);
       // Título e produtos com quantidades diferentes: conta pelos produtos e sinaliza para conferir.
       const conferir = doTitulo
@@ -205,13 +208,11 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
         bonus: bonificado,
         installments: parcelas && parcelas > 1 ? parcelas : null,
         payment_method: PAGAMENTO_CODIGO[opcao(d.custom_fields?.[CAMPO_PAGAMENTO])] ?? null,
-        // Parcelas escolhidas (1 = à vista), para a média no cartão de crédito.
-        installments_count: parcelas,
         coupon_code: null,
         // Na origem da venda (Marketing) o faturado aparece como venda direta: nem sempre é da equipe do ranking
         // (o site pede para grandes quantidades chamarem o comercial).
         utm_source: INVOICED_CHANNEL,
-        ticket_type: `${batchAt(quando, symplaSales)} | ${ticketTypeName(l.name)}`,
+        ticket_type: `${batchAt(quando, symplaSales)} | ${tipoDe(l.name)}`,
         seller: vendedor,
         seller_name: sellerFirstName(vendedor),
         company: d.org_name || titulo.empresa,
