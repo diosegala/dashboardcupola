@@ -44,8 +44,14 @@ describe("mapeamento de campos do CRM", () => {
     expect(map.instagram?.field_key).toBe("o5");
   });
 
-  it("acha a origem só pelas opções (Inbound e Outbound), mesmo com outro nome", () => {
-    expect(map.origin?.field_key).toBe("a1");
+  it("a origem vem só do Canal de origem do Pipedrive: \"Tipo de negócio\" (Inbound/Outbound) não vira origem", () => {
+    expect(map.origin).toBeUndefined();
+  });
+
+  it("ao ler a conta, o Canal de origem (campo padrão) vira a origem, lido de custom_fields.__channel", async () => {
+    const { mappingFromCrm } = await import("@/lib/sponsorship");
+    const m = mappingFromCrm([...dealFields, { key: "channel", name: "Canal de origem", field_type: "enum", edit_flag: false, options: opt("Carteira", "Site") }], []);
+    expect(m.origin).toMatchObject({ field_key: "__channel", name: "Canal de origem" });
   });
 
   it("um campo serve a uma informação só: Forma de pagamento não vira Status do pagamento", () => {
