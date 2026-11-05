@@ -83,6 +83,7 @@ export function IssuedTicketsCard({
   goal,
   emitidosAnterior,
   emitidosAtual,
+  quando = "na mesma data (aprovados)",
   className,
   goals = [],
   allTimeTickets = [],
@@ -96,6 +97,8 @@ export function IssuedTicketsCard({
   // Ingressos aprovados (pagos, faturados e cortesias) até hoje e no evento anterior na mesma data.
   emitidosAnterior?: number | null;
   emitidosAtual?: number;
+  // Texto da comparação: "na mesma data" no evento inteiro, "no mesmo período" com filtro.
+  quando?: string;
   className?: string;
 }) {
   const [visao, setVisao] = useState<"categoria" | "tipo" | "lote">("categoria");
@@ -204,7 +207,7 @@ export function IssuedTicketsCard({
             );
           })}
         </div>
-        <CompareLine className="md:col-span-2" anterior={emitidosAnterior} atual={emitidosAtual ?? 0} quando="na mesma data (aprovados)" />
+        <CompareLine className="md:col-span-2" anterior={emitidosAnterior} atual={emitidosAtual ?? 0} quando={quando} />
         {goal && Number(goal.target_value) > 0 && (
           <GoalMeter
             className="md:col-span-2"

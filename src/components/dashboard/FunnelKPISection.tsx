@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
+import { parseDay } from "@/lib/period";
 import {
   startOfWeek,
   endOfWeek,
@@ -80,9 +81,10 @@ function getWeeksInRange(from: Date, to: Date): WeekSlice[] {
   return weeks;
 }
 
+// Datas só com dia ("2026-05-01") valem no horário local; new Date() as leria como UTC e tiraria o primeiro dia do período.
 function isInRange(dateStr: string | null, from: Date, to: Date): boolean {
   if (!dateStr) return false;
-  const d = new Date(dateStr);
+  const d = parseDay(dateStr);
   return d >= from && d <= to;
 }
 

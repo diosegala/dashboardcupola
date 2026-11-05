@@ -48,10 +48,29 @@ function isPresetActive(range: DateRange, preset: { getRange: () => DateRange })
 export function PeriodSelector({ range, onChange }: PeriodSelectorProps) {
   const [open, setOpen] = useState(false);
   const [tempRange, setTempRange] = useState<DateRange>(range);
+  // No calendário, o primeiro clique sempre começa um período novo e o segundo fecha; sem isso o clique
+  // emendava no período anterior (escolher maio com novembro selecionado virava maio a novembro).
+  const [escolhendoFim, setEscolhendoFim] = useState(false);
 
   useEffect(() => {
     setTempRange(range);
   }, [range]);
+
+  useEffect(() => {
+    if (open) setEscolhendoFim(false);
+  }, [open]);
+
+  const handleDay = (day: Date) => {
+    if (!escolhendoFim) {
+      setTempRange({ from: startOfDay(day), to: endOfDay(day) });
+      setEscolhendoFim(true);
+      return;
+    }
+    const inicio = day < tempRange.from ? day : tempRange.from;
+    const fim = day < tempRange.from ? tempRange.from : day;
+    setTempRange({ from: startOfDay(inicio), to: endOfDay(fim) });
+    setEscolhendoFim(false);
+  };
 
   const handlePreset = (preset: { getRange: () => DateRange }) => {
     const r = preset.getRange();
@@ -66,20 +85,23 @@ export function PeriodSelector({ range, onChange }: PeriodSelectorProps) {
 
   const handleClear = () => {
     setTempRange(range);
+    setEscolhendoFim(false);
   };
+
+  const todoPeriodo = isPresetActive(range, presets[presets.length - 1]) || range.from.getFullYear() <= 2020;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="outline" className={cn("h-9 justify-start gap-2 rounded-full px-3.5 text-left text-xs font-medium")}>
           <CalendarIcon className="h-3.5 w-3.5" />
-          {format(range.from, "dd MMM", { locale: ptBR })} – {format(range.to, "dd MMM yyyy", { locale: ptBR })}
+          {todoPeriodo ? "Todo o período" : `${format(range.from, "dd MMM", { locale: ptBR })} – ${format(range.to, "dd MMM yyyy", { locale: ptBR })}`}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="end">
-        <div className="flex">
+      <PopoverContent className="w-auto max-h-[var(--radix-popover-content-available-height)] max-w-[calc(100vw-16px)] overflow-y-auto p-0" align="end" collisionPadding={8}>
+        <div className="flex flex-col sm:flex-row">
           {/* Presets */}
-          <div className="flex flex-col gap-0.5 p-3 border-r min-w-[160px]">
+          <div className="flex flex-row flex-wrap gap-0.5 border-b p-3 sm:min-w-[160px] sm:flex-col sm:flex-nowrap sm:border-b-0 sm:border-r">
             {presets.map((p) => (
               <Button
                 key={p.label}
@@ -97,10 +119,8 @@ export function PeriodSelector({ range, onChange }: PeriodSelectorProps) {
             <Calendar
               mode="range"
               selected={{ from: tempRange.from, to: tempRange.to }}
-              onSelect={(r) => {
-                if (r?.from && r?.to) setTempRange({ from: startOfDay(r.from), to: endOfDay(r.to) });
-                else if (r?.from) setTempRange({ from: startOfDay(r.from), to: endOfDay(r.from) });
-              }}
+              onSelect={(_, day) => day && handleDay(day)}
+              defaultMonth={tempRange.from.getFullYear() <= 2020 ? undefined : tempRange.from}
               numberOfMonths={2}
               locale={ptBR}
               className="p-3 pointer-events-auto"

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfMonth, endOfMonth, format, subYears } from "date-fns";
+import { withSaleDate } from "@/lib/period";
 
 export interface DateRange {
   from: Date;
@@ -9,6 +10,11 @@ export interface DateRange {
 
 export function getDefaultRange(): DateRange {
   return { from: startOfMonth(new Date()), to: endOfMonth(new Date()) };
+}
+
+// "Todo o período": de 2020 até hoje. Padrão da página Comercial, que mostra o evento inteiro até alguém filtrar.
+export function getWholeRange(): DateRange {
+  return { from: new Date(2020, 0, 1), to: new Date() };
 }
 
 function fmt(d: Date) {
@@ -25,7 +31,7 @@ export function useTicketSales(range: DateRange) {
         .gte("sold_at", range.from.toISOString())
         .lte("sold_at", range.to.toISOString());
       if (error) throw error;
-      return data ?? [];
+      return withSaleDate(data ?? []);
     },
   });
 }
@@ -109,7 +115,7 @@ async function fetchAllTimeTickets(eventId: string, columns: string) {
     if (data.length < pageSize) break;
     from += pageSize;
   }
-  return all;
+  return withSaleDate(all);
 }
 
 // Vendas do evento anterior guardadas na base própria. Vazio enquanto o evento atual for o próprio evento anterior.
@@ -131,7 +137,7 @@ export function usePreviousEventTickets(currentEventId: string, previousEventKey
         if (!data || data.length < 1000) break;
       }
       if (all.some((t) => t.event_id === currentEventId)) return [];
-      return all;
+      return withSaleDate(all);
     },
   });
 }

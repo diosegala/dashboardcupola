@@ -1,7 +1,8 @@
 import { PageHeader } from "@/components/PageHeader";
 import { Chip } from "@/components/Chip";
 import { goalsOfEvent, isEventClosed, useEvent } from "@/hooks/useEvent";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { coversWholeEvent, previousYear, ticketsInPeriod } from "@/lib/period";
 import { Skeleton } from "@/components/ui/skeleton";
 import { IntegrationsHealthCard } from "@/components/dashboard/IntegrationsHealthCard";
 import { CommercialOverview } from "@/components/dashboard/CommercialOverview";
@@ -14,7 +15,7 @@ import { FunnelKPISection } from "@/components/dashboard/FunnelKPISection";
 import { useAuth } from "@/hooks/useAuth";
 import {
   getDefaultRange,
-  useTicketSales,
+  getWholeRange,
   useAdMetrics,
   useEmailCampaigns,
   useSiteAnalytics,
@@ -34,6 +35,7 @@ const TITULOS: Record<PaginaDoPainel, { titulo: string; descricao: string }> = {
 };
 
 // O período escolhido vale para as duas páginas: trocar entre Comercial e Marketing não o reinicia.
+// Sem escolha, o Comercial abre no evento inteiro e o Marketing no mês atual.
 let periodoLembrado: DateRange | null = null;
 
 function TabSkeleton() {
@@ -55,7 +57,7 @@ function TabSkeleton() {
 // Comercial e Marketing são páginas próprias no menu lateral; cada uma mostra o conteúdo que antes ficava em uma aba.
 export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
   const { isAdmin } = useAuth();
-  const [range, setRangeState] = useState<DateRange>(() => periodoLembrado ?? getDefaultRange());
+  const [range, setRangeState] = useState<DateRange>(() => periodoLembrado ?? (pagina === "comercial" ? getWholeRange() : getDefaultRange()));
   const setRange = (r: DateRange) => {
     periodoLembrado = r;
     setRangeState(r);
@@ -66,7 +68,6 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
   const anterior = events.find((e) => e.slug === event.previous_event_slug);
   const rotuloAnterior = anterior ? anterior.name.match(/\b(20\d{2})\b/)?.[1] ?? anterior.end_date.slice(0, 4) : "";
   const currentEventId = event.sympla_event_id ?? "";
-  const tickets = useTicketSales(range);
   const adMetrics = useAdMetrics(range);
   const emailCampaigns = useEmailCampaigns(range);
   const siteAnalytics = useSiteAnalytics(range);
@@ -79,13 +80,18 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
   // Depois do último dia o evento fica "Encerrado"; as integrações continuam atualizando se trouxerem dados.
   const encerrado = isEventClosed(event);
   const eventGoals = goalsOfEvent(goals.data ?? [], event);
+  // Vendas do evento atual dentro do período (e o mesmo período do evento anterior, para comparar).
+  const todas = allTimeTickets.data ?? [];
+  const periodTickets = useMemo(() => ticketsInPeriod(todas, range), [todas, range]);
+  const previousPeriodTickets = useMemo(() => ticketsInPeriod(previousTickets.data ?? [], previousYear(range)), [previousTickets.data, range]);
+  const filtrado = !coversWholeEvent(range, todas);
   const eventParams = {
     eventDate: new Date(`${event.start_date ?? event.end_date}T00:00:00`),
   };
 
   // Cada página espera só os dados que usa; o cabeçalho aparece na hora.
-  const comercialLoading = eventLoading || tickets.isLoading || goals.isLoading || allTimeTickets.isLoading;
-  const marketingLoading = tickets.isLoading || goals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading || allTimeTickets.isLoading;
+  const comercialLoading = eventLoading || goals.isLoading || allTimeTickets.isLoading;
+  const marketingLoading = goals.isLoading || adMetrics.isLoading || emailCampaigns.isLoading || siteAnalytics.isLoading || ga4Events.isLoading || allTimeTickets.isLoading;
 
   const { titulo, descricao } = TITULOS[pagina];
 
@@ -109,8 +115,16 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
           <div className="animate-panel-in">
             {comercialLoading ? <TabSkeleton /> : (
               <div className="space-y-8">
-                <CommercialOverview tickets={allTimeTickets.data ?? []} goals={eventGoals} previousTickets={previousTickets.data ?? []} eventParams={eventParams} />
-                <CommercialSegments tickets={allTimeTickets.data ?? []} goals={eventGoals} />
+                <CommercialOverview
+                  tickets={todas}
+                  periodTickets={periodTickets}
+                  previousPeriodTickets={previousPeriodTickets}
+                  filtrado={filtrado}
+                  goals={eventGoals}
+                  previousTickets={previousTickets.data ?? []}
+                  eventParams={eventParams}
+                />
+                <CommercialSegments tickets={periodTickets} goals={eventGoals} />
               </div>
             )}
           </div>
@@ -122,7 +136,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
             <FunnelKPISection
               adMetrics={adMetrics.data ?? []}
               emailCampaigns={emailCampaigns.data ?? []}
-              tickets={tickets.data ?? []}
+              tickets={periodTickets}
               goals={eventGoals}
               range={range}
             />
@@ -136,7 +150,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
               previousSiteAnalytics={previousSiteAnalytics.data ?? []}
               goals={eventGoals}
               range={range}
-              tickets={allTimeTickets.data ?? []}
+              tickets={periodTickets}
             />
             </>}
           </div>
