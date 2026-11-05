@@ -102,7 +102,7 @@ async function allPages<T>(build: (from: number, to: number) => PromiseLike<{ da
 // empresas, usuários e parcelas. Tudo do banco do painel: o Pipedrive só preenche essas tabelas.
 export function useSponsorshipData(config: SponsorshipDraft | undefined) {
   const account = config?.crm_account ?? "";
-  const pipes = (config?.pipelines ?? []).map((p) => p.pipeline_pd_id);
+  const pipes = (config?.pipelines ?? []).filter((p) => p.represents !== "ingressos").map((p) => p.pipeline_pd_id);
   return useQuery({
     queryKey: ["sponsorship", "data", account, pipes.join(",")],
     enabled: !!account && pipes.length > 0,

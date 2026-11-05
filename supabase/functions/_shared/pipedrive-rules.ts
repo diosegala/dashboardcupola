@@ -10,6 +10,8 @@ export function accountDomain(value: unknown): string {
 export const normalized = (v: unknown) => String(v ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 export const matchesTerm = (row: Row, term: unknown) => Boolean(String(term ?? '').trim()) && [row.name, row.code].some(v => normalized(v).includes(normalized(term).trim()));
 export const pipelineIds = (config: Row): number[] => (Array.isArray(config.pipelines) ? config.pipelines : []).map((p: Row) => Number(p.pipeline_pd_id)).filter((id: number) => Number.isSafeInteger(id) && id > 0);
+// Funis marcados como de ingressos faturados: a sincronização lê só os negócios ganhos (e o que mudou neles).
+export const ticketPipelineIds = (config: Row): number[] => (Array.isArray(config.pipelines) ? config.pipelines : []).filter((p: Row) => p.represents === 'ingressos').map((p: Row) => Number(p.pipeline_pd_id)).filter((id: number) => Number.isSafeInteger(id) && id > 0);
 export const scalarId = (v: any): number | null => { const id = Number(typeof v === 'object' && v ? v.id ?? v.value : v); return Number.isSafeInteger(id) && id > 0 ? id : null; };
 export const labels = (v: any): string[] => (Array.isArray(v) ? v : v == null ? [] : [v]).map(String);
 export const customFields = (v: Row) => ({ ...Object.fromEntries(Object.entries(v).filter(([k]) => /^[a-f0-9]{40}$/i.test(k))), ...(v.custom_fields ?? {}) });

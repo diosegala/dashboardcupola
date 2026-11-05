@@ -43,7 +43,8 @@ export const PRODUCT_CLASSES = [
 // ---------- tipos da configuração ----------
 export interface PipelineLink {
   pipeline_pd_id: number;
-  represents: "cota" | "varias_cotas" | "outro";
+  // "ingressos": funil dos ingressos faturados internamente (só negócios ganhos); fica fora da tela de Patrocínios.
+  represents: "cota" | "varias_cotas" | "outro" | "ingressos";
   quota_key?: string | null;
   // Veio da edição anterior: o admin ainda precisa confirmar.
   suggested?: boolean;

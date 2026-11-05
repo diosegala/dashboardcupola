@@ -1,6 +1,6 @@
 import { z } from 'npm:zod@3';
 import { authorize, checked, configsFor, CrmWriter, errorResponse, json, PartialRun, PipedriveClient, PipedriveError, pipelineIds, preflight, resolveToken, saveRate, serverClient, type Row } from '../_shared/pipedrive.ts';
-import { isBusy, LOW_RATE_MESSAGE, matchesTerm, scalarId } from '../_shared/pipedrive-rules.ts';
+import { isBusy, LOW_RATE_MESSAGE, matchesTerm, scalarId, ticketPipelineIds } from '../_shared/pipedrive-rules.ts';
 const schema=z.object({crm_account:z.string().min(1).max(100).optional(),full:z.boolean().optional(),scheduled_at:z.string().datetime().optional()}).strict();
 async function runAccount(db:ReturnType<typeof serverClient>, account:string, configs:Row[], full:boolean, deadline:number) {
   const state=await checked(db.from('crm_sync_state').select('*').eq('crm_account',account).maybeSingle());
@@ -17,7 +17,7 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
     if(!work){
       const startDates=configs.map(c=>c.sales_window_start).filter(Boolean).sort();
       const fallback=new Date(); fallback.setUTCMonth(fallback.getUTCMonth()-18);
-      work={started,structure:full || !cursors.structure_at || Date.now()-Date.parse(cursors.structure_at)>86400000,phase:'structure',step:0,seen:[],pipeline:0,mode:0,since:(cursors.deals&&!full?new Date(Date.parse(cursors.deals)-120000).toISOString():new Date(`${startDates[0]??fallback.toISOString().slice(0,10)}T00:00:00Z`).toISOString()).replace(/\.\d{3}Z$/,'Z'),initial:!cursors.deals,pipelines:[...new Set(configs.flatMap(pipelineIds))],pending:[],leadMode:0}; cursors.work=work;
+      work={started,structure:full || !cursors.structure_at || Date.now()-Date.parse(cursors.structure_at)>86400000,phase:'structure',step:0,seen:[],pipeline:0,mode:0,since:(cursors.deals&&!full?new Date(Date.parse(cursors.deals)-120000).toISOString():new Date(`${startDates[0]??fallback.toISOString().slice(0,10)}T00:00:00Z`).toISOString()).replace(/\.\d{3}Z$/,'Z'),initial:!cursors.deals,pipelines:[...new Set(configs.flatMap(pipelineIds))],ticketPipelines:[...new Set(configs.flatMap(ticketPipelineIds))],fullSince:new Date(`${startDates[0]??fallback.toISOString().slice(0,10)}T00:00:00Z`).toISOString().replace(/\.\d{3}Z$/,'Z'),pending:[],leadMode:0}; cursors.work=work;
     }
     const checkpoint=async()=>saveRate(db,account,api as PipedriveClient,cursors);
     const guard=()=>{if(Date.now()>deadline-10000)throw new PartialRun(); if(api && api.rate.limit>0 && api.rate.remaining<api.rate.limit*.05)throw new PipedriveError(LOW_RATE_MESSAGE,503,429);};
@@ -56,10 +56,14 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
       }
       if(work.pageDone){delete work.pageDone;if(work.nextCursor!==undefined && work.nextCursor!==null)work.cursor=work.nextCursor;else{delete work.cursor;work.mode++;}delete work.nextCursor;await checkpoint();}
       if(work.pipeline>=work.pipelines.length){work.phase=work.pipelines.length?'leads':'pending';await checkpoint();break;}
-      const modes=work.initial?['open','all','deleted']:['all','deleted'];
+      // Funil de ingressos faturados (milhares de negócios, quase todos perdidos): só os ganhos na primeira leitura;
+      // depois, os ganhos, perdidos e excluídos alterados desde a última leitura, para um ganho desfeito sair da conta.
+      const ingressos=(work.ticketPipelines??[]).includes(work.pipelines[work.pipeline]);
+      const novoIngressos=ingressos&&!(cursors.ticket_done??[]).includes(work.pipelines[work.pipeline]);
+      const modes=ingressos?(novoIngressos?['won']:['won','lost','deleted']):work.initial?['open','all','deleted']:['all','deleted'];
       if(work.mode>=modes.length){work.pipeline++;work.mode=0;await checkpoint();continue;}
       const mode=modes[work.mode];
-      const page=await api.page('/api/v2/deals',{pipeline_id:work.pipelines[work.pipeline],...(mode!=='all'?{status:mode}:{}),...(mode!=='open'?{updated_since:String(work.since).replace(/\.\d{3}Z$/,'Z')}:{}),include_fields:'products_count,activities_count,next_activity_id',limit:100},work.cursor);
+      const page=await api.page('/api/v2/deals',{pipeline_id:work.pipelines[work.pipeline],...(mode!=='all'?{status:mode}:{}),...(mode!=='open'?{updated_since:String(novoIngressos&&work.fullSince?work.fullSince:work.since).replace(/\.\d{3}Z$/,'Z')}:{}),include_fields:'products_count,activities_count,next_activity_id',limit:100},work.cursor);
       // Stops before the next write; cursor stays on this page so replay is idempotent.
       const saved:Row[]=[];for(const r of page.rows){guard();saved.push(await writer.deal(mode==='deleted'?{...r,status:'deleted'}:r));}
       work.pending=saved.map(d=>d.pipedrive_deal_id);work.pageDone=true;work.nextCursor=page.next??null;await checkpoint();
@@ -72,6 +76,7 @@ async function runAccount(db:ReturnType<typeof serverClient>, account:string, co
     }
     guard();
     if(work.pipelines.length)cursors.deals=work.started;
+    if(work.ticketPipelines?.length)cursors.ticket_done=work.ticketPipelines;
     cursors.work=null;
     await saveRate(db,account,api,cursors,{last_success_at:new Date().toISOString(),last_error:null});
     return {account,...writer.stats,rate:api.rate};

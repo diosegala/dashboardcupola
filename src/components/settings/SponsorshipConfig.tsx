@@ -154,8 +154,9 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
     toast.success("Configuração copiada. Confira os funis marcados como sugestão e salve.");
   }
 
-  function toggleLink(id: number, on: boolean) {
-    set({ pipelines: on ? [...draft.pipelines, { pipeline_pd_id: id, represents: "varias_cotas" }] : draft.pipelines.filter((p) => p.pipeline_pd_id !== id) });
+  function toggleLink(id: number, on: boolean, represents: "varias_cotas" | "ingressos" = "varias_cotas") {
+    const outros = draft.pipelines.filter((p) => p.pipeline_pd_id !== id);
+    set({ pipelines: on ? [...outros, { pipeline_pd_id: id, represents }] : outros });
   }
 
   const otherEvents = events.filter((e) => e.id && e.id !== eventId);
@@ -213,12 +214,30 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
             ) : (
               <div className="grid gap-2 sm:grid-cols-2">
                 {pipelineRows.map((p) => {
-                  const link = draft.pipelines.find((l) => l.pipeline_pd_id === p.id);
+                  const link = draft.pipelines.find((l) => l.pipeline_pd_id === p.id && l.represents !== "ingressos");
                   return (
                     <label key={p.id} className="flex items-center gap-2.5 rounded-xl border px-3 py-2 text-sm">
                       <Checkbox checked={!!link} aria-label={`Usar o funil ${p.name}`} onCheckedChange={(v) => toggleLink(p.id, !!v)} />
                       <span className="font-medium">{p.name}</span>
                       {link?.suggested && <Chip variant="warn" className="ml-auto">Sugestão</Chip>}
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </Block>
+
+          <Block title="Funil dos ingressos faturados" info="Funil em que o comercial registra os ingressos vendidos fora da Sympla. Só os negócios ganhos são lidos; os que têm produto Ingressos Summit somam nas vendas, nos cupons e no ranking. Não aparece em Patrocínios.">
+            {pipelineRows.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Leia a conta do Pipedrive para listar os funis.</p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2">
+                {pipelineRows.map((p) => {
+                  const marcado = draft.pipelines.some((l) => l.pipeline_pd_id === p.id && l.represents === "ingressos");
+                  return (
+                    <label key={p.id} className="flex items-center gap-2.5 rounded-xl border px-3 py-2 text-sm">
+                      <Checkbox checked={marcado} aria-label={`Ler ingressos faturados do funil ${p.name}`} onCheckedChange={(v) => toggleLink(p.id, !!v, "ingressos")} />
+                      <span className="font-medium">{p.name}</span>
                     </label>
                   );
                 })}
