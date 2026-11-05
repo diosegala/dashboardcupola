@@ -1,4 +1,3 @@
-// @vitest-environment node
 import { execFileSync } from 'node:child_process';
 import { beforeAll, describe, expect, it } from 'vitest';
 
@@ -12,9 +11,9 @@ let results: Record<string, boolean | string>[];
 beforeAll(() => {
   policies = query(`SELECT tablename, permissive, cmd, qual, with_check FROM pg_policies WHERE schemaname='public' AND tablename IN (${tables.map(t => `'${t}'`).join(',')})`);
   const expression = (value: string | null) => (value ?? 'true')
-    .replaceAll("has_role(auth.uid(), 'admin'::app_role)", 'ctx.admin')
-    .replaceAll('is_seller()', 'ctx.seller')
-    .replaceAll('can_see_crm_account(crm_account)', 'ctx.allowed_account')
+    .split("has_role(auth.uid(), 'admin'::app_role)").join('ctx.admin')
+    .split('is_seller()').join('ctx.seller')
+    .split('can_see_crm_account(crm_account)').join('ctx.allowed_account')
     .replace(/FROM deals d/g, 'FROM fixture_deals d');
   const rules = tables.map(table => {
     const applicable = policies.filter(p => p.tablename === table && ['ALL', 'SELECT'].includes(p.cmd));
