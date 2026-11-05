@@ -76,6 +76,7 @@ function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
   const ganhos = tickets.filter((t) => ticketCategory(t) === "faturados").reduce((s, t) => s + qty(t), 0);
   const resgatados = tickets.filter((t) => ticketCategory(t) === "resgates").reduce((s, t) => s + qty(t), 0);
   const abertos = tickets.filter((t) => ticketCategory(t) === "negociacao");
+  const parcelados = new Set(tickets.filter((t) => ticketCategory(t) === "faturados" && t.installments).map((t) => t.deal_id)).size;
   const conferir = new Set(tickets.filter((t) => t.source === "pipedrive" && t.conferir).map((t) => t.deal_id)).size;
   if (!ganhos && !abertos.length) return null;
   const etapas = new Map<string, { ingressos: number; negocios: Set<string> }>();
@@ -90,7 +91,9 @@ function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
       {ganhos > 0 && (
         <p>
           <b className="font-semibold">Faturados internamente:</b> {int(ganhos)} ganhos no CRM, {int(resgatados)} já resgatados na Sympla.{" "}
-          <span className="text-muted-foreground">Ganho = contrato assinado ou primeira parcela paga.</span>
+          <span className="text-muted-foreground">
+            Ganho = contrato assinado ou primeira parcela paga.{parcelados > 0 && ` ${parcelados} ${parcelados === 1 ? "negócio parcelado" : "negócios parcelados"}.`}
+          </span>
         </p>
       )}
       {abertos.length > 0 && (

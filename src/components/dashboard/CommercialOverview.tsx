@@ -280,7 +280,9 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
               {temMeta ? "Pagantes acumulados x meta" : "Pagantes acumulados"} <InfoTip title={temMeta ? "Pagantes acumulados x meta" : "Pagantes acumulados"} />
               {filtrado && <EventoInteiro />}
             </CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">Semanas desde a primeira venda</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Semanas desde a primeira venda{mostrarAnterior && temInterno && " · ano anterior sem faturados internos (não há esse dado)"}
+            </p>
           </div>
           <ChartLegend
             items={[

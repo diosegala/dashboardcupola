@@ -19,7 +19,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagos na Sympla":
     "Pedidos aprovados na Sympla com qualquer valor acima de zero. Pendentes e cancelados não contam.",
   "Faturados internamente":
-    "Ingressos vendidos pelo comercial fora da Sympla: negócios ganhos no Pipedrive com produto Ingressos Summit, pela quantidade e pelo valor do produto, na data em que o negócio foi ganho. O comercial só marca como ganho depois do contrato assinado ou da primeira parcela paga, então ganho conta como vendido, mesmo parcelado. Negócios abertos (negociação, fechamento) aparecem à parte e não contam. O resgate na Sympla com cupom FATURADO não conta de novo.",
+    "Ingressos vendidos pelo comercial fora da Sympla: negócios ganhos no Pipedrive com produto Ingressos Summit, pela quantidade e pelo valor do produto, na data em que o negócio foi ganho. O comercial só marca como ganho depois do contrato assinado ou da primeira parcela paga, então ganho conta como vendido, mesmo parcelado. Negócios abertos (negociação, fechamento) aparecem à parte e não contam. Forma de pagamento \"Bonificação / Permuta\" conta como bonificado. Parcelado só é indicado. O ano anterior não tem faturados internos. O resgate na Sympla (cupom de 100% com o nome da empresa, como COPAAZUL100) só dá baixa: não conta de novo.",
   Bonificados:
     "Ingressos aprovados sem valor: cortesias, expositores, patrocinadores, convidados e equipe. Ficam visíveis para controle de lotação, mas não somam na meta nem na receita.",
   "Ingressos pagantes":

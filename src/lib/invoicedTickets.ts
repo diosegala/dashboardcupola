@@ -96,6 +96,18 @@ export function crmDiscountCoverage(tickets: { source?: string; status?: string 
 }
 export const CRM_DISCOUNT_HINT = "Preencha o desconto do produto no negócio do Pipedrive (percentual ou valor) para o desconto dos faturados entrar aqui.";
 
+// Campos do negócio no Pipedrive da CUPOLA (chave do campo e opções), lidos de custom_fields.
+// Forma de pagamento "Bonificação / Permuta" não é venda: o ingresso vira bonificado.
+const CAMPO_PAGAMENTO = "95a9b3af39e19647be9bb10201d833c81ec9b4a6";
+const PAGAMENTO_BONIFICACAO = 675;
+const CAMPO_PARCELAS = "7314c9175151684808ceb779af44fd5ced19902e";
+// Opções 680 (01) a 693 (14).
+const parcelasDe = (v: unknown) => {
+  const id = Number(typeof v === "object" && v ? (v as any).id ?? (v as any).value : v);
+  return id >= 680 && id <= 693 ? id - 679 : null;
+};
+const opcao = (v: unknown) => Number(typeof v === "object" && v ? (v as any).id ?? (v as any).value : v);
+
 // Canal dos faturados internos na origem da venda.
 export const INVOICED_CHANNEL = "Venda direta";
 
@@ -174,6 +186,8 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
       const ganho = d.status === "won";
       const quando = (ganho ? d.won_at : d.created_at_source) ?? d.created_at_source ?? "";
       const vendedor = String(d.custom_fields?.__channel_id ?? "").trim() || null;
+      const bonificado = opcao(d.custom_fields?.[CAMPO_PAGAMENTO]) === PAGAMENTO_BONIFICACAO;
+      const parcelas = parcelasDe(d.custom_fields?.[CAMPO_PARCELAS]);
       return linhas.map((l) => ({
         source: "pipedrive" as const,
         quantity: Number(l.quantity) || 1,
@@ -185,6 +199,9 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
         paid_at: null as string | null,
         status: ganho ? "approved" : "crm_open",
         stage_name: ganho ? null : d.stage_name ?? null,
+        // Bonificação / Permuta: não é venda, conta como bonificado. Parcelado: só indica, as datas ficam com o financeiro.
+        bonus: bonificado,
+        installments: parcelas && parcelas > 1 ? parcelas : null,
         coupon_code: null,
         // Na origem da venda (Marketing) o faturado aparece como venda direta: nem sempre é da equipe do ranking
         // (o site pede para grandes quantidades chamarem o comercial).
