@@ -1,4 +1,8 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+beforeAll(() => {
+  // jsdom's AbortSignal does not implement the server runtime timeout helper.
+  Object.defineProperty(AbortSignal, 'timeout', { configurable: true, value: () => new AbortController().signal });
+});
 import { accountDomain, isBusy, matchesTerm, pendingCandidates, retryDelay, safeFields, type Row } from '../../supabase/functions/_shared/pipedrive-rules';
 import { PipedriveClient } from '../../supabase/functions/_shared/pipedrive-client';
 const config={event_id:'event-a',product_term:'Edição',pipelines:[{pipeline_pd_id:12}],product_rules:[],stage_groups:{},sales_window_start:'2026-10-01',sales_window_end:'2026-11-30',events:{end_date:'2026-11-30'}};
