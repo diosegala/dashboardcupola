@@ -13,7 +13,7 @@ Deno.serve(async req=>{
     const pick=(r:Row,keys:string[])=>Object.fromEntries(keys.filter(k=>r[k]!==undefined).map(k=>[k,r[k]]));
     const pipelines=(await api.all('/api/v2/pipelines')).map(r=>pick(r,['id','name','order_nr','is_deleted']));
     const stages=(await api.all('/api/v2/stages')).map(r=>pick(r,['id','pipeline_id','name','order_nr','deal_probability','days_to_rotten']));
-    const products=(await api.all('/api/v2/products')).map(r=>({...pick(r,['id','name','code','is_deleted']),prices:(r.prices??[]).slice(0,1).map((p:Row)=>pick(p,['price','currency']))}));
+    const products:Row[]=(await api.all('/api/v2/products')).map(r=>({...pick(r,['id','name','code','is_deleted']),prices:(r.prices??[]).slice(0,1).map((p:Row)=>pick(p,['price','currency']))}));
     const variations:Row[]=[];
     for(const product of products.filter(p=>matchesTerm(p,parsed.data.product_term))) for(const v of await api.all(`/api/v2/products/${product.id}/variations`)) variations.push({...pick(v,['id','name','code','price','currency','is_deleted']),product_id:product.id});
     const deal_fields=safeFields(await api.all('/api/v1/dealFields'));
