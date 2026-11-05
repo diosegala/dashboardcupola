@@ -3,7 +3,7 @@ beforeAll(() => {
   // jsdom's AbortSignal does not implement the server runtime timeout helper.
   Object.defineProperty(AbortSignal, 'timeout', { configurable: true, value: () => new AbortController().signal });
 });
-import { accountDomain, isBusy, matchesTerm, pendingCandidates, retryDelay, safeFields, type Row } from '../../supabase/functions/_shared/pipedrive-rules';
+import { accountDomain, isBusy, matchesTerm, retryDelay, safeFields, type Row } from '../../supabase/functions/_shared/pipedrive-rules';
 import { PipedriveClient } from '../../supabase/functions/_shared/pipedrive-client';
 const config={event_id:'event-a',product_term:'Edição',pipelines:[{pipeline_pd_id:12}],product_rules:[],stage_groups:{},sales_window_start:'2026-10-01',sales_window_end:'2026-11-30',events:{end_date:'2026-11-30'}};
 const deal={id:'deal-a',pipedrive_deal_id:'21',pipeline_pd_id:12,status:'won',won_at:'2026-11-04T12:00:00Z',is_deleted:false};
@@ -13,11 +13,6 @@ describe('regras Pipedrive',()=>{
  it('bloqueia execução sobreposta por dez minutos',()=>{const now=Date.parse('2026-11-04T12:00:00Z');expect(isBusy({last_started_at:'2026-11-04T11:51:00Z',last_success_at:'2026-11-04T11:50:00Z'},now)).toBe(true);expect(isBusy({last_started_at:'2026-11-04T11:49:00Z'},now)).toBe(false);});
  it('repetições esperam 2, 4 e 8 segundos e respeitam Retry-After',()=>{expect([0,1,2].map(n=>retryDelay(n,null))).toEqual([2000,4000,8000]);expect(retryDelay(0,'12')).toBe(12000);});
  it('não envia opções de campos de pessoas, usuários ou empresas',()=>{for(const field_type of ['user','people','org'])expect(safeFields([{key:'a',field_type,options:[{id:1,label:'restrito'}]}])[0]).not.toHaveProperty('options');});
- it('não abre ganho sem produto sem início da janela',()=>{expect(pendingCandidates([{...config,sales_window_start:null}],[],[],[deal],[])).toEqual([]);});
- it('abre ganho sem produto apenas dentro da janela',()=>{expect(pendingCandidates([config],[],[],[deal],[]).map(p=>p.kind)).toEqual(['ganho_sem_produto']);expect(pendingCandidates([config],[],[],[{...deal,won_at:'2026-09-01'}],[])).toEqual([]);});
- it('produto ativo elimina condição de ganho sem produto',()=>{expect(pendingCandidates([config],[],[],[deal],[{deal_id:'deal-a',is_enabled:true}])).toEqual([]);});
- it('negócio aberto sem produto requer funil em mais de um evento',()=>{const open={...deal,status:'open'};expect(pendingCandidates([config],[],[],[open],[])).toEqual([]);expect(pendingCandidates([config,{...config,event_id:'event-b'}],[],[],[open],[]).filter(p=>p.kind==='aberto_sem_produto')).toHaveLength(2);});
- it('edição ambígua exige mesmo produto e janelas sobrepostas',()=>{const products=[{kind:'product',pd_id:1,name:'EDIÇÃO 2027',is_deleted:false}];const configs=[{...config,product_rules:[{product_pd_id:1}]},{...config,event_id:'event-b',product_rules:[{product_pd_id:1}]}];const lines=[{deal_id:deal.id,product_pd_id:1,is_enabled:true}];expect(pendingCandidates(configs,products,[],[deal],lines).filter(p=>p.kind==='edicao_ambigua')).toHaveLength(2);expect(pendingCandidates([configs[0],{...configs[1],sales_window_end:'2026-10-31'}],products,[],[deal],lines).filter(p=>p.kind==='edicao_ambigua')).toHaveLength(0);});
 });
 function reply(status=200,remaining=1000,data:Row={data:[],additional_data:{next_cursor:null}}){return new Response(JSON.stringify(data),{status,headers:{'x-daily-ratelimit-token-limit':'1000','x-daily-ratelimit-token-remaining':String(remaining)}});}
 describe('cliente somente leitura',()=>{

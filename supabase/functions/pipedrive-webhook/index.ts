@@ -1,5 +1,5 @@
 import { z } from 'npm:zod@3';
-import { avaliarPendencias, checked, configsFor, constantEqual, CrmWriter, errorResponse, json, PipedriveClient, PipedriveError, pipelineIds, preflight, resolveToken, saveRate, scalarId, serverClient, accountDomain, type Row } from '../_shared/pipedrive.ts';
+import { checked, configsFor, constantEqual, CrmWriter, errorResponse, json, PipedriveClient, PipedriveError, pipelineIds, preflight, resolveToken, saveRate, scalarId, serverClient, accountDomain, type Row } from '../_shared/pipedrive.ts';
 const envelope=z.object({meta:z.object({version:z.literal('2.0'),action:z.enum(['create','change','delete']),entity:z.string().max(64),entity_id:z.union([z.string().min(1).max(100),z.number().int().positive()]),timestamp:z.string().datetime().optional()}).passthrough(),data:z.record(z.unknown()).nullable().optional(),previous:z.record(z.unknown()).nullable().optional()}).passthrough();
 const entities=new Set(['deal','deal_product','deal_installment','product','stage','pipeline','organization','lead']);
 Deno.serve(async req=>{
@@ -66,7 +66,7 @@ Deno.serve(async req=>{
       if(meta.action==='delete')await checked(db.from('crm_leads').delete().eq('crm_account',account).eq('pd_lead_id',String(id)));
       else{const r=(await api.get(`/api/v1/leads/${id}`)).data;if(r)await writer.lead(r);}
     }
-    await avaliarPendencias(db,account);changes.last_webhook_at=new Date().toISOString();
+    changes.last_webhook_at=new Date().toISOString();
     if(writer.cursors.installments_api)changes.installments_api=writer.cursors.installments_api;
     return json({processado:true});
   }catch(e){

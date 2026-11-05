@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
-import { accountDomain, customFields, iso, labels, matchesTerm, pendingCandidates, pipelineIds, scalarId, type Row } from './pipedrive-rules.ts';
+import { accountDomain, customFields, iso, labels, matchesTerm, pipelineIds, scalarId, type Row } from './pipedrive-rules.ts';
 import { PipedriveClient, PipedriveError, PartialRun } from './pipedrive-client.ts';
 export { PipedriveClient, PipedriveError, PartialRun, accountDomain, pipelineIds, scalarId, matchesTerm };
 export type { Row };
@@ -186,20 +186,6 @@ export class CrmWriter {
     const org=orgId ? await checked(this.db.from('crm_organizations').select('name').eq('crm_account',this.account).eq('pd_id',orgId).maybeSingle()) : null;
     await this.upsert('crm_leads',[{crm_account:this.account,pd_lead_id:String(r.id),title:r.title,org_pd_id:orgId,org_name:org?.name ?? null,person_pd_id:scalarId(r.person_id),owner_pd_id:ownerId,owner_name:owner?.name ?? null,label_ids:labels(r.label_ids),source_name:r.source_name ?? null,is_archived:archived || r.is_archived === true,expected_close_date:r.expected_close_date || null,added_at:iso(r.add_time),updated_at_source:iso(r.update_time),custom_fields:customFields(r),synced_at:new Date().toISOString()}],'crm_account,pd_lead_id'); this.stats.leads++;
   }
-}
-export async function avaliarPendencias(db: SupabaseClient, account: string): Promise<number> {
-  const configs=await configsFor(db,account); if (!configs.length) return 0;
-  const [products,stages,deals,lines]=await Promise.all(['crm_products','crm_stages','deals','deal_products'].map(t=>allRows(db,t,account)));
-  const candidates=pendingCandidates(configs,products,stages,deals,lines);
-  for (const batch of chunks(candidates)) await checked(db.from('sponsorship_pending').upsert(batch,{onConflict:'event_id,kind,ref_key',ignoreDuplicates:true}));
-  const open: Row[]=[];
-  for (const c of configs) { let offset=0; while(true) { const page=await checked(db.from('sponsorship_pending').select('id,event_id,kind,ref_key').eq('event_id',c.event_id).eq('status','aberta').neq('kind','campo_sem_mapeamento').order('id').range(offset,offset+499)); open.push(...(page??[])); if(!page || page.length<500) break; offset+=500; } }
-  const wanted=new Set(candidates.map(c=>`${c.event_id}:${c.kind}:${c.ref_key}`));
-  const obsolete=open.filter(p=>!wanted.has(`${p.event_id}:${p.kind}:${p.ref_key}`));
-  for(const batch of chunks(obsolete)) await checked(db.from('sponsorship_pending').update({status:'resolvida',resolved_at:new Date().toISOString(),resolved_by:null}).eq('status','aberta').in('id',batch.map(p=>p.id)));
-  const {count,error}=await db.from('sponsorship_pending').select('id',{count:'exact',head:true}).in('event_id',configs.map(c=>c.event_id)).eq('status','aberta');
-  if(error)throw new PipedriveError('Não foi possível contar as pendências',500);
-  return count??0;
 }
 export async function saveRate(db: SupabaseClient,account:string,api:PipedriveClient,cursors:Row, extra:Row={}) {
   const current=await checked(db.from('crm_sync_state').select('cursors,tokens_day,tokens_used_today').eq('crm_account',account).maybeSingle());
