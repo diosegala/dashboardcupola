@@ -16,7 +16,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { eventGoal } from "@/lib/goalMetrics";
 import { parseCoupon } from "@/lib/coupons";
-import { EMPTY_DRAFT, FEATURES, HIDDEN_INFO_KEYS, isEventProduct, visibleInfoFields, mappingFromCrm, quotaOfProduct, quotasFromCatalog, type SponsorshipDraft } from "@/lib/sponsorship";
+import { EMPTY_DRAFT, FEATURES, HIDDEN_INFO_KEYS, channelGroup, isEventProduct, visibleInfoFields, mappingFromCrm, quotaOfProduct, quotasFromCatalog, type SponsorshipDraft } from "@/lib/sponsorship";
 import {
   EXAMPLE_GOALS,
   SPONSOR_GOAL_KEYS,
@@ -182,7 +182,9 @@ export default function Sponsorship() {
       status,
       statusOf,
       columns,
-      prospect: prospecting(cfg, src.deals, src.stages, window, hoje, responsavel, share),
+      prospect: prospecting(cfg, src.deals, src.stages, window, hoje, responsavel, share, cfg.field_mapping.origin
+        ? (d) => channelGroup(fieldText(cfg.field_mapping.origin, rawField(cfg.field_mapping.origin, d, undefined), users))
+        : undefined),
       oficial,
       cotasAnterior,
       evolucao: exemplo

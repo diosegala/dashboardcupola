@@ -328,9 +328,6 @@ export const HIDDEN_INFO_KEYS: string[] = [
   "sdr",
   "instagram",
   "linkedin",
-  // Origem: o campo certo é o "Canal de origem" do Pipedrive (campo padrão), que a sincronização ainda não guarda.
-  // Reutilizar esta mesma informação quando o canal chegar, em vez de criar outra.
-  "origin",
 ];
 export const visibleInfoFields = () => INFO_FIELDS.filter((i) => !HIDDEN_INFO_KEYS.includes(i.key));
 
@@ -353,7 +350,7 @@ export const INFO_FIELDS: InfoField[] = [
   { key: "payment_status", label: "Status do pagamento", object: "deal", types: ["enum", "set", "varchar"], names: ["status do pagamento", "situacao do pagamento"], options: ["pago", "pendente", "atrasado"], info: "Se o patrocinador já pagou. Depois pode vir do financeiro." },
   { key: "signing_date", label: "Data de assinatura", object: "deal", types: ["date"], names: ["data de assinatura", "assinatura"], info: "Dia em que o contrato foi assinado." },
   { key: "sdr", label: "SDR", object: "deal", types: ["user"], names: ["sdr", "pre-vendas", "prospeccao"], info: "Pessoa que prospectou o negócio. Sem SDR aparece como \"Sem SDR\"." },
-  { key: "origin", label: "Origem do negócio", object: "deal", types: ["enum", "set", "varchar"], names: ["origem do negocio", "origem", "fonte", "canal"], options: ["inbound", "outbound"], info: "De onde veio o negócio (por exemplo, entrada ou prospecção ativa). Filtro da aba Prospecção." },
+  { key: "origin", label: "Canal de origem", object: "deal", types: ["enum"], names: ["canal de origem"], info: "De onde veio o negócio: carteira de clientes, reativação, indicação, prospecção ativa, site etc. Vem do campo padrão \"Canal de origem\" do Pipedrive e alimenta a aba Canais da Prospecção." },
   { key: "deliveries", label: "Entregas concluídas", object: "deal", types: ["set"], names: ["entregas concluidas", "entregas"], info: "Campo de múltipla escolha com as contrapartidas já entregues ao patrocinador. Cada opção deve ter o nome de uma entrega da lista do evento." },
   { key: "installments_count", label: "Número de parcelas", object: "deal", types: ["enum", "int", "double", "varchar"], names: ["numero de parcelas", "quantidade de parcelas", "parcelas"], info: "Usado quando o negócio não tem parcelas lançadas no Pipedrive: valor dividido por este número." },
   { key: "first_due_date", label: "1º vencimento", object: "deal", types: ["date"], names: ["primeiro vencimento", "1o vencimento", "data do primeiro pagamento", "vencimento"], info: "Data da primeira parcela, para quando o negócio não tem parcelas lançadas." },
@@ -427,7 +424,22 @@ export function mappingFromCrm(dealFields: CrmField[], orgFields: CrmField[]): R
     const f = (ref.object === "deal" ? dealFields : orgFields).find((x) => x.key === ref.field_key);
     out[k] = { ...ref, name: f?.name, field_type: f?.field_type, options: f?.options };
   }
+  // Canal de origem: campo padrão do Pipedrive ("channel"). A sincronização guarda o valor em custom_fields.__channel.
+  delete out.origin;
+  const canal = dealFields.find((f) => f.key === "channel");
+  if (canal) out.origin = { object: "deal", field_key: "__channel", name: canal.name, field_type: canal.field_type, options: canal.options };
   return out;
+}
+
+// Opções do "Canal de origem" criadas sozinhas por ferramentas de marketing (formulários, anúncios, rastreio do site)
+// ficam juntas numa linha só; os canais comerciais aparecem pelo nome.
+const MARCAS_AUTOMATICAS = /encoded_|\/|^rd[_ ]|leadster|facebook|instagram|^ig$|google|meta ads|unknown|^live -|forms|\(direct\)|\||cpc|typeform|newsletter|^web |^lead suggestions$|^chatbot$|^live chat$|^web visitors$|^campaigns$|^marketplace$|^messaging inbox$|^prospector$|^web forms$|^teste$|^x+$|^\d|^$/i;
+export const MARKETING_DIGITAL = "Marketing digital (site, anúncios e formulários)";
+export function channelGroup(label: string | null | undefined): string | null {
+  if (label == null) return null;
+  const l = String(label).trim();
+  if (!l) return null;
+  return MARCAS_AUTOMATICAS.test(l) ? MARKETING_DIGITAL : l;
 }
 
 // Informações sem campo correspondente.

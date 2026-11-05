@@ -142,6 +142,8 @@ export interface Prospect {
   motivos: { motivo: string; negocios: number }[];
   perdidosSemMotivo: number;
   responsaveis: string[];
+  // Negócios por canal de origem (null = sem canal no Pipedrive). Vazio quando a conta não tem o campo.
+  canais: { canal: string | null; negocios: number; ganhos: number; abertos: number }[];
 }
 
 const median = (xs: number[]) => {
@@ -160,6 +162,7 @@ export function prospecting(
   hoje: string,
   responsavel: string | null,
   share: (d: DealRow) => { doEvento: boolean; valor: number; comProduto: boolean } = (d) => ({ doEvento: true, valor: Number(d.value) || 0, comProduto: true }),
+  canalOf?: (d: DealRow) => string | null,
 ): Prospect {
   const pipes = new Set(config.pipelines.map((p) => p.pipeline_pd_id));
   // Ganho só conta com produto do evento (ganho sem produto fica no aviso de Vendas).
@@ -219,6 +222,22 @@ export function prospecting(
     motivos: [...contagem.entries()].map(([motivo, negocios]) => ({ motivo, negocios })).sort((a, b) => b.negocios - a.negocios),
     perdidosSemMotivo: semMotivo,
     responsaveis,
+    canais: canalOf
+      ? [
+          ...lista
+            .reduce((m, d) => {
+              const c = canalOf(d);
+              const k = c ?? "\u0000";
+              const x = m.get(k) ?? { canal: c, negocios: 0, ganhos: 0, abertos: 0 };
+              x.negocios += 1;
+              if (d.status === "won") x.ganhos += 1;
+              if (d.status === "open") x.abertos += 1;
+              m.set(k, x);
+              return m;
+            }, new Map<string, { canal: string | null; negocios: number; ganhos: number; abertos: number }>())
+            .values(),
+        ].sort((a, b) => (a.canal === null ? 1 : b.canal === null ? -1 : b.negocios - a.negocios))
+      : [],
   };
 }
 

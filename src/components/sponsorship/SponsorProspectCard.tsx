@@ -12,6 +12,7 @@ export const PROSPECT_INFO = {
   etapas: "Quantos negócios abertos estão em cada etapa do funil agora. A barra é a parte dos negócios abertos que está naquela etapa.",
   conversao: "Quantos negócios chegaram até cada etapa, separados em quem seguiu (está nela, passou dela ou ganhou) e quem foi perdido nela. Ganho e perdido nunca se misturam.",
   tempo: "Há quantos dias, em geral, os negócios abertos estão na etapa em que estão (o valor do meio: metade está há menos tempo, metade há mais). O risco é o limite de dias da etapa no Pipedrive; sem limite, 14 dias. Passou do limite, a parte que passou fica laranja.",
+  canais: "De onde vieram os negócios desta edição, pelo campo \"Canal de origem\" do Pipedrive. As opções criadas sozinhas por formulários, anúncios e rastreio do site ficam juntas em \"Marketing digital\". A barra é a parte dos negócios que veio daquele canal.",
   evolucao: "Valor em negociação dia a dia: a soma do valor dos produtos do evento nos negócios abertos naquele dia. Mostra a negociação subindo conforme os vendedores colocam o valor proposto no Pipedrive. Conta a partir do dia em que o histórico começou a ser guardado.",
   motivos: "Motivo de perda dos negócios perdidos nesta edição. Perda sem motivo não ensina nada à oferta: o guia de motivos de perda da CUPOLA pede motivo em toda perda e sem motivos genéricos.",
   responsavel: "Filtra a prospecção pelo responsável do negócio no Pipedrive (closer ou SDR dono do negócio).",
@@ -38,7 +39,7 @@ interface Props {
 }
 
 export function SponsorProspectCard({ data, responsavel, onResponsavel, metaAbordagens, origem, abertosSemValor = 0, evolucao, className }: Props) {
-  const [aba, setAba] = useState<"etapas" | "conversao" | "tempo" | "evolucao" | "motivos">("etapas");
+  const [aba, setAba] = useState<"etapas" | "conversao" | "tempo" | "canais" | "evolucao" | "motivos">("etapas");
   const [verMudancas, setVerMudancas] = useState(false);
   const ddmm = (d: string) => `${d.slice(8, 10)}/${d.slice(5, 7)}`;
   const totalPerdidos = data.perdidos;
@@ -75,6 +76,7 @@ export function SponsorProspectCard({ data, responsavel, onResponsavel, metaAbor
             { value: "etapas", label: "Etapas", info: PROSPECT_INFO.etapas },
             { value: "conversao", label: "Conversão", info: PROSPECT_INFO.conversao },
             { value: "tempo", label: "Tempo por etapa", info: PROSPECT_INFO.tempo },
+            ...(data.canais.length ? [{ value: "canais" as const, label: "Canais", info: PROSPECT_INFO.canais }] : []),
             { value: "evolucao", label: "Evolução", info: PROSPECT_INFO.evolucao },
             { value: "motivos", label: "Motivos de perda", info: PROSPECT_INFO.motivos },
           ]}
@@ -212,6 +214,26 @@ export function SponsorProspectCard({ data, responsavel, onResponsavel, metaAbor
               })}
           </div>
         )}
+        {aba === "canais" && (
+          <div className="space-y-4">
+            {data.canais.map((c) => (
+              <div key={c.canal ?? "__sem"} className="space-y-1">
+                <div className="flex items-baseline justify-between gap-3 text-sm">
+                  <span className={c.canal ? "min-w-0 truncate font-medium" : "min-w-0 truncate font-medium text-muted-foreground"}>{c.canal ?? "Sem canal no Pipedrive"}</span>
+                  <span className="shrink-0 font-semibold tabular-nums">
+                    {int(c.negocios)} <span className="font-normal text-muted-foreground">{c.negocios === 1 ? "negócio" : "negócios"}</span>
+                  </span>
+                </div>
+                <div className="h-2 overflow-hidden rounded-full bg-secondary">
+                  <div className={c.canal ? "sp-grow h-full bg-primary" : "sp-grow h-full bg-warn"} style={{ width: `${(c.negocios / Math.max(data.abordadas, 1)) * 100}%` }} />
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {pct(c.negocios / Math.max(data.abordadas, 1))} dos negócios · {int(c.ganhos)} {c.ganhos === 1 ? "ganho" : "ganhos"} · {int(c.abertos)} em negociação
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {aba === "evolucao" && (
           <div className="space-y-3">
             {!evolucao || evolucao.serie.length < 2 ? (
@@ -290,6 +312,8 @@ export function SponsorProspectCard({ data, responsavel, onResponsavel, metaAbor
         <CrmWarning
           fields={aba === "etapas" ? [origem?.state === "ok" ? undefined : origem] : []}
           notes={[
+            aba === "canais" && (data.canais.find((c) => c.canal === null)?.negocios ?? 0) > 0 &&
+              `Canal de origem: ${int(data.canais.find((c) => c.canal === null)?.negocios ?? 0)} negócios desta edição estão sem canal no Pipedrive. Preencher o canal ajuda a ver de onde vêm os patrocinadores.`,
             abertosSemValor > 0 &&
               `Valor em negociação: ${int(abertosSemValor)} ${abertosSemValor === 1 ? "negócio aberto está" : "negócios abertos estão"} com a cota em R$ 0 no Pipedrive. Colocar o valor proposto no produto do negócio para o valor em negociação e a cobertura ficarem certos.`,
             data.quentes == null && "Temperatura: a conta não tem as etiquetas Frio, Morno e Quente. Criar as etiquetas de negócio no Pipedrive e marcar os negócios.",

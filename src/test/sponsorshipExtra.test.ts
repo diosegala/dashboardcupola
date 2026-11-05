@@ -159,3 +159,29 @@ describe("renovação pela planilha", () => {
   });
 });
 
+
+describe("canal de origem", () => {
+  it("junta as opções automáticas de marketing e mantém os canais comerciais pelo nome", async () => {
+    const { channelGroup, MARKETING_DIGITAL } = await import("@/lib/sponsorship");
+    expect(channelGroup("Carteira de clientes")).toBe("Carteira de clientes");
+    expect(channelGroup("Reativação")).toBe("Reativação");
+    expect(channelGroup("Leadster - instagram")).toBe(MARKETING_DIGITAL);
+    expect(channelGroup("Facebook/cpc / cupola_lancamentos - forms")).toBe(MARKETING_DIGITAL);
+    expect(channelGroup("encoded_eyJmaXJz")).toBe(MARKETING_DIGITAL);
+    expect(channelGroup(null)).toBeNull();
+  });
+
+  it("conta negócios, ganhos e abertos por canal, com o sem canal no fim", () => {
+    const stages = [{ pd_id: 100, pipeline_pd_id: 7, name: "Etapa 1", order_nr: 1, days_to_rotten: null }];
+    const deals = [
+      deal("a", { status: "open", won_at: null, stage_id: "100", custom_fields: { __channel: "Carteira" } }),
+      deal("b", { status: "won", stage_id: "100", custom_fields: { __channel: "Carteira" } }),
+      deal("c", { status: "open", won_at: null, stage_id: "100" }),
+    ];
+    const p = prospecting(config, deals, stages, window, "2026-11-05", null, undefined, (d) => (d.custom_fields?.__channel as string) ?? null);
+    expect(p.canais).toEqual([
+      { canal: "Carteira", negocios: 2, ganhos: 1, abertos: 1 },
+      { canal: null, negocios: 1, ganhos: 0, abertos: 1 },
+    ]);
+  });
+});
