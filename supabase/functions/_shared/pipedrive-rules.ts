@@ -38,7 +38,7 @@ export function pendingCandidates(configs: Row[], products: Row[], stages: Row[]
     }
     for (const stage of stages.filter(s => !s.is_deleted && pipes.includes(s.pipeline_pd_id))) {
       const groups = c.stage_groups ?? {};
-      const mapped = Array.isArray(groups) ? groups.some((g: Row) => Number(g.stage_pd_id) === stage.pd_id) : Object.hasOwn(groups, String(stage.pd_id)) || Object.values(groups).some(v => Array.isArray(v) && v.map(String).includes(String(stage.pd_id)));
+      const mapped = Array.isArray(groups) ? groups.some((g: Row) => Number(g.stage_pd_id) === stage.pd_id) : Object.prototype.hasOwnProperty.call(groups, String(stage.pd_id)) || Object.values(groups).some(v => Array.isArray(v) && v.map(String).includes(String(stage.pd_id)));
       if (!mapped) add(c, 'etapa_nova', stage.pd_id, { etapa: stage.name });
     }
     for (const d of deals.filter(d => !d.is_deleted && pipes.includes(d.pipeline_pd_id))) {
