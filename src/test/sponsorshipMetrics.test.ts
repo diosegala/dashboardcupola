@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { EMPTY_DRAFT, quotaOfProduct, quotasFromCatalog, type SponsorshipDraft } from "@/lib/sponsorship";
-import { computeSponsorship, exampleDataset, inEdition, quotaBreakdown, weeklySeries, type DealProductRow, type DealRow } from "@/lib/sponsorshipMetrics";
+import { closerBreakdown, computeSponsorship, exampleDataset, inEdition, quotaBreakdown, quotaTargets, weeklySeries, type DealProductRow, type DealRow } from "@/lib/sponsorshipMetrics";
 
 // Configuração genérica de teste: nomes inventados, nada do código depende deles.
 const config: SponsorshipDraft = {
@@ -94,6 +94,32 @@ describe("receita de patrocínio", () => {
     expect(rows[0]).toMatchObject({ nome: "Ouro", vendidas: 1, meta: 4, restantes: 3, emNegociacao: 2, precoMedio: 85000 });
     expect(rows[1]).toMatchObject({ nome: "Prata", vendidas: 0, meta: null });
     expect(rows[2]).toMatchObject({ key: "", nome: "Outros produtos do evento", vendidas: 1 });
+  });
+
+  it("meta por cota: vendido, % da meta e quanto falta, com total só das cotas com meta", () => {
+    const deals = [deal("a", "won", "2026-08-10T15:00:00Z"), deal("b", "won", "2026-08-11T15:00:00Z"), deal("c", "open", null)];
+    const lines = [line("a", 1, 85000), line("b", 5, 20000), line("c", 1, 100000, { quantity: 2 })];
+    const m = computeSponsorship(config, deals, lines, catalog, window);
+    const { rows, total } = quotaTargets(quotaBreakdown(m, config.quotas, { ouro: 4 }));
+    expect(rows.map((r) => r.nome)).toEqual(["Ouro"]);
+    expect(rows[0]).toMatchObject({ meta: 4, vendidas: 1, pct: 0.25, falta: 3, emNegociacao: 2 });
+    expect(total).toMatchObject({ meta: 4, vendidas: 1, falta: 3 });
+    // Sem nenhuma meta cadastrada, não há total nem falta.
+    const semMeta = quotaTargets(quotaBreakdown(m, config.quotas, {}));
+    expect(semMeta.total).toBeNull();
+    expect(semMeta.rows[0]).toMatchObject({ meta: null, pct: null, falta: null });
+    // Passou da meta: falta zera, % passa de 100.
+    const passou = quotaTargets(quotaBreakdown(m, config.quotas, { ouro: 1 }));
+    expect(passou.rows[0]).toMatchObject({ pct: 1, falta: 0 });
+  });
+
+  it("vendas por closer: negócios, cotas, valor e parte do total, sem closer no fim da ordem de valor", () => {
+    const mk = (dealId: string, closer: string | null, quantidade: number, valor: number) => ({ dealId, closer, quantidade, valor }) as any;
+    const r = closerBreakdown([mk("a", "Ana", 1, 60000), mk("a", "Ana", 2, 20000), mk("b", null, 1, 20000), mk("c", "Bia", 1, 100000)]);
+    expect(r.map((x) => x.closer)).toEqual(["Bia", "Ana", "Sem closer"]);
+    expect(r[1]).toMatchObject({ negocios: 1, quantidade: 3, valor: 80000 });
+    expect(r[0].parte).toBeCloseTo(0.5);
+    expect(closerBreakdown([])).toEqual([]);
   });
 
   it("semanas: acumulado até hoje e ritmo necessário até a abertura", () => {

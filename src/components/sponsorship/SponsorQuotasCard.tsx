@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CardTabs } from "./CardTabs";
 import { InfoTip } from "@/components/InfoTip";
 import { CompareLine } from "@/components/CompareLine";
-import { ADDONS_KEY, type QuotaRow } from "@/lib/sponsorshipMetrics";
+import { ADDONS_KEY, quotaTargets, type QuotaRow } from "@/lib/sponsorshipMetrics";
 import { brl } from "./SponsorRevenueCard";
 
 export const QUOTAS_INFO = {
@@ -11,6 +11,8 @@ export const QUOTAS_INFO = {
   porCota:
     "Verde forte = cotas vendidas. Verde claro = cotas em negócios abertos. Todas as linhas usam a mesma escala. Com meta cadastrada (menu Metas), a linha vai até a meta da cota.",
   receita: "Quanto cada cota já vendeu, em reais. Com meta de cotas cadastrada, mostra quantas faltam para a meta.",
+  metaFalta:
+    "Para cada cota: meta (menu Metas), cotas vendidas, % da meta e quantas faltam. O total soma só as cotas que têm meta. Cota sem meta aparece com traço. Em negociação são cotas em negócios abertos, que ainda não contam como vendidas.",
   semNada: "Cotas do evento no Pipedrive que ainda não têm nenhuma venda nem negócio aberto nesta edição.",
   semVenda: "Cotas do evento no Pipedrive que ainda não venderam nada nesta edição.",
 };
@@ -18,7 +20,8 @@ export const QUOTAS_INFO = {
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 
 export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { rows: QuotaRow[]; cotasAnterior?: number | null; className?: string }) {
-  const [aba, setAba] = useState<"cota" | "receita">("cota");
+  const [aba, setAba] = useState<"cota" | "meta" | "receita">("cota");
+  const alvo = quotaTargets(rows);
   const ehCota = (r: QuotaRow) => r.key !== "" && r.key !== ADDONS_KEY;
   const cotas = rows.filter(ehCota);
   const vendidas = cotas.reduce((s, r) => s + r.vendidas, 0);
@@ -63,12 +66,50 @@ export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { r
           onChange={(v) => setAba(v as typeof aba)}
           tabs={[
             { value: "cota", label: "Por cota", info: QUOTAS_INFO.porCota },
+            { value: "meta", label: "Meta e falta", info: QUOTAS_INFO.metaFalta },
             { value: "receita", label: "Receita por cota", info: QUOTAS_INFO.receita },
           ]}
         />
       </CardHeader>
       <CardContent className="space-y-4">
-        {aba === "cota" ? (
+        {aba === "meta" ? (
+          alvo.rows.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhuma cota com meta, venda ou negociação ainda.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[380px] text-left text-sm">
+                <thead>
+                  <tr className="text-[11px] font-medium text-muted-foreground">
+                    <th className="pb-2 pr-2 font-medium">Cota</th>
+                    <th className="px-2 pb-2 text-right font-medium">Meta</th>
+                    <th className="px-2 pb-2 text-right font-medium">Vendidas</th>
+                    <th className="px-2 pb-2 text-right font-medium">% da meta</th>
+                    <th className="pl-2 pb-2 text-right font-medium">Falta</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...alvo.rows, ...(alvo.total ? [alvo.total] : [])].map((r) => {
+                    const total = r.key === "__total__";
+                    return (
+                      <tr key={r.key} className={total ? "border-t-2 font-semibold" : "border-t"}>
+                        <td className="max-w-[140px] truncate py-2 pr-2">{r.nome}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">{r.meta != null ? int(r.meta) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="px-2 py-2 text-right tabular-nums">
+                          {int(r.vendidas)}
+                          {r.emNegociacao > 0 && !total && <span className="block text-[10px] font-normal text-muted-foreground">+{int(r.emNegociacao)} em negociação</span>}
+                        </td>
+                        <td className="px-2 py-2 text-right tabular-nums">{r.pct != null ? `${Math.round(r.pct * 100)}%` : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="pl-2 py-2 text-right tabular-nums">
+                          {r.falta == null ? <span className="text-muted-foreground">—</span> : r.falta === 0 ? <span className="font-semibold text-ok">Atingida</span> : int(r.falta)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )
+        ) : aba === "cota" ? (
           comMovimento.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma cota vendida nem em negociação ainda.</p>
           ) : (
@@ -89,6 +130,7 @@ export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { r
                   <div className="text-[11px] text-muted-foreground">
                     {int(r.vendidas)} {r.vendidas === 1 ? "vendida" : "vendidas"} · {int(r.emNegociacao)} em negociação
                     {r.meta != null && r.vendidas >= r.meta && <span className="font-semibold text-ok"> · meta atingida</span>}
+                    {r.meta != null && r.vendidas < r.meta && <span> · faltam {int(r.meta - r.vendidas)}</span>}
                   </div>
                 </div>
               ))}
@@ -122,7 +164,7 @@ export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { r
             ))}
           </div>
         )}
-        {(aba === "cota" ? semNada : semVenda).length > 0 && (
+        {aba !== "meta" && (aba === "cota" ? semNada : semVenda).length > 0 && (
           <p className="flex flex-wrap items-center gap-1.5 border-t pt-3 text-[11px] text-muted-foreground">
             <span className="inline-flex items-center gap-1.5 font-medium">
               {aba === "cota" ? "Sem venda e sem negociação:" : "Ainda sem venda:"}

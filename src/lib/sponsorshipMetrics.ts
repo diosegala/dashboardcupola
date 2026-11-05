@@ -235,6 +235,75 @@ export function quotaBreakdown(m: SponsorshipMetrics, quotas: Quota[], quotaGoal
   return rows;
 }
 
+// Meta, vendido, % da meta e quanto falta, por cota. Só cotas de verdade (sem "Adicionais" nem "Outros produtos").
+export interface QuotaTargetRow {
+  key: string;
+  nome: string;
+  meta: number | null;
+  vendidas: number;
+  emNegociacao: number;
+  pct: number | null;
+  falta: number | null;
+}
+
+export function quotaTargets(rows: QuotaRow[]): { rows: QuotaTargetRow[]; total: QuotaTargetRow | null } {
+  const linhas = rows
+    .filter((r) => r.key !== "" && r.key !== ADDONS_KEY && ((r.meta ?? 0) > 0 || r.vendidas > 0 || r.emNegociacao > 0))
+    .map((r): QuotaTargetRow => {
+      const meta = r.meta != null && r.meta > 0 ? r.meta : null;
+      return {
+        key: r.key,
+        nome: r.nome,
+        meta,
+        vendidas: r.vendidas,
+        emNegociacao: r.emNegociacao,
+        pct: meta != null ? r.vendidas / meta : null,
+        falta: meta != null ? Math.max(meta - r.vendidas, 0) : null,
+      };
+    });
+  const comMeta = linhas.filter((l) => l.meta != null);
+  if (comMeta.length === 0) return { rows: linhas, total: null };
+  const meta = comMeta.reduce((s, l) => s + (l.meta ?? 0), 0);
+  const vendidas = comMeta.reduce((s, l) => s + l.vendidas, 0);
+  const total: QuotaTargetRow = {
+    key: "__total__",
+    nome: "Total",
+    meta,
+    vendidas,
+    emNegociacao: comMeta.reduce((s, l) => s + l.emNegociacao, 0),
+    pct: vendidas / meta,
+    falta: comMeta.reduce((s, l) => s + (l.falta ?? 0), 0),
+  };
+  return { rows: linhas, total };
+}
+
+// Vendas por responsável (closer do negócio). Ainda não há meta por responsável: mostra o que cada um fechou.
+export interface CloserRow {
+  closer: string;
+  negocios: number;
+  quantidade: number;
+  valor: number;
+  parte: number;
+}
+
+export const SEM_CLOSER = "Sem closer";
+
+export function closerBreakdown(vendas: SaleLine[]): CloserRow[] {
+  const total = vendas.reduce((s, v) => s + v.valor, 0);
+  const mapa = new Map<string, { negocios: Set<string>; quantidade: number; valor: number }>();
+  for (const v of vendas) {
+    const nome = v.closer?.trim() || SEM_CLOSER;
+    const g = mapa.get(nome) ?? { negocios: new Set<string>(), quantidade: 0, valor: 0 };
+    g.negocios.add(v.dealId);
+    g.quantidade += v.quantidade;
+    g.valor += v.valor;
+    mapa.set(nome, g);
+  }
+  return [...mapa.entries()]
+    .map(([closer, g]) => ({ closer, negocios: g.negocios.size, quantidade: g.quantidade, valor: g.valor, parte: total > 0 ? g.valor / total : 0 }))
+    .sort((a, b) => b.valor - a.valor || a.closer.localeCompare(b.closer, "pt-BR"));
+}
+
 // ---------- receita acumulada semana a semana ----------
 export interface WeekPoint {
   label: string;
