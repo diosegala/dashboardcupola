@@ -66,7 +66,7 @@ export function countBy(tickets: Ticket[], key: (t: Ticket) => string | null | u
 }
 
 // Barras horizontais do ds-summit: crescem da esquerda; no hover a barra fica lima e as outras esmaecem.
-export function HBars({ items }: { items: { label: string; value: number }[] }) {
+export function HBars({ items }: { items: { label: string; value: number; amount?: number }[] }) {
   const [hover, setHover] = useState<string | null>(null);
   const max = Math.max(...items.map((i) => i.value), 1);
   return (
@@ -80,7 +80,10 @@ export function HBars({ items }: { items: { label: string; value: number }[] }) 
         >
           <div className="mb-1 flex items-center justify-between gap-3 text-[13px]">
             <span className="truncate">{i.label}</span>
-            <b className="font-semibold tabular-nums">{int(i.value)}</b>
+            <span className="shrink-0 tabular-nums">
+              <b className="font-semibold">{int(i.value)}</b>
+              {i.amount !== undefined && <span className="ml-2 text-muted-foreground">· {i.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}</span>}
+            </span>
           </div>
           <div className="h-2.5 overflow-hidden rounded-full bg-secondary">
             <i
@@ -142,16 +145,43 @@ export function ShareBar({ items }: { items: { label: string; value: number; amo
   );
 }
 
+// Apelidos que valem o mesmo canal ("ig" ou "instagram" = Instagram, como no painel de vendas do Summit 2027).
+// Só entra aqui o que foi confirmado; o resto aparece como veio. Acrescentar conforme os valores reais do UTM.
+const CANAL_POR_APELIDO: Record<string, string> = { ig: "Instagram", instagram: "Instagram" };
+
 // UTM às vezes vem como códigos de letra ("(99,97,110,...)"): converte de volta para texto.
+// Maiúsculas, minúsculas e espaços sobrando não separam o mesmo canal ("Instagram" e "instagram " são um só).
 // Exportado também para o MarketingSection (card "Pagantes por origem (UTM)" vive na aba Marketing).
 export function utmLabel(v: string | null | undefined): string | null {
   const t = (v ?? "").trim();
   if (!t) return null;
   const codes = t.match(/^[({[]?\s*(\d{2,3}(?:\s*,\s*\d{2,3})+)\s*[)}\]]?$/);
-  return codes ? String.fromCharCode(...codes[1].split(",").map((n) => Number(n.trim()))) : t;
+  const texto = (codes ? String.fromCharCode(...codes[1].split(",").map((n) => Number(n.trim()))) : t).trim().replace(/\s+/g, " ").toLowerCase();
+  if (!texto) return null;
+  return CANAL_POR_APELIDO[texto] ?? texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
-export function SegmentCard({ title, items, className, share }: { title: string; items: { label: string; value: number; amount?: number }[]; className?: string; share?: boolean }) {
+// Origem da venda: ingressos e valor por canal (os 8 maiores) e quantos ingressos pagantes têm UTM.
+export function origensDeVenda(pagantes: Ticket[]) {
+  const valores = new Map<string, number>();
+  let total = 0;
+  let comUtm = 0;
+  pagantes.forEach((t) => {
+    const q = t.quantity || 0;
+    total += q;
+    const canal = utmLabel(t.utm_source);
+    if (!canal) return;
+    comUtm += q;
+    valores.set(canal, (valores.get(canal) ?? 0) + Number(t.total_price || 0));
+  });
+  const itens = countBy(pagantes, (t) => utmLabel(t.utm_source))
+    .slice(0, 8)
+    .map((i) => ({ ...i, amount: valores.get(i.label) ?? 0 }));
+  const rodape = total > 0 ? `${int(comUtm)} de ${int(total)} ingressos pagantes (${Math.round((comUtm / total) * 100)}%) têm UTM. Os demais não aparecem aqui.` : null;
+  return { itens, rodape };
+}
+
+export function SegmentCard({ title, items, className, share, rodape }: { title: string; items: { label: string; value: number; amount?: number }[]; className?: string; share?: boolean; rodape?: string | null }) {
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
@@ -161,6 +191,7 @@ export function SegmentCard({ title, items, className, share }: { title: string;
       </CardHeader>
       <CardContent>
         {share ? <ShareBar items={items} /> : <HBars items={items} />}
+        {rodape && <p className="mt-4 text-xs text-muted-foreground">{rodape}</p>}
       </CardContent>
     </Card>
   );
