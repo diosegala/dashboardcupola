@@ -96,14 +96,42 @@ export function GoalRing({ progress: target }: { progress: number }) {
 }
 
 interface CommercialOverviewProps {
+  // Todas as vendas do evento: meta, ritmo e acumulados olham sempre o evento inteiro.
   tickets: any[];
+  // Vendas dentro do período escolhido no topo: emitidos, receita, descontos e vendas por dia.
+  periodTickets?: any[];
+  // Mesmo período no evento anterior, para a comparação.
+  previousPeriodTickets?: any[];
+  // O período escolhido não cobre o evento inteiro.
+  filtrado?: boolean;
   goals: any[];
   previousTickets?: any[];
   eventParams?: EventParams;
 }
 
-export function CommercialOverview({ tickets, goals, previousTickets = [], eventParams }: CommercialOverviewProps) {
+// Selo dos cards que não seguem o período (meta e acumulados).
+function EventoInteiro({ escuro }: { escuro?: boolean }) {
+  return (
+    <span className={cn("rounded-full px-2 py-0.5 text-[10px] font-medium", escuro ? "bg-white/10 text-[#D6D2C8]" : "bg-secondary text-muted-foreground")}>
+      Evento inteiro
+    </span>
+  );
+}
+
+function totais(lista: any[]) {
+  const { paying, bonus } = splitTickets(lista);
+  const qtd = (l: any[]) => l.reduce((s, t) => s + (t.quantity || 0), 0);
+  return { payingCount: qtd(paying), issuedCount: qtd(paying) + qtd(bonus), revenue: paying.reduce((s, t) => s + Number(t.total_price || 0), 0) };
+}
+
+export function CommercialOverview({ tickets, periodTickets, previousPeriodTickets = [], filtrado = false, goals, previousTickets = [], eventParams }: CommercialOverviewProps) {
   const m = useCommercialMetrics(tickets, goals, previousTickets, eventParams);
+  // Sem período escolhido, os cards de período mostram o evento inteiro (mesmos números de antes).
+  const doPeriodo = filtrado && periodTickets ? periodTickets : tickets;
+  const p = useMemo(() => totais(doPeriodo), [doPeriodo]);
+  const pAnterior = useMemo(() => (previousPeriodTickets.length ? totais(previousPeriodTickets) : null), [previousPeriodTickets]);
+  const receita = filtrado ? p.revenue : m.revenue;
+  const pagantes = filtrado ? p.payingCount : m.payingCount;
   const weeklySeries = useSeriesVisibility();
   const revenueSeries = useSeriesVisibility();
   const [diaVisao, setDiaVisao] = useState<"uteis" | "semana">("semana");
@@ -119,11 +147,11 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
 
   // Descontos concedidos: cupons parciais + cortesias pelo preço cheio do lote, % sobre a receita bruta.
   const descontosComercial = useMemo(() => {
-    const { paying, bonus } = splitTickets(tickets);
+    const { paying, bonus } = splitTickets(doPeriodo);
     const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
     return commercialDiscounts([...paying, ...bonus], receita);
-  }, [tickets]);
-  const mostrarDescontos = useCouponTotals(tickets).comCupom > 0;
+  }, [doPeriodo]);
+  const mostrarDescontos = useCouponTotals(doPeriodo).comCupom > 0;
 
   return (
     <div className="grid grid-cols-12 gap-[14px]">
@@ -132,6 +160,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
         <div className="flex items-center gap-2 text-[13px] font-semibold text-[#D6D2C8]">
           {temMeta ? "Meta de ingressos pagantes" : "Ingressos pagantes"}
           <InfoTip title={temMeta ? "Meta de ingressos pagantes" : "Ingressos pagantes"} className="text-[#D6D2C8]" />
+          {filtrado && <EventoInteiro escuro />}
         </div>
         <div className="flex items-center gap-5">
           {temMeta && <GoalRing progress={m.progress} />}
@@ -164,32 +193,48 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
       />
 
       {/* Linha 2: todos os ingressos emitidos (pizza) e receita */}
-      <IssuedTicketsCard tickets={tickets} goal={metaEmitidos} emitidosAnterior={m.anterior?.issuedCount} emitidosAtual={m.issuedCount} goals={goals} allTimeTickets={tickets} previousYearTickets={previousTickets} className="col-span-12 lg:col-span-8" />
+      <IssuedTicketsCard
+        tickets={doPeriodo}
+        goal={filtrado ? null : metaEmitidos}
+        emitidosAnterior={filtrado ? pAnterior?.issuedCount : m.anterior?.issuedCount}
+        emitidosAtual={filtrado ? p.issuedCount : m.issuedCount}
+        quando={filtrado ? "no mesmo período (aprovados)" : undefined}
+        goals={goals}
+        allTimeTickets={tickets}
+        previousYearTickets={previousTickets}
+        className="col-span-12 lg:col-span-8"
+      />
       {/* Receita acumulada e Descontos concedidos num único card: ticket médio e pagantes lado a lado, descontos no rodapé. */}
       <Card className="col-span-12 flex flex-col gap-4 p-5 hover:-translate-y-[3px] hover:border-line-strong lg:col-span-4">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
-            Receita acumulada
+            {filtrado ? "Receita no período" : "Receita acumulada"}
             <InfoTip title="Receita acumulada" />
           </div>
           <div className="whitespace-nowrap text-[clamp(28px,2.8vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]">
-            <CountUp value={m.revenue} format={brl} />
+            <CountUp value={receita} format={brl} />
           </div>
-          <CompareLine anterior={m.anterior?.revenue} atual={m.revenue} formato={brl} />
+          <CompareLine
+            anterior={filtrado ? pAnterior?.revenue : m.anterior?.revenue}
+            atual={receita}
+            formato={brl}
+            quando={filtrado ? "no mesmo período" : undefined}
+          />
         </div>
 
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-2xl bg-secondary/60 px-3.5 py-3">
             <div className="text-[11px] text-muted-foreground">Ticket médio</div>
-            <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{brl(m.payingCount > 0 ? m.revenue / m.payingCount : 0)}</div>
+            <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{brl(pagantes > 0 ? receita / pagantes : 0)}</div>
           </div>
           <div className="rounded-2xl bg-secondary/60 px-3.5 py-3">
             <div className="text-[11px] text-muted-foreground">Ingressos pagantes</div>
-            <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{int(m.payingCount)}</div>
+            <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{int(pagantes)}</div>
           </div>
         </div>
 
-        {m.revenueGoal !== null && (
+        {/* A meta de receita é do evento inteiro: some quando o período é só uma parte. */}
+        {!filtrado && m.revenueGoal !== null && (
           <div className="flex items-center justify-between gap-2 text-xs">
             <span className="font-semibold text-foreground">{Math.round((m.revenue / m.revenueGoal) * 100)}% da meta</span>
             <span className="text-muted-foreground">
@@ -197,7 +242,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
             </span>
           </div>
         )}
-        {metaReceita && Number(metaReceita.target_value) > 0 && (
+        {!filtrado && metaReceita && Number(metaReceita.target_value) > 0 && (
           <GoalMeter actual={m.revenue} target={Number(metaReceita.target_value)} unit="brl" periodStart={metaReceita.period_start} periodEnd={metaReceita.period_end} />
         )}
 
@@ -223,6 +268,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
           <div>
             <CardTitle className="flex items-center gap-2">
               {temMeta ? "Pagantes acumulados x meta" : "Pagantes acumulados"} <InfoTip title={temMeta ? "Pagantes acumulados x meta" : "Pagantes acumulados"} />
+              {filtrado && <EventoInteiro />}
             </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">Semanas desde a primeira venda</p>
           </div>
@@ -286,6 +332,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
           <div>
             <CardTitle className="flex items-center gap-2">
               {temMetaReceita ? "Receita acumulada x meta" : "Receita acumulada"} <InfoTip title="Receita acumulada x meta" />
+              {filtrado && <EventoInteiro />}
             </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
               {temMetaReceita ? "Semanas desde a primeira venda" : "Defina a meta de receita na aba Metas"}
@@ -327,7 +374,9 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
               Vendas por dia <InfoTip title={diaVisao === "uteis" ? "Vendas por dia útil" : "Vendas por dia da semana"} />
             </CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">
-              {diaVisao === "uteis" ? (temMeta ? "Vendas em cada dia útil comparadas ao ritmo necessário" : "Vendas pagantes em cada dia útil") : "Vendas pagantes em cada dia da semana desde a abertura das vendas"}
+              {diaVisao === "uteis"
+                ? (temMeta ? "Vendas em cada dia útil comparadas ao ritmo necessário" : "Vendas pagantes em cada dia útil")
+                : filtrado ? "Vendas pagantes em cada dia da semana no período" : "Vendas pagantes em cada dia da semana desde a abertura das vendas"}
             </p>
           </div>
           <Tabs value={diaVisao} onValueChange={(v) => setDiaVisao(v as "uteis" | "semana")}>
@@ -343,7 +392,7 @@ export function CommercialOverview({ tickets, goals, previousTickets = [], event
         </CardHeader>
         <CardContent>
           {diaVisao === "semana" ? (
-            <WeekdayView tickets={tickets} />
+            <WeekdayView tickets={doPeriodo} />
           ) : (
             <BusinessDaysView paidByDay={m.paidByDay} firstSaleDate={m.firstSaleDate} requiredPace={m.requiredPace} paidByDayAnterior={mostrarAnterior ? m.anterior?.paidByDay : undefined} />
           )}
