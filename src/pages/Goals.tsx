@@ -22,6 +22,8 @@ import { GoalEditor, type GoalEditorValues } from "@/components/goals/GoalEditor
 import { goalsOfEvent, useEvent } from "@/hooks/useEvent";
 import { useGoals } from "@/hooks/useDashboardData";
 import { useAuth } from "@/hooks/useAuth";
+import { useSponsorshipConfig } from "@/hooks/useSponsorship";
+import { InfoTip } from "@/components/InfoTip";
 import { supabase } from "@/integrations/supabase/client";
 import { GOAL_DEFS, GOAL_SECTIONS, defOfGoal, formatGoalValue, type GoalDef } from "@/lib/goalMetrics";
 import { cn } from "@/lib/utils";
@@ -34,6 +36,8 @@ type Goal = {
   period_start: string;
   period_end: string;
   ticket_type?: string | null;
+  quota_key?: string | null;
+  receipt_year?: number | null;
   created_at?: string | null;
 };
 
@@ -46,6 +50,12 @@ export default function Goals() {
   const { data: todas, isLoading } = useGoals();
   const goals = useMemo(() => (todas ? (goalsOfEvent(todas, event) as Goal[]) : []), [todas, event]);
   const queryClient = useQueryClient();
+  // Nomes das cotas de patrocínio do evento, para as metas por cota.
+  const sponsorship = useSponsorshipConfig(event.id);
+  const nomeCota = (key?: string | null) => sponsorship.data?.quotas.find((q) => q.key === key)?.name ?? key ?? "";
+  // Rótulo do recorte da meta (lote, cota ou ano).
+  const recorte = (g: { ticket_type?: string | null; quota_key?: string | null; receipt_year?: number | null }) =>
+    g.ticket_type ?? (g.quota_key ? nomeCota(g.quota_key) : g.receipt_year ? String(g.receipt_year) : null);
 
   const [editando, setEditando] = useState<{ def: GoalDef; goal: Goal | null } | null>(null);
   const [excluindo, setExcluindo] = useState<Goal | null>(null);
@@ -59,19 +69,29 @@ export default function Goals() {
       if (!def) return soltas.push(g);
       map.set(def.id, [...(map.get(def.id) ?? []), g]);
     });
-    map.forEach((lista) => lista.sort((a, b) => a.period_start.localeCompare(b.period_start) || String(a.ticket_type ?? "").localeCompare(String(b.ticket_type ?? ""))));
+    map.forEach((lista) =>
+      lista.sort(
+        (a, b) =>
+          a.period_start.localeCompare(b.period_start) ||
+          String(a.ticket_type ?? a.quota_key ?? "").localeCompare(String(b.ticket_type ?? b.quota_key ?? "")) ||
+          Number(a.receipt_year ?? 0) - Number(b.receipt_year ?? 0),
+      ),
+    );
     return { map, soltas };
   }, [goals]);
 
   const salvar = useMutation({
     mutationFn: async ({ def, goal, v }: { def: GoalDef; goal: Goal | null; v: GoalEditorValues }) => {
+      const sufixo = v.ticket_type ?? (v.quota_key ? nomeCota(v.quota_key) : v.receipt_year ? String(v.receipt_year) : null);
       const linha = {
-        label: v.ticket_type ? `${def.label} · ${v.ticket_type}` : def.label,
+        label: sufixo ? `${def.label} · ${sufixo}` : def.label,
         metric_key: def.key,
         target_value: v.target_value,
         period_start: v.period_start,
         period_end: v.period_end,
         ticket_type: v.ticket_type,
+        quota_key: v.quota_key,
+        receipt_year: v.receipt_year,
         ...(event.id ? { event_id: event.id } : {}),
       } as any;
       const { error } = goal
@@ -138,7 +158,10 @@ export default function Goals() {
                   return (
                     <li key={def.id} className="grid gap-3 border-b px-5 py-3.5 last:border-b-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)_auto] sm:items-center">
                       <div className="min-w-0">
-                        <div className="text-sm font-semibold">{def.label}</div>
+                        <div className="flex items-center gap-1.5 text-sm font-semibold">
+                          {def.label}
+                          {def.info && <InfoTip title={def.label} text={def.info} />}
+                        </div>
                         <div className="truncate text-xs text-muted-foreground" title={def.where}>Aparece em: {def.where}</div>
                       </div>
                       <div className="flex flex-wrap gap-1.5">
@@ -148,7 +171,7 @@ export default function Goals() {
                           lista.map((g) => (
                             <span key={g.id} className="inline-flex items-center gap-1.5 rounded-full border bg-card py-1 pl-3 pr-1 text-xs">
                               <i className="inline-block h-1.5 w-1.5 rounded-full bg-primary" />
-                              {g.ticket_type && <span className="max-w-[160px] truncate text-muted-foreground" title={g.ticket_type}>{g.ticket_type}:</span>}
+                              {recorte(g) && <span className="max-w-[160px] truncate text-muted-foreground" title={recorte(g) ?? ""}>{recorte(g)}:</span>}
                               <b className="font-semibold tabular-nums">{formatGoalValue(Number(g.target_value), def.unit)}</b>
                               <span className="text-muted-foreground">{data(g.period_start)}–{data(g.period_end)}</span>
                               {isAdmin ? (
@@ -175,7 +198,7 @@ export default function Goals() {
                           onClick={() => setEditando({ def, goal: null })}
                         >
                           <Plus className="h-3.5 w-3.5" />
-                          {lista.length === 0 ? "Definir" : def.scope === "lote" ? "Outro lote" : "Outro período"}
+                          {lista.length === 0 ? "Definir" : def.scope === "lote" ? "Outro lote" : def.scope === "cota" ? "Outra cota" : def.scope === "ano" ? "Outro ano" : "Outro período"}
                         </Button>
                       )}
                     </li>
@@ -218,6 +241,7 @@ export default function Goals() {
         def={editando?.def ?? null}
         goal={editando?.goal ?? null}
         eventEnd={event.end_date}
+        eventId={event.id}
         saving={salvar.isPending}
         onClose={() => setEditando(null)}
         onSave={(v) => editando && salvar.mutate({ def: editando.def, goal: editando.goal, v })}

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Target, Plug, Settings, UsersRound, PanelLeftClose, PanelLeftOpen, Megaphone, Trophy, Eye, EyeOff, Ticket } from "lucide-react";
+import { LayoutDashboard, Target, Plug, Settings, UsersRound, PanelLeftClose, PanelLeftOpen, Megaphone, Trophy, Eye, EyeOff, Ticket, Handshake } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { CupolaLogo } from "@/components/CupolaLogo";
 import {
@@ -19,6 +19,7 @@ import {
 const publicItems = [
   { title: "Comercial", url: "/comercial", icon: LayoutDashboard },
   { title: "Marketing", url: "/marketing", icon: Megaphone },
+  { title: "Patrocínios", url: "/patrocinios", icon: Handshake },
   { title: "Metas", url: "/goals", icon: Target },
   { title: "Compradores", url: "/compradores", icon: UsersRound },
   { title: "Cupons", url: "/cupons", icon: Ticket },

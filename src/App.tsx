@@ -20,6 +20,7 @@ const Integrations = lazy(() => import("./pages/Integrations"));
 const Buyers = lazy(() => import("./pages/Buyers"));
 const Coupons = lazy(() => import("./pages/Coupons"));
 const Settings = lazy(() => import("./pages/Settings"));
+const Sponsorship = lazy(() => import("./pages/Sponsorship"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Dados ficam válidos por 5 minutos: trocar de tela ou de aba do navegador não baixa tudo de novo.
@@ -56,6 +57,7 @@ const App = () => (
                 <Route path="/integrations" element={<Integrations />} />
                 <Route path="/compradores" element={<Buyers />} />
                 <Route path="/cupons" element={<Coupons />} />
+                <Route path="/patrocinios" element={<Sponsorship />} />
                 <Route path="/settings" element={<Settings />} />
               </Route>
               <Route path="*" element={<NotFound />} />

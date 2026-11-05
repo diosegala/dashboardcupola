@@ -2,8 +2,8 @@
 // Sem meta definida, o gráfico fica como está; com meta, ele ganha a sinalização.
 
 // evento: um valor para o evento todo · periodo: vale para as datas escolhidas (compara com o período do painel)
-// lote: um valor por lote de ingresso
-export type GoalScope = "evento" | "periodo" | "lote";
+// lote: um valor por lote de ingresso · cota: um valor por cota de patrocínio · ano: um valor por ano de recebimento
+export type GoalScope = "evento" | "periodo" | "lote" | "cota" | "ano";
 export type GoalUnit = "num" | "brl" | "pct";
 
 export interface GoalDef {
@@ -14,6 +14,8 @@ export interface GoalDef {
   where: string;
   unit: GoalUnit;
   scope: GoalScope;
+  // Texto do "i" da meta.
+  info?: string;
 }
 
 export interface GoalSection {
@@ -30,6 +32,18 @@ export const GOAL_SECTIONS: GoalSection[] = [
       { id: "paying_tickets", key: "paying_tickets", label: "Ingressos pagantes", where: "Meta do evento, Ritmo de vendas, Pagantes acumulados e Vendas por dia útil", unit: "num", scope: "evento" },
       { id: "revenue", key: "revenue", label: "Meta de receita (R$)", where: "Card Receita acumulada e gráfico Receita acumulada x meta", unit: "brl", scope: "evento" },
       { id: "issued_tickets", key: "issued_tickets", label: "Ingressos emitidos", where: "Ingressos emitidos (pagos, faturados e cortesias)", unit: "num", scope: "evento" },
+    ],
+  },
+  {
+    title: "Patrocínio",
+    description: "Metas de patrocínio do evento selecionado. As cotas vêm da configuração do patrocínio do evento.",
+    items: [
+      { id: "sponsor_revenue_target", key: "sponsor_revenue_target", label: "Meta ampliada (R$)", where: "Patrocínios › Receita de patrocínio e Receita acumulada x meta", unit: "brl", scope: "evento", info: "Receita de patrocínio que a equipe persegue. Aparece em Receita de patrocínio e Receita acumulada x meta." },
+      { id: "sponsor_revenue_floor", key: "sponsor_revenue_floor", label: "Meta mínima (R$)", where: "Patrocínios › Receita de patrocínio", unit: "brl", scope: "evento", info: "Piso aceitável de venda de patrocínio. Aparece como marca no card Receita de patrocínio." },
+      { id: "sponsor_budget", key: "sponsor_budget", label: "Orçamento (R$)", where: "Patrocínios › Receita de patrocínio", unit: "brl", scope: "evento", info: "Receita de patrocínio prevista no orçamento do evento (DRE). Aparece como marca no card Receita de patrocínio." },
+      { id: "sponsor_quotas", key: "sponsor_quotas", label: "Cotas vendidas", where: "Patrocínios › Cotas vendidas", unit: "num", scope: "cota", info: "Quantidade a vender em cada nível de cota. Aparece em Cotas vendidas." },
+      { id: "sponsor_receipts", key: "sponsor_receipts", label: "Recebimento no ano (R$)", where: "Patrocínios › Recebimentos (quando o campo de vencimento existir)", unit: "brl", scope: "ano", info: "Caixa de patrocínio que deve entrar no ano. Aparece em Recebimentos." },
+      { id: "sponsor_approaches", key: "sponsor_approaches", label: "Abordagens", where: "Patrocínios › Prospecção (fase seguinte)", unit: "num", scope: "periodo", info: "Empresas a abordar nas datas da meta. Com conversão de 7%, define o volume de prospecção. Aparece em Prospecção." },
     ],
   },
   {
@@ -96,10 +110,10 @@ export const GOAL_SECTIONS: GoalSection[] = [
 
 export const GOAL_DEFS = GOAL_SECTIONS.flatMap((s) => s.items);
 
-// Item do catálogo de uma meta gravada (por lote quando tem ticket_type).
-export function defOfGoal(goal: { metric_key: string; ticket_type?: string | null }): GoalDef | undefined {
-  const porLote = !!goal.ticket_type;
-  return GOAL_DEFS.find((d) => d.key === goal.metric_key && (d.scope === "lote") === porLote);
+// Item do catálogo de uma meta gravada (por lote quando tem ticket_type, por cota com quota_key, por ano com receipt_year).
+export function defOfGoal(goal: { metric_key: string; ticket_type?: string | null; quota_key?: string | null; receipt_year?: number | null }): GoalDef | undefined {
+  const scope = goal.ticket_type ? "lote" : goal.quota_key ? "cota" : goal.receipt_year ? "ano" : null;
+  return GOAL_DEFS.find((d) => d.key === goal.metric_key && (scope ? d.scope === scope : !["lote", "cota", "ano"].includes(d.scope)));
 }
 
 export function formatGoalValue(value: number, unit: GoalUnit): string {
