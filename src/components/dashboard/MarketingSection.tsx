@@ -13,7 +13,7 @@ import { SourceBreakdownTable } from "./SourceBreakdownTable";
 import { SourceBreakdownDataTable } from "./SourceBreakdownDataTable";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
-import { countBy, utmLabel, SegmentCard } from "./CommercialSegments";
+import { origensDeVenda, SegmentCard } from "./CommercialSegments";
 import { CampaignFilter, type Campaign } from "./CampaignFilter";
 
 interface MarketingSectionProps {
@@ -84,7 +84,7 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
 
   // Origem da venda (utm_source): mesmo card que antes ficava na aba Comercial.
   const { paying } = useMemo(() => splitTickets(tickets), [tickets]);
-  const porOrigem = useMemo(() => countBy(paying, (t) => utmLabel(t.utm_source)).slice(0, 8), [paying]);
+  const origem = useMemo(() => origensDeVenda(paying), [paying]);
 
   // Build filtered adMetrics for charts (replace meta rows with filtered ones)
   const filteredAdMetrics = useMemo(() => {
@@ -389,9 +389,9 @@ export function MarketingSection({ adMetrics, emailCampaigns, siteAnalytics, ga4
       </div>
 
       {/* Origem da venda (UTM) */}
-      {porOrigem.length > 0 && (
+      {origem.itens.length > 0 && (
         <div className="grid grid-cols-12 gap-[14px]">
-          <SegmentCard title="Pagantes por origem (UTM)" items={porOrigem} className="col-span-12" />
+          <SegmentCard title="Pagantes por origem (UTM)" items={origem.itens} rodape={origem.rodape} className="col-span-12" />
         </div>
       )}
     </section>

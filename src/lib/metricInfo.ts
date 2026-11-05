@@ -42,7 +42,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes por perfil da empresa":
     "Perfil da empresa do comprador, informado no formulário de inscrição da Sympla. O formulário não pergunta o porte, então este é o dado mais próximo.",
   "Pagantes por forma de pagamento": "Como cada ingresso pagante foi pago na Sympla: cartão, boleto, Pix e outros.",
-  "Pagantes por origem (UTM)": "Origem da venda pela UTM do link usado na compra (utm_source). Maiúsculas e minúsculas contam como o mesmo canal, e \"ig\" e \"instagram\" são juntados em Instagram. Vendas sem UTM não aparecem.",
+  "Pagantes por origem (UTM)": "Origem da venda pela UTM do link usado na compra (utm_source). Maiúsculas e minúsculas contam como o mesmo canal, e \"ig\" e \"instagram\" são juntados em Instagram. Ao lado de cada origem está o valor pago pelos ingressos. Vendas sem UTM não aparecem; embaixo, o card diz quantos ingressos pagantes têm UTM.",
   Cupons:
     "Cupons usados nos ingressos emitidos, separados por grupo: Faturados (começam com FATURADO), Resgate (GANHADOR ou RESGATE), Palestrantes, Equipe CUPOLA (nome + 5, com 5% de desconto) e Parceiros e outros.",
   "Ranking da equipe":

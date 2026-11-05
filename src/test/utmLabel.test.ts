@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { countBy, utmLabel } from "@/components/dashboard/CommercialSegments";
+import { countBy, origensDeVenda, utmLabel } from "@/components/dashboard/CommercialSegments";
 
 describe("origem da venda (UTM)", () => {
   it("vazio ou só espaços não vira origem", () => {
@@ -25,6 +25,17 @@ describe("origem da venda (UTM)", () => {
 
   it("ainda converte UTM gravado como códigos de letra", () => {
     expect(utmLabel("(105,103)")).toBe("Instagram");
+  });
+
+  it("origem das vendas: ingressos e valor por canal e quantos pagantes têm UTM", () => {
+    const t = (utm_source: string | null, quantity: number, total_price: number) => ({ utm_source, quantity, total_price }) as any;
+    const r = origensDeVenda([t("ig", 2, 400), t("Instagram", 1, 200), t("email", 4, 800), t(null, 3, 600)]);
+    expect(r.itens).toEqual([
+      { label: "Email", value: 4, amount: 800 },
+      { label: "Instagram", value: 3, amount: 600 },
+    ]);
+    expect(r.rodape).toBe("7 de 10 ingressos pagantes (70%) têm UTM. Os demais não aparecem aqui.");
+    expect(origensDeVenda([])).toEqual({ itens: [], rodape: null });
   });
 
   it("a contagem junta as variações do mesmo canal", () => {
