@@ -40,9 +40,10 @@ export function SponsorReceiptsCard({ data, vendido, metaPorAno, campos, semParc
             Recebimentos <InfoTip title="Recebimentos" text={RECEIPTS_INFO.card} />
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
-            {semDados ? "Ainda sem condição de pagamento nas vendas" : `${brlShort(total)} programados · ${pct(vendido > 0 ? total / vendido : 0)} do vendido`}
+            {semDados ? "Quando o dinheiro das vendas entra" : `${brlShort(total)} programados · ${pct(vendido > 0 ? total / vendido : 0)} do vendido`}
           </p>
         </div>
+        {!semDados && (
         <CardTabs
           value={aba}
           onChange={(v) => setAba(v as typeof aba)}
@@ -52,8 +53,14 @@ export function SponsorReceiptsCard({ data, vendido, metaPorAno, campos, semParc
             { value: "depois", label: "Depois do evento", info: RECEIPTS_INFO.depois },
           ]}
         />
+        )}
       </CardHeader>
       <CardContent className="space-y-4">
+        {semDados && (
+          <p className="rounded-xl border border-dashed px-4 py-6 text-center text-sm text-muted-foreground">
+            Ainda não há datas de pagamento das vendas. Quando o painel financeiro estiver ligado, o calendário de recebimentos aparece aqui.
+          </p>
+        )}
         {!semDados && aba === "mes" && (
           <ResponsiveContainer width="100%" height={220}>
             <BarChart data={data.porMes.map((m) => ({ ...m, label: mesLabel(m.mes) }))} margin={{ left: 0, right: 8, top: 8 }}>
@@ -86,9 +93,9 @@ export function SponsorReceiptsCard({ data, vendido, metaPorAno, campos, semParc
             <MiniStat label="Até o evento" value={brlShort(total - data.depoisDoEvento)} info={RECEIPTS_INFO.porMes} />
           </div>
         )}
-        {(data.semCondicao > 0 || data.permuta > 0) && (
+        {!semDados && (data.semCondicao > 0 || data.permuta > 0) && (
           <div className="grid grid-cols-2 gap-2">
-            {data.semCondicao > 0 && <MiniStat label="Sem condição de pagamento" value={brlShort(data.semCondicao)} info={RECEIPTS_INFO.semCondicao} tone="warn" sub="Fora dos recebimentos" />}
+            {data.semCondicao > 0 && <MiniStat label="Vendas sem data de pagamento" value={brlShort(data.semCondicao)} info={RECEIPTS_INFO.semCondicao} tone="warn" sub="Não entram no calendário acima" />}
             {data.permuta > 0 && <MiniStat label="Permuta" value={brlShort(data.permuta)} info={RECEIPTS_INFO.permuta} sub="Fora dos recebimentos" />}
           </div>
         )}

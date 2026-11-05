@@ -123,6 +123,8 @@ export interface ProspectStage {
   abertos: number;
   valor: number;
   chegaram: number;
+  // Perdidos que pararam nesta etapa (separados de quem seguiu).
+  perdidosAqui: number;
   medianaDias: number | null;
   limiteDias: number;
   travada: boolean;
@@ -187,6 +189,7 @@ export function prospecting(
       valor: abertos.reduce((t, d) => t + share(d).valor, 0),
       // Chegaram até a etapa: estão nela ou depois dela (perdidos contam até a etapa em que pararam; ganhos passaram por todas).
       chegaram: lista.filter((d) => d.status === "won" || (posicao.get(String(d.stage_id)) ?? -1) >= i).length,
+      perdidosAqui: lista.filter((d) => d.status === "lost" && d.stage_id === String(s.pd_id)).length,
       medianaDias: mediana,
       limiteDias,
       travada: mediana != null && mediana > limiteDias,

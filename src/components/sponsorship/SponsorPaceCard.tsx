@@ -8,6 +8,7 @@ import { PREVIOUS_YEAR_KEY, previousYearLineProps, useSeriesVisibility } from "@
 import type { WeekPoint } from "@/lib/sponsorshipMetrics";
 import { CardTabs } from "./CardTabs";
 import { brl } from "./SponsorRevenueCard";
+import { cn } from "@/lib/utils";
 
 export const PACE_INFO = {
   card: "A edição anterior entra no mesmo número de dias antes do evento. Ritmo necessário = quanto falta ÷ semanas até a abertura do evento.",
@@ -49,7 +50,7 @@ export function SponsorPaceCard({ semanas, meta, metaCotas, ritmoSemanal, semana
   const fmt = receita ? brl : int;
 
   return (
-    <Card className={className}>
+    <Card className={cn("flex flex-col", className)}>
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-2">
         <div>
           <CardTitle className="flex items-center gap-2">
@@ -87,8 +88,8 @@ export function SponsorPaceCard({ semanas, meta, metaCotas, ritmoSemanal, semana
           />
         </div>
       </CardHeader>
-      <CardContent>
-        <ResponsiveContainer width="100%" height={260}>
+      <CardContent className="min-h-[260px] flex-1">
+        <ResponsiveContainer width="100%" height="100%">
           <LineChart data={semanas} margin={{ left: 0, right: 8, top: 8 }}>
             <CartesianGrid vertical={false} className="stroke-border" />
             <XAxis dataKey="label" tick={{ fontSize: 11 }} interval="preserveStartEnd" minTickGap={24} className="fill-muted-foreground" />
