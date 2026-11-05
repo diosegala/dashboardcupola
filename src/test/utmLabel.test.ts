@@ -34,7 +34,7 @@ describe("origem da venda (UTM)", () => {
       { label: "Email", value: 4, amount: 800 },
       { label: "Instagram", value: 3, amount: 600 },
     ]);
-    expect(r.rodape).toBe("7 de 10 ingressos pagantes (70%) têm UTM. Os demais não aparecem aqui.");
+    expect(r.rodape).toBe("7 de 10 ingressos pagantes da Sympla (70%) têm UTM. Faturados internos entram como Venda direta.");
     expect(origensDeVenda([])).toEqual({ itens: [], rodape: null });
   });
 

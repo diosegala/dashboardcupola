@@ -34,7 +34,8 @@ export function useCouponTotals(tickets: Ticket[]): CouponTotals {
     const linhas = Array.from(map.values());
     return {
       gratuitos: linhas.filter((c) => c.kind === "cortesia").reduce((s, c) => s + c.uses, 0),
-      descontos: linhas.reduce((s, c) => s + c.desconto, 0),
+      // Faturados internos: só quando o desconto do produto vem preenchido no Pipedrive.
+      descontos: linhas.reduce((s, c) => s + c.desconto, 0) + paying.reduce((s, t) => s + (t.discount_value || 0), 0),
       cuponsUsados: linhas.length,
       comCupom: linhas.reduce((s, c) => s + c.uses, 0),
     };

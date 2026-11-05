@@ -154,8 +154,10 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
     toast.success("Configuração copiada. Confira os funis marcados como sugestão e salve.");
   }
 
+  // O funil de ingressos faturados é do Comercial (configurado à parte) e é preservado aqui.
   function toggleLink(id: number, on: boolean) {
-    set({ pipelines: on ? [...draft.pipelines, { pipeline_pd_id: id, represents: "varias_cotas" }] : draft.pipelines.filter((p) => p.pipeline_pd_id !== id) });
+    const outros = draft.pipelines.filter((p) => p.pipeline_pd_id !== id || p.represents === "ingressos");
+    set({ pipelines: on ? [...outros, { pipeline_pd_id: id, represents: "varias_cotas" }] : outros });
   }
 
   const otherEvents = events.filter((e) => e.id && e.id !== eventId);
@@ -213,7 +215,7 @@ export function SponsorshipConfig({ event, open, onClose }: Props) {
             ) : (
               <div className="grid gap-2 sm:grid-cols-2">
                 {pipelineRows.map((p) => {
-                  const link = draft.pipelines.find((l) => l.pipeline_pd_id === p.id);
+                  const link = draft.pipelines.find((l) => l.pipeline_pd_id === p.id && l.represents !== "ingressos");
                   return (
                     <label key={p.id} className="flex items-center gap-2.5 rounded-xl border px-3 py-2 text-sm">
                       <Checkbox checked={!!link} aria-label={`Usar o funil ${p.name}`} onCheckedChange={(v) => toggleLink(p.id, !!v)} />

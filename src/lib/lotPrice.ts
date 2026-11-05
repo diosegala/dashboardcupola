@@ -41,7 +41,8 @@ export function fullPrices(tickets: T[]) {
 // Cupons de 100% não entram (podem ser resgates de compras faturadas internamente).
 // Receita bruta = receita paga + descontos.
 export function commercialDiscounts(couponTickets: T[], revenue: number) {
-  const total = Math.round(couponTickets.reduce((s, t) => s + couponDiscountValue(t), 0) * 100) / 100;
+  // Faturados internos: desconto do produto no Pipedrive, quando preenchido.
+  const total = Math.round(couponTickets.reduce((s, t: any) => s + couponDiscountValue(t) + (t.discount_value || 0), 0) * 100) / 100;
   const bruta = revenue + total;
   return { total, bruta, pct: bruta > 0 ? total / bruta : 0 };
 }

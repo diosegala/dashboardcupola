@@ -119,7 +119,7 @@ export function computeSponsorship(
   catalog: CatalogRow[],
   window: { previousEnd: string | null; eventEnd: string },
 ): SponsorshipMetrics {
-  const pipes = new Set(config.pipelines.map((p) => p.pipeline_pd_id));
+  const pipes = new Set(config.pipelines.filter((p) => p.represents !== "ingressos").map((p) => p.pipeline_pd_id));
   const byId = new Map(catalog.filter((c) => (c.kind ?? "product") === "product").map((c) => [c.pd_id, c]));
   const variations = new Map(catalog.filter((c) => c.kind === "variation").map((c) => [c.pd_id, c]));
   const itemOf = (l: DealProductRow) => (l.variation_pd_id != null ? variations.get(l.variation_pd_id)?.name ?? null : null);

@@ -103,7 +103,7 @@ export function HBars({ items }: { items: { label: string; value: number; amount
 const CORES_PARTE = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--muted-foreground))"];
 
 // Barra única de 100% dividida em partes, com legenda de quantidade e %. Cabe quantas opções aparecerem.
-export function ShareBar({ items }: { items: { label: string; value: number; amount?: number }[] }) {
+export function ShareBar({ items }: { items: { label: string; value: number; amount?: number; detail?: string | null }[] }) {
   const [hover, setHover] = useState<string | null>(null);
   const total = items.reduce((s, i) => s + i.value, 0) || 1;
   const pct = (v: number) => `${((v / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
@@ -127,7 +127,8 @@ export function ShareBar({ items }: { items: { label: string; value: number; amo
             key={i.label}
             onMouseEnter={() => setHover(i.label)}
             onMouseLeave={() => setHover(null)}
-            className={cn("flex items-center justify-between gap-3 rounded-xl px-2 py-1 text-[13px] transition-[background-color,opacity] duration-150 hover:bg-secondary", hover && hover !== i.label && "opacity-45")}
+            title={i.detail ?? undefined}
+            className={cn("flex flex-wrap items-center justify-between gap-x-3 rounded-xl px-2 py-1 text-[13px] transition-[background-color,opacity] duration-150 hover:bg-secondary", hover && hover !== i.label && "opacity-45")}
           >
             <span className="flex min-w-0 items-center gap-2">
               <i className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: CORES_PARTE[n % CORES_PARTE.length] }} />
@@ -138,6 +139,8 @@ export function ShareBar({ items }: { items: { label: string; value: number; amo
               <span className="ml-2 text-muted-foreground">{pct(i.value)}</span>
               {i.amount !== undefined && <span className="ml-2 text-muted-foreground">· {i.amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}</span>}
             </span>
+            {/* Detalhe ao passar o mouse (ex.: Sympla x faturamento interno, média de parcelas). */}
+            {i.detail && hover === i.label && <span className="basis-full pl-[18px] text-xs text-muted-foreground">{i.detail}</span>}
           </li>
         ))}
       </ul>
@@ -171,13 +174,15 @@ export function origensDeVenda(pagantes: Ticket[]) {
     total += q;
     const canal = utmLabel(t.utm_source);
     if (!canal) return;
-    comUtm += q;
+    // Faturado interno aparece como "Venda direta", mas não tem UTM: não entra na cobertura de UTM.
+    if (t.source !== "pipedrive") comUtm += q;
     valores.set(canal, (valores.get(canal) ?? 0) + Number(t.total_price || 0));
   });
   const itens = countBy(pagantes, (t) => utmLabel(t.utm_source))
     .slice(0, 8)
     .map((i) => ({ ...i, amount: valores.get(i.label) ?? 0 }));
-  const rodape = total > 0 ? `${int(comUtm)} de ${int(total)} ingressos pagantes (${Math.round((comUtm / total) * 100)}%) têm UTM. Os demais não aparecem aqui.` : null;
+  const sympla = pagantes.filter((t) => t.source !== "pipedrive").reduce((s, t) => s + (t.quantity || 0), 0);
+  const rodape = sympla > 0 ? `${int(comUtm)} de ${int(sympla)} ingressos pagantes da Sympla (${Math.round((comUtm / sympla) * 100)}%) têm UTM. Faturados internos entram como Venda direta.` : null;
   return { itens, rodape };
 }
 
@@ -217,7 +222,13 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
       const k = forma(t);
       if (k) valores.set(k, (valores.get(k) ?? 0) + Number(t.total_price || 0));
     });
-    return countBy(paying, forma).map((i) => ({ ...i, amount: valores.get(i.label) ?? 0 }));
+    const qtd = (lista: Ticket[]) => lista.reduce((s, t) => s + (t.quantity || 0), 0);
+    return countBy(paying, forma).map((i) => {
+      const daForma = paying.filter((t) => forma(t) === i.label);
+      const interno = daForma.filter((t) => t.source === "pipedrive");
+      const partes = interno.length ? [`${int(qtd(daForma) - qtd(interno))} Sympla · ${int(qtd(interno))} faturamento interno`] : [];
+      return { ...i, amount: valores.get(i.label) ?? 0, detail: partes.join(" · ") || null };
+    });
   }, [paying]);
 
   // Cupons agrupados pelo código, com o desconto e o tipo enviados pela Sympla.

@@ -2,7 +2,7 @@
 export const METRIC_INFO: Record<string, string> = {
   // Página Cupons
   "Entradas liberadas": "Ingressos aprovados com cupom de 100% de desconto (resgate, palestrantes, parceiros etc.). Não contam na meta de pagantes.",
-  "Descontos concedidos": "Diferença entre o preço cheio e o valor pago, somada só nos cupons com desconto parcial (menor que 100%). Em cupom percentual, o preço cheio é calculado a partir do valor pago: valor pago ÷ (1 − desconto). Em cupom de valor fixo, soma-se o valor do cupom por ingresso. Cupons de 100% e faturados ficam de fora.",
+  "Descontos concedidos": "Diferença entre o preço cheio e o valor pago, somada só nos cupons com desconto parcial (menor que 100%). Em cupom percentual, o preço cheio é calculado a partir do valor pago: valor pago ÷ (1 − desconto). Em cupom de valor fixo, soma-se o valor do cupom por ingresso. Cupons de 100% ficam de fora. Faturados internos entram só quando o desconto do produto está preenchido no negócio do Pipedrive (percentual ou valor); hoje esse campo não costuma vir.",
   "Códigos em circulação": "Quantidade de códigos de cupom diferentes usados em ingressos aprovados do evento.",
   "Vendas com cupom": "Ingressos aprovados que usaram algum cupom, de qualquer tipo.",
   "Hall da fama": "Soma das vendas pagantes de cada pessoa da equipe em todos os lotes, incluindo o atual. Aparecem os 3 primeiros; Ver mais abre o restante. Abaixo do nome, quantos lotes já encerrados a pessoa venceu. Empates ficam na mesma posição.",
@@ -19,13 +19,13 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagos na Sympla":
     "Pedidos aprovados na Sympla com qualquer valor acima de zero. Pendentes e cancelados não contam.",
   "Faturados internamente":
-    "Ingressos vendidos pelo comercial fora da Sympla e resgatados com cupom que começa com FATURADO. Passa a contar quando a Sympla enviar o cupom.",
+    "Ingressos vendidos pelo comercial fora da Sympla: negócios ganhos no Pipedrive com produto Ingressos Summit, pela quantidade e pelo valor do produto, na data em que o negócio foi ganho. O comercial só marca como ganho depois do contrato assinado ou da primeira parcela paga, então ganho conta como vendido, mesmo parcelado. Negócios abertos (negociação, fechamento) aparecem à parte e não contam. Forma de pagamento \"Bonificação / Permuta\" conta como bonificado. Parcelado só é indicado. 2 ou mais ingressos Padrão no mesmo negócio contam como Grupo. O ano anterior não tem faturados internos. O resgate na Sympla (cupom de 100% com o nome da empresa, como COPAAZUL100) só dá baixa: não conta de novo.",
   Bonificados:
     "Ingressos aprovados sem valor: cortesias, expositores, patrocinadores, convidados e equipe. Ficam visíveis para controle de lotação, mas não somam na meta nem na receita.",
   "Ingressos pagantes":
     "Soma dos ingressos pagos na Sympla com os faturados internamente. Cortesias, expositores e patrocinadores não entram. Para acompanhar uma meta, defina-a na tela Metas.",
   "Pagantes acumulados": "Total de pagantes semana a semana desde a primeira venda. Com uma meta de pagantes na tela Metas, aparece também a trajetória até ela.",
-  "Descontos concedidos (Comercial)": "Soma do que deixou de ser cobrado com cupons de desconto parcial. Cupons de 100% não entram. O % é sobre a receita bruta: receita paga + descontos.",
+  "Descontos concedidos (Comercial)": "Soma do que deixou de ser cobrado com cupons de desconto parcial. Cupons de 100% não entram. O % é sobre a receita bruta: receita paga + descontos. Faturados internos só entram quando o desconto do produto vem preenchido no Pipedrive.",
   "Receita acumulada x meta": "Receita dos pagantes somada semana a semana desde a primeira venda. A linha tracejada é a trajetória até a meta de receita definida na aba Metas, distribuída pelos dias úteis até o evento. A linha pontilhada é o evento anterior na mesma data, quando 'Comparar' está ligado.",
   "Receita acumulada": "Valor dos ingressos pagantes desde a abertura das vendas. Com a meta de receita da aba Metas, mostra o % atingido e quanto falta.",
   "Pagantes acumulados x meta":
@@ -41,10 +41,10 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes por região": "Região do comprador a partir do estado informado no formulário de inscrição da Sympla.",
   "Pagantes por perfil da empresa":
     "Perfil da empresa do comprador, informado no formulário de inscrição da Sympla. O formulário não pergunta o porte, então este é o dado mais próximo.",
-  "Pagantes por forma de pagamento": "Como cada ingresso pagante foi pago na Sympla: cartão, boleto, Pix e outros.",
+  "Pagantes por forma de pagamento": "Como cada ingresso pagante foi pago: cartão, boleto, Pix e outros. Soma a Sympla e os faturados internos (campo Forma de pagamento do negócio no Pipedrive; Hotmart conta junto). Passe o mouse em cada forma para ver quanto veio da Sympla e do faturamento interno.",
   "Pagantes por origem (UTM)": "Origem da venda pela UTM do link usado na compra (utm_source). Maiúsculas e minúsculas contam como o mesmo canal, e \"ig\" e \"instagram\" são juntados em Instagram. Ao lado de cada origem está o valor pago pelos ingressos. Vendas sem UTM não aparecem; embaixo, o card diz quantos ingressos pagantes têm UTM.",
   Cupons:
-    "Cupons usados nos ingressos emitidos, separados por grupo: Faturados (começam com FATURADO), Resgate (GANHADOR ou RESGATE), Palestrantes, Equipe CUPOLA (nome + 5, com 5% de desconto) e Parceiros e outros.",
+    "Cupons usados nos ingressos emitidos, separados por grupo: Faturados (negócios ganhos no Pipedrive, por vendedor), Resgate (GANHADOR ou RESGATE), Palestrantes, Equipe CUPOLA (nome + 5, com 5% de desconto) e Parceiros e outros.",
   "Ranking da equipe":
     "Pagantes vendidos com o cupom de cada pessoa da equipe CUPOLA, lote a lote. Na linha do tempo, o lote atual (o da venda mais recente) abre sozinho; os lotes anteriores podem ser consultados e os próximos aparecem esmaecidos. Os 3 primeiros ficam em destaque e Ver mais abre os demais. Passe o mouse no nome para ver o cupom.",
 

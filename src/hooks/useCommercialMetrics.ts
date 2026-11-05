@@ -25,12 +25,30 @@ export interface Ticket {
   company_size?: string | null;
   payment_method?: string | null;
   utm_source?: string | null;
+  // Faturados internamente vêm do Pipedrive (negócio ganho); o resto vem da Sympla.
+  source?: "sympla" | "pipedrive";
+  seller?: string | null;
+  seller_name?: string | null;
+  deal_id?: string;
+  deal_title?: string | null;
+  // Negócio aberto: etapa no funil (ex.: Fechamento). Empresa do negócio, para casar com o cupom de resgate.
+  stage_name?: string | null;
+  company?: string | null;
+  // Venda lida pelo título ou com quantidades diferentes entre título e produtos.
+  conferir?: string | null;
+  // Resgate na Sympla de um faturado: id do negócio no Pipedrive (não conta como venda nem cortesia).
+  redeems?: string | null;
+  // Desconto em R$ dado no negócio do Pipedrive (linha do produto), quando preenchido.
+  discount_value?: number;
+  // Faturado com Forma de pagamento "Bonificação / Permuta" e número de parcelas (quando parcelado).
+  bonus?: boolean;
+  installments?: number | null;
 }
 
 const qty = (t: Ticket) => t.quantity || 0;
 const dayKey = (d: Date) => format(d, "yyyy-MM-dd");
 
-// Separa as vendas aprovadas em pagos na Sympla, faturados (cupom FATURADO) e bonificados (cortesias, credenciais, gratuitos).
+// Separa as vendas aprovadas em pagos na Sympla, faturados (negócios ganhos no Pipedrive) e bonificados (cortesias, credenciais, gratuitos).
 export function splitTickets(tickets: Ticket[]) {
     const approved = tickets.filter((t) => isApproved(t.status));
     const cat = (t: Ticket) => ticketCategory(t);
@@ -77,12 +95,20 @@ export function useCommercialMetrics(
     // Vendas pagantes por dia.
     const byDay = new Map<string, number>();
     const revByDay = new Map<string, number>();
+    // A parte faturada internamente (Pipedrive), para os gráficos mostrarem quanto do total veio de cada fonte.
+    const internoByDay = new Map<string, number>();
+    const revInternoByDay = new Map<string, number>();
     paying.forEach((t) => {
       if (!t.sold_at) return;
       const k = dayKey(new Date(t.sold_at));
       byDay.set(k, (byDay.get(k) || 0) + qty(t));
       revByDay.set(k, (revByDay.get(k) || 0) + Number(t.total_price || 0));
+      if (t.source === "pipedrive") {
+        internoByDay.set(k, (internoByDay.get(k) || 0) + qty(t));
+        revInternoByDay.set(k, (revInternoByDay.get(k) || 0) + Number(t.total_price || 0));
+      }
     });
+    const ate = (mapa: Map<string, number>, endKey: string) => Array.from(mapa.entries()).filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0);
 
     // Ritmo atual: média dos últimos dias úteis completos.
     const paceDays = lastBusinessDays(today, CURRENT_PACE_DAYS);
@@ -127,11 +153,14 @@ export function useCommercialMetrics(
       const limit = weekEnd < lastDayBeforeEvent ? weekEnd : lastDayBeforeEvent;
       const endKey = dayKey(limit);
       const cumulative = sortedDays.filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0);
+      const interno = ate(internoByDay, endKey);
       const trajectory = goal !== null ? Math.round((goal * businessDaysBetween(start, limit).length) / totalBusiness) : null;
       return {
         label: `S${i + 1}`,
         weekStart: dayKey(weekStart),
         pagantes: weekStart <= today ? cumulative : null,
+        sympla: weekStart <= today ? cumulative - interno : null,
+        interno: weekStart <= today ? interno : null,
         ...(trajectory !== null ? { trajetoria: trajectory } : {}),
         ...(hasPrevious ? { anoAnterior: previousDays.filter(([d]) => d <= endKey).reduce((s, [, v]) => s + v, 0) } : {}),
       };
@@ -146,6 +175,8 @@ export function useCommercialMetrics(
       return {
         label: `S${i + 1}`,
         receita: startOfDay(weekStart) <= today ? sum(sortedRevDays) : null,
+        receitaSympla: startOfDay(weekStart) <= today ? sum(sortedRevDays) - ate(revInternoByDay, endKey) : null,
+        receitaInterno: startOfDay(weekStart) <= today ? ate(revInternoByDay, endKey) : null,
         ...(revenueGoal !== null ? { trajetoria: Math.round((revenueGoal * businessDaysBetween(start, limit).length) / totalBusiness) } : {}),
         ...(hasPrevious ? { anoAnterior: sum(previousRevDays) } : {}),
       };
@@ -193,6 +224,7 @@ export function useCommercialMetrics(
       dailyBusiness,
       // Vendas pagantes por dia (aaaa-mm-dd) e a data da primeira venda, para navegar pelos dias úteis.
       paidByDay: Object.fromEntries(byDay),
+      internoByDay: Object.fromEntries(internoByDay),
       firstSaleDate: start,
       weekly,
       weeklyRevenue,
