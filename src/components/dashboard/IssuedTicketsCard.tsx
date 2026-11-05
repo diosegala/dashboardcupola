@@ -9,6 +9,7 @@ import { SalesSection } from "./SalesSection";
 import { TICKET_KINDS, ticketKind, type TicketKind } from "@/lib/ticketKinds";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { cn } from "@/lib/utils";
+import { isCancelled } from "@/lib/eventConfig";
 import { GoalMeter } from "@/components/GoalMeter";
 import { CompareLine } from "@/components/CompareLine";
 
@@ -47,7 +48,8 @@ interface Fatia {
   meta?: boolean;
 }
 
-function porCategoria(tickets: Ticket[]): Fatia[] {
+function porCategoria(todos: Ticket[]): Fatia[] {
+  const tickets = todos.filter((t) => !isCancelled(t.status));
   const soma: Record<string, number> = {};
   tickets.forEach((t) => {
     const cat = ticketCategory(t);
@@ -57,7 +59,8 @@ function porCategoria(tickets: Ticket[]): Fatia[] {
 }
 
 // Agrupa pelo tipo (Padrão, VIP, combos, grupo...), não pelo nome de cada lote.
-function porTipo(tickets: Ticket[]): Fatia[] {
+function porTipo(todos: Ticket[]): Fatia[] {
+  const tickets = todos.filter((t) => !isCancelled(t.status));
   const soma = new Map<TicketKind, number>();
   tickets.forEach((t) => {
     const tipo = ticketKind(t.ticket_type);

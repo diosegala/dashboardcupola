@@ -19,3 +19,8 @@ export const INVOICED_COUPON_PREFIX = "FATURADO";
 export function isApproved(status: string | null | undefined): boolean {
   return (status ?? "").toLowerCase() === "approved";
 }
+
+// Ingressos que deixaram de existir na Sympla (cancelados, estornados): não aparecem em nenhuma contagem.
+export function isCancelled(status: string | null | undefined): boolean {
+  return ["cancelled", "canceled", "c", "refunded", "r"].includes((status ?? "").toLowerCase());
+}
