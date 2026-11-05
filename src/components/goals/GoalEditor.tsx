@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTicketTypes } from "@/hooks/useTicketTypes";
+import { useSponsorshipConfig } from "@/hooks/useSponsorship";
 import type { GoalDef } from "@/lib/goalMetrics";
 import { cn } from "@/lib/utils";
 
@@ -15,15 +16,19 @@ export interface GoalEditorValues {
   period_start: string;
   period_end: string;
   ticket_type: string | null;
+  quota_key: string | null;
+  receipt_year: number | null;
 }
 
 interface GoalEditorProps {
   open: boolean;
   def: GoalDef | null;
   // Meta existente (para alterar) ou null (nova).
-  goal: { target_value: number | string; period_start: string; period_end: string; ticket_type?: string | null } | null;
+  goal: { target_value: number | string; period_start: string; period_end: string; ticket_type?: string | null; quota_key?: string | null; receipt_year?: number | null } | null;
   // Datas padrão de uma meta do evento: de hoje até o fim do evento.
   eventEnd: string;
+  // Evento das metas, para listar as cotas de patrocínio.
+  eventId?: string | null;
   saving?: boolean;
   onClose: () => void;
   onSave: (values: GoalEditorValues) => void;
@@ -47,8 +52,12 @@ function atalhos() {
 }
 
 // Editor de uma meta do catálogo: a métrica já vem escolhida, então só pede valor, datas e (se for o caso) o lote.
-export function GoalEditor({ open, def, goal, eventEnd, saving, onClose, onSave }: GoalEditorProps) {
+export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose, onSave }: GoalEditorProps) {
   const { data: lotes = [] } = useTicketTypes();
+  const sponsorship = useSponsorshipConfig(open && def?.scope === "cota" ? eventId : null);
+  const cotas = [...(sponsorship.data?.quotas ?? [])].sort((a, b) => a.order - b.order);
+  const [cota, setCota] = useState<string | null>(null);
+  const [ano, setAno] = useState("");
   const [valor, setValor] = useState("");
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
@@ -60,11 +69,21 @@ export function GoalEditor({ open, def, goal, eventEnd, saving, onClose, onSave 
     setDe(goal?.period_start ?? dia(new Date()));
     setAte(goal?.period_end ?? (def?.scope === "periodo" ? dia(endOfWeek(new Date(), { weekStartsOn: 4 })) : eventEnd));
     setLote(goal?.ticket_type ?? null);
+    setCota(goal?.quota_key ?? null);
+    setAno(goal?.receipt_year ? String(goal.receipt_year) : String(new Date().getFullYear()));
   }, [open, goal, def, eventEnd]);
 
   if (!def) return null;
   const numero = Number(valor.replace(",", "."));
-  const valido = numero > 0 && !!de && !!ate && ate >= de && (def.scope !== "lote" || !!lote);
+  const anoNum = Number(ano);
+  const valido =
+    numero > 0 &&
+    !!de &&
+    !!ate &&
+    ate >= de &&
+    (def.scope !== "lote" || !!lote) &&
+    (def.scope !== "cota" || !!cota) &&
+    (def.scope !== "ano" || (Number.isInteger(anoNum) && anoNum >= 2000 && anoNum <= 2100));
 
   return (
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
@@ -78,7 +97,15 @@ export function GoalEditor({ open, def, goal, eventEnd, saving, onClose, onSave 
           className="space-y-4"
           onSubmit={(e) => {
             e.preventDefault();
-            if (valido) onSave({ target_value: numero, period_start: de, period_end: ate, ticket_type: def.scope === "lote" ? lote : null });
+            if (valido)
+              onSave({
+                target_value: numero,
+                period_start: de,
+                period_end: ate,
+                ticket_type: def.scope === "lote" ? lote : null,
+                quota_key: def.scope === "cota" ? cota : null,
+                receipt_year: def.scope === "ano" ? anoNum : null,
+              });
           }}
         >
           {def.scope === "lote" && (
@@ -94,6 +121,33 @@ export function GoalEditor({ open, def, goal, eventEnd, saving, onClose, onSave 
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+          )}
+
+          {def.scope === "cota" && (
+            <div className="space-y-2">
+              <Label>Cota</Label>
+              {cotas.length === 0 ? (
+                <p className="text-xs text-muted-foreground">Este evento ainda não tem cotas. Cadastre em Configurações › Eventos › Patrocínio.</p>
+              ) : (
+                <Select value={cota ?? ""} onValueChange={setCota}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Escolha a cota" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {cotas.map((q) => (
+                      <SelectItem key={q.key} value={q.key}>{q.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          )}
+
+          {def.scope === "ano" && (
+            <div className="space-y-2">
+              <Label htmlFor="meta-ano">Ano do recebimento</Label>
+              <Input id="meta-ano" inputMode="numeric" value={ano} onChange={(e) => setAno(e.target.value)} placeholder="Ex.: 2027" />
             </div>
           )}
 

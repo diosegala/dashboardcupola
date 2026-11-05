@@ -5,13 +5,16 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { EventProvider } from "@/hooks/useEvent";
+import { usePipedriveAutoSync } from "@/hooks/useSponsorship";
 
 // Telas que a equipe de vendas pode abrir; as outras voltam para o ranking.
 const TELAS_EQUIPE = ["/", "/compradores"];
 
 export function AppLayout() {
-  const { isSeller } = useAuth();
+  const { isSeller, isAdmin } = useAuth();
   const { pathname } = useLocation();
+  // Pipedrive atualiza sozinho enquanto um administrador está com o painel aberto.
+  usePipedriveAutoSync(isAdmin && !isSeller);
   if (isSeller && !TELAS_EQUIPE.includes(pathname)) return <Navigate to="/" replace />;
 
   return (

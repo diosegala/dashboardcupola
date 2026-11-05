@@ -1,7 +1,7 @@
 import { traduzirErro } from "@/lib/mensagensErro";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { CalendarPlus, Pencil, Users } from "lucide-react";
+import { CalendarPlus, Handshake, Pencil, Users } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -13,6 +13,8 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Chip } from "@/components/Chip";
+import { InfoTip } from "@/components/InfoTip";
+import { SponsorshipConfig } from "@/components/settings/SponsorshipConfig";
 import { isEventClosed, previousEventOf, useEvent, type EventRow } from "@/hooks/useEvent";
 
 interface UserOption {
@@ -55,6 +57,8 @@ export function EventsManager({ users }: { users: UserOption[] }) {
   const queryClient = useQueryClient();
   const [form, setForm] = useState<EventForm | null>(null);
   const [accessEvent, setAccessEvent] = useState<EventRow | null>(null);
+  const [sponsorEvent, setSponsorEvent] = useState<EventRow | null>(null);
+
 
   // Eventos da conta Sympla, buscados no servidor (o token não vem para o navegador).
   const symplaEvents = useQuery({
@@ -159,6 +163,12 @@ export function EventsManager({ users }: { users: UserOption[] }) {
               <TableHead>Datas</TableHead>
               <TableHead>Compara com</TableHead>
               <TableHead className="text-right">Acessos</TableHead>
+              <TableHead className="text-right">
+                <span className="inline-flex items-center gap-1.5">
+                  Patrocínio
+                  <InfoTip title="Patrocínio" text="Conta do Pipedrive, funil, termo e código dos produtos, cotas e entregas de patrocínio deste evento. Só administradores configuram." />
+                </span>
+              </TableHead>
               <TableHead />
             </TableRow>
           </TableHeader>
@@ -180,6 +190,12 @@ export function EventsManager({ users }: { users: UserOption[] }) {
                   <Button variant="outline" size="sm" onClick={() => setAccessEvent(e)}>
                     <Users className="h-4 w-4" />
                     {e.id ? allowed(e.id).size : 0}
+                  </Button>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Button variant="outline" size="sm" disabled={!e.id} onClick={() => setSponsorEvent(e)}>
+                    <Handshake className="h-4 w-4" />
+                    Configurar
                   </Button>
                 </TableCell>
                 <TableCell className="text-right">
@@ -285,6 +301,8 @@ export function EventsManager({ users }: { users: UserOption[] }) {
           )}
         </DialogContent>
       </Dialog>
+
+      <SponsorshipConfig event={sponsorEvent} open={!!sponsorEvent} onClose={() => setSponsorEvent(null)} />
 
       <Dialog open={!!accessEvent} onOpenChange={(open) => !open && setAccessEvent(null)}>
         <DialogContent className="max-w-md rounded-[24px]">

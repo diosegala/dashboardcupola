@@ -64,7 +64,7 @@ const tooltipStyle = {
   labelStyle: { color: "hsl(var(--foreground))", fontWeight: 600 },
 };
 
-function GoalRing({ progress: target }: { progress: number }) {
+export function GoalRing({ progress: target }: { progress: number }) {
   const [progress, setProgress] = useState(0);
   useEffect(() => {
     const id = requestAnimationFrame(() => setProgress(target));

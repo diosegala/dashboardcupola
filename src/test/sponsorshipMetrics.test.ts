@@ -1,0 +1,131 @@
+import { describe, expect, it } from "vitest";
+import { EMPTY_DRAFT, quotaOfProduct, quotasFromCatalog, type SponsorshipDraft } from "@/lib/sponsorship";
+import { computeSponsorship, exampleDataset, inEdition, quotaBreakdown, weeklySeries, type DealProductRow, type DealRow } from "@/lib/sponsorshipMetrics";
+
+// Configuração genérica de teste: nomes inventados, nada do código depende deles.
+const config: SponsorshipDraft = {
+  ...EMPTY_DRAFT,
+  crm_account: "conta",
+  product_term: "Feira",
+  product_code: "PAT",
+  pipelines: [{ pipeline_pd_id: 7, represents: "varias_cotas" }],
+  quotas: [
+    { key: "ouro", name: "Ouro", order: 1, list_price: 100000, max_slots: 4 },
+    { key: "prata", name: "Prata", order: 2, list_price: 50000, max_slots: 3 },
+  ],
+};
+const catalog = [
+  { pd_id: 1, name: "Cota Ouro - Feira", code: "PAT" },
+  { pd_id: 2, name: "Cota Prata - Feira", code: "PAT" },
+  { pd_id: 3, name: "Ingressos Feira", code: "EDU" },
+  { pd_id: 4, name: "Relatório anual", code: "PAT" },
+  { pd_id: 5, name: "Feira 2027 (final)", code: "PAT" },
+];
+const deal = (id: string, status: string, won_at: string | null, extra: Partial<DealRow> = {}): DealRow => ({
+  id,
+  pipedrive_deal_id: id,
+  title: `Negócio ${id}`,
+  org_name: `Empresa ${id}`,
+  status,
+  value: 0,
+  won_at,
+  pipeline_pd_id: 7,
+  ...extra,
+});
+const line = (deal_id: string, product_pd_id: number, sum: number, extra: Partial<DealProductRow> = {}): DealProductRow => ({
+  deal_id,
+  product_pd_id,
+  name: null,
+  quantity: 1,
+  sum,
+  is_enabled: true,
+  ...extra,
+});
+const window = { previousEnd: "2026-05-21", eventEnd: "2027-05-21" };
+
+describe("receita de patrocínio", () => {
+  it("soma só os produtos do evento com o código, em negócios ganhos da edição", () => {
+    const deals = [deal("a", "won", "2026-08-10T15:00:00Z"), deal("b", "won", "2026-09-01T12:00:00Z")];
+    const lines = [line("a", 1, 90000), line("a", 4, 20000), line("a", 3, 1000), line("b", 2, 45000)];
+    const m = computeSponsorship(config, deals, lines, catalog, window);
+    expect(m.vendido).toBe(135000);
+    expect(m.vendas.map((v) => v.cota)).toEqual(["Ouro", "Prata"]);
+  });
+
+  it("ganho até o último dia da edição anterior fica fora; o dia seguinte já conta (fuso de São Paulo)", () => {
+    // 22/05 01:00 UTC ainda é 21/05 em São Paulo.
+    const deals = [deal("a", "won", "2026-05-22T01:00:00Z"), deal("b", "won", "2026-05-22T12:00:00Z")];
+    const m = computeSponsorship(config, deals, [line("a", 1, 10), line("b", 1, 20)], catalog, window);
+    expect(m.vendido).toBe(20);
+    expect(inEdition("2026-05-21T23:00:00-03:00", "2026-05-21", "2027-05-21")).toBe(false);
+  });
+
+  it("ganho sem produto do evento fica fora da receita e vai para o aviso", () => {
+    const deals = [deal("a", "won", "2026-08-10T15:00:00Z"), deal("b", "won", "2026-08-11T15:00:00Z")];
+    const m = computeSponsorship(config, deals, [line("b", 4, 5000)], catalog, window);
+    expect(m.vendido).toBe(0);
+    expect(m.ganhosSemProduto.map((g) => g.pipedriveDealId)).toEqual(["a", "b"]);
+  });
+
+  it("ignora produto desativado, negócio excluído e outros funis", () => {
+    const deals = [deal("a", "won", "2026-08-10T15:00:00Z"), deal("b", "won", "2026-08-10T15:00:00Z", { is_deleted: true }), deal("c", "won", "2026-08-10T15:00:00Z", { pipeline_pd_id: 8 })];
+    const lines = [line("a", 1, 100, { is_enabled: false }), line("a", 2, 50), line("b", 1, 100), line("c", 1, 100)];
+    expect(computeSponsorship(config, deals, lines, catalog, window).vendido).toBe(50);
+  });
+
+  it("em negociação soma os produtos do evento dos abertos, ou o valor do aberto ainda sem produto", () => {
+    const deals = [deal("a", "open", null), deal("b", "open", null, { value: 30000 }), deal("c", "open", null, { value: 99999 })];
+    const lines = [line("a", 2, 50000), line("c", 4, 99999)];
+    const m = computeSponsorship(config, deals, lines, catalog, window);
+    expect(m.emNegociacao).toBe(80000);
+    expect(m.negociosAbertos).toBe(2);
+  });
+
+  it("produto do evento sem cota pelo nome fica sem cota (linha Outros produtos do evento)", () => {
+    expect(quotaOfProduct("Feira 2027 (final)", config.quotas)).toBeNull();
+    expect(quotaOfProduct("Cota Prata - Feira", config.quotas)?.key).toBe("prata");
+  });
+
+  it("cotas: vendidas, vagas, em negociação, receita e a linha de outros produtos", () => {
+    const deals = [deal("a", "won", "2026-08-10T15:00:00Z"), deal("b", "won", "2026-08-11T15:00:00Z"), deal("c", "open", null)];
+    const lines = [line("a", 1, 85000), line("b", 5, 20000), line("c", 1, 100000, { quantity: 2 })];
+    const m = computeSponsorship(config, deals, lines, catalog, window);
+    const rows = quotaBreakdown(m, config.quotas, { ouro: 4 });
+    expect(rows[0]).toMatchObject({ nome: "Ouro", vendidas: 1, meta: 4, restantes: 3, emNegociacao: 2, precoMedio: 85000 });
+    expect(rows[1]).toMatchObject({ nome: "Prata", vendidas: 0, meta: null });
+    expect(rows[2]).toMatchObject({ key: "", nome: "Outros produtos do evento", vendidas: 1 });
+  });
+
+  it("semanas: acumulado até hoje e ritmo necessário até a abertura", () => {
+    const deals = [deal("a", "won", "2026-06-01T15:00:00Z"), deal("b", "won", "2026-06-20T15:00:00Z")];
+    const m = computeSponsorship(config, deals, [line("a", 1, 100), line("b", 2, 50)], catalog, window);
+    const { semanas, ritmoSemanal, semanasRestantes } = weeklySeries(m, { inicio: "2026-05-22", abertura: "2026-07-31", hoje: "2026-06-25", meta: 450 });
+    expect(semanas[0].receita).toBe(0);
+    expect(semanas.find((w) => w.inicio > "2026-06-25")?.receita).toBeNull();
+    expect(semanas.at(-1)?.ritmo).toBeCloseTo(450);
+    expect(ritmoSemanal! * semanasRestantes).toBeCloseTo(300);
+  });
+
+  it("o exemplo usa as cotas da configuração e passa pelas mesmas regras", () => {
+    const ex = exampleDataset(config, "2026-05-22", "2026-11-04");
+    const m = computeSponsorship(ex.config, ex.deals, ex.lines, ex.catalog, window);
+    expect(m.vendido).toBeGreaterThan(0);
+    expect(new Set(m.vendas.map((v) => v.cota))).toEqual(new Set(["Ouro", "Prata", null]));
+    expect(m.ganhosSemProduto).toHaveLength(1);
+  });
+
+  it("cotas seguem o catálogo do CRM: nome do CRM, produto novo entra, apagado sai, configuração só dá ordem e vagas", () => {
+    const cat = [
+      { name: "Cota Ouro - Feira", code: "PAT" },
+      { name: "Cota Diamante - Feira", code: "PAT" },
+      { name: "Cota Prata - Feira", code: "PAT", is_deleted: true },
+      { name: "Cota Bronze - Feira", code: "EDU" },
+      { name: "Cota Ouro - Outro Evento", code: "PAT" },
+    ];
+    const q = quotasFromCatalog(cat, "Feira", "PAT", config.quotas);
+    expect(q.map((x) => x.name)).toEqual(["Ouro", "Diamante"]);
+    expect(q[0]).toMatchObject({ key: "ouro", order: 1, max_slots: 4 });
+    expect(quotasFromCatalog(cat, "Feira", "PAT", config.quotas, new Set(["prata"])).map((x) => x.name)).toContain("Prata");
+  });
+});
+
