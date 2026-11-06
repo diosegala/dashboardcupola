@@ -227,11 +227,11 @@ export function buildBuyers(rowsByEvent: { event: EventRef; rows: DetailRow[] }[
     });
     return {
       id: String(root),
-      name: mostCommon(recs.map((r) => r.name)) ?? "Sem nome",
+      name: titleCase(mostCommon(recs.map((r) => r.name))) || "Sem nome",
       emails: Array.from(new Set(recs.map((r) => normEmail(r.email)).filter(Boolean) as string[])),
       phones: Array.from(new Set(recs.map((r) => normPhone(r.phone)).filter(Boolean) as string[])),
       cpf: mostCommon(recs.map((r) => r.cpf)),
-      companies: Array.from(new Set(recs.map((r) => r.company).filter(Boolean) as string[])),
+      companies: Array.from(new Set(recs.map((r) => r.company && titleCase(r.company)).filter(Boolean) as string[])),
       events,
       recurring: Object.keys(events).length >= 2,
     };
@@ -268,7 +268,7 @@ export function buildBuyers(rowsByEvent: { event: EventRef; rows: DetailRow[] }[
     });
     return {
       id: String(root),
-      name: mostCommon(recs.map((r) => r.company)) ?? "Sem nome",
+      name: titleCase(mostCommon(recs.map((r) => r.company))) || "Sem nome",
       cnpj: mostCommon(recs.map((r) => r.cnpj)),
       people: new Set(recs.map((r) => personOf.get(r))).size,
       events,
