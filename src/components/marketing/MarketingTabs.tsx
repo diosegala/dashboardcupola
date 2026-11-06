@@ -259,6 +259,21 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
   const abertura = entregues > 0 ? (abriram / entregues) * 100 : 0;
   const clique = entregues > 0 ? (clicaram / entregues) * 100 : 0;
   const descadastros = sum(lista, "unsubscribes");
+  // Enviado não é entregue: do total enviado, parte volta (bounce), parte o RD descarta antes de enviar
+  // (contato inválido ou descadastrado) e, num disparo recente, parte ainda não tem retorno.
+  const bounce = sum(lista, "total_bounced");
+  const descartados = sum(lista, "total_dropped");
+  // Disparo com 0 entregues ainda não tem o relatório de entrega do RD (chega horas depois): conta inteiro como sem retorno.
+  const pendentes = lista.filter((c) => Number(c.total_sent || 0) > 0 && !Number(c.total_delivered || 0));
+  const semRetorno = Math.max(0, enviados - entregues - bounce - descartados);
+  const comRetorno = enviados - sum(pendentes, "total_sent");
+  const entrega = comRetorno > 0 ? (entregues / comRetorno) * 100 : 0;
+  const partesEntrega = [
+    { label: "Entregues", value: entregues, cor: "bg-ok" },
+    { label: "Bounce (voltaram)", value: bounce, cor: "bg-warn" },
+    { label: "Descartados pelo RD", value: descartados, cor: "bg-bad" },
+    { label: "Ainda sem retorno", value: semRetorno, cor: "bg-muted-foreground/30" },
+  ];
 
   if (emailCampaigns.length === 0) return <Empty>Nenhum e-mail enviado pelo RD Station no período.</Empty>;
 
@@ -279,22 +294,49 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
         <CampaignFilter campaigns={opcoes} selected={sel} onChange={setSel} />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Campanhas Enviadas" value={lista.length} icon={Mail} goal={findGoal(goals, "email_sent", range)} description={`${int(entregues)} entregues de ${int(enviados)} enviados`} />
+        <MetricCard title="Campanhas Enviadas" value={lista.length} icon={Mail} goal={findGoal(goals, "email_sent", range)} description={`${int(enviados)} e-mails enviados no total`} />
+        <MetricCard title="Taxa de Entrega" value={comRetorno > 0 ? pct(entrega) : "—"} icon={Mail} description={`${int(entregues)} entregues de ${int(comRetorno)} com retorno`} />
         <MetricCard title="Taxa de Abertura" value={pct(abertura)} icon={Mail} goal={findGoal(goals, "email_open_rate", range)} description={`${int(abriram)} pessoas abriram`} />
         <MetricCard title="Taxa de Clique" value={pct(clique)} icon={MousePointerClick} goal={findGoal(goals, "email_click_rate", range)} description={`${int(clicaram)} pessoas clicaram`} />
-        <MetricCard title="Descadastros" value={descadastros} icon={Users} description={`${int(sum(lista, "total_bounced"))} e-mails voltaram (bounce)`} />
       </div>
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">Entrega dos e-mails <InfoTip title="Entrega dos e-mails" /></CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex h-3 w-full overflow-hidden rounded-full bg-secondary">
+            {partesEntrega.map((p) => (enviados > 0 && p.value > 0 ? <div key={p.label} className={p.cor} style={{ width: `${(p.value / enviados) * 100}%` }} /> : null))}
+          </div>
+          <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div>
+              <dt className="text-xs text-muted-foreground">Enviados</dt>
+              <dd className="text-lg font-semibold tabular-nums">{int(enviados)}</dd>
+            </div>
+            {partesEntrega.map((p) => (
+              <div key={p.label}>
+                <dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><i className={`inline-block h-2 w-2 rounded-full ${p.cor}`} />{p.label}</dt>
+                <dd className="text-lg font-semibold tabular-nums">{int(p.value)} <span className="text-xs font-normal text-muted-foreground">{enviados > 0 ? pct((p.value / enviados) * 100) : ""}</span></dd>
+              </div>
+            ))}
+          </dl>
+          <p className="text-xs text-muted-foreground">{int(descadastros)} pessoas se descadastraram depois de receber. A taxa de entrega considera só os e-mails que já têm retorno.</p>
+        </CardContent>
+      </Card>
       <TableCard
         title="E-mails enviados"
-        head={[{ label: "Campanha" }, { label: "Envio" }, { label: "Entregues", right: true }, { label: "Abertura", right: true }, { label: "Clique", right: true }, { label: "Descadastros", right: true }]}
+        head={[{ label: "Campanha" }, { label: "Envio" }, { label: "Enviados", right: true }, { label: "Entregues", right: true }, { label: "Bounce", right: true }, { label: "Abertura", right: true }, { label: "Clique", right: true }, { label: "Descadastros", right: true }]}
         rows={[...lista]
           .sort((x, y) => String(y.sent_at ?? "").localeCompare(String(x.sent_at ?? "")))
           .map((c) => {
             const ent = Number(c.total_delivered || 0);
+            const env = Number(c.total_sent || 0);
+            const aguardando = env > 0 && ent === 0;
             return [
               c.name || c.subject || c.rd_campaign_id,
               c.sent_at ? new Date(c.sent_at).toLocaleDateString("pt-BR") : "—",
-              int(ent),
+              int(env),
+              aguardando ? <span className="text-muted-foreground">Sem retorno ainda</span> : int(ent),
+              int(Number(c.total_bounced || 0)),
               ent > 0 ? pct((Number(c.total_opened || 0) / ent) * 100) : "—",
               ent > 0 ? pct((Number(c.total_clicked || 0) / ent) * 100) : "—",
               int(Number(c.unsubscribes || 0)),
