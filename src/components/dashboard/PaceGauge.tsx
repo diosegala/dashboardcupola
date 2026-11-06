@@ -55,8 +55,8 @@ export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritm
       <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
         Ritmo de vendas <InfoTip title="Ritmo de vendas" />
       </div>
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <svg viewBox="0 -28 200 144" className="h-[144px] w-[200px] shrink-0" role="img" aria-label={`Ritmo atual ${fmt(currentPace)} por dia útil${temMeta ? `; necessário ${fmt(requiredPace as number)}` : ""}`}>
+      <div className="flex flex-1 flex-col justify-between gap-4">
+        <svg viewBox="0 -28 200 144" className="mx-auto h-auto w-full max-w-[320px] shrink-0" role="img" aria-label={`Ritmo atual ${fmt(currentPace)} por dia útil${temMeta ? `; necessário ${fmt(requiredPace as number)}` : ""}`}>
           <path d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`} fill="none" stroke="hsl(var(--secondary))" strokeWidth="16" strokeLinecap="round" />
           <path
             d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`}
@@ -83,7 +83,7 @@ export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritm
             por dia útil
           </text>
         </svg>
-        <div className="flex min-w-0 flex-col gap-1.5 text-sm">
+        <div className="flex min-w-0 flex-col gap-1.5 border-t border-border pt-4 text-sm">
           {temMeta ? (
             <span className="text-muted-foreground">
               Precisa de <b className="font-semibold text-foreground"><CountUp value={Math.ceil(requiredPace as number)} format={(n) => fmt(Math.round(n))} /></b> por dia útil
