@@ -68,7 +68,8 @@ export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose
   // A lista de tipos de ingresso pode não trazer todos os lotes, então o calendário completo (Pré-venda e Lotes 0 a 8) entra sempre.
   const calendario = [PRE_VENDA, ...Array.from({ length: 9 }, (_, i) => `Lote ${i}`)];
   const lotesDoCalendario = [...new Set([...calendario, ...(lotes.map(batchOf).filter(Boolean) as string[])])].sort((a, b) => batchOrder(a) - batchOrder(b));
-  const opcoesLote = porCanal ? lotesDoCalendario : lotes;
+  // Metas por lote (ingressos, receita, canal) usam o lote inteiro, igual aos cards do painel.
+  const opcoesLote = lotesDoCalendario;
 
   useEffect(() => {
     if (!open) return;
