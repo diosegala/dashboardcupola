@@ -4,8 +4,7 @@ import { InfoTip } from "@/components/InfoTip";
 import { Chip } from "@/components/Chip";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { useCompare } from "@/hooks/useCompare";
-import { batchOf, batchOrder } from "@/lib/batches";
-import { fullPrices } from "@/lib/lotPrice";
+import { resumoLotes } from "@/lib/batchSummary";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -19,69 +18,11 @@ interface SalesSectionProps {
   embedded?: boolean;
 }
 
-interface Lote {
-  lote: string;
-  pagantes: number;
-  receita: number;
-  meta: number | null;
-  preco: number | null;
-  metaReceita: number | null;
-  anterior: number | null;
-  anteriorReceita: number | null;
-}
-
-// Soma pagantes e receita por lote (Pré-venda, Lote 0, Lote 1…), juntando os nomes que mudam a cada ano.
-function porLote(tickets: Ticket[]) {
-  const map = new Map<string, { pagantes: number; receita: number; ultimaVenda: string }>();
-  splitTickets(tickets).paying.forEach((t) => {
-    const lote = batchOf(t.ticket_type);
-    if (!lote) return;
-    const atual = map.get(lote) ?? { pagantes: 0, receita: 0, ultimaVenda: "" };
-    atual.pagantes += t.quantity || 0;
-    atual.receita += Number(t.total_price || 0);
-    if ((t.sold_at ?? "") > atual.ultimaVenda) atual.ultimaVenda = t.sold_at ?? "";
-    map.set(lote, atual);
-  });
-  return map;
-}
-
 // Vendas por lote: cada lote deste ano com a meta do lote (se houver) e o mesmo lote do evento anterior (com a chave ligada).
 export function SalesSection({ goals, allTimeTickets = [], previousYearTickets = [], embedded = false }: SalesSectionProps) {
   const { ativo: comparar, rotulo } = useCompare();
 
-  const { lotes, loteAtual } = useMemo(() => {
-    const atual = porLote(allTimeTickets);
-    const anterior = porLote(previousYearTickets);
-    // Metas por lote: a meta de ingressos do lote (tela Metas), somando os nomes que caem no mesmo lote.
-    const somaMetas = (chave: string) => {
-      const m = new Map<string, number>();
-      goals
-        .filter((g) => g.metric_key === chave && g.ticket_type)
-        .forEach((g) => {
-          const lote = batchOf(g.ticket_type);
-          if (lote) m.set(lote, (m.get(lote) ?? 0) + Number(g.target_value || 0));
-        });
-      return m;
-    };
-    const metas = somaMetas("tickets_sold");
-    const metasReceita = somaMetas("revenue");
-    const nomes = new Set([...atual.keys(), ...metas.keys(), ...metasReceita.keys()]);
-    const loteAtual = Array.from(atual.entries()).sort((a, b) => b[1].ultimaVenda.localeCompare(a[1].ultimaVenda))[0]?.[0] ?? null;
-    const { byBatch: precos } = fullPrices(allTimeTickets);
-    const lotes: Lote[] = Array.from(nomes)
-      .sort((a, b) => batchOrder(a) - batchOrder(b))
-      .map((lote) => ({
-        lote,
-        pagantes: atual.get(lote)?.pagantes ?? 0,
-        receita: atual.get(lote)?.receita ?? 0,
-        meta: metas.get(lote) ?? null,
-        preco: precos.get(lote) ?? null,
-        metaReceita: metasReceita.get(lote) ?? null,
-        anterior: anterior.get(lote)?.pagantes ?? null,
-        anteriorReceita: anterior.get(lote)?.receita ?? null,
-      }));
-    return { lotes, loteAtual };
-  }, [allTimeTickets, previousYearTickets, goals]);
+  const { lotes, loteAtual } = useMemo(() => resumoLotes(goals, allTimeTickets, previousYearTickets), [allTimeTickets, previousYearTickets, goals]);
 
   if (lotes.length === 0) return embedded ? <p className="py-8 text-center text-xs text-muted-foreground">Nenhuma venda por lote ainda.</p> : null;
 
