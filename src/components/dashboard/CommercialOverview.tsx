@@ -170,7 +170,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
 
   return (
     <div className="grid grid-cols-12 gap-[14px]">
-      {/* Linha 1: meta, ritmo necessário e ritmo atual */}
+      {/* Linha 1: pagantes e lote vigente */}
       <PayingTicketsCard
         className="col-span-12 lg:col-span-6"
         sympla={m.paidSymplaCount}
@@ -182,17 +182,15 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         extra={filtrado ? <EventoInteiro escuro /> : undefined}
       />
 
-      <PaceGauge
+
+      <CurrentBatchCard
+        goals={goals}
+        allTimeTickets={tickets}
+        previousYearTickets={previousTickets}
         className="col-span-12 lg:col-span-6"
-        currentPace={m.currentPace}
-        requiredPace={m.requiredPace}
-        remainingDays={m.remainingDays}
-        chip={chip}
-        ritmoAnterior={m.anterior?.currentPace}
-        faltam={m.missing}
       />
 
-      {/* Linha 2: todos os ingressos emitidos (pizza) e receita */}
+      {/* Linha 2: ingressos emitidos, ritmo de vendas e receita */}
       <IssuedTicketsCard
         tickets={doPeriodo}
         goal={filtrado ? null : metaEmitidos}
@@ -204,11 +202,14 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         previousYearTickets={previousTickets}
         className="col-span-12 lg:col-span-5"
       />
-      <CurrentBatchCard
-        goals={goals}
-        allTimeTickets={tickets}
-        previousYearTickets={previousTickets}
+      <PaceGauge
         className="col-span-12 md:col-span-6 lg:col-span-3"
+        currentPace={m.currentPace}
+        requiredPace={m.requiredPace}
+        remainingDays={m.remainingDays}
+        chip={chip}
+        ritmoAnterior={m.anterior?.currentPace}
+        faltam={m.missing}
       />
       {/* Receita acumulada e Descontos concedidos num único card: ticket médio e pagantes lado a lado, descontos no rodapé. */}
       <Card className="col-span-12 flex flex-col gap-4 p-5 hover:-translate-y-[3px] hover:border-line-strong md:col-span-6 lg:col-span-4">
