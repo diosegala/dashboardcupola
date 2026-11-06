@@ -252,7 +252,8 @@ async function fetchInvoicedTickets(symplaEventId: string, symplaSales: any[]) {
       if (!data || data.length < 1000) break;
     }
   }
-  return invoicedToTickets([...negocios.values()].filter(doEvento), linhas, symplaSales);
+  // Conta do Pipedrive em cada ingresso, para o painel abrir o negócio no CRM.
+  return invoicedToTickets([...negocios.values()].filter(doEvento), linhas, symplaSales).map((t) => ({ ...t, crm_account: account }));
 }
 
 // Todas as vendas do evento: Sympla + faturados internamente (Pipedrive), no mesmo formato.
