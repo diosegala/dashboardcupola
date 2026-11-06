@@ -87,7 +87,6 @@ function Conteudo({ lote, vHoje, v7, comparar }: { lote: ReturnType<typeof resum
           <p className="col-span-2 text-xs text-muted-foreground">Defina a meta do lote na aba Metas</p>
         )}
         <Item rotulo="Receita do lote" valor={<CountUp value={lote.receita} format={brl} />} />
-        <Item rotulo="\n" valor="\n" />
       </div>
       {comparar && lote.anterior !== null && (
         <CompareLine anterior={lote.anterior} atual={lote.pagantes} formato={int} quando="no mesmo lote" />
