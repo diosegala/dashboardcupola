@@ -283,18 +283,135 @@ function nomeDoEmail(bruto: string) {
   return normal.charAt(0).toUpperCase() + normal.slice(1);
 }
 
-function EmailList() {
-  const { data = [], isLoading } = useEmailsDaEdicao();
+// Gráfico iceberg dos e-mails do período: uma coluna por e-mail, em ordem de envio. Acima da linha d'água o que foi bom
+// (abertura e clique), abaixo o que pesou (descadastro e bounce). Cada métrica tem a própria escala: a barra mais alta
+// de cada cor é o e-mail que mais teve aquilo. O valor real fica escrito na barra.
+const METRICAS_EMAIL = [
+  { chave: "abertura", titulo: "Abertura", cor: "bg-primary", lado: "cima", casas: 1 },
+  { chave: "clique", titulo: "Clique", cor: "bg-foreground/75", lado: "cima", casas: 2 },
+  { chave: "descadastro", titulo: "Descadastro", cor: "bg-bad", lado: "baixo", casas: 2 },
+  { chave: "bounce", titulo: "Bounce", cor: "bg-warn", lado: "baixo", casas: 2 },
+] as const;
+type ChaveEmail = (typeof METRICAS_EMAIL)[number]["chave"];
+type LinhaEmail = Record<ChaveEmail, number> & { id: string; nome: string; data: string; quando: string; ent: number };
+
+function EmailCompareChart({ emails }: { emails: any[] }) {
+  const linhas = useMemo(
+    () =>
+      emails
+        .filter((c) => Number(c.total_delivered || 0) > 0)
+        .map((c): LinhaEmail => {
+          const ent = Number(c.total_delivered || 0);
+          const env = Number(c.total_sent || 0) || ent;
+          return {
+            id: String(c.id),
+            nome: nomeDoEmail(String(c.name || c.subject || c.rd_campaign_id)),
+            data: c.sent_at ? new Date(c.sent_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "",
+            quando: String(c.sent_at ?? ""),
+            ent,
+            abertura: (Number(c.total_opened || 0) / ent) * 100,
+            clique: (Number(c.total_clicked || 0) / ent) * 100,
+            descadastro: (Number(c.unsubscribes || 0) / ent) * 100,
+            bounce: (Number(c.total_bounced || 0) / env) * 100,
+          };
+        })
+        .sort((a, b) => a.quando.localeCompare(b.quando)),
+    [emails],
+  );
+  const [foco, setFoco] = useState<string | null>(null);
+  const aguardando = emails.filter((c) => Number(c.total_sent || 0) > 0 && !Number(c.total_delivered || 0)).length;
+  if (linhas.length < 2) return null;
+
+  const escala = Object.fromEntries(METRICAS_EMAIL.map((m) => [m.chave, Math.max(...linhas.map((l) => l[m.chave])) || 1])) as Record<ChaveEmail, number>;
+  const lider = Object.fromEntries(METRICAS_EMAIL.map((m) => [m.chave, linhas.reduce((a, b) => (b[m.chave] > a[m.chave] ? b : a)).id])) as Record<ChaveEmail, string>;
+  const ALTO = 150;
+  const BAIXO = 90;
+  const ativo = linhas.find((l) => l.id === foco);
+  const esmaece = (id: string) => (foco && foco !== id ? "opacity-35" : "");
+  const hover = (id: string) => ({ onMouseEnter: () => setFoco(id), onMouseLeave: () => setFoco(null) });
+
+  const coluna = (l: LinhaEmail, lado: "cima" | "baixo") => (
+    <div className={`flex h-full justify-center gap-1 ${lado === "cima" ? "items-end" : "items-start"}`}>
+      {METRICAS_EMAIL.filter((m) => m.lado === lado).map((m) => {
+        const v = l[m.chave];
+        const h = Math.max(2, (v / escala[m.chave]) * (lado === "cima" ? ALTO : BAIXO) * 0.78);
+        const campeao = lider[m.chave] === l.id;
+        return (
+          <div key={m.chave} className={`flex w-[min(30px,42%)] flex-col items-center ${lado === "cima" ? "justify-end" : "justify-start"}`}>
+            {lado === "cima" && <span className="mb-0.5 text-[10px] font-semibold tabular-nums">{pct(v, m.casas)}</span>}
+            <div
+              className={`w-full ${m.cor} ${lado === "cima" ? "rounded-t-md" : "rounded-b-md"} transition-[height] duration-700 ease-out ${campeao ? "ring-2 ring-foreground/70 ring-offset-1 ring-offset-card" : ""}`}
+              style={{ height: h }}
+            />
+            {lado === "baixo" && <span className="mt-0.5 text-[10px] font-semibold tabular-nums">{pct(v, m.casas)}</span>}
+          </div>
+        );
+      })}
+    </div>
+  );
+
+  return (
+    <div>
+      <div className="pb-3">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+          <InfoTip
+            title="Como ler o gráfico"
+            text={`Para cima, o que foi bom (abertura e clique, sobre os entregues); para baixo, o que pesou (descadastro sobre os entregues e bounce sobre os enviados). Cada métrica tem a própria escala: em cada cor, a barra mais alta, com contorno, é o e-mail campeão daquela métrica.${aguardando > 0 ? ` ${aguardando} e-mail ainda sem relatório de entrega do RD não entra.` : ""}`}
+          />
+          {METRICAS_EMAIL.map((m) => (
+            <span key={m.chave} className="flex items-center gap-1.5">
+              {m.chave === "abertura" && <b className="mr-1 font-medium text-foreground/70">Acima da linha ↑</b>}
+              {m.chave === "descadastro" && <b className="mr-1 font-medium text-foreground/70">Abaixo ↓</b>}
+              <i className={`inline-block h-2.5 w-2.5 rounded-sm ${m.cor}`} />
+              {m.titulo}
+            </span>
+          ))}
+        </div>
+      </div>
+      <div>
+        <div className="overflow-x-auto">
+          <div className="min-w-[520px]">
+            <div className="flex" style={{ height: ALTO }}>
+              {linhas.map((l) => (
+                <div key={l.id} {...hover(l.id)} className={`flex-1 px-1 transition-opacity ${esmaece(l.id)}`}>{coluna(l, "cima")}</div>
+              ))}
+            </div>
+            <div className="border-t-2 border-foreground/60" />
+            <div className="flex rounded-b-2xl bg-secondary/50" style={{ height: BAIXO }}>
+              {linhas.map((l) => (
+                <div key={l.id} {...hover(l.id)} className={`flex-1 px-1 transition-opacity ${esmaece(l.id)}`}>{coluna(l, "baixo")}</div>
+              ))}
+            </div>
+            <div className="mt-2 flex">
+              {linhas.map((l) => (
+                <div key={l.id} {...hover(l.id)} className={`flex-1 px-1 text-center transition-opacity ${esmaece(l.id)}`}>
+                  <p className="line-clamp-2 text-[11px] font-medium leading-tight">{l.nome}</p>
+                  <p className="text-[10px] text-muted-foreground">{l.data}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <p className="mt-3 min-h-[1rem] text-xs text-muted-foreground">
+          {ativo
+            ? `${ativo.nome}: ${int(ativo.ent)} entregues · abertura ${pct(ativo.abertura)} · clique ${pct(ativo.clique, 2)} · descadastro ${pct(ativo.descadastro, 2)} · bounce ${pct(ativo.bounce, 2)}`
+            : ""}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function EmailList({ data, isLoading }: { data: any[]; isLoading: boolean }) {
   const [todos, setTodos] = useState(false);
   const visiveis = todos ? data : data.slice(0, POR_PAGINA);
 
   return (
-    <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2">E-mails enviados <InfoTip title="E-mails enviados" /></CardTitle>
+    <div>
+      <div className="pb-3">
         <p className="text-xs text-muted-foreground">{isLoading ? "Carregando…" : `${data.length} e-mails desta edição, do mais recente para o mais antigo. Não depende do período escolhido.`}</p>
-      </CardHeader>
-      <CardContent>
+      </div>
+      <div>
         {/* Tela larga: linha com colunas. Tela menor: cada e-mail vira um bloco com os números embaixo do nome. Nada corta. */}
         <div className="hidden items-center gap-2 border-b pb-2 text-xs text-muted-foreground xl:flex">
           <span className="flex-1">E-mail</span>
@@ -335,6 +452,29 @@ function EmailList() {
             <Button variant="ghost" size="sm" onClick={() => setTodos((v) => !v)}>{todos ? "Mostrar menos" : `Ver todos os ${data.length}`}</Button>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// E-mails enviados: um card, duas visões dos mesmos e-mails da edição. Gráfico para bater o olho, lista para os números.
+function EmailsCard() {
+  const { data = [], isLoading } = useEmailsDaEdicao();
+  const [visao, setVisao] = useState("grafico");
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-3 pb-2 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="flex items-center gap-2">E-mails enviados <InfoTip title="E-mails enviados" /></CardTitle>
+        <Tabs value={visao} onValueChange={setVisao}>
+          <SlidingTabsList value={visao} className="h-9">
+            {[["grafico", "Gráfico"], ["lista", "Lista"]].map(([v, l]) => (
+              <TabsTrigger key={v} value={v} className="relative z-[1] px-4 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">{l}</TabsTrigger>
+            ))}
+          </SlidingTabsList>
+        </Tabs>
+      </CardHeader>
+      <CardContent className="animate-panel-in" key={visao}>
+        {visao === "grafico" ? <EmailCompareChart emails={data} /> : <EmailList data={data} isLoading={isLoading} />}
       </CardContent>
     </Card>
   );
@@ -346,7 +486,7 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
   const [b, setB] = useState<string | null>(null);
   const opcoes = useMemo(() => {
     const map = new Map<string, string>();
-    emailCampaigns.forEach((c) => c.rd_campaign_id && !map.has(c.rd_campaign_id) && map.set(c.rd_campaign_id, c.name || c.rd_campaign_id));
+    [...emailCampaigns].sort((x, y) => String(y.sent_at ?? "").localeCompare(String(x.sent_at ?? ""))).forEach((c) => c.rd_campaign_id && !map.has(c.rd_campaign_id) && map.set(c.rd_campaign_id, nomeDoEmail(String(c.name || c.subject || c.rd_campaign_id))));
     return Array.from(map.entries()).map(([campaign_id, campaign_name]) => ({ campaign_id, campaign_name }));
   }, [emailCampaigns]);
   const lista = sel.length ? emailCampaigns.filter((c) => sel.includes(c.rd_campaign_id)) : emailCampaigns;
@@ -434,7 +574,7 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
           </div>
         </CardContent>
       </Card>
-      <EmailList />
+      <EmailsCard />
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">Comparar dois e-mails <InfoTip title="Comparar dois e-mails" /></CardTitle>
