@@ -50,11 +50,6 @@ const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number, casas = 0) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: casas, maximumFractionDigits: casas });
 const pct = (n: number, casas = 1) => `${n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas })}%`;
 
-// Uma frase dizendo o que a aba responde: quem abre entende antes de ler os números.
-function Intro({ children }: { children: ReactNode }) {
-  return <p className="max-w-3xl text-sm text-muted-foreground">{children}</p>;
-}
-
 function Empty({ children }: { children: ReactNode }) {
   return (
     <Card>
@@ -174,7 +169,6 @@ function Overview({ adMetrics, emailCampaigns, tickets, goals, range }: Marketin
 
   return (
     <div className="space-y-6">
-      <Intro>O resumo do marketing no período: quanto foi investido em mídia, quanto custou cada venda e de onde vieram os compradores.</Intro>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard title="Investimento em mídia" value={brl(midia.investimento, 2)} icon={Wallet} description="Meta Ads e Google Ads" />
         <MetricCard title="Investimento por ingresso" value={pagantes > 0 ? brl(midia.investimento / pagantes, 2) : "—"} icon={Coins} description={`Investimento dividido por ${int(pagantes)} ingressos pagantes`} />
@@ -214,11 +208,7 @@ function AdsTab({ fonte, adMetrics, previousAdMetrics, goals, range, foraAds = 0
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Intro>
-          {ehMeta ? "Anúncios do Summit no Instagram e Facebook: alcance, cliques e o que o Pixel registrou no site." : "Anúncios do Summit na busca e na rede do Google: cliques, custo e conversões."}
-          {foraAds > 0 && ` ${foraAds} campanhas de outros produtos da CUPOLA ficaram fora.`}
-        </Intro>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <CampaignFilter campaigns={campaignOptions(todas)} selected={sel} onChange={setSel} />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -562,11 +552,7 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Intro>
-          E-mails do Summit enviados pelo RD Station: quantos chegaram, quantos abriram e quantos clicaram.
-          {foraDoEvento > 0 && ` ${foraDoEvento} e-mails de outros produtos da CUPOLA no período ficaram fora.`}
-        </Intro>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <CampaignFilter campaigns={opcoes} selected={sel} onChange={setSel} />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -670,7 +656,6 @@ function SiteTab({ siteAnalytics, previousSiteAnalytics, ga4Events, goals, range
 
   return (
     <div className="space-y-6">
-      <Intro>Quem chegou ao site do evento, de onde veio e quantos avançaram até a compra.</Intro>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard title="Sessões" value={sum(siteAnalytics, "sessions")} icon={Globe} goal={findGoal(goals, "site_visits", range)} anterior={ant?.s} />
         <MetricCard title="Usuários" value={sum(siteAnalytics, "users")} icon={Users} goal={findGoal(goals, "site_users", range)} anterior={ant?.u} description="Total de usuários" />
@@ -768,7 +753,6 @@ function LinksTab({ tickets, allTickets, goals }: MarketingTabsProps) {
 
   return (
     <div className="space-y-6">
-      <Intro>Qual canal e qual link levou cada venda. Cada canal de divulgação deve usar o próprio link com UTM; venda com cupom sem link e faturado interno contam para a Equipe CUPOLA.</Intro>
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard title="Ingressos pagantes" value={total} icon={TicketIcon} description={`Sympla e faturados ${nomeRecorte}`} />
         <MetricCard title="Com link parametrizado" value={totalSympla ? pct((comLink / totalSympla) * 100, 0) : "—"} icon={Link2} description={`${int(comLink)} de ${int(totalSympla)} ingressos da Sympla têm UTM`} />
