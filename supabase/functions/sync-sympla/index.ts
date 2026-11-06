@@ -1,5 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { PENDING_PREFIX } from "../_shared/sympla-rules.ts";
+import { incompleteOrders, isApprovedOrder, participantsToCancel, PENDING_PREFIX } from "../_shared/sympla-rules.ts";
+
+// Pedidos conferidos um a um por sincronização (o que passar disso fica para a próxima, e aparece no resumo).
+const MAX_ORDER_CHECKS = 120;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -118,38 +121,71 @@ Deno.serve(async (req) => {
       .eq("id", integration.id);
 
     let totalParticipants = 0;
+    const resumo: any[] = [];
     for (const { eventId, token: apiToken } of targets) {
-    // 4. Fetch all participants with pagination + retry
-    const allParticipants: any[] = [];
-    let page = 1;
-    let hasNext = true;
-
-    while (hasNext) {
-      const url = `https://api.sympla.com.br/public/v1.5.1/events/${eventId}/participants?page=${page}&page_size=200`;
-      console.log("sync-sympla - fetching:", url);
-      const data = await fetchWithRetry(url, apiToken);
-      if (data.data) {
-        allParticipants.push(...data.data);
-      }
-      hasNext = data.pagination?.has_next ?? false;
-      page++;
+    const base = `https://api.sympla.com.br/public/v1.5.1/events/${eventId}`;
+    // 4. Participantes do evento (lista geral).
+    const fromList = await fetchAllPages(`${base}/participants`, apiToken);
+    const participantsById = new Map<string, any>();
+    fromList.forEach((p: any) => participantsById.set(String(p.id), p));
+    // Segunda leitura da lista com todos os status (status=true): soma o que a leitura padrão não trouxe. Quem não
+    // está aprovado entra com o próprio status e não conta como venda.
+    let daListaCompleta = 0;
+    try {
+      (await fetchAllPages(`${base}/participants?status=true`, apiToken)).forEach((p: any) => {
+        const id = String(p.id);
+        if (!participantsById.has(id)) {
+          daListaCompleta++;
+          participantsById.set(id, p);
+        }
+      });
+    } catch (err: any) {
+      console.error("sync-sympla - lista com todos os status indisponível:", err.message);
     }
 
-    // 4b. Pedidos do evento: trazem o cupom usado. Se falhar, a sincronização segue sem cupom.
+    // 4b. Pedidos aprovados do evento: trazem cupom, UTM e o valor líquido, usado para conferir os participantes.
+    // Se falhar, a sincronização segue sem cupom e sem a conferência por pedido.
     const ordersById = new Map<string, any>();
     try {
-      let orderPage = 1;
-      let hasNextOrder = true;
-      while (hasNextOrder) {
-        const url = `https://api.sympla.com.br/public/v1.5.1/events/${eventId}/orders?page=${orderPage}&page_size=200`;
-        const data = await fetchWithRetry(url, apiToken);
-        (data.data ?? []).forEach((o: any) => ordersById.set(String(o.id), o));
-        hasNextOrder = data.pagination?.has_next ?? false;
-        orderPage++;
-      }
+      (await fetchAllPages(`${base}/orders`, apiToken)).forEach((o: any) => ordersById.set(String(o.id), o));
     } catch (err: any) {
       console.error("sync-sympla - pedidos indisponíveis:", err.message);
     }
+
+    // 4c. Pedidos aprovados cujos participantes não fecham o valor: busca os participantes do próprio pedido.
+    // Dado exato da Sympla, nada estimado. Falha num pedido não interrompe a sincronização; o que faltar fica no resumo.
+    const incompletosAntes = incompleteOrders(Array.from(ordersById.values()), Array.from(participantsById.values()));
+    let recuperados = 0;
+    let falhas = 0;
+    for (const o of incompletosAntes.slice(0, MAX_ORDER_CHECKS)) {
+      try {
+        const doPedido = await fetchAllPages(`${base}/orders/${o.id}/participants`, apiToken);
+        doPedido.forEach((p: any) => {
+          const id = String(p.id);
+          if (!participantsById.has(id)) recuperados++;
+          participantsById.set(id, { ...p, order_id: p.order_id ?? o.id });
+        });
+      } catch (err: any) {
+        falhas++;
+        console.error(`sync-sympla - participantes do pedido ${o.id} indisponíveis:`, err.message);
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    const allParticipants = Array.from(participantsById.values());
+    const incompletosDepois = incompleteOrders(Array.from(ordersById.values()), allParticipants);
+    const resumoEvento = {
+      evento: eventId,
+      participantes_lista_geral: fromList.length,
+      recuperados_lista_todos_status: daListaCompleta,
+      recuperados_por_pedido: recuperados,
+      participantes_total: allParticipants.length,
+      pedidos_aprovados: ordersById.size,
+      pedidos_incompletos_antes: incompletosAntes.length,
+      pedidos_incompletos_depois: incompletosDepois.length,
+      consultas_com_falha: falhas,
+    };
+    resumo.push(resumoEvento);
+    console.log("sync-sympla - resumo:", JSON.stringify(resumoEvento));
 
     // Só os nomes dos campos do formulário vão para o log (nunca as respostas), para mapear região e porte.
     const formLabels = new Set<string>();
@@ -172,7 +208,8 @@ Deno.serve(async (req) => {
         buyer_name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null,
         buyer_email: p.email ?? null,
         sold_at: p.order_date || p.order_approved_date || null,
-        status: mapStatus(p.order_status),
+        // A lista de pedidos é a fonte atual do status; a do participante pode estar desatualizada.
+        status: mapStatus(order?.order_status ?? p.order_status),
         event_id: eventId,
         order_id: p.order_id ? String(p.order_id) : null,
         coupon_code: coupon ? String(coupon).trim().toUpperCase() : null,
@@ -210,16 +247,25 @@ Deno.serve(async (req) => {
       if (error) throw error;
     }
 
-    // Participantes que a Sympla deixou de devolver (pedido cancelado ou estornado) não contam mais como aprovados.
-    if (allParticipants.length) {
-      const { data: saved, error } = await supabase
-        .from("ticket_sales")
-        .select("sympla_order_id")
-        .eq("event_id", eventId)
-        .not("sympla_order_id", "like", `${PENDING_PREFIX}%`)
-        .neq("status", "cancelled");
-      if (error) throw error;
-      const gone = (saved ?? []).map((r: any) => String(r.sympla_order_id)).filter((id: string) => !rowMap.has(id));
+    // Participantes que a Sympla deixou de devolver e cujo pedido saiu dos aprovados (cancelado, estornado) passam a
+    // cancelados. Quem tem o pedido ainda aprovado continua contando (ver participantsToCancel).
+    if (ordersById.size) {
+      const saved: any[] = [];
+      for (let from = 0; ; from += 1000) {
+        const { data, error } = await supabase
+          .from("ticket_sales")
+          .select("sympla_order_id, order_id")
+          .eq("event_id", eventId)
+          .not("sympla_order_id", "like", `${PENDING_PREFIX}%`)
+          .neq("status", "cancelled")
+          .order("sympla_order_id")
+          .range(from, from + 999);
+        if (error) throw error;
+        saved.push(...(data ?? []));
+        if (!data || data.length < 1000) break;
+      }
+      const aprovados = new Set(Array.from(ordersById.values()).filter(isApprovedOrder).map((o: any) => String(o.id)));
+      const gone = participantsToCancel(saved, new Set(rowMap.keys()), aprovados);
       for (let i = 0; i < gone.length; i += 200) {
         const { error: cancelError } = await supabase
           .from("ticket_sales")
@@ -269,7 +315,7 @@ Deno.serve(async (req) => {
       .eq("id", integration.id);
 
     return new Response(
-      JSON.stringify({ success: true, events: targets.length, participants: totalParticipants }),
+      JSON.stringify({ success: true, events: targets.length, participants: totalParticipants, resumo }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (err: any) {
@@ -328,6 +374,17 @@ function mapStatus(status: string | null): string {
   if (!status) return "unknown";
   const map: Record<string, string> = { A: "approved", P: "pending", R: "refunded" };
   return map[status] ?? status;
+}
+
+// Todas as páginas de uma lista da API (participantes, pedidos, participantes de um pedido).
+async function fetchAllPages(url: string, token: string): Promise<any[]> {
+  const all: any[] = [];
+  for (let page = 1; page <= 500; page++) {
+    const data = await fetchWithRetry(`${url}${url.includes("?") ? "&" : "?"}page=${page}&page_size=200`, token);
+    all.push(...(data?.data ?? []));
+    if (!data?.pagination?.has_next) break;
+  }
+  return all;
 }
 
 async function fetchWithRetry(url: string, token: string, retries = 3): Promise<any> {

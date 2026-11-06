@@ -48,11 +48,19 @@ export function useIntegrations() {
   const syncIntegration = useMutation({
     mutationFn: async (name: string) => {
       const fnName = `sync-${name.replace(/_/g, "-")}`;
-      const { error } = await supabase.functions.invoke(fnName);
+      const { data, error } = await supabase.functions.invoke(fnName);
       if (error) throw error;
+      return data;
     },
-    onSuccess: () => {
-      toast.success("Sincronização iniciada!");
+    onSuccess: (data: any) => {
+      // A Sympla devolve um resumo por evento: quantos participantes vieram e quantos pedidos ainda não fecham.
+      const resumo: any[] = Array.isArray(data?.resumo) ? data.resumo : [];
+      const faltam = resumo.reduce((s, r) => s + (Number(r.pedidos_incompletos_depois) || 0), 0);
+      if (resumo.length) {
+        const total = resumo.reduce((s, r) => s + (Number(r.participantes_total) || 0), 0);
+        toast.success(`Sympla sincronizada: ${total.toLocaleString("pt-BR")} participantes.`);
+        if (faltam) toast.warning(`${faltam.toLocaleString("pt-BR")} pedidos aprovados ainda sem todos os participantes na API da Sympla.`);
+      } else toast.success("Sincronização iniciada!");
       // Busca o status na hora; o refetchInterval acompanha até a sincronização terminar.
       queryClient.invalidateQueries({ queryKey: ["integrations"] });
       queryClient.invalidateQueries({ queryKey: ["integrations_health"] });
