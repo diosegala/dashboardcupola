@@ -24,7 +24,7 @@ describe("faturados internos (Pipedrive)", () => {
 
   it("lote vigente pela última venda da Sympla até o dia", () => {
     expect(batchAt("2026-11-04T10:00:00Z", sympla)).toBe("Lote 0");
-    expect(batchAt("2026-10-25T10:00:00Z", sympla)).toBe("Pré-venda");
+    expect(batchAt("2026-10-25T10:00:00Z", sympla)).toBe("Lote 0"); // faturados nunca entram na Pré-venda
   });
 
   it("soma na meta, na receita e no ranking da mesma pessoa do cupom", () => {
@@ -58,7 +58,7 @@ describe("faturados internos (Pipedrive)", () => {
       [],
       [],
     );
-    expect(vendas.map((v) => [v.ticket_type, v.quantity, v.total_price])).toEqual([["Pré-venda | Ingresso VIP", 2, 2000], ["Pré-venda | Grupo de Ingressos Padrão", 5, 5000]]);
+    expect(vendas.map((v) => [v.ticket_type, v.quantity, v.total_price])).toEqual([["Lote 0 | Ingresso VIP", 2, 2000], ["Pré-venda | Grupo de Ingressos Padrão", 5, 5000]]);
   });
 
   it("corrige quantidade e preço trocados no produto (Copa Azul: 1775.65 x 3)", () => {
