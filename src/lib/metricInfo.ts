@@ -6,7 +6,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Códigos em circulação": "Quantidade de códigos de cupom diferentes usados em ingressos aprovados do evento.",
   "Vendas com cupom": "Ingressos aprovados que usaram algum cupom, de qualquer tipo.",
   "Hall da fama": "Soma das vendas pagantes de cada pessoa da equipe em todos os lotes, incluindo o atual. Aparecem os 3 primeiros; Ver mais abre o restante. Abaixo do nome, quantos lotes já encerrados a pessoa venceu. Empates ficam na mesma posição.",
-  "Cupons em uso": "Todos os cupons usados no evento, do mais usado para o menos usado. O grupo é identificado pelo código (equipe, resgate, palestrantes, parceiros, faturados). A pizza mostra os 5 mais usados do filtro atual; o resto fica em Outros.",
+  "Cupons em uso": "Todos os cupons usados no evento, do mais usado para o menos usado. O grupo é identificado pelo código (equipe, resgate, palestrantes, parceiros). Vendas faturadas somam no cupom da equipe de quem vendeu (ex.: SUELLEN5) e contam como venda normal. A pizza mostra os 5 mais usados do filtro atual; o resto fica em Outros.",
   // Aba Comercial (definições do ds-summit)
   "Meta de ingressos pagantes":
     "Soma dos ingressos pagos na Sympla com os faturados internamente. Cortesias, expositores e patrocinadores não entram. A meta é cadastrada na tela Metas.",
