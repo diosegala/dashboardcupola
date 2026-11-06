@@ -1,4 +1,4 @@
-import { PRE_VENDA, batchOnDate, batchStarts } from "@/lib/batches";
+import { batchOnDate, batchStarts } from "@/lib/batches";
 import { parseCoupon } from "@/lib/coupons";
 
 // Ingressos faturados internamente: negócios do Pipedrive com ingresso do Summit.
@@ -77,7 +77,7 @@ export function couponForSeller(raw: unknown, teamCoupons: string[]): string | n
 
 // Lote vigente numa data: o lote cuja primeira venda na Sympla já aconteceu (ver batchStarts).
 export function batchAt(date: string, symplaSales: { sold_at: string | null; ticket_type?: string | null }[]): string {
-  return batchOnDate(date, batchStarts(symplaSales)) ?? PRE_VENDA;
+  return batchOnDate(date, batchStarts(symplaSales));
 }
 
 // Quantos negócios faturados ganhos têm o desconto do produto preenchido no Pipedrive. Serve para pedir ao comercial
