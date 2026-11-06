@@ -3,7 +3,11 @@
 
 // evento: um valor para o evento todo · periodo: vale para as datas escolhidas (compara com o período do painel)
 // lote: um valor por lote de ingresso · cota: um valor por cota de patrocínio · ano: um valor por ano de recebimento
-export type GoalScope = "evento" | "periodo" | "lote" | "cota" | "ano";
+// canal: um valor por canal de venda em cada lote (canal em quota_key, lote em ticket_type)
+export type GoalScope = "evento" | "periodo" | "lote" | "cota" | "ano" | "canal";
+
+// Canais de venda sugeridos na meta por canal (os mesmos nomes da aba Marketing › Links). Outro nome pode ser digitado.
+export const CANAIS_DE_VENDA = ["Equipe CUPOLA", "E-mail marketing", "Instagram", "Whatsapp", "Sem link"];
 export type GoalUnit = "num" | "brl" | "pct";
 
 export interface GoalDef {
@@ -52,6 +56,13 @@ export const GOAL_SECTIONS: GoalSection[] = [
     items: [
       { id: "tickets_sold_lote", key: "tickets_sold", label: "Ingressos do lote", where: "Vendas por lote", unit: "num", scope: "lote" },
       { id: "revenue_lote", key: "revenue", label: "Receita do lote", where: "Vendas por lote", unit: "brl", scope: "lote" },
+    ],
+  },
+  {
+    title: "Canais de venda",
+    description: "Quantos ingressos cada canal deve vender em cada lote, como no planejamento.",
+    items: [
+      { id: "channel_sales", key: "channel_sales", label: "Vendas do canal no lote", where: "Marketing › Links › Vendas por canal", unit: "num", scope: "canal", info: "Ingressos que o canal deve vender no lote. Na aba Links do Marketing, escolha o lote para ver vendidos, meta, % e quanto falta. Em Evento todo, as metas dos lotes somam." },
     ],
   },
   {
@@ -112,6 +123,8 @@ export const GOAL_DEFS = GOAL_SECTIONS.flatMap((s) => s.items);
 
 // Item do catálogo de uma meta gravada (por lote quando tem ticket_type, por cota com quota_key, por ano com receipt_year).
 export function defOfGoal(goal: { metric_key: string; ticket_type?: string | null; quota_key?: string | null; receipt_year?: number | null }): GoalDef | undefined {
+  const porCanal = GOAL_DEFS.find((d) => d.scope === "canal" && d.key === goal.metric_key);
+  if (porCanal) return porCanal;
   const scope = goal.ticket_type ? "lote" : goal.quota_key ? "cota" : goal.receipt_year ? "ano" : null;
   return GOAL_DEFS.find((d) => d.key === goal.metric_key && (scope ? d.scope === scope : !["lote", "cota", "ano"].includes(d.scope)));
 }

@@ -54,8 +54,9 @@ export default function Goals() {
   const sponsorship = useSponsorshipConfig(event.id);
   const nomeCota = (key?: string | null) => sponsorship.data?.quotas.find((q) => q.key === key)?.name ?? key ?? "";
   // Rótulo do recorte da meta (lote, cota ou ano).
+  // Meta por canal tem canal e lote juntos.
   const recorte = (g: { ticket_type?: string | null; quota_key?: string | null; receipt_year?: number | null }) =>
-    g.ticket_type ?? (g.quota_key ? nomeCota(g.quota_key) : g.receipt_year ? String(g.receipt_year) : null);
+    g.ticket_type && g.quota_key ? `${g.quota_key} · ${g.ticket_type}` : g.ticket_type ?? (g.quota_key ? nomeCota(g.quota_key) : g.receipt_year ? String(g.receipt_year) : null);
 
   const [editando, setEditando] = useState<{ def: GoalDef; goal: Goal | null } | null>(null);
   const [excluindo, setExcluindo] = useState<Goal | null>(null);
@@ -82,7 +83,7 @@ export default function Goals() {
 
   const salvar = useMutation({
     mutationFn: async ({ def, goal, v }: { def: GoalDef; goal: Goal | null; v: GoalEditorValues }) => {
-      const sufixo = v.ticket_type ?? (v.quota_key ? nomeCota(v.quota_key) : v.receipt_year ? String(v.receipt_year) : null);
+      const sufixo = recorte(v);
       const linha = {
         label: sufixo ? `${def.label} · ${sufixo}` : def.label,
         metric_key: def.key,
@@ -198,7 +199,7 @@ export default function Goals() {
                           onClick={() => setEditando({ def, goal: null })}
                         >
                           <Plus className="h-3.5 w-3.5" />
-                          {lista.length === 0 ? "Definir" : def.scope === "lote" ? "Outro lote" : def.scope === "cota" ? "Outra cota" : def.scope === "ano" ? "Outro ano" : "Outro período"}
+                          {lista.length === 0 ? "Definir" : def.scope === "lote" ? "Outro lote" : def.scope === "cota" ? "Outra cota" : def.scope === "canal" ? "Outro canal ou lote" : def.scope === "ano" ? "Outro ano" : "Outro período"}
                         </Button>
                       )}
                     </li>
