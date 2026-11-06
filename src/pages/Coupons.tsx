@@ -13,10 +13,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEvent } from "@/hooks/useEvent";
 import { useAllTimeTicketSales } from "@/hooks/useDashboardData";
 import { splitTickets } from "@/hooks/useCommercialMetrics";
-import { CRM_DISCOUNT_HINT, crmDiscountCoverage } from "@/lib/invoicedTickets";
+import { CRM_DISCOUNT_HINT, couponForSeller, crmDiscountCoverage } from "@/lib/invoicedTickets";
 import { TeamRanking, buildTeamRanking } from "@/components/dashboard/TeamRanking";
 import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
-import { COUPON_GROUPS, couponDiscountValue, formatDiscount, parseCoupon, type CouponGroup, type CouponKind } from "@/lib/coupons";
+import { COUPON_GROUPS, couponDiscountValue, formatDiscount, parseCoupon, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -53,14 +53,19 @@ export default function Coupons() {
 
   const cupons = useMemo(() => {
     const map = new Map<string, CupomLinha>();
-    [...paying, ...bonus].forEach((t) => {
-      // Faturado interno (Pipedrive) não tem cupom: entra no grupo Faturados, uma linha por vendedor.
-      const c =
-        t.source === "pipedrive"
-          ? { code: `FATURADO · ${t.seller_name ?? "vendedor não informado"}`, discount: null, kind: "faturado" as const, group: "faturado" as const }
-          : parseCoupon(t.coupon_code);
+    const todos = [...paying, ...bonus];
+    const cuponsEquipe = [...new Set(todos.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code))];
+    todos.forEach((t) => {
+      // Faturado interno (Pipedrive) soma no cupom da equipe de quem vendeu (ex.: Suelen → SUELLEN5), como venda normal.
+      let c: ParsedCoupon | null;
+      if (t.source === "pipedrive") {
+        const cupom = couponForSeller(t.seller, cuponsEquipe);
+        const code = cupom ?? String(t.seller_name ?? "Vendedor não informado").toUpperCase();
+        c = { code, discount: null, kind: "desconto", group: "equipe" };
+      } else c = parseCoupon(t.coupon_code);
       if (!c) return;
       const atual = map.get(c.code) ?? { ...c, uses: 0, receita: 0, desconto: 0 };
+      if (!atual.discount && c.discount) atual.discount = c.discount;
       atual.uses += t.quantity || 0;
       atual.receita += Number(t.total_price || 0);
       atual.desconto += couponDiscountValue(t) + (t.discount_value || 0);
