@@ -309,3 +309,49 @@ export function maskCpf(cpf: string | null) {
 export function formatPhone(p: string) {
   return p.length === 11 ? `(${p.slice(0, 2)}) ${p.slice(2, 7)}-${p.slice(7)}` : `(${p.slice(0, 2)}) ${p.slice(2, 6)}-${p.slice(6)}`;
 }
+
+// Nome com a primeira letra de cada palavra em maiúscula ("QUATRO VENTOS ADM" → "Quatro Ventos Adm").
+const MINUSCULAS = new Set(["de", "da", "do", "dos", "das", "e"]);
+export function titleCase(s: unknown): string {
+  return String(s ?? "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("pt-BR")
+    .split(" ")
+    .map((w, i) => (i > 0 && MINUSCULAS.has(w) ? w : w.replace(/^\p{L}/u, (c) => c.toLocaleUpperCase("pt-BR"))))
+    .join(" ");
+}
+
+// Semelhança entre dois nomes (0 a 1), ignorando acentos, maiúsculas e espaços.
+export function nameSimilarity(a: unknown, b: unknown): number {
+  const x = normName(a) ?? "";
+  const y = normName(b) ?? "";
+  if (!x || !y) return 0;
+  if (x === y) return 1;
+  const d: number[] = Array.from({ length: y.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= x.length; i++) {
+    let prev = d[0];
+    d[0] = i;
+    for (let j = 1; j <= y.length; j++) {
+      const tmp = d[j];
+      d[j] = Math.min(d[j] + 1, d[j - 1] + 1, prev + (x[i - 1] === y[j - 1] ? 0 : 1));
+      prev = tmp;
+    }
+  }
+  return 1 - d[y.length] / Math.max(x.length, y.length);
+}
+
+// Quem veio no evento anterior já comprou o próximo? Casa só pelo nome da pessoa (90% iguais ou mais);
+// empresa não conta, porque várias pessoas da mesma empresa compram. Devolve o cupom da compra encontrada.
+export function matchNextEvent(name: string, compras: { name: string; coupon: string | null }[]) {
+  let melhor: { name: string; coupon: string | null } | null = null;
+  let nota = 0;
+  for (const c of compras) {
+    const s = nameSimilarity(name, c.name);
+    if (s >= 0.9 && s > nota) {
+      melhor = c;
+      nota = s;
+    }
+  }
+  return melhor ? { comprou: true, coupon: melhor.coupon } : { comprou: false, coupon: null };
+}
