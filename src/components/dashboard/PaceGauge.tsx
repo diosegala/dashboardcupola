@@ -14,6 +14,8 @@ interface PaceGaugeProps {
   chip: { label: string; variant: ChipVariant } | null;
   // Ritmo do evento anterior na mesma época (últimos dias úteis, um ano antes).
   ritmoAnterior?: number | null;
+  // Pagantes que faltam para a meta.
+  faltam?: number;
   className?: string;
 }
 
@@ -30,7 +32,7 @@ const point = (frac: number, r = R) => {
 const arcLength = Math.PI * R;
 
 // Velocímetro do ritmo: o arco enche até o ritmo atual e um marcador mostra o ritmo necessário.
-export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritmoAnterior, className }: PaceGaugeProps) {
+export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritmoAnterior, faltam = 0, className }: PaceGaugeProps) {
   // Escala vai até o dobro do necessário (ou até o atual, se passar disso).
   const temMeta = requiredPace !== null;
   const max = temMeta ? Math.max((requiredPace as number) * 2, currentPace * 1.1, 1) : Math.max(currentPace * 1.4, 1);
@@ -72,7 +74,7 @@ export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritm
             <>
               <line x1={marcaIn.x} y1={marcaIn.y} x2={marcaOut.x} y2={marcaOut.y} stroke="hsl(var(--foreground))" strokeWidth="3" strokeLinecap="round" />
               <text x={rotulo.x} y={rotulo.y} textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-[10px] font-semibold">
-                {fmt(Math.ceil(requiredPace as number))}
+                Meta {fmt(Math.ceil(requiredPace as number))}
               </text>
             </>
           )}
@@ -80,18 +82,26 @@ export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritm
             {fmt(currentPace)}
           </text>
           <text x={CX} y={CY - 4} textAnchor="middle" className="fill-muted-foreground text-[10px]">
-            por dia útil
+            vendidos/dia útil
           </text>
         </svg>
-        <div className="flex min-w-0 flex-col gap-1.5 border-t border-border pt-4 text-sm">
-          {temMeta ? (
-            <span className="text-muted-foreground">
-              Precisa de <b className="font-semibold text-foreground"><CountUp value={Math.ceil(requiredPace as number)} format={(n) => fmt(Math.round(n))} /></b> por dia útil
-            </span>
-          ) : (
-            <span className="text-muted-foreground">Média de vendas pagantes nos últimos dias úteis</span>
-          )}
-          <span className="text-xs text-muted-foreground">{remainingDays.toLocaleString("pt-BR")} dias úteis até o evento</span>
+        <div className="flex min-w-0 flex-col gap-3 border-t border-border pt-4 text-sm">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-xs font-semibold text-muted-foreground">Ritmo atual</span>
+              <span><b className="font-semibold text-foreground">{fmt(currentPace)}</b> <span className="text-muted-foreground">por dia útil</span></span>
+              <span className="text-xs text-muted-foreground">média dos últimos 10 dias úteis</span>
+            </div>
+            {temMeta ? (
+              <div className="flex min-w-0 flex-col gap-0.5">
+                <span className="text-xs font-semibold text-muted-foreground">Ritmo necessário</span>
+                <span><b className="font-semibold text-foreground"><CountUp value={Math.ceil(requiredPace as number)} format={(n) => fmt(Math.round(n))} /></b> <span className="text-muted-foreground">por dia útil</span></span>
+                <span className="text-xs text-muted-foreground">{faltam.toLocaleString("pt-BR")} faltam ÷ {remainingDays.toLocaleString("pt-BR")} dias úteis</span>
+              </div>
+            ) : (
+              <span className="text-xs text-muted-foreground">Defina a meta de pagantes na aba Metas</span>
+            )}
+          </div>
           <CompareLine anterior={ritmoAnterior} atual={currentPace} formato={(n) => `${fmt(n)}/dia`} quando="nesta época" />
           {chip && (
             <span>
