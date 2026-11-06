@@ -191,8 +191,11 @@ async function fetchInvoicedTickets(symplaEventId: string, symplaSales: any[]) {
   const { data: ev } = await supabase.from("events").select("id, end_date").eq("sympla_event_id", symplaEventId).maybeSingle();
   if (!ev) return [];
   const { data: cfg } = await supabase.from("sponsorship_config").select("crm_account, pipelines").eq("event_id", ev.id).maybeSingle();
-  const account = cfg?.crm_account?.trim();
-  if (!account) return [];
+  // Quem não lê a configuração (equipe de vendas) busca os ingressos ganhos sem filtrar a conta: o banco já só
+  // entrega negócios ganhos para a equipe. Sem conta configurada para o administrador, não há faturados.
+  const account = cfg?.crm_account?.trim() ?? null;
+  if (cfg && !account) return [];
+  const daConta = <Q,>(q: Q): Q => (account ? (q as any).eq("crm_account", account) : q);
   const funis = ((cfg?.pipelines as any[]) ?? []).filter((p) => p.represents === "ingressos").map((p) => Number(p.pipeline_pd_id));
   const { data: antes } = await supabase.from("events").select("end_date").lt("end_date", ev.end_date).order("end_date", { ascending: false }).limit(1);
   const inicio = `${antes?.[0]?.end_date ?? "1900-01-01"}T23:59:59`;
@@ -202,14 +205,13 @@ async function fetchInvoicedTickets(symplaEventId: string, symplaSales: any[]) {
     return !!quando && quando > inicio && quando <= fim;
   };
 
-  const { data: produtos } = await supabase.from("crm_products").select("pd_id, name").eq("crm_account", account).eq("kind", "product");
+  const { data: produtos } = await daConta(supabase.from("crm_products").select("pd_id, name").eq("kind", "product"));
   const ids = (produtos ?? []).filter((p) => isTicketProduct(p.name)).map((p) => p.pd_id);
   const linhas: any[] = [];
   for (let from = 0; ids.length; from += 1000) {
-    const { data, error } = await supabase
+    const { data, error } = await daConta(supabase
       .from("deal_products")
-      .select("deal_id, name, quantity, item_price, sum, discount, discount_type")
-      .eq("crm_account", account)
+      .select("deal_id, name, quantity, item_price, sum, discount, discount_type"))
       .eq("is_enabled", true)
       .in("product_pd_id", ids)
       .range(from, from + 999);
@@ -225,7 +227,7 @@ async function fetchInvoicedTickets(symplaEventId: string, symplaSales: any[]) {
     (data ?? []).forEach((d) => negocios.set(d.id, d));
   }
   // Negócios do funil de ingressos sem produto cadastrado: entram pelo título, para nenhuma venda ficar de fora.
-  if (funis.length) {
+  if (funis.length && account) {
     for (let from = 0; ; from += 1000) {
       const { data, error } = await supabase
         .from("deals")
