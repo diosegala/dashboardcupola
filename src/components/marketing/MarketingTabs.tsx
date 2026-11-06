@@ -174,7 +174,7 @@ function Overview({ adMetrics, emailCampaigns, tickets, goals, range }: Marketin
         <MetricCard title="Vendas com link parametrizado" value={ingressosSympla > 0 ? pct((comLink / ingressosSympla) * 100, 0) : "—"} icon={Link2} description={`${int(comLink)} de ${int(ingressosSympla)} ingressos da Sympla têm UTM`} />
       </div>
       <FunnelKPISection adMetrics={adMetrics} emailCampaigns={emailCampaigns} tickets={tickets} goals={goals} range={range} />
-      {canais.length > 0 && <SegmentCard title="Vendas por canal" items={canais} rodape="Equipe CUPOLA soma os links da equipe, os cupons sem link e os faturados internos. O detalhe de cada link está na aba Links e UTMs." />}
+      {canais.length > 0 && <SegmentCard title="Vendas por canal" items={canais} rodape="Equipe CUPOLA soma os links da equipe, os cupons sem link e os faturados internos. O detalhe de cada link está na aba Links." />}
     </div>
   );
 }
@@ -453,12 +453,12 @@ function LinksTab({ tickets, allTickets }: MarketingTabsProps) {
 }
 
 const ABAS = [
-  { v: "geral", l: "Visão geral" },
+  { v: "geral", l: "Geral" },
   { v: "meta", l: "Meta Ads" },
   { v: "google", l: "Google Ads" },
-  { v: "email", l: "E-mail · RD Station" },
-  { v: "site", l: "Site · Analytics" },
-  { v: "links", l: "Links e UTMs" },
+  { v: "email", l: "E-mail" },
+  { v: "site", l: "Site" },
+  { v: "links", l: "Links" },
 ];
 
 let abaLembrada = "geral";
@@ -477,14 +477,23 @@ export function MarketingTabs(todasProps: MarketingTabsProps) {
 
   return (
     <Tabs value={aba} onValueChange={setAba}>
-      <div className="-mx-1 mb-5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <SlidingTabsList value={aba} className="w-max">
+      {/* Em tela larga, abas em pílula; no celular, uma lista de escolha (nenhum nome fica cortado). */}
+      <div className="mb-5 hidden sm:block">
+        <SlidingTabsList value={aba}>
           {abas.map(({ v, l }) => (
             <TabsTrigger key={v} value={v} className="relative z-[1] data-[state=active]:bg-transparent data-[state=active]:text-background">
               {l}
             </TabsTrigger>
           ))}
         </SlidingTabsList>
+      </div>
+      <div className="mb-5 sm:hidden">
+        <Select value={aba} onValueChange={setAba}>
+          <SelectTrigger className="h-11 rounded-full font-semibold"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {abas.map(({ v, l }) => <SelectItem key={v} value={v}>{l}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </div>
       <TabsContent value="geral" className="mt-0 animate-panel-in"><Overview {...props} /></TabsContent>
       <TabsContent value="meta" className="mt-0 animate-panel-in"><AdsTab fonte="meta" {...props} /></TabsContent>
