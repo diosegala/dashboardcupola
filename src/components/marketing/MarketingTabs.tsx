@@ -383,70 +383,118 @@ function SiteTab({ siteAnalytics, previousSiteAnalytics, ga4Events, goals, range
 // ---------- Links e UTMs ----------
 const PERIODO = "periodo";
 
-function LinksTab({ tickets, allTickets }: MarketingTabsProps) {
+const EVENTO = "evento";
+
+function LinksTab({ tickets, allTickets, goals }: MarketingTabsProps) {
   const lotes = useMemo(() => {
     const s = new Set<string>();
     allTickets.forEach((t) => {
-      const l = t.source !== "pipedrive" ? batchOf(t.ticket_type) : null;
+      const l = batchOf(t.ticket_type);
       if (l) s.add(l);
     });
     return Array.from(s).sort((x, y) => batchOrder(x) - batchOrder(y));
   }, [allTickets]);
   const [recorte, setRecorte] = useState(PERIODO);
 
-  // Só Sympla: faturado interno não passa por link.
-  const base = (recorte === PERIODO ? tickets : allTickets.filter((t) => batchOf(t.ticket_type) === recorte)).filter((t) => t.source !== "pipedrive");
+  // Vendas por canal somam Sympla e faturados (faturado conta para a Equipe CUPOLA); os links e a cobertura de UTM são só Sympla.
+  const base = recorte === PERIODO ? tickets : recorte === EVENTO ? allTickets : allTickets.filter((t) => batchOf(t.ticket_type) === recorte);
   const { paying } = splitTickets(base);
+  const sympla = paying.filter((t) => t.source !== "pipedrive");
+  const totalSympla = sympla.reduce((s, t) => s + (t.quantity || 0), 0);
   const total = paying.reduce((s, t) => s + (t.quantity || 0), 0);
 
+  // Metas por canal (página Metas › Canais de venda): a do lote escolhido ou, no evento todo, a soma dos lotes.
+  const metaDe = (canal: string): number | null => {
+    if (recorte === PERIODO) return null;
+    const doCanal = goals.filter((g) => g.metric_key === "channel_sales" && (g.quota_key ?? "").trim().toLowerCase() === canal.toLowerCase() && (recorte === EVENTO || g.ticket_type === recorte));
+    return doCanal.length ? doCanal.reduce((s, g) => s + Number(g.target_value || 0), 0) : null;
+  };
+  const temMetas = goals.some((g) => g.metric_key === "channel_sales");
+
   const porCanal = new Map<string, { q: number; v: number }>();
-  const porLink = new Map<string, { canal: string; source: string; medium: string; campaign: string; q: number; v: number }>();
   paying.forEach((t) => {
-    const q = t.quantity || 0;
-    const v = Number(t.total_price || 0);
-    const canal = canalDe(t);
-    const c = porCanal.get(canal) ?? { q: 0, v: 0 };
-    porCanal.set(canal, { q: c.q + q, v: c.v + v });
+    const k = canalDe(t);
+    const c = porCanal.get(k) ?? { q: 0, v: 0 };
+    porCanal.set(k, { q: c.q + (t.quantity || 0), v: c.v + Number(t.total_price || 0) });
+  });
+  // Canal com meta e ainda sem venda também aparece.
+  if (recorte !== PERIODO) {
+    goals
+      .filter((g) => g.metric_key === "channel_sales" && g.quota_key && (recorte === EVENTO || g.ticket_type === recorte))
+      .forEach((g) => {
+        const nome = String(g.quota_key).trim();
+        if (![...porCanal.keys()].some((k) => k.toLowerCase() === nome.toLowerCase())) porCanal.set(nome, { q: 0, v: 0 });
+      });
+  }
+  const canais = Array.from(porCanal.entries()).sort((a, b) => b[1].q - a[1].q);
+
+  const porLink = new Map<string, { canal: string; source: string; medium: string; campaign: string; q: number; v: number }>();
+  sympla.forEach((t) => {
     if (!utmLabel(t.utm_source)) return;
+    const canal = canalDe(t);
     const src = (t.utm_source ?? "").trim();
     const med = (t.utm_medium ?? "").trim() || "—";
     const camp = (t.utm_campaign ?? "").trim() || "—";
     const k = `${canal}|${src}|${med}|${camp}`;
     const l = porLink.get(k) ?? { canal, source: src, medium: med, campaign: camp, q: 0, v: 0 };
-    porLink.set(k, { ...l, q: l.q + q, v: l.v + v });
+    porLink.set(k, { ...l, q: l.q + (t.quantity || 0), v: l.v + Number(t.total_price || 0) });
   });
-  const canais = Array.from(porCanal.entries()).sort((a, b) => b[1].q - a[1].q);
   const links = Array.from(porLink.values()).sort((a, b) => b.q - a.q);
+  const comLink = links.reduce((s, l) => s + l.q, 0);
 
+  const nomeRecorte = recorte === PERIODO ? "no período" : recorte === EVENTO ? "no evento todo" : `no ${recorte}`;
   const seletor = (
     <Select value={recorte} onValueChange={setRecorte}>
-      <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+      <SelectTrigger className="h-9 w-[190px]"><SelectValue /></SelectTrigger>
       <SelectContent>
         <SelectItem value={PERIODO}>Período escolhido</SelectItem>
-        {lotes.map((l) => <SelectItem key={l} value={l}>{l} (evento todo)</SelectItem>)}
+        {lotes.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+        <SelectItem value={EVENTO}>Evento todo</SelectItem>
       </SelectContent>
     </Select>
   );
+  const comMeta = recorte !== PERIODO && temMetas;
 
   return (
     <div className="space-y-6">
-      <Intro>Qual link levou cada venda da Sympla. Cada canal de divulgação deve usar o próprio link com UTM; venda com cupom e sem link conta para a Equipe CUPOLA.</Intro>
+      <Intro>Qual canal e qual link levou cada venda. Cada canal de divulgação deve usar o próprio link com UTM; venda com cupom sem link e faturado interno contam para a Equipe CUPOLA.</Intro>
       <div className="grid gap-4 md:grid-cols-3">
-        <MetricCard title="Ingressos da Sympla" value={total} icon={TicketIcon} description={recorte === PERIODO ? "Pagantes no período" : `Pagantes do ${recorte}`} />
-        <MetricCard title="Com link parametrizado" value={total ? pct(((links.reduce((s, l) => s + l.q, 0)) / total) * 100, 0) : "—"} icon={Link2} description={`${int(links.reduce((s, l) => s + l.q, 0))} ingressos com UTM`} />
-        <MetricCard title="Canais com venda" value={canais.filter(([k]) => k !== "Sem link").length} icon={BarChart3} />
+        <MetricCard title="Ingressos pagantes" value={total} icon={TicketIcon} description={`Sympla e faturados ${nomeRecorte}`} />
+        <MetricCard title="Com link parametrizado" value={totalSympla ? pct((comLink / totalSympla) * 100, 0) : "—"} icon={Link2} description={`${int(comLink)} de ${int(totalSympla)} ingressos da Sympla têm UTM`} />
+        <MetricCard title="Canais com venda" value={canais.filter(([k, c]) => k !== "Sem link" && c.q > 0).length} icon={BarChart3} />
       </div>
       <TableCard
         title="Vendas por canal"
         actions={seletor}
-        head={[{ label: "Canal" }, { label: "Ingressos", right: true }, { label: "% do total", right: true }, { label: "Valor", right: true }]}
-        rows={canais.map(([k, c]) => [k, int(c.q), total ? pct((c.q / total) * 100, 0) : "—", brl(c.v)])}
-        rodape="Links da equipe (medium timecupola) e cupom sem link contam para a Equipe CUPOLA, e RD Station conta como E-mail marketing. A meta de cada canal por lote entra aqui quando os números do planejamento forem cadastrados."
+        head={comMeta
+          ? [{ label: "Canal" }, { label: "Vendidos", right: true }, { label: "Meta", right: true }, { label: "% da meta", right: true }, { label: "Falta", right: true }, { label: "Valor", right: true }]
+          : [{ label: "Canal" }, { label: "Ingressos", right: true }, { label: "% do total", right: true }, { label: "Valor", right: true }]}
+        rows={canais.map(([k, c]) => {
+          if (!comMeta) return [k, int(c.q), total ? pct((c.q / total) * 100, 0) : "—", brl(c.v)];
+          const m = metaDe(k);
+          const p = m ? (c.q / m) * 100 : null;
+          return [
+            k,
+            int(c.q),
+            m != null ? int(m) : "—",
+            p != null ? <span className={p >= 100 ? "font-semibold text-ok" : ""}>{pct(p, 0)}</span> : "—",
+            m != null ? (c.q >= m ? <span className="text-ok">Bateu</span> : int(m - c.q)) : "—",
+            brl(c.v),
+          ];
+        })}
+        rodape={
+          recorte === PERIODO
+            ? "Escolha um lote ou Evento todo para comparar cada canal com a meta (cadastrada em Metas › Canais de venda)."
+            : temMetas
+              ? "Metas cadastradas em Metas › Canais de venda. Em Evento todo, as metas dos lotes somam."
+              : "Nenhuma meta por canal cadastrada ainda. Cadastre em Metas › Canais de venda para ver meta, % e quanto falta."
+        }
       />
       <TableCard
         title="Por link parametrizado"
         head={[{ label: "Canal" }, { label: "Source" }, { label: "Medium" }, { label: "Campanha" }, { label: "Ingressos", right: true }, { label: "Valor", right: true }]}
         rows={links.map((l) => [l.canal, l.source, l.medium, l.campaign, int(l.q), brl(l.v)])}
+        rodape="Só vendas da Sympla: faturado interno não passa por link."
       />
     </div>
   );

@@ -8,7 +8,8 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useTicketTypes } from "@/hooks/useTicketTypes";
 import { useSponsorshipConfig } from "@/hooks/useSponsorship";
-import type { GoalDef } from "@/lib/goalMetrics";
+import { CANAIS_DE_VENDA, type GoalDef } from "@/lib/goalMetrics";
+import { batchOf, batchOrder, PRE_VENDA } from "@/lib/batches";
 import { cn } from "@/lib/utils";
 
 export interface GoalEditorValues {
@@ -62,6 +63,12 @@ export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose
   const [de, setDe] = useState("");
   const [ate, setAte] = useState("");
   const [lote, setLote] = useState<string | null>(null);
+  const porCanal = def?.scope === "canal";
+  // Meta por canal vale para o lote inteiro (Lote 0, Lote 1...), não para um tipo de ingresso.
+  // A lista de tipos de ingresso pode não trazer todos os lotes, então o calendário completo (Pré-venda e Lotes 0 a 8) entra sempre.
+  const calendario = [PRE_VENDA, ...Array.from({ length: 9 }, (_, i) => `Lote ${i}`)];
+  const lotesDoCalendario = [...new Set([...calendario, ...(lotes.map(batchOf).filter(Boolean) as string[])])].sort((a, b) => batchOrder(a) - batchOrder(b));
+  const opcoesLote = porCanal ? lotesDoCalendario : lotes;
 
   useEffect(() => {
     if (!open) return;
@@ -83,6 +90,7 @@ export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose
     ate >= de &&
     (def.scope !== "lote" || !!lote) &&
     (def.scope !== "cota" || !!cota) &&
+    (!porCanal || (!!lote && !!cota?.trim())) &&
     (def.scope !== "ano" || (Number.isInteger(anoNum) && anoNum >= 2000 && anoNum <= 2100));
 
   return (
@@ -102,13 +110,23 @@ export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose
                 target_value: numero,
                 period_start: de,
                 period_end: ate,
-                ticket_type: def.scope === "lote" ? lote : null,
-                quota_key: def.scope === "cota" ? cota : null,
+                ticket_type: def.scope === "lote" || porCanal ? lote : null,
+                quota_key: def.scope === "cota" ? cota : porCanal ? (cota ?? "").trim() : null,
                 receipt_year: def.scope === "ano" ? anoNum : null,
               });
           }}
         >
-          {def.scope === "lote" && (
+          {porCanal && (
+            <div className="space-y-2">
+              <Label htmlFor="meta-canal">Canal</Label>
+              <Input id="meta-canal" list="canais-de-venda" value={cota ?? ""} onChange={(ev) => setCota(ev.target.value)} placeholder="Escolha ou digite o canal" />
+              <datalist id="canais-de-venda">
+                {CANAIS_DE_VENDA.map((c) => <option key={c} value={c} />)}
+              </datalist>
+            </div>
+          )}
+
+          {(def.scope === "lote" || porCanal) && (
             <div className="space-y-2">
               <Label>Lote</Label>
               <Select value={lote ?? ""} onValueChange={setLote}>
@@ -116,7 +134,7 @@ export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose
                   <SelectValue placeholder="Escolha o lote" />
                 </SelectTrigger>
                 <SelectContent>
-                  {lotes.map((l) => (
+                  {opcoesLote.map((l) => (
                     <SelectItem key={l} value={l}>{l}</SelectItem>
                   ))}
                 </SelectContent>
@@ -189,7 +207,8 @@ export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose
             </div>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          {/* Na meta por canal o lote já diz o período: as datas ficam no padrão e não aparecem. */}
+          <div className={cn("grid grid-cols-2 gap-3", porCanal && "hidden")}>
             <div className="space-y-2">
               <Label htmlFor="meta-de">{def.scope === "periodo" ? "De" : "Vale de"}</Label>
               <Input id="meta-de" type="date" value={de} onChange={(e) => setDe(e.target.value)} />
@@ -199,7 +218,7 @@ export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose
               <Input id="meta-ate" type="date" value={ate} onChange={(e) => setAte(e.target.value)} />
             </div>
           </div>
-          {def.scope !== "periodo" && (
+          {def.scope !== "periodo" && !porCanal && (
             <p className="-mt-2 text-xs text-muted-foreground">As datas servem para mostrar se o ritmo está bom; o padrão é de hoje até o fim do evento.</p>
           )}
           {ate && de && ate < de && <p className="text-xs text-destructive">A data final precisa ser depois da inicial.</p>}
