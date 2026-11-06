@@ -19,9 +19,8 @@ const pct = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).to
 // Ordem da legenda: primeiro o que conta na meta, depois os bonificados e os pendentes.
 const CATEGORIAS: { key: TicketCategory; label: string; color: string }[] = [
   { key: "pagos", label: "Pagos na Sympla", color: "hsl(var(--chart-1))" },
-  { key: "desconto", label: "Pagos com desconto", color: "hsl(var(--chart-4))" },
   { key: "faturados", label: "Faturados internamente", color: "hsl(var(--chart-2))" },
-  { key: "cortesias", label: "Cortesias (cupom 100%)", color: "hsl(var(--chart-5))" },
+  { key: "cortesias", label: "Cortesias e bonificados", color: "hsl(var(--chart-5))" },
   { key: "credenciais", label: "Credenciais", color: "hsl(var(--muted-foreground))" },
   { key: "gratuitos", label: "Gratuitos sem cupom", color: "hsl(var(--chart-3))" },
   { key: "pendentes", label: "Pendentes", color: "hsl(var(--warn))" },
@@ -78,6 +77,15 @@ function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
   const abertos = tickets.filter((t) => ticketCategory(t) === "negociacao");
   const parcelados = new Set(tickets.filter((t) => ticketCategory(t) === "faturados" && t.installments).map((t) => t.deal_id)).size;
   const conferir = new Set(tickets.filter((t) => t.source === "pipedrive" && t.conferir).map((t) => t.deal_id)).size;
+  // Negócios ganhos com a quantidade de ingressos, cada um com o link para o negócio no Pipedrive.
+  const negociosGanhos = new Map<string, { nome: string; ingressos: number; link: string | null }>();
+  tickets
+    .filter((t) => t.source === "pipedrive" && t.status === "approved" && t.deal_id)
+    .forEach((t) => {
+      const n = negociosGanhos.get(t.deal_id!) ?? { nome: t.company || t.deal_title || `Negócio ${t.deal_id}`, ingressos: 0, link: t.crm_account ? `https://${t.crm_account}.pipedrive.com/deal/${t.deal_id}` : null };
+      n.ingressos += qty(t);
+      negociosGanhos.set(t.deal_id!, n);
+    });
   if (!ganhos && !abertos.length) return null;
   const etapas = new Map<string, { ingressos: number; negocios: Set<string> }>();
   abertos.forEach((t) => {
@@ -94,6 +102,21 @@ function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
           <span className="text-muted-foreground">
             Ganho = contrato assinado ou primeira parcela paga.{parcelados > 0 && ` ${parcelados} ${parcelados === 1 ? "negócio parcelado" : "negócios parcelados"}.`}
           </span>
+        </p>
+      )}
+      {negociosGanhos.size > 0 && (
+        <p className="text-muted-foreground">
+          {Array.from(negociosGanhos.values()).map((n, i) => (
+            <span key={n.nome + i}>
+              {i > 0 && " · "}
+              {n.link ? (
+                <a href={n.link} target="_blank" rel="noreferrer" className="underline decoration-dotted underline-offset-2 hover:text-foreground">
+                  {n.nome}
+                </a>
+              ) : n.nome}{" "}
+              ({int(n.ingressos)})
+            </span>
+          ))}
         </p>
       )}
       {abertos.length > 0 && (

@@ -198,8 +198,9 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
         paid_at: null as string | null,
         status: ganho ? "approved" : "crm_open",
         stage_name: ganho ? null : d.stage_name ?? null,
-        // Bonificação / Permuta: não é venda, conta como bonificado. Parcelado: só indica, as datas ficam com o financeiro.
-        bonus: bonificado,
+        // Bonificação / Permuta, ou linha de produto com valor zero (ingresso bonificado dentro do negócio): não é
+        // venda, conta como bonificado. Parcelado: só indica, as datas ficam com o financeiro.
+        bonus: bonificado || (!doTitulo && Number(l.sum ?? 0) <= 0),
         installments: parcelas && parcelas > 1 ? parcelas : null,
         payment_method: PAGAMENTO_CODIGO[opcao(d.custom_fields?.[CAMPO_PAGAMENTO])] ?? null,
         coupon_code: null,

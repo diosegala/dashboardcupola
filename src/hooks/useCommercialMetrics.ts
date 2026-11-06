@@ -33,6 +33,8 @@ export interface Ticket {
   seller_name?: string | null;
   deal_id?: string;
   deal_title?: string | null;
+  // Domínio da conta do Pipedrive (parte antes de .pipedrive.com), para o link do negócio.
+  crm_account?: string | null;
   // Negócio aberto: etapa no funil (ex.: Fechamento). Empresa do negócio, para casar com o cupom de resgate.
   stage_name?: string | null;
   company?: string | null;
@@ -56,7 +58,7 @@ export function splitTickets(tickets: Ticket[]) {
     const cat = (t: Ticket) => ticketCategory(t);
     const invoiced = approved.filter((t) => cat(t) === "faturados");
     // Pagos na Sympla: com valor, sem cupom 100% e fora das credenciais (com ou sem cupom de desconto).
-    const paidSympla = approved.filter((t) => cat(t) === "pagos" || cat(t) === "desconto");
+    const paidSympla = approved.filter((t) => cat(t) === "pagos");
     // Bonificados: não somam na meta nem na receita.
     const bonus = approved.filter((t) => ["cortesias", "credenciais", "gratuitos"].includes(cat(t)));
     const paying = [...paidSympla, ...invoiced];

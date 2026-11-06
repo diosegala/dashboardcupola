@@ -2,10 +2,10 @@ import { parseCoupon } from "@/lib/coupons";
 import { isApproved } from "@/lib/eventConfig";
 import { ticketKind } from "@/lib/ticketKinds";
 
-export type TicketCategory = "pagos" | "desconto" | "faturados" | "cortesias" | "credenciais" | "gratuitos" | "pendentes" | "resgates" | "negociacao";
+export type TicketCategory = "pagos" | "faturados" | "cortesias" | "credenciais" | "gratuitos" | "pendentes" | "resgates" | "negociacao";
 
 // Categorias que contam na meta de pagantes.
-export const COUNTS_ON_GOAL: TicketCategory[] = ["pagos", "desconto", "faturados"];
+export const COUNTS_ON_GOAL: TicketCategory[] = ["pagos", "faturados"];
 
 type T = { source?: string; bonus?: boolean; redeems?: string | null; status?: string | null; coupon_code?: string | null; ticket_type?: string | null; unit_price?: number | string | null; total_price?: number | string | null };
 
@@ -21,6 +21,7 @@ export function ticketCategory(t: T): TicketCategory {
   if (cupom?.kind === "cortesia") return "cortesias";
   if (ticketKind(t.ticket_type ?? "") === "Credenciais") return "credenciais";
   const preco = Number(t.unit_price ?? t.total_price ?? 0);
-  if (preco > 0) return cupom ? "desconto" : "pagos";
+  // Pago na Sympla, com ou sem cupom de desconto: o desconto não muda a categoria.
+  if (preco > 0) return "pagos";
   return cupom ? "cortesias" : "gratuitos";
 }

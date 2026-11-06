@@ -19,7 +19,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagos na Sympla":
     "Pedidos aprovados na Sympla com qualquer valor acima de zero. Pendentes e cancelados não contam.",
   "Faturados internamente":
-    "Ingressos vendidos pelo comercial fora da Sympla: negócios ganhos no Pipedrive com produto Ingressos Summit, pela quantidade e pelo valor do produto, na data em que o negócio foi ganho. O comercial só marca como ganho depois do contrato assinado ou da primeira parcela paga, então ganho conta como vendido, mesmo parcelado. Negócios abertos (negociação, fechamento) aparecem à parte e não contam. Forma de pagamento \"Bonificação / Permuta\" conta como bonificado. Parcelado só é indicado. 2 ou mais ingressos Padrão no mesmo negócio contam como Grupo. O ano anterior não tem faturados internos. O resgate na Sympla (cupom de 100% com o nome da empresa, como COPAAZUL100) só dá baixa: não conta de novo.",
+    "Ingressos vendidos pelo comercial fora da Sympla: negócios ganhos no Pipedrive com produto Ingressos Summit, pela quantidade e pelo valor do produto, na data em que o negócio foi ganho. O comercial só marca como ganho depois do contrato assinado ou da primeira parcela paga, então ganho conta como vendido, mesmo parcelado. Negócios abertos (negociação, fechamento) aparecem à parte e não contam. Forma de pagamento \"Bonificação / Permuta\" ou produto com valor zero no negócio conta como bonificado. Parcelado só é indicado. 2 ou mais ingressos Padrão no mesmo negócio contam como Grupo. O ano anterior não tem faturados internos. O resgate na Sympla (cupom de 100% com o nome da empresa, como COPAAZUL100) só dá baixa: não conta de novo.",
   Bonificados:
     "Ingressos aprovados sem valor: cortesias, expositores, patrocinadores, convidados e equipe. Ficam visíveis para controle de lotação, mas não somam na meta nem na receita.",
   "Ingressos pagantes":
@@ -31,7 +31,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes acumulados x meta":
     "Linha cheia: total de pagantes semana a semana. Linha tracejada: trajetória até a meta no dia do evento, distribuída por dias úteis.",
   "Ingressos emitidos":
-    "Todos os ingressos do evento em três visões. Por categoria: contam na meta os pagos na Sympla (com ou sem cupom de desconto) e os faturados internamente; não contam as cortesias (cupom de 100%), as credenciais (equipe, expositores, imprensa, mesmo que tenham valor), os gratuitos sem cupom e os pendentes. Por tipo: Padrão, VIP, combos, Grupo, Visita presencial e Credenciais, pelo nome na Sympla. Por lote: pagantes e receita de cada lote, com a meta do lote e o ano anterior.",
+    "Todos os ingressos do evento em três visões. Por categoria: contam na meta os pagos na Sympla (com ou sem cupom de desconto) e os faturados internamente; não contam as cortesias (cupom de 100% na Sympla) e os bonificados dos faturados, as credenciais (equipe, expositores, imprensa, mesmo que tenham valor), os gratuitos sem cupom e os pendentes. Por tipo: Padrão, VIP, combos, Grupo, Visita presencial e Credenciais, pelo nome na Sympla. Por lote: pagantes e receita de cada lote, com a meta do lote e o ano anterior.",
   "Composição":
     "Divide os ingressos emitidos entre os que contam na meta (pagos e faturados) e os bonificados (cortesias, credenciais e gratuitos).",
   "Vendas por dia útil":
