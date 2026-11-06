@@ -270,8 +270,8 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
   const entrega = comRetorno > 0 ? (entregues / comRetorno) * 100 : 0;
   const partesEntrega = [
     { label: "Entregues", value: entregues, cor: "bg-ok" },
-    { label: "Bounce (voltaram)", value: bounce, cor: "bg-warn" },
-    { label: "Descartados pelo RD", value: descartados, cor: "bg-bad" },
+    { label: "Bounce (voltaram no envio)", value: bounce, cor: "bg-warn" },
+    { label: "Descartados (contato inativo)", value: descartados, cor: "bg-bad" },
     { label: "Ainda sem retorno", value: semRetorno, cor: "bg-muted-foreground/30" },
   ];
 
@@ -319,7 +319,21 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
               </div>
             ))}
           </dl>
-          <p className="text-xs text-muted-foreground">{int(descadastros)} pessoas se descadastraram depois de receber. A taxa de entrega considera só os e-mails que já têm retorno.</p>
+          {/* Depois da entrega: quem recebeu e saiu da lista. É diferente de bounce e descarte, que são problemas de entrega. */}
+          <div className="border-t pt-4">
+            <p className="mb-3 text-xs font-medium text-muted-foreground">Receberam e saíram da lista</p>
+            <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <div>
+                <dt className="text-xs text-muted-foreground">Descadastros</dt>
+                <dd className="text-lg font-semibold tabular-nums">{int(descadastros)} <span className="text-xs font-normal text-muted-foreground">{entregues > 0 ? pct((descadastros / entregues) * 100, 2) : ""}</span></dd>
+              </div>
+              <div>
+                <dt className="text-xs text-muted-foreground">Marcaram como spam</dt>
+                <dd className="text-lg font-semibold tabular-nums">{int(sum(lista, "spam_reported"))} <span className="text-xs font-normal text-muted-foreground">{entregues > 0 ? pct((sum(lista, "spam_reported") / entregues) * 100, 2) : ""}</span></dd>
+              </div>
+            </dl>
+          </div>
+          <p className="text-xs text-muted-foreground">Bounce é o e-mail que voltou no envio (endereço inexistente, domínio inválido ou caixa cheia). Descartado é o contato que o RD já inativou, depois de um bounce definitivo ou de vários temporários, e por isso nem recebe o envio. O RD não separa bounce definitivo de temporário neste relatório. A taxa de entrega considera só os e-mails que já têm retorno.</p>
         </CardContent>
       </Card>
       <TableCard

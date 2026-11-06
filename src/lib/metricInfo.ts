@@ -100,7 +100,7 @@ export const METRIC_INFO: Record<string, string> = {
   "E-mails enviados": "Cada e-mail enviado pelo RD Station no período, do mais recente para o mais antigo. Abertura e clique sobre os e-mails entregues.",
   "Comparar dois e-mails": "Escolha dois e-mails para ver lado a lado quantos chegaram, abriram e clicaram.",
   "Taxa de Entrega": "E-mails que chegaram na caixa de entrada divididos pelos enviados que já têm retorno do RD Station. Bounce e descartados ficam de fora.",
-  "Entrega dos e-mails": "O que aconteceu com cada e-mail enviado: entregue, voltou (bounce: endereço inválido ou caixa cheia), descartado pelo RD antes do envio (contato inválido ou descadastrado) ou ainda sem retorno, quando o disparo é recente.",
+  "Entrega dos e-mails": "O que aconteceu com cada e-mail enviado. Entregue: chegou na caixa. Bounce: voltou no envio (endereço inexistente, domínio inválido ou caixa cheia). Descartado: contato que o RD já inativou por bounces anteriores e que nem recebe o envio. Sem retorno: disparo recente, o RD ainda não mandou o relatório. Embaixo, quem recebeu e saiu da lista (descadastro ou spam), que não é problema de entrega.",
   "Impressões": "Quantas vezes os anúncios do Meta Ads apareceram na tela no período.",
   "Cliques no Link": "Cliques nos anúncios que levaram a pessoa para o link de destino.",
   CPC: "Custo por clique no link: investimento dividido pelos cliques no link.",
