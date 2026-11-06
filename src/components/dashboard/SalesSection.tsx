@@ -95,6 +95,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
             <th className="px-3 py-2 text-left font-medium">Lote</th>
             <th className="px-3 py-2 text-right font-medium">Preço</th>
             <th className="px-3 py-2 text-right font-medium">Vendidos</th>
+            {mostrarAnterior && <th className="px-3 py-2 text-right font-medium" title={`Quanto o mesmo lote vendeu no evento de ${rotulo}`}>Em {rotulo}</th>}
             <th className="px-3 py-2 text-right font-medium">Saldo</th>
             <th className="px-3 py-2 text-left font-medium">% vendido</th>
             <th className="px-3 py-2 text-right font-medium">Receita</th>
@@ -114,10 +115,8 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-right">{l.preco !== null ? brl(l.preco) : "—"}</td>
-                <td className="px-3 py-2.5 text-right font-semibold">
-                  {int(l.pagantes)}
-                  {mostrarAnterior && l.anterior !== null && <span className="block text-[11px] font-normal text-muted-foreground" title={`Mesmo lote no evento de ${rotulo}`}>em {rotulo}: {int(l.anterior)}</span>}
-                </td>
+                <td className="px-3 py-2.5 text-right font-semibold">{int(l.pagantes)}</td>
+                {mostrarAnterior && <td className="px-3 py-2.5 text-right text-muted-foreground">{l.anterior !== null ? int(l.anterior) : "—"}</td>}
                 <td className="px-3 py-2.5 text-right">{saldo !== null ? int(saldo) : "—"}</td>
                 <td className="px-3 py-2.5">
                   {pct !== null ? (
@@ -134,7 +133,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                 <td className="px-3 py-2.5 text-right">
                   {brl(l.receita)}
                   {l.metaReceita ? <span className="block text-[11px] text-muted-foreground">{Math.round((l.receita / l.metaReceita) * 100)}% de {brl(l.metaReceita)}</span> : null}
-                  {mostrarAnterior && l.anteriorReceita !== null && <span className="block text-[11px] text-muted-foreground" title={`Mesmo lote no evento de ${rotulo}`}>em {rotulo}: {brl(l.anteriorReceita)}</span>}
+                  {mostrarAnterior && l.anteriorReceita !== null && <span className="block text-[11px] text-muted-foreground" title={`Receita do mesmo lote no evento de ${rotulo}`}>{rotulo}: {brl(l.anteriorReceita)}</span>}
                 </td>
               </tr>
             );

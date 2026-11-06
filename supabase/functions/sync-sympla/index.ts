@@ -1,5 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { invoiceCompany, invoiceState, PENDING_PREFIX, pendingTickets } from "../_shared/sympla-rules.ts";
+import { PENDING_PREFIX } from "../_shared/sympla-rules.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -191,48 +191,9 @@ Deno.serve(async (req) => {
     });
     const rows = Array.from(rowMap.values());
 
-    // 5a. Ingressos vendidos ainda sem participante (o comprador não preencheu os nomes): uma linha por pedido com a
-    // quantidade que falta, para a meta contar tudo o que foi vendido. Quando as pessoas são vinculadas, elas entram como
-    // participantes e esta linha encolhe até sumir, sem contar ninguém duas vezes. Só roda se os pedidos vieram.
-    const pendingRows: any[] = [];
-    if (ordersById.size) {
-      const byOrder = new Map<string, any[]>();
-      allParticipants.forEach((p: any) => {
-        const k = String(p.order_id ?? "");
-        byOrder.set(k, [...(byOrder.get(k) ?? []), p]);
-      });
-      for (const o of ordersById.values()) {
-        const pending = pendingTickets(o, byOrder.get(String(o.id)) ?? [], allParticipants);
-        if (!pending) continue;
-        const coupon = o.discount_code ?? o.coupon_code ?? null;
-        pendingRows.push({
-          sympla_order_id: `${PENDING_PREFIX}${o.id}`,
-          ticket_type: pending.ticketName,
-          ticket_type_id: null,
-          quantity: pending.quantity,
-          unit_price: pending.unitPrice,
-          total_price: pending.total,
-          buyer_name: [o.buyer_first_name, o.buyer_last_name].filter(Boolean).join(" ") || null,
-          buyer_email: o.buyer_email ?? null,
-          sold_at: o.order_date || o.approved_date || null,
-          status: "approved",
-          event_id: eventId,
-          order_id: String(o.id),
-          coupon_code: coupon ? String(coupon).trim().toUpperCase() : null,
-          buyer_state: invoiceState(o),
-          company_size: null,
-          buyer_company: invoiceCompany(o),
-          buyer_role: null,
-          payment_method: o.transaction_type ?? o.payment_method ?? null,
-          utm_source: o.utm?.utm_source ?? o.utm_data?.utm_source ?? null,
-          utm_medium: o.utm?.utm_medium ?? o.utm_data?.utm_medium ?? null,
-          utm_campaign: o.utm?.utm_campaign ?? o.utm_data?.utm_campaign ?? null,
-          synced_at: new Date().toISOString(),
-        });
-      }
-      rows.push(...pendingRows);
-      console.log("sync-sympla - pedidos com ingressos sem participante:", pendingRows.length);
-    }
+    // Só participantes reais: a quantidade e o tipo vêm da Sympla, nunca de estimativa. Pedido aprovado cujo comprador
+    // ainda não preencheu os nomes entra quando os participantes aparecem; até lá fica na lista de pedidos a acompanhar.
+    // Regra do projeto: nenhum número do painel é estimado.
 
     // Batch upsert in chunks of 500
     for (let i = 0; i < rows.length; i += 500) {
@@ -243,11 +204,9 @@ Deno.serve(async (req) => {
       if (error) throw error;
     }
 
-    // Pedidos que já tiveram todos os ingressos vinculados (ou foram cancelados) deixam de ter a linha de pendentes.
-    if (ordersById.size) {
-      let stale = supabase.from("ticket_sales").delete().eq("event_id", eventId).like("sympla_order_id", `${PENDING_PREFIX}%`);
-      if (pendingRows.length) stale = stale.not("sympla_order_id", "in", `(${pendingRows.map((r) => r.sympla_order_id).join(",")})`);
-      const { error } = await stale;
+    // Remove as linhas de estimativa gravadas por versões anteriores ("pendente-<pedido>").
+    {
+      const { error } = await supabase.from("ticket_sales").delete().eq("event_id", eventId).like("sympla_order_id", `${PENDING_PREFIX}%`);
       if (error) throw error;
     }
 
