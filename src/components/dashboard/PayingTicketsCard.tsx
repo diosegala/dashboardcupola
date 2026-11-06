@@ -11,7 +11,8 @@ const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 interface Props {
   sympla: number;
   faturados: number;
-  // Ingressos em negócios abertos no CRM (negociação, fechamento): não contam, só mostram o que está para entrar.
+  // Faturamento em andamento: ingressos de negócios abertos no CRM (negociação, fechamento). Não contam na meta;
+  // quando o negócio é ganho, passam para faturados. Só o faturado interno passa pelo CRM, a Sympla não.
   emNegociacao: number;
   meta: number | null;
   anterior?: number | null;
@@ -85,7 +86,7 @@ export function PayingTicketsCard({ sympla, faturados, emNegociacao, meta, anter
               <div className="h-full bg-[#F5F2EB] transition-[width] delay-150 duration-[1300ms] ease-cupola" style={{ width: cheio ? pos(faturados) : "0%" }} title={`Faturados internamente: ${int(faturados)}`} />
             )}
             {emNegociacao > 0 && (
-              <div className="sp-stripes h-full rounded-r-full transition-[width] delay-300 duration-[1500ms] ease-cupola" style={{ width: cheio ? pos(emNegociacao) : "0%" }} title={`Em negociação no CRM: ${int(emNegociacao)}`} />
+              <div className="sp-stripes h-full rounded-r-full transition-[width] delay-300 duration-[1500ms] ease-cupola" style={{ width: cheio ? pos(emNegociacao) : "0%" }} title={`Faturamento em andamento: ${int(emNegociacao)}`} />
             )}
           </div>
           {marcas.map((m) => {
@@ -105,9 +106,15 @@ export function PayingTicketsCard({ sympla, faturados, emNegociacao, meta, anter
 
       {/* Números de apoio */}
       <div className="relative mt-3 grid gap-2 sm:grid-cols-3">
-        <Apoio cor="bg-[#B0F90A]" titulo="Pagos na Sympla" valor={sympla} />
-        <Apoio cor="bg-[#F5F2EB]" titulo="Faturados internamente" valor={faturados} info={METRIC_INFO["Faturados internamente"]} />
-        <Apoio listrado titulo="Em negociação no CRM" valor={emNegociacao} rodape="não contam ainda" />
+        <Apoio cor="bg-[#B0F90A]" titulo="Pagos na Sympla" valor={sympla} rodape="vendas diretas no site" />
+        <Apoio cor="bg-[#F5F2EB]" titulo="Faturados internamente" valor={faturados} info={METRIC_INFO["Faturados internamente"]} rodape="negócios ganhos no CRM" />
+        <Apoio
+          listrado
+          titulo="Faturamento em andamento"
+          valor={emNegociacao}
+          info="Ingressos de negócios ainda abertos no funil de ingressos do Pipedrive (negociação, fechamento). Não contam na meta. Quando o negócio é ganho, os ingressos passam para Faturados internamente."
+          rodape="abertos no CRM · entram quando ganhos"
+        />
       </div>
     </Card>
   );

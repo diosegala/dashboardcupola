@@ -98,7 +98,7 @@ function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
       )}
       {abertos.length > 0 && (
         <p className="text-muted-foreground">
-          <b className="font-semibold text-foreground">Em negociação no CRM (não contam):</b>{" "}
+          <b className="font-semibold text-foreground">Faturamento em andamento (não conta ainda):</b>{" "}
           {Array.from(etapas.entries()).map(([etapa, e]) => `${etapa}: ${int(e.ingressos)} ${e.ingressos === 1 ? "ingresso" : "ingressos"} (${e.negocios.size} ${e.negocios.size === 1 ? "negócio" : "negócios"})`).join(" · ")}
         </p>
       )}
