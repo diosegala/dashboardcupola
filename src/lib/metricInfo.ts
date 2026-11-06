@@ -11,7 +11,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Meta de ingressos pagantes":
     "Soma dos ingressos pagos na Sympla com os faturados internamente. Cortesias, expositores e patrocinadores não entram. A meta é cadastrada na tela Metas.",
   "Ritmo de vendas":
-    "O arco mostra o ritmo atual: média de pagantes por dia útil nos últimos 10 dias úteis. O marcador escuro é o ritmo necessário: o que falta para a meta dividido pelos dias úteis até a véspera do evento, sem fins de semana e feriados nacionais.",
+    "Ritmo atual: média de pagantes por dia útil nos últimos 10 dias úteis. Ritmo necessário: pagantes que faltam divididos pelos dias úteis até a véspera do evento (sem fins de semana e feriados). Se o atual for menor que o necessário, a venda está abaixo do ritmo.",
   "Ritmo necessário":
     "Ingressos pagantes que faltam divididos pelos dias úteis de hoje até a véspera do evento. Fins de semana e feriados nacionais ficam de fora.",
   "Ritmo atual":

@@ -139,7 +139,12 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   const weeklySeries = useSeriesVisibility();
   const revenueSeries = useSeriesVisibility();
   const [diaVisao, setDiaVisao] = useState<"uteis" | "semana">("semana");
-  const chip = m.paceStatus ? PACE_CHIP[m.paceStatus] : null;
+  const chipBase = m.paceStatus ? PACE_CHIP[m.paceStatus] : null;
+  // Selo com a diferença entre o ritmo atual e o necessário.
+  const difRitmo = m.requiredPace !== null ? m.currentPace - m.requiredPace : 0;
+  const chip = chipBase && (m.paceStatus === "above" || m.paceStatus === "below")
+    ? { ...chipBase, label: `${chipBase.label} · ${difRitmo > 0 ? "+" : "−"}${Math.abs(difRitmo).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}/dia` }
+    : chipBase;
   // Metas do evento definidas na tela Metas (sem elas, os cards ficam só com os números).
   const metaReceita = eventGoal(goals, "revenue");
   const metaEmitidos = eventGoal(goals, "issued_tickets");
@@ -183,6 +188,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         remainingDays={m.remainingDays}
         chip={chip}
         ritmoAnterior={m.anterior?.currentPace}
+        faltam={m.missing}
       />
 
       {/* Linha 2: todos os ingressos emitidos (pizza) e receita */}
