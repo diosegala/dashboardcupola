@@ -153,7 +153,17 @@ function MetaPct({ actual, target }: { actual: number; target: number | null }) 
 export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, range }: FunnelKPISectionProps) {
   const metaAds = useMemo(() => adMetrics.filter((a) => a.source === "meta"), [adMetrics]);
 
-  const weeks = useMemo(() => getWeeksInRange(range.from, range.to), [range]);
+  // As semanas começam no primeiro dia com dado (em "Todo o período" o painel vai até 2020) e a tabela mostra
+  // no máximo as 12 mais recentes; o Período total continua somando tudo.
+  const weeks = useMemo(() => {
+    const datas = [...metaAds.map((a) => a.date), ...emailCampaigns.map((e) => e.sent_at), ...tickets.map((t) => t.sold_at)]
+      .filter(Boolean)
+      .map((d) => String(d).slice(0, 10))
+      .sort();
+    const primeiro = datas.length ? parseDay(datas[0]) : range.from;
+    const de = isAfter(primeiro, range.from) ? primeiro : range.from;
+    return getWeeksInRange(de, range.to).slice(-12);
+  }, [range, metaAds, emailCampaigns, tickets]);
   const showWeeks = weeks.length > 1;
 
   // Precompute actuals per period (total + per week)
