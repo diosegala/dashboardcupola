@@ -477,7 +477,7 @@ export function MarketingTabs(todasProps: MarketingTabsProps) {
 
   return (
     <Tabs value={aba} onValueChange={setAba}>
-      <div className="-mx-1 mb-5 overflow-x-auto px-1">
+      <div className="-mx-1 mb-5 overflow-x-auto px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <SlidingTabsList value={aba} className="w-max">
           {abas.map(({ v, l }) => (
             <TabsTrigger key={v} value={v} className="relative z-[1] data-[state=active]:bg-transparent data-[state=active]:text-background">
