@@ -128,6 +128,20 @@ Deno.serve(async (req) => {
     const fromList = await fetchAllPages(`${base}/participants`, apiToken);
     const participantsById = new Map<string, any>();
     fromList.forEach((p: any) => participantsById.set(String(p.id), p));
+    // Segunda leitura da lista com todos os status (status=true): soma o que a leitura padrão não trouxe. Quem não
+    // está aprovado entra com o próprio status e não conta como venda.
+    let daListaCompleta = 0;
+    try {
+      (await fetchAllPages(`${base}/participants?status=true`, apiToken)).forEach((p: any) => {
+        const id = String(p.id);
+        if (!participantsById.has(id)) {
+          daListaCompleta++;
+          participantsById.set(id, p);
+        }
+      });
+    } catch (err: any) {
+      console.error("sync-sympla - lista com todos os status indisponível:", err.message);
+    }
 
     // 4b. Pedidos aprovados do evento: trazem cupom, UTM e o valor líquido, usado para conferir os participantes.
     // Se falhar, a sincronização segue sem cupom e sem a conferência por pedido.
@@ -140,7 +154,7 @@ Deno.serve(async (req) => {
 
     // 4c. Pedidos aprovados cujos participantes não fecham o valor: busca os participantes do próprio pedido.
     // Dado exato da Sympla, nada estimado. Falha num pedido não interrompe a sincronização; o que faltar fica no resumo.
-    const incompletosAntes = incompleteOrders(Array.from(ordersById.values()), fromList);
+    const incompletosAntes = incompleteOrders(Array.from(ordersById.values()), Array.from(participantsById.values()));
     let recuperados = 0;
     let falhas = 0;
     for (const o of incompletosAntes.slice(0, MAX_ORDER_CHECKS)) {
@@ -162,6 +176,7 @@ Deno.serve(async (req) => {
     const resumoEvento = {
       evento: eventId,
       participantes_lista_geral: fromList.length,
+      recuperados_lista_todos_status: daListaCompleta,
       recuperados_por_pedido: recuperados,
       participantes_total: allParticipants.length,
       pedidos_aprovados: ordersById.size,
@@ -365,7 +380,7 @@ function mapStatus(status: string | null): string {
 async function fetchAllPages(url: string, token: string): Promise<any[]> {
   const all: any[] = [];
   for (let page = 1; page <= 500; page++) {
-    const data = await fetchWithRetry(`${url}?page=${page}&page_size=200`, token);
+    const data = await fetchWithRetry(`${url}${url.includes("?") ? "&" : "?"}page=${page}&page_size=200`, token);
     all.push(...(data?.data ?? []));
     if (!data?.pagination?.has_next) break;
   }
