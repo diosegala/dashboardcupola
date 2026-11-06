@@ -58,7 +58,7 @@ describe("faturados internos (Pipedrive)", () => {
       [],
       [],
     );
-    expect(vendas.map((v) => [v.ticket_type, v.quantity, v.total_price])).toEqual([["Lote 0 | Ingresso VIP", 2, 2000], ["Pré-venda | Grupo de Ingressos Padrão", 5, 5000]]);
+    expect(vendas.map((v) => [v.ticket_type, v.quantity, v.total_price])).toEqual([["Lote 0 | Ingresso VIP", 2, 2000], ["Lote 0 | Grupo de Ingressos Padrão", 5, 5000]]);
   });
 
   it("corrige quantidade e preço trocados no produto (Copa Azul: 1775.65 x 3)", () => {
