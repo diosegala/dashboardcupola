@@ -105,33 +105,35 @@ export function PayingTicketsCard({ sympla, faturados, emNegociacao, meta, anter
       </div>
 
       {/* Números de apoio */}
-      <div className="relative mt-3 grid gap-2 sm:grid-cols-3">
-        <Apoio cor="bg-[#B0F90A]" titulo="Pagos na Sympla" valor={sympla} rodape="vendas diretas no site" />
-        <Apoio cor="bg-[#F5F2EB]" titulo="Faturados internamente" valor={faturados} info={METRIC_INFO["Faturados internamente"]} rodape="negócios ganhos no CRM" />
+      <div className="relative mt-3 divide-y divide-white/[0.06] rounded-2xl bg-white/[0.05] px-4 ring-1 ring-white/[0.06]">
+        {/* Título e rodapé curtos, numa linha cada (os três ficam alinhados em qualquer tela); o detalhe vai no "i". */}
+        <Apoio cor="bg-[#B0F90A]" titulo="Sympla" valor={sympla} rodape="pagos no site" info="Ingressos pagos direto na Sympla, com ou sem cupom de desconto." />
+        <Apoio cor="bg-[#F5F2EB]" titulo="Faturados" valor={faturados} rodape="ganhos no CRM" info={METRIC_INFO["Faturados internamente"]} />
         <Apoio
           listrado
-          titulo="Faturamento em andamento"
+          titulo="Em andamento"
           valor={emNegociacao}
-          info="Ingressos de negócios ainda abertos no funil de ingressos do Pipedrive (negociação, fechamento). Não contam na meta. Quando o negócio é ganho, os ingressos passam para Faturados internamente."
-          rodape="abertos no CRM · entram quando ganhos"
+          rodape="abertos no CRM"
+          info="Ingressos de negócios ainda abertos no funil de ingressos do Pipedrive (negociação, fechamento). Ainda não contam na meta; quando o negócio é ganho, passam para Faturados."
         />
       </div>
     </Card>
   );
 }
 
+// Uma linha por fonte: cor, nome e explicação curta à esquerda, número à direita. Sempre alinhadas, em qualquer tela.
 function Apoio({ titulo, valor, cor, listrado, info, rodape }: { titulo: string; valor: number; cor?: string; listrado?: boolean; info?: string; rodape?: string }) {
   return (
-    <div className="rounded-2xl bg-white/[0.05] px-4 py-3 ring-1 ring-white/[0.06]">
-      <div className="flex items-center gap-1.5 text-[11px] text-[#9A9FA7]">
-        <i className={cn("inline-block h-2 w-4 rounded-full", listrado ? "sp-stripes" : cor)} />
-        {titulo}
-        {info && <InfoTip title={titulo} text={info} className="text-[#9A9FA7]" />}
+    <div className="flex items-center justify-between gap-3 py-2.5">
+      <div className="flex min-w-0 items-center gap-2 text-[13px] text-[#D6D2C8]">
+        <i className={cn("inline-block h-2 w-4 shrink-0 rounded-full", listrado ? "sp-stripes" : cor)} />
+        <span className="font-medium">{titulo}</span>
+        {rodape && <span className="truncate text-[11px] text-[#9A9FA7]">{rodape}</span>}
+        {info && <InfoTip title={titulo} text={info} className="shrink-0 text-[#9A9FA7]" />}
       </div>
-      <div className="mt-0.5 text-xl font-semibold tabular-nums tracking-[-0.02em]">
+      <div className="shrink-0 text-lg font-semibold tabular-nums tracking-[-0.02em]">
         <CountUp value={valor} format={int} />
       </div>
-      {rodape && <div className="text-[11px] text-[#9A9FA7]">{rodape}</div>}
     </div>
   );
 }
