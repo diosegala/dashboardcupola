@@ -58,7 +58,7 @@ export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritm
         Ritmo de vendas <InfoTip title="Ritmo de vendas" />
       </div>
       <div className="flex flex-1 flex-col justify-between gap-4">
-        <svg viewBox="0 -28 200 144" className="mx-auto h-auto w-full max-w-[320px] shrink-0" role="img" aria-label={`Ritmo atual ${fmt(currentPace)} por dia útil${temMeta ? `; necessário ${fmt(requiredPace as number)}` : ""}`}>
+        <svg viewBox="0 -28 200 144" className="mx-auto h-auto w-full max-w-[200px] shrink-0" role="img" aria-label={`Ritmo atual ${fmt(currentPace)} por dia útil${temMeta ? `; necessário ${fmt(requiredPace as number)}` : ""}`}>
           <path d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`} fill="none" stroke="hsl(var(--secondary))" strokeWidth="16" strokeLinecap="round" />
           <path
             d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`}
@@ -86,7 +86,7 @@ export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritm
           </text>
         </svg>
         <div className="flex min-w-0 flex-col gap-3 border-t border-border pt-4 text-sm">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-3">
             <div className="flex min-w-0 flex-col gap-0.5">
               <span className="text-xs font-semibold text-muted-foreground">Ritmo atual</span>
               <span><b className="font-semibold text-foreground">{fmt(currentPace)}</b> <span className="text-muted-foreground">por dia útil</span></span>
