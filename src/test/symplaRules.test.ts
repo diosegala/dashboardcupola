@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { incompleteOrders, invoiceCompany, participantsToCancel } from "../../supabase/functions/_shared/sympla-rules";
+import { incompleteOrders, invoiceCompany, keepsTicket, mergeParticipants, participantPrice, participantsToCancel } from "../../supabase/functions/_shared/sympla-rules";
 
 // A sincronização da Sympla só grava participantes reais: não há estimativa de ingressos sem participante.
 describe("regras da Sympla", () => {
@@ -25,6 +25,37 @@ describe("regras da Sympla", () => {
       { order_id: "CORTESIA", ticket_sale_price: 0 },
     ];
     expect(incompleteOrders(pedidos, participantes).map((o) => o.id)).toEqual(["PARCIAL", "SEM", "CORTESIA_SEM"]);
+  });
+
+  it("junta 1.5.1 e 1.6.0 por número do ingresso, sem duplicar e mantendo a chave gravada", () => {
+    const legado = [{ id: "347614853", ticket_number: "UX9H-CG-5TK5", order_id: "35EA3BTU1UD", ticket_sale_price: 1859.52, first_name: "A" }];
+    const atual = [
+      { id: "novo-1", ticket_number: "UX9HCG5TK5", order_id: "35EA3BTU1UD", ticket_net_value: 1859.52, first_name: null }, // mesmo ingresso, sem hífen
+      { id: "novo-2", ticket_number: "UX86-84-PK4A", order_id: "35EA3BTU1UD", ticket_net_value: 1859.52 }, // faltava na 1.5.1
+      { id: "novo-3", ticket_number: null, order_id: "35EA3BTU1UD" }, // sem número: ignorado
+    ];
+    const { participants, stats } = mergeParticipants(legado, atual, new Map([["UX9HCG5TK5", "347614853"]]), new Set(["35EA3BTU1UD"]));
+    expect(participants.map((m) => m.key)).toEqual(["347614853", "novo-2"]);
+    expect(participants[0].p.first_name).toBe("A"); // nulo da 1.6.0 não apaga o dado do legado
+    expect(stats).toEqual({ semNumero: 1, reconhecidos: 1, descartada: false });
+    expect(participants.reduce((s, m) => s + participantPrice(m.p), 0)).toBe(3719.04);
+    // O pedido de 2 ingressos VIP fecha com o valor líquido do pedido.
+    expect(incompleteOrders([{ id: "35EA3BTU1UD", order_status: "APPROVED", order_total_net_value: 3719.04 }], participants.map((m) => m.p))).toEqual([]);
+  });
+
+  it("descarta a 1.6.0 quando ela não reconhece nenhum ingresso já conhecido", () => {
+    const legado = [{ id: "1", ticket_number: "AAAA-11-1111" }];
+    const atual = [{ id: "x", ticket_number: "formato-diferente" }];
+    const { participants, stats } = mergeParticipants(legado, atual, new Map(), new Set());
+    expect(participants).toHaveLength(1);
+    expect(stats.descartada).toBe(true);
+    // Evento novo, sem nada gravado: a 1.6.0 entra inteira.
+    expect(mergeParticipants([], atual, new Map(), new Set()).participants).toHaveLength(1);
+  });
+
+  it("guarda confirmados e pendentes, como a Sympla mostra", () => {
+    expect(["A", "APPROVED", "P", "pending"].every(keepsTicket)).toBe(true);
+    expect(["NP", "C", "R", "cancelled", null].some(keepsTicket)).toBe(false);
   });
 
   it("só cancela quem saiu da Sympla e não tem mais o pedido aprovado", () => {

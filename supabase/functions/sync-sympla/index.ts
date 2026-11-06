@@ -1,8 +1,16 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import { incompleteOrders, isApprovedOrder, participantsToCancel, PENDING_PREFIX } from "../_shared/sympla-rules.ts";
+import {
+  incompleteOrders,
+  isApprovedOrder,
+  keepsTicket,
+  mergeParticipants,
+  participantPrice,
+  participantsToCancel,
+  PENDING_PREFIX,
+  ticketKey,
+} from "../_shared/sympla-rules.ts";
 
-// Pedidos conferidos um a um por sincronização (o que passar disso fica para a próxima, e aparece no resumo).
-const MAX_ORDER_CHECKS = 120;
+const isApproved = (status: string) => status.toLowerCase() === "approved";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -123,28 +131,11 @@ Deno.serve(async (req) => {
     let totalParticipants = 0;
     const resumo: any[] = [];
     for (const { eventId, token: apiToken } of targets) {
-    const base = `https://api.sympla.com.br/public/v1.5.1/events/${eventId}`;
-    // 4. Participantes do evento (lista geral).
-    const fromList = await fetchAllPages(`${base}/participants`, apiToken);
-    const participantsById = new Map<string, any>();
-    fromList.forEach((p: any) => participantsById.set(String(p.id), p));
-    // Segunda leitura da lista com todos os status (status=true): soma o que a leitura padrão não trouxe. Quem não
-    // está aprovado entra com o próprio status e não conta como venda.
-    let daListaCompleta = 0;
-    try {
-      (await fetchAllPages(`${base}/participants?status=true`, apiToken)).forEach((p: any) => {
-        const id = String(p.id);
-        if (!participantsById.has(id)) {
-          daListaCompleta++;
-          participantsById.set(id, p);
-        }
-      });
-    } catch (err: any) {
-      console.error("sync-sympla - lista com todos os status indisponível:", err.message);
-    }
+    const api = "https://api.sympla.com.br/public";
+    const base = `${api}/v1.5.1/events/${eventId}`;
 
-    // 4b. Pedidos aprovados do evento: trazem cupom, UTM e o valor líquido, usado para conferir os participantes.
-    // Se falhar, a sincronização segue sem cupom e sem a conferência por pedido.
+    // 4. Pedidos aprovados do evento (1.5.1): trazem cupom, UTM, forma de pagamento e o valor líquido do pedido.
+    // Se falhar, a sincronização segue sem cupom e ninguém é cancelado (ver participantsToCancel).
     const ordersById = new Map<string, any>();
     try {
       (await fetchAllPages(`${base}/orders`, apiToken)).forEach((o: any) => ordersById.set(String(o.id), o));
@@ -152,37 +143,55 @@ Deno.serve(async (req) => {
       console.error("sync-sympla - pedidos indisponíveis:", err.message);
     }
 
-    // 4c. Pedidos aprovados cujos participantes não fecham o valor: busca os participantes do próprio pedido.
-    // Dado exato da Sympla, nada estimado. Falha num pedido não interrompe a sincronização; o que faltar fica no resumo.
-    const incompletosAntes = incompleteOrders(Array.from(ordersById.values()), Array.from(participantsById.values()));
-    let recuperados = 0;
-    let falhas = 0;
-    for (const o of incompletosAntes.slice(0, MAX_ORDER_CHECKS)) {
-      try {
-        const doPedido = await fetchAllPages(`${base}/orders/${o.id}/participants`, apiToken);
-        doPedido.forEach((p: any) => {
-          const id = String(p.id);
-          if (!participantsById.has(id)) recuperados++;
-          participantsById.set(id, { ...p, order_id: p.order_id ?? o.id });
-        });
-      } catch (err: any) {
-        falhas++;
-        console.error(`sync-sympla - participantes do pedido ${o.id} indisponíveis:`, err.message);
-      }
-      await new Promise((r) => setTimeout(r, 250));
+    // Linhas já gravadas do evento: a chave de cada ingresso (para a 1.6.0 atualizar a mesma linha, sem duplicar)
+    // e a base da regra de cancelamento.
+    const saved: any[] = [];
+    for (let from = 0; ; from += 1000) {
+      const { data, error } = await supabase
+        .from("ticket_sales")
+        .select("sympla_order_id, order_id, ticket_type_id, status")
+        .eq("event_id", eventId)
+        .not("sympla_order_id", "like", `${PENDING_PREFIX}%`)
+        .order("sympla_order_id")
+        .range(from, from + 999);
+      if (error) throw error;
+      saved.push(...(data ?? []));
+      if (!data || data.length < 1000) break;
     }
-    const allParticipants = Array.from(participantsById.values());
-    const incompletosDepois = incompleteOrders(Array.from(ordersById.values()), allParticipants);
+    const savedKeyByTicket = new Map<string, string>();
+    saved.forEach((r: any) => r.ticket_type_id && savedKeyByTicket.set(ticketKey(r.ticket_type_id), String(r.sympla_order_id)));
+
+    // 5. Participantes: contrato legado (1.5.1) e atual (1.6.0), um por ingresso. A 1.6.0 traz os ingressos que a
+    // 1.5.1 deixou de devolver; se ela falhar, segue só com a 1.5.1 e o resumo mostra o erro.
+    const legado = await fetchAllPages(`${base}/participants`, apiToken);
+    let atual: any[] = [];
+    let erro160: string | null = null;
+    try {
+      atual = await fetchCursorPages(`${api}/v1.6.0/events/${eventId}/participants`, apiToken);
+    } catch (err: any) {
+      erro160 = String(err.message ?? err).slice(0, 300);
+      console.error("sync-sympla - participantes 1.6.0 indisponíveis:", erro160);
+    }
+    const juncao = mergeParticipants(legado, atual, savedKeyByTicket, new Set(ordersById.keys()));
+    const statusDe = (p: any) => ordersById.get(String(p.order_id ?? ""))?.order_status ?? p.order_status;
+    const merged = juncao.participants.filter((m) => keepsTicket(statusDe(m.p)));
+    const allParticipants = merged.map((m) => m.p);
+    const aprovadosNaLista = merged.filter((m) => isApproved(mapStatus(statusDe(m.p))));
     const resumoEvento = {
       evento: eventId,
-      participantes_lista_geral: fromList.length,
-      recuperados_lista_todos_status: daListaCompleta,
-      recuperados_por_pedido: recuperados,
-      participantes_total: allParticipants.length,
+      participantes_1_5_1: legado.length,
+      participantes_1_6_0: atual.length,
+      erro_1_6_0: erro160,
+      // Ingressos da 1.6.0 já conhecidos pela 1.5.1 ou pelo banco; sem nenhum, a 1.6.0 é descartada para não duplicar.
+      reconhecidos_1_6_0: juncao.stats.reconhecidos,
+      sem_numero_1_6_0: juncao.stats.semNumero,
+      descartada_1_6_0: juncao.stats.descartada,
+      ingressos: merged.length,
+      fora_nao_pagos_cancelados: juncao.participants.length - merged.length,
+      ingressos_aprovados: aprovadosNaLista.length,
+      sem_pedido_na_lista: aprovadosNaLista.filter((m) => !ordersById.has(String(m.p.order_id ?? ""))).length,
       pedidos_aprovados: ordersById.size,
-      pedidos_incompletos_antes: incompletosAntes.length,
-      pedidos_incompletos_depois: incompletosDepois.length,
-      consultas_com_falha: falhas,
+      pedidos_incompletos: incompleteOrders(Array.from(ordersById.values()), allParticipants).length,
     };
     resumo.push(resumoEvento);
     console.log("sync-sympla - resumo:", JSON.stringify(resumoEvento));
@@ -194,8 +203,7 @@ Deno.serve(async (req) => {
 
     // 5. Upsert each participant as individual ticket (deduplicate by sympla_order_id)
     const rowMap = new Map<string, any>();
-    allParticipants.forEach((p: any) => {
-      const key = String(p.id);
+    merged.forEach(({ key, p }) => {
       const order = ordersById.get(String(p.order_id ?? ""));
       const coupon = order?.discount_code ?? order?.coupon_code ?? p.discount_code ?? null;
       rowMap.set(key, {
@@ -203,11 +211,11 @@ Deno.serve(async (req) => {
         ticket_type: p.ticket_name ?? p.ticket_title ?? null,
         ticket_type_id: p.ticket_number ? String(p.ticket_number) : null,
         quantity: 1,
-        unit_price: parseFloat(p.ticket_sale_price ?? "0") || 0,
-        total_price: parseFloat(p.ticket_sale_price ?? "0") || 0,
+        unit_price: participantPrice(p),
+        total_price: participantPrice(p),
         buyer_name: [p.first_name, p.last_name].filter(Boolean).join(" ") || null,
         buyer_email: p.email ?? null,
-        sold_at: p.order_date || p.order_approved_date || null,
+        sold_at: p.order_date || p.order_approved_date || order?.order_date || p.ticket_created_at || null,
         // A lista de pedidos é a fonte atual do status; a do participante pode estar desatualizada.
         status: mapStatus(order?.order_status ?? p.order_status),
         event_id: eventId,
@@ -250,22 +258,8 @@ Deno.serve(async (req) => {
     // Participantes que a Sympla deixou de devolver e cujo pedido saiu dos aprovados (cancelado, estornado) passam a
     // cancelados. Quem tem o pedido ainda aprovado continua contando (ver participantsToCancel).
     if (ordersById.size) {
-      const saved: any[] = [];
-      for (let from = 0; ; from += 1000) {
-        const { data, error } = await supabase
-          .from("ticket_sales")
-          .select("sympla_order_id, order_id")
-          .eq("event_id", eventId)
-          .not("sympla_order_id", "like", `${PENDING_PREFIX}%`)
-          .neq("status", "cancelled")
-          .order("sympla_order_id")
-          .range(from, from + 999);
-        if (error) throw error;
-        saved.push(...(data ?? []));
-        if (!data || data.length < 1000) break;
-      }
       const aprovados = new Set(Array.from(ordersById.values()).filter(isApprovedOrder).map((o: any) => String(o.id)));
-      const gone = participantsToCancel(saved, new Set(rowMap.keys()), aprovados);
+      const gone = participantsToCancel(saved.filter((r: any) => r.status !== "cancelled"), new Set(rowMap.keys()), aprovados);
       for (let i = 0; i < gone.length; i += 200) {
         const { error: cancelError } = await supabase
           .from("ticket_sales")
@@ -277,9 +271,10 @@ Deno.serve(async (req) => {
     }
 
     // 5b. Dados completos do participante e do pedido, numa tabela só para administradores.
-    const details = allParticipants.map((p: any) => ({
-      sympla_order_id: String(p.id),
-      participant_data: sanitize(p),
+    const details = merged.map(({ key, p }) => ({
+      sympla_order_id: key,
+      // event_id garante que a página Compradores encontre o participante, venha ele de qualquer versão da API.
+      participant_data: sanitize({ ...p, event_id: p.event_id ?? eventId }),
       order_data: sanitize(ordersById.get(String(p.order_id ?? "")) ?? null),
       synced_at: new Date().toISOString(),
     }));
@@ -303,6 +298,12 @@ Deno.serve(async (req) => {
       const { error } = await supabase
         .from("ticket_sales_details")
         .upsert(orphanOrders.slice(i, i + 500), { onConflict: "sympla_order_id" });
+      if (error) throw error;
+    }
+    // Pedido que já tem participante deixa de aparecer como pedido sem participante.
+    const pedidosVinculados = Array.from(linkedOrders).filter(Boolean).map((id) => `pedido-${id}`);
+    for (let i = 0; i < pedidosVinculados.length; i += 200) {
+      const { error } = await supabase.from("ticket_sales_details").delete().in("sympla_order_id", pedidosVinculados.slice(i, i + 200));
       if (error) throw error;
     }
     totalParticipants += allParticipants.length;
@@ -376,7 +377,21 @@ function mapStatus(status: string | null): string {
   return map[status] ?? status;
 }
 
-// Todas as páginas de uma lista da API (participantes, pedidos, participantes de um pedido).
+// Todas as páginas de uma lista da API 1.6.0, paginada por cursor (pagination.next_cursor).
+async function fetchCursorPages(url: string, token: string): Promise<any[]> {
+  const all: any[] = [];
+  let cursor: string | null = null;
+  for (let i = 0; i < 500; i++) {
+    const data = await fetchWithRetry(`${url}?page_size=500${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, token);
+    all.push(...(data?.data ?? []));
+    const next = data?.pagination?.next_cursor ?? null;
+    if (!next || next === cursor) break;
+    cursor = next;
+  }
+  return all;
+}
+
+// Todas as páginas de uma lista da API 1.5.1 (participantes, pedidos), paginada por número de página.
 async function fetchAllPages(url: string, token: string): Promise<any[]> {
   const all: any[] = [];
   for (let page = 1; page <= 500; page++) {
