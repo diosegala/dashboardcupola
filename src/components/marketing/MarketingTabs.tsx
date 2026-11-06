@@ -1,4 +1,8 @@
 import { useMemo, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
+import { useEvent } from "@/hooks/useEvent";
+import { Button } from "@/components/ui/button";
 import {
   Wallet, Eye, MousePointerClick, BarChart3, Target, MessageCircle, ShoppingCart, Crosshair,
   Mail, Users, Globe, FileText, Link2, Ticket as TicketIcon, Coins, TrendingUp,
@@ -241,6 +245,82 @@ function emailsDoEvento(todos: any[]) {
   return doEvento.length ? doEvento : todos;
 }
 
+// Todos os e-mails da edição, do mais recente para o mais antigo, sem depender do período do painel:
+// cada novo disparo entra no topo na próxima sincronização do RD Station.
+function useEmailsDaEdicao() {
+  const { event } = useEvent();
+  const ano = event.name.match(/20(\d{2})/)?.[1];
+  return useQuery({
+    queryKey: ["email_campaigns_edicao", ano],
+    queryFn: async () => {
+      const { data, error } = await supabase.from("email_campaigns").select("*").order("sent_at", { ascending: false, nullsFirst: false });
+      if (error) throw error;
+      const doSummit = (data ?? []).filter((c) => DO_SUMMIT.test(c.name || c.subject || ""));
+      // [SUM27] é a edição 2027. Sem esse código no nome, vale qualquer e-mail do Summit.
+      const daEdicao = ano ? doSummit.filter((c) => new RegExp(`\\[SUM${ano}\\]`, "i").test(c.name || c.subject || "")) : [];
+      return daEdicao.length ? daEdicao : doSummit;
+    },
+  });
+}
+
+const POR_PAGINA = 10;
+
+function EmailList() {
+  const { data = [], isLoading } = useEmailsDaEdicao();
+  const [todos, setTodos] = useState(false);
+  const visiveis = todos ? data : data.slice(0, POR_PAGINA);
+  const num = "w-[84px] shrink-0 text-right tabular-nums";
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2">E-mails enviados <InfoTip title="E-mails enviados" /></CardTitle>
+        <p className="text-xs text-muted-foreground">{isLoading ? "Carregando…" : `${data.length} e-mails desta edição, do mais recente para o mais antigo. Não depende do período escolhido.`}</p>
+      </CardHeader>
+      <CardContent>
+        <div className="overflow-x-auto">
+          <div className="min-w-[820px]">
+            <div className="flex items-center gap-2 border-b pb-2 text-xs text-muted-foreground">
+              <span className="flex-1">E-mail</span>
+              <span className={num}>Enviados</span>
+              <span className={num}>Entregues</span>
+              <span className={num}>Bounce</span>
+              <span className={num}>Abertura</span>
+              <span className={num}>Clique</span>
+              <span className={num}>Descadastros</span>
+            </div>
+            {visiveis.map((c) => {
+              const ent = Number(c.total_delivered || 0);
+              const env = Number(c.total_sent || 0);
+              const aguardando = env > 0 && ent === 0;
+              const nome = String(c.name || c.subject || c.rd_campaign_id).replace(/^\[SUM\d*\]\s*/i, "");
+              return (
+                <div key={c.id} className="flex items-center gap-2 border-b border-border/60 py-3 text-sm last:border-0 hover:bg-muted/40">
+                  <div className="min-w-0 flex-1 pr-2">
+                    <p className="line-clamp-2 font-medium leading-snug" title={c.name || ""}>{nome}</p>
+                    <p className="text-xs text-muted-foreground">{c.sent_at ? new Date(c.sent_at).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "Sem data de envio"}</p>
+                  </div>
+                  <span className={num}>{int(env)}</span>
+                  <span className={num}>{aguardando ? <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">Aguardando<InfoTip title="Aguardando" text="Disparo recente: o RD Station ainda não mandou o relatório de entrega. Atualiza sozinho na próxima sincronização." /></span> : int(ent)}</span>
+                  <span className={num}>{int(Number(c.total_bounced || 0))}</span>
+                  <span className={num}>{ent > 0 ? pct((Number(c.total_opened || 0) / ent) * 100) : "—"}</span>
+                  <span className={num}>{ent > 0 ? pct((Number(c.total_clicked || 0) / ent) * 100) : "—"}</span>
+                  <span className={num}>{int(Number(c.unsubscribes || 0))}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+        {data.length > POR_PAGINA && (
+          <div className="mt-3 text-center">
+            <Button variant="ghost" size="sm" onClick={() => setTodos((v) => !v)}>{todos ? "Mostrar menos" : `Ver todos os ${data.length}`}</Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsProps & { foraDoEvento: number }) {
   const [sel, setSel] = useState<string[]>([]);
   const [a, setA] = useState<string | null>(null);
@@ -269,10 +349,10 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
   const comRetorno = enviados - sum(pendentes, "total_sent");
   const entrega = comRetorno > 0 ? (entregues / comRetorno) * 100 : 0;
   const partesEntrega = [
-    { label: "Entregues", value: entregues, cor: "bg-ok" },
-    { label: "Bounce (voltaram no envio)", value: bounce, cor: "bg-warn" },
-    { label: "Descartados (contato inativo)", value: descartados, cor: "bg-bad" },
-    { label: "Ainda sem retorno", value: semRetorno, cor: "bg-muted-foreground/30" },
+    { label: "Entregues", value: entregues, cor: "bg-ok", info: "Chegaram na caixa de entrada. A taxa de entrega divide os entregues pelos enviados que já têm retorno do RD." },
+    { label: "Bounce", value: bounce, cor: "bg-warn", info: "Voltaram no envio: endereço inexistente, domínio inválido ou caixa cheia. O RD não separa bounce definitivo de temporário neste relatório." },
+    { label: "Descartados", value: descartados, cor: "bg-bad", info: "Contatos que o RD já inativou, depois de um bounce definitivo ou de vários temporários. Por isso nem recebem o envio." },
+    { label: "Ainda sem retorno", value: semRetorno, cor: "bg-muted-foreground/30", info: "Disparo recente: o RD ainda não mandou o relatório de entrega. Atualiza sozinho na próxima sincronização." },
   ];
 
   if (emailCampaigns.length === 0) return <Empty>Nenhum e-mail enviado pelo RD Station no período.</Empty>;
@@ -314,7 +394,7 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
             </div>
             {partesEntrega.map((p) => (
               <div key={p.label}>
-                <dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><i className={`inline-block h-2 w-2 rounded-full ${p.cor}`} />{p.label}</dt>
+                <dt className="flex items-center gap-1.5 text-xs text-muted-foreground"><i className={`inline-block h-2 w-2 rounded-full ${p.cor}`} />{p.label}<InfoTip title={p.label} text={p.info} /></dt>
                 <dd className="text-lg font-semibold tabular-nums">{int(p.value)} <span className="text-xs font-normal text-muted-foreground">{enviados > 0 ? pct((p.value / enviados) * 100) : ""}</span></dd>
               </div>
             ))}
@@ -324,39 +404,18 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
             <p className="mb-3 text-xs font-medium text-muted-foreground">Receberam e saíram da lista</p>
             <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
               <div>
-                <dt className="text-xs text-muted-foreground">Descadastros</dt>
+                <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">Descadastros<InfoTip title="Descadastros" text="Pessoas que receberam o e-mail e pediram para sair da lista. Não é problema de entrega." /></dt>
                 <dd className="text-lg font-semibold tabular-nums">{int(descadastros)} <span className="text-xs font-normal text-muted-foreground">{entregues > 0 ? pct((descadastros / entregues) * 100, 2) : ""}</span></dd>
               </div>
               <div>
-                <dt className="text-xs text-muted-foreground">Marcaram como spam</dt>
+                <dt className="flex items-center gap-1.5 text-xs text-muted-foreground">Marcaram como spam<InfoTip title="Marcaram como spam" text="Pessoas que receberam e marcaram o e-mail como spam. Muitos casos prejudicam a entrega dos próximos envios." /></dt>
                 <dd className="text-lg font-semibold tabular-nums">{int(sum(lista, "spam_reported"))} <span className="text-xs font-normal text-muted-foreground">{entregues > 0 ? pct((sum(lista, "spam_reported") / entregues) * 100, 2) : ""}</span></dd>
               </div>
             </dl>
           </div>
-          <p className="text-xs text-muted-foreground">Bounce é o e-mail que voltou no envio (endereço inexistente, domínio inválido ou caixa cheia). Descartado é o contato que o RD já inativou, depois de um bounce definitivo ou de vários temporários, e por isso nem recebe o envio. O RD não separa bounce definitivo de temporário neste relatório. A taxa de entrega considera só os e-mails que já têm retorno.</p>
         </CardContent>
       </Card>
-      <TableCard
-        title="E-mails enviados"
-        head={[{ label: "Campanha" }, { label: "Envio" }, { label: "Enviados", right: true }, { label: "Entregues", right: true }, { label: "Bounce", right: true }, { label: "Abertura", right: true }, { label: "Clique", right: true }, { label: "Descadastros", right: true }]}
-        rows={[...lista]
-          .sort((x, y) => String(y.sent_at ?? "").localeCompare(String(x.sent_at ?? "")))
-          .map((c) => {
-            const ent = Number(c.total_delivered || 0);
-            const env = Number(c.total_sent || 0);
-            const aguardando = env > 0 && ent === 0;
-            return [
-              c.name || c.subject || c.rd_campaign_id,
-              c.sent_at ? new Date(c.sent_at).toLocaleDateString("pt-BR") : "—",
-              int(env),
-              aguardando ? <span className="text-muted-foreground">Sem retorno ainda</span> : int(ent),
-              int(Number(c.total_bounced || 0)),
-              ent > 0 ? pct((Number(c.total_opened || 0) / ent) * 100) : "—",
-              ent > 0 ? pct((Number(c.total_clicked || 0) / ent) * 100) : "—",
-              int(Number(c.unsubscribes || 0)),
-            ];
-          })}
-      />
+      <EmailList />
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">Comparar dois e-mails <InfoTip title="Comparar dois e-mails" /></CardTitle>

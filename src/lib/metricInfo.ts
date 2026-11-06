@@ -97,7 +97,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Vendas por canal": "Ingressos e valor por canal. O canal vem dos UTMs do link: links da equipe (medium timecupola), cupom sem link e faturados internos contam para a Equipe CUPOLA, e RD Station conta como E-mail marketing. Na aba Links, escolha um lote ou o evento todo para comparar com a meta de cada canal.",
   "Por link parametrizado": "Cada combinação de UTM (source, medium e campanha) usada nas compras, com ingressos e valor.",
   "Desempenho por campanha": "Uma linha por campanha, da que mais investiu para a que menos. Custo por compra é o investimento dividido pelas compras registradas.",
-  "E-mails enviados": "Cada e-mail enviado pelo RD Station no período, do mais recente para o mais antigo. Abertura e clique sobre os e-mails entregues.",
+  "E-mails enviados": "Todos os e-mails desta edição do Summit (código [SUM27] no nome) enviados pelo RD Station, do mais recente para o mais antigo. A lista não depende do período do painel; os cards acima, sim. Abertura e clique sobre os e-mails entregues.",
   "Comparar dois e-mails": "Escolha dois e-mails para ver lado a lado quantos chegaram, abriram e clicaram.",
   "Taxa de Entrega": "E-mails que chegaram na caixa de entrada divididos pelos enviados que já têm retorno do RD Station. Bounce e descartados ficam de fora.",
   "Entrega dos e-mails": "O que aconteceu com cada e-mail enviado. Entregue: chegou na caixa. Bounce: voltou no envio (endereço inexistente, domínio inválido ou caixa cheia). Descartado: contato que o RD já inativou por bounces anteriores e que nem recebe o envio. Sem retorno: disparo recente, o RD ainda não mandou o relatório. Embaixo, quem recebeu e saiu da lista (descadastro ou spam), que não é problema de entrega.",
