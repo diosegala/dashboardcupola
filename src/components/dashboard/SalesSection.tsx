@@ -116,7 +116,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                 <td className="px-3 py-2.5 text-right">{l.preco !== null ? brl(l.preco) : "—"}</td>
                 <td className="px-3 py-2.5 text-right font-semibold">
                   {int(l.pagantes)}
-                  {mostrarAnterior && l.anterior !== null && <span className="block text-[11px] font-normal text-muted-foreground">{rotulo}: {int(l.anterior)}</span>}
+                  {mostrarAnterior && l.anterior !== null && <span className="block text-[11px] font-normal text-muted-foreground" title={`Mesmo lote no evento de ${rotulo}`}>em {rotulo}: {int(l.anterior)}</span>}
                 </td>
                 <td className="px-3 py-2.5 text-right">{saldo !== null ? int(saldo) : "—"}</td>
                 <td className="px-3 py-2.5">
@@ -134,7 +134,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                 <td className="px-3 py-2.5 text-right">
                   {brl(l.receita)}
                   {l.metaReceita ? <span className="block text-[11px] text-muted-foreground">{Math.round((l.receita / l.metaReceita) * 100)}% de {brl(l.metaReceita)}</span> : null}
-                  {mostrarAnterior && l.anteriorReceita !== null && <span className="block text-[11px] text-muted-foreground">{rotulo}: {brl(l.anteriorReceita)}</span>}
+                  {mostrarAnterior && l.anteriorReceita !== null && <span className="block text-[11px] text-muted-foreground" title={`Mesmo lote no evento de ${rotulo}`}>em {rotulo}: {brl(l.anteriorReceita)}</span>}
                 </td>
               </tr>
             );

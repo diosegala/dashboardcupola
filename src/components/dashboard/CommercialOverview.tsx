@@ -11,6 +11,8 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { brl as brlCompleto, useCouponTotals } from "./CouponKpis";
 import { METRIC_INFO } from "@/lib/metricInfo";
+import { ticketCategory } from "@/lib/ticketCategory";
+import { PayingTicketsCard } from "./PayingTicketsCard";
 import { CRM_DISCOUNT_HINT, crmDiscountCoverage } from "@/lib/invoicedTickets";
 import { commercialDiscounts } from "@/lib/lotPrice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -155,38 +157,24 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
     const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
     return commercialDiscounts([...paying, ...bonus], receita);
   }, [doPeriodo]);
+  // Ingressos de negócios abertos no CRM: não contam, aparecem listrados na pista dos pagantes.
+  const emNegociacaoCrm = useMemo(() => tickets.filter((t) => ticketCategory(t) === "negociacao").reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
   const coberturaCrm = useMemo(() => crmDiscountCoverage(doPeriodo), [doPeriodo]);
   const mostrarDescontos = useCouponTotals(doPeriodo).comCupom > 0 || coberturaCrm.negocios > 0;
 
   return (
     <div className="grid grid-cols-12 gap-[14px]">
       {/* Linha 1: meta, ritmo necessário e ritmo atual */}
-      <Card className="col-span-12 flex flex-col gap-3 border-[#0F1114] bg-[#0F1114] p-5 text-[#F5F2EB] dark:border-[#2d3a10] dark:shadow-glow lg:col-span-6">
-        <div className="flex items-center gap-2 text-[13px] font-semibold text-[#D6D2C8]">
-          {temMeta ? "Meta de ingressos pagantes" : "Ingressos pagantes"}
-          <InfoTip title={temMeta ? "Meta de ingressos pagantes" : "Ingressos pagantes"} className="text-[#D6D2C8]" />
-          {filtrado && <EventoInteiro escuro />}
-        </div>
-        <div className="flex items-center gap-5">
-          {temMeta && <GoalRing progress={m.progress} />}
-          <div className="min-w-0">
-            <div className="text-[clamp(32px,3.8vw,42px)] font-semibold leading-none tracking-[-0.035em]">
-              <CountUp value={m.payingCount} format={int} />
-              {temMeta && <small className="ml-1.5 text-sm font-medium tracking-normal text-[#9A9FA7]">de {int(m.goal as number)}</small>}
-            </div>
-            <p className="mt-2 text-xs text-[#9A9FA7]">
-              {temMeta ? (
-                <>
-                  Faltam <b className="font-semibold text-[#B0F90A]">{int(m.missing)}</b> ingressos pagantes
-                </>
-              ) : (
-                <>Pagos na Sympla e faturados pelo comercial</>
-              )}
-            </p>
-            <CompareLine className="mt-1.5" escuro anterior={m.anterior?.payingCount} atual={m.payingCount} />
-          </div>
-        </div>
-      </Card>
+      <PayingTicketsCard
+        className="col-span-12 lg:col-span-6"
+        sympla={m.paidSymplaCount}
+        faturados={m.invoicedCount}
+        emNegociacao={emNegociacaoCrm}
+        meta={m.goal}
+        anterior={mostrarAnterior ? m.anterior?.payingCount ?? null : null}
+        rotuloAnterior={rotulo}
+        extra={filtrado ? <EventoInteiro escuro /> : undefined}
+      />
 
       <PaceGauge
         className="col-span-12 lg:col-span-6"
@@ -331,7 +319,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
                 name="Pagantes"
                 stroke={COLORS.blue}
                 strokeWidth={2.5}
-                dot={{ r: 2.5 }}
+                dot={false} activeDot={{ r: 3.5 }}
                 connectNulls={false}
                 hide={weeklySeries.hidden.has("pagantes")}
                 strokeOpacity={weeklySeries.opacity("pagantes")}
@@ -379,7 +367,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
               {mostrarAnterior && (
                 <Line {...previousYearLineProps} name={rotulo} strokeDasharray="2 4" hide={revenueSeries.hidden.has(PREVIOUS_YEAR_KEY)} strokeOpacity={revenueSeries.opacity(PREVIOUS_YEAR_KEY, 0.55)} />
               )}
-              <Line dataKey="receita" name="Receita" stroke={COLORS.blue} strokeWidth={2.5} dot={{ r: 2.5 }} connectNulls={false} hide={revenueSeries.hidden.has("receita")} strokeOpacity={revenueSeries.opacity("receita")} animationDuration={1200} />
+              <Line dataKey="receita" name="Receita" stroke={COLORS.blue} strokeWidth={2.5} dot={false} activeDot={{ r: 3.5 }} connectNulls={false} hide={revenueSeries.hidden.has("receita")} strokeOpacity={revenueSeries.opacity("receita")} animationDuration={1200} />
             </ComposedChart>
           </ResponsiveContainer>
         </CardContent>
