@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { startOfMonth, endOfMonth, format, subYears } from "date-fns";
 import { withSaleDate } from "@/lib/period";
 import { invoicedToTickets, isTicketProduct, redeemedDeal } from "@/lib/invoicedTickets";
+import { withBatchByDate } from "@/lib/batches";
 
 export interface DateRange {
   from: Date;
@@ -109,6 +110,8 @@ async function fetchAllTimeTickets(eventId: string, columns: string) {
       .from("ticket_sales")
       .select(columns)
       .eq("event_id", eventId)
+      // Linhas de estimativa de versões antigas da sincronização: não contam (só participantes reais).
+      .not("sympla_order_id", "like", "pendente-%")
       .range(from, from + pageSize - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;
@@ -267,7 +270,8 @@ export function useAllTimeTicketSales(eventId: string) {
         const deal = redeemedDeal(t.coupon_code, empresas);
         return deal ? { ...t, redeems: deal } : t;
       });
-      return [...comResgate, ...faturados];
+      // Lote pela data: vale o lote vigente no dia da venda (muda na primeira venda do lote seguinte).
+      return withBatchByDate([...comResgate, ...faturados]);
     },
   });
 }
