@@ -53,12 +53,11 @@ export function useIntegrations() {
       return data;
     },
     onSuccess: (data: any) => {
-      // A Sympla devolve um resumo por evento: quantos participantes vieram e quantos pedidos ainda não fecham.
+      // A Sympla devolve um resumo por evento; avisa quando algum pedido aprovado ainda não tem todos os ingressos.
       const resumo: any[] = Array.isArray(data?.resumo) ? data.resumo : [];
-      const faltam = resumo.reduce((s, r) => s + (Number(r.pedidos_incompletos_depois) || 0), 0);
+      const faltam = resumo.reduce((s, r) => s + (Number(r.pedidos_incompletos) || 0), 0);
       if (resumo.length) {
-        const total = resumo.reduce((s, r) => s + (Number(r.participantes_total) || 0), 0);
-        toast.success(`Sympla sincronizada: ${total.toLocaleString("pt-BR")} participantes.`);
+        toast.success("Sympla sincronizada!");
         if (faltam) toast.warning(`${faltam.toLocaleString("pt-BR")} pedidos aprovados ainda sem todos os participantes na API da Sympla.`);
       } else toast.success("Sincronização iniciada!");
       // Busca o status na hora; o refetchInterval acompanha até a sincronização terminar.
