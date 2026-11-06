@@ -184,7 +184,13 @@ function Overview({ adMetrics, emailCampaigns, tickets, goals, range }: Marketin
 }
 
 // ---------- Mídia paga (Meta Ads e Google Ads usam o mesmo desenho) ----------
-function AdsTab({ fonte, adMetrics, previousAdMetrics, goals, range }: MarketingTabsProps & { fonte: "meta" | "google_ads" }) {
+const DO_SUMMIT_ADS = /summit/i;
+function campanhasDoEvento(linhas: any[]) {
+  const doEvento = linhas.filter((a) => DO_SUMMIT_ADS.test(a.campaign_name || ""));
+  return doEvento.length ? doEvento : linhas;
+}
+
+function AdsTab({ fonte, adMetrics, previousAdMetrics, goals, range, foraAds = 0 }: MarketingTabsProps & { fonte: "meta" | "google_ads"; foraAds?: number }) {
   const todas = useMemo(() => adMetrics.filter((a) => a.source === fonte), [adMetrics, fonte]);
   const [sel, setSel] = useState<string[]>([]);
   const linhas = sel.length ? todas.filter((a) => sel.includes(a.campaign_id)) : todas;
@@ -205,7 +211,10 @@ function AdsTab({ fonte, adMetrics, previousAdMetrics, goals, range }: Marketing
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Intro>{ehMeta ? "Anúncios no Instagram e Facebook: alcance, cliques e o que o Pixel registrou no site." : "Anúncios na busca e na rede do Google: cliques, custo e conversões."}</Intro>
+        <Intro>
+          {ehMeta ? "Anúncios do Summit no Instagram e Facebook: alcance, cliques e o que o Pixel registrou no site." : "Anúncios do Summit na busca e na rede do Google: cliques, custo e conversões."}
+          {foraAds > 0 && ` ${foraAds} campanhas de outros produtos da CUPOLA ficaram fora.`}
+        </Intro>
         <CampaignFilter campaigns={campaignOptions(todas)} selected={sel} onChange={setSel} />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -264,12 +273,20 @@ function useEmailsDaEdicao() {
 }
 
 const POR_PAGINA = 10;
+const COLUNAS_EMAIL = ["Enviados", "Entregues", "Bounce", "Abertura", "Clique", "Descadastros"];
+
+// Nome do e-mail para leitura: sem a tag [SUM27] e sem palavras em caixa alta (LOTE ZERO vira Lote zero, TEASER vira Teaser).
+// CUPOLA fica sempre em maiúsculas. O que já vem em minúsculas ou misto fica como está.
+function nomeDoEmail(bruto: string) {
+  const sem = bruto.replace(/^\[SUM\d*\]\s*/i, "");
+  const normal = sem.replace(/\p{L}{2,}/gu, (w) => (w.toUpperCase() === "CUPOLA" ? "CUPOLA" : w === w.toUpperCase() ? w.toLowerCase() : w));
+  return normal.charAt(0).toUpperCase() + normal.slice(1);
+}
 
 function EmailList() {
   const { data = [], isLoading } = useEmailsDaEdicao();
   const [todos, setTodos] = useState(false);
   const visiveis = todos ? data : data.slice(0, POR_PAGINA);
-  const num = "w-[84px] shrink-0 text-right tabular-nums";
 
   return (
     <Card>
@@ -278,39 +295,41 @@ function EmailList() {
         <p className="text-xs text-muted-foreground">{isLoading ? "Carregando…" : `${data.length} e-mails desta edição, do mais recente para o mais antigo. Não depende do período escolhido.`}</p>
       </CardHeader>
       <CardContent>
-        <div className="overflow-x-auto">
-          <div className="min-w-[820px]">
-            <div className="flex items-center gap-2 border-b pb-2 text-xs text-muted-foreground">
-              <span className="flex-1">E-mail</span>
-              <span className={num}>Enviados</span>
-              <span className={num}>Entregues</span>
-              <span className={num}>Bounce</span>
-              <span className={num}>Abertura</span>
-              <span className={num}>Clique</span>
-              <span className={num}>Descadastros</span>
-            </div>
-            {visiveis.map((c) => {
-              const ent = Number(c.total_delivered || 0);
-              const env = Number(c.total_sent || 0);
-              const aguardando = env > 0 && ent === 0;
-              const nome = String(c.name || c.subject || c.rd_campaign_id).replace(/^\[SUM\d*\]\s*/i, "");
-              return (
-                <div key={c.id} className="flex items-center gap-2 border-b border-border/60 py-3 text-sm last:border-0 hover:bg-muted/40">
-                  <div className="min-w-0 flex-1 pr-2">
-                    <p className="line-clamp-2 font-medium leading-snug" title={c.name || ""}>{nome}</p>
-                    <p className="text-xs text-muted-foreground">{c.sent_at ? new Date(c.sent_at).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "Sem data de envio"}</p>
-                  </div>
-                  <span className={num}>{int(env)}</span>
-                  <span className={num}>{aguardando ? <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">Aguardando<InfoTip title="Aguardando" text="Disparo recente: o RD Station ainda não mandou o relatório de entrega. Atualiza sozinho na próxima sincronização." /></span> : int(ent)}</span>
-                  <span className={num}>{int(Number(c.total_bounced || 0))}</span>
-                  <span className={num}>{ent > 0 ? pct((Number(c.total_opened || 0) / ent) * 100) : "—"}</span>
-                  <span className={num}>{ent > 0 ? pct((Number(c.total_clicked || 0) / ent) * 100) : "—"}</span>
-                  <span className={num}>{int(Number(c.unsubscribes || 0))}</span>
-                </div>
-              );
-            })}
-          </div>
+        {/* Tela larga: linha com colunas. Tela menor: cada e-mail vira um bloco com os números embaixo do nome. Nada corta. */}
+        <div className="hidden items-center gap-2 border-b pb-2 text-xs text-muted-foreground xl:flex">
+          <span className="flex-1">E-mail</span>
+          {COLUNAS_EMAIL.map((c) => <span key={c} className="w-[84px] shrink-0 text-right">{c}</span>)}
         </div>
+        {visiveis.map((c) => {
+          const ent = Number(c.total_delivered || 0);
+          const env = Number(c.total_sent || 0);
+          const aguardando = env > 0 && ent === 0;
+          const nome = nomeDoEmail(String(c.name || c.subject || c.rd_campaign_id));
+          const valores: ReactNode[] = [
+            int(env),
+            aguardando ? <span className="inline-flex items-center gap-1 rounded-full bg-secondary px-2 py-0.5 text-[11px] text-muted-foreground">Aguardando<InfoTip title="Aguardando" text="Disparo recente: o RD Station ainda não mandou o relatório de entrega. Atualiza sozinho na próxima sincronização." /></span> : int(ent),
+            int(Number(c.total_bounced || 0)),
+            ent > 0 ? pct((Number(c.total_opened || 0) / ent) * 100) : "—",
+            ent > 0 ? pct((Number(c.total_clicked || 0) / ent) * 100) : "—",
+            int(Number(c.unsubscribes || 0)),
+          ];
+          return (
+            <div key={c.id} className="flex flex-col gap-3 border-b border-border/60 py-3 text-sm last:border-0 hover:bg-muted/40 xl:flex-row xl:items-center xl:gap-2">
+              <div className="min-w-0 xl:flex-1 xl:pr-2">
+                <p className="line-clamp-2 font-medium leading-snug" title={c.name || ""}>{nome}</p>
+                <p className="text-xs text-muted-foreground">{c.sent_at ? new Date(c.sent_at).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "Sem data de envio"}</p>
+              </div>
+              <dl className="grid grid-cols-3 gap-x-3 gap-y-2 sm:grid-cols-6 xl:contents">
+                {valores.map((v, i) => (
+                  <div key={COLUNAS_EMAIL[i]} className="xl:w-[84px] xl:shrink-0 xl:text-right">
+                    <dt className="text-[11px] text-muted-foreground xl:hidden">{COLUNAS_EMAIL[i]}</dt>
+                    <dd className="tabular-nums">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          );
+        })}
         {data.length > POR_PAGINA && (
           <div className="mt-3 text-center">
             <Button variant="ghost" size="sm" onClick={() => setTodos((v) => !v)}>{todos ? "Mostrar menos" : `Ver todos os ${data.length}`}</Button>
@@ -629,7 +648,12 @@ let abaLembrada = "geral";
 // Marketing em abas, uma por sistema, sempre com a mesma ordem: números do topo, gráfico, detalhe.
 export function MarketingTabs(todasProps: MarketingTabsProps) {
   const emails = useMemo(() => emailsDoEvento(todasProps.emailCampaigns), [todasProps.emailCampaigns]);
-  const props = { ...todasProps, emailCampaigns: emails };
+  // A conta de anúncios também tem campanhas de outros produtos (ex.: Reforma tributária). Com "Summit" no nome de alguma,
+  // só essas contam, em todas as abas e no funil.
+  const ads = useMemo(() => campanhasDoEvento(todasProps.adMetrics), [todasProps.adMetrics]);
+  const adsAnteriores = useMemo(() => campanhasDoEvento(todasProps.previousAdMetrics), [todasProps.previousAdMetrics]);
+  const foraAds = new Set(todasProps.adMetrics.filter((a) => !ads.includes(a)).map((a) => a.campaign_id)).size;
+  const props = { ...todasProps, emailCampaigns: emails, adMetrics: ads, previousAdMetrics: adsAnteriores, foraAds };
   const temGoogle = props.adMetrics.some((a) => a.source === "google_ads");
   const abas = ABAS.filter((a) => a.v !== "google" || temGoogle);
   const [aba, setAbaState] = useState(abas.some((a) => a.v === abaLembrada) ? abaLembrada : "geral");
