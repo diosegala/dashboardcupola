@@ -1,3 +1,4 @@
+import { CurrentBatchCard } from "./CurrentBatchCard";
 import {
   Area,
   CartesianGrid,
@@ -201,10 +202,16 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         goals={goals}
         allTimeTickets={tickets}
         previousYearTickets={previousTickets}
-        className="col-span-12 lg:col-span-8"
+        className="col-span-12 lg:col-span-5"
+      />
+      <CurrentBatchCard
+        goals={goals}
+        allTimeTickets={tickets}
+        previousYearTickets={previousTickets}
+        className="col-span-12 md:col-span-6 lg:col-span-3"
       />
       {/* Receita acumulada e Descontos concedidos num único card: ticket médio e pagantes lado a lado, descontos no rodapé. */}
-      <Card className="col-span-12 flex flex-col gap-4 p-5 hover:-translate-y-[3px] hover:border-line-strong lg:col-span-4">
+      <Card className="col-span-12 flex flex-col gap-4 p-5 hover:-translate-y-[3px] hover:border-line-strong md:col-span-6 lg:col-span-4">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
             {filtrado ? "Receita no período" : "Receita acumulada"}
