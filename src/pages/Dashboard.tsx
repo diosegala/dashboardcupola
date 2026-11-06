@@ -4,15 +4,12 @@ import { goalsOfEvent, isEventClosed, useEvent } from "@/hooks/useEvent";
 import { useMemo, useState } from "react";
 import { coversWholeEvent, previousYear, ticketsInPeriod } from "@/lib/period";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IntegrationsHealthCard } from "@/components/dashboard/IntegrationsHealthCard";
 import { CommercialOverview } from "@/components/dashboard/CommercialOverview";
 import { CommercialSegments } from "@/components/dashboard/CommercialSegments";
 import { CompareProvider } from "@/hooks/useCompare";
 import { CompareToggle } from "@/components/CompareToggle";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
-import { MarketingSection } from "@/components/dashboard/MarketingSection";
-import { FunnelKPISection } from "@/components/dashboard/FunnelKPISection";
-import { useAuth } from "@/hooks/useAuth";
+import { MarketingTabs } from "@/components/marketing/MarketingTabs";
 import {
   getDefaultRange,
   getWholeRange,
@@ -31,7 +28,7 @@ export type PaginaDoPainel = "comercial" | "marketing";
 
 const TITULOS: Record<PaginaDoPainel, { titulo: string; descricao: string }> = {
   comercial: { titulo: "Comercial", descricao: "Vendas, receita e ritmo do evento" },
-  marketing: { titulo: "Marketing", descricao: "Investimento, funil e canais de aquisição" },
+  marketing: { titulo: "Marketing", descricao: "Mídia, e-mail, site e os links que trazem as vendas" },
 };
 
 // O período escolhido vale para as duas páginas: trocar entre Comercial e Marketing não o reinicia.
@@ -56,7 +53,6 @@ function TabSkeleton() {
 
 // Comercial e Marketing são páginas próprias no menu lateral; cada uma mostra o conteúdo que antes ficava em uma aba.
 export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
-  const { isAdmin } = useAuth();
   const [range, setRangeState] = useState<DateRange>(() => periodoLembrado ?? (pagina === "comercial" ? getWholeRange() : getDefaultRange()));
   const setRange = (r: DateRange) => {
     periodoLembrado = r;
@@ -131,17 +127,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
         ) : (
           <div className="animate-panel-in space-y-8">
             {marketingLoading ? <TabSkeleton /> : <>
-            {isAdmin && <IntegrationsHealthCard />}
-
-            <FunnelKPISection
-              adMetrics={adMetrics.data ?? []}
-              emailCampaigns={emailCampaigns.data ?? []}
-              tickets={periodTickets}
-              goals={eventGoals}
-              range={range}
-            />
-
-            <MarketingSection
+            <MarketingTabs
               adMetrics={adMetrics.data ?? []}
               emailCampaigns={emailCampaigns.data ?? []}
               siteAnalytics={siteAnalytics.data ?? []}
@@ -151,6 +137,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
               goals={eventGoals}
               range={range}
               tickets={periodTickets}
+              allTickets={todas}
             />
             </>}
           </div>

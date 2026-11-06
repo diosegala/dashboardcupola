@@ -1,0 +1,497 @@
+import { useMemo, useState, type ReactNode } from "react";
+import {
+  Wallet, Eye, MousePointerClick, BarChart3, Target, MessageCircle, ShoppingCart, Crosshair,
+  Mail, Users, Globe, FileText, Link2, Ticket as TicketIcon, Coins, TrendingUp,
+} from "lucide-react";
+import { Tabs, TabsContent, TabsTrigger } from "@/components/ui/tabs";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { InfoTip } from "@/components/InfoTip";
+import { SlidingTabsList } from "@/components/dashboard/SlidingTabsList";
+import { MetricCard } from "@/components/dashboard/MetricCard";
+import { FunnelKPISection } from "@/components/dashboard/FunnelKPISection";
+import { CampaignFilter, type Campaign } from "@/components/dashboard/CampaignFilter";
+import { ClicksByDayChart } from "@/components/dashboard/charts/ClicksByDayChart";
+import { SessionsByDayChart } from "@/components/dashboard/charts/SessionsByDayChart";
+import { ConversionFunnelChart } from "@/components/dashboard/charts/ConversionFunnelChart";
+import { DemandGenTable } from "@/components/dashboard/charts/DemandGenTable";
+import { DemandGenByDayChart } from "@/components/dashboard/charts/DemandGenByDayChart";
+import { SourceBreakdownTable } from "@/components/dashboard/SourceBreakdownTable";
+import { SourceBreakdownDataTable } from "@/components/dashboard/SourceBreakdownDataTable";
+import { SegmentCard, utmLabel } from "@/components/dashboard/CommercialSegments";
+import { findGoal, type DateRange } from "@/hooks/useDashboardData";
+import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
+import { batchOf, batchOrder } from "@/lib/batches";
+
+interface MarketingTabsProps {
+  adMetrics: any[];
+  emailCampaigns: any[];
+  siteAnalytics: any[];
+  ga4Events: any[];
+  previousAdMetrics: any[];
+  previousSiteAnalytics: any[];
+  goals: any[];
+  range: DateRange;
+  // Vendas do período e do evento inteiro (o detalhe por lote usa o evento inteiro).
+  tickets: Ticket[];
+  allTickets: Ticket[];
+}
+
+const sum = (arr: any[], key: string) => arr.reduce((s, r) => s + Number(r[key] || 0), 0);
+const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
+const brl = (n: number, casas = 0) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: casas, maximumFractionDigits: casas });
+const pct = (n: number, casas = 1) => `${n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas })}%`;
+
+// Uma frase dizendo o que a aba responde: quem abre entende antes de ler os números.
+function Intro({ children }: { children: ReactNode }) {
+  return <p className="max-w-3xl text-sm text-muted-foreground">{children}</p>;
+}
+
+function Empty({ children }: { children: ReactNode }) {
+  return (
+    <Card>
+      <CardContent className="py-10 text-center text-sm text-muted-foreground">{children}</CardContent>
+    </Card>
+  );
+}
+
+// Tabela simples dentro de card, com rolagem própria (a página nunca rola na horizontal).
+function TableCard({ title, head, rows, rodape, actions }: { title: string; head: { label: string; right?: boolean }[]; rows: ReactNode[][]; rodape?: string | null; actions?: ReactNode }) {
+  return (
+    <Card>
+      <CardHeader className="flex flex-col gap-3 pb-3 sm:flex-row sm:items-center sm:justify-between">
+        <CardTitle className="flex items-center gap-2">
+          {title} <InfoTip title={title} />
+        </CardTitle>
+        {actions}
+      </CardHeader>
+      <CardContent>
+        {rows.length === 0 ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Sem dados no período.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[560px] text-sm">
+              <thead>
+                <tr className="border-b text-xs text-muted-foreground">
+                  {head.map((h) => (
+                    <th key={h.label} className={`py-2 pr-3 font-medium ${h.right ? "text-right" : "text-left"}`}>{h.label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i} className="border-b border-border/60 last:border-0 hover:bg-muted/40">
+                    {r.map((c, j) => (
+                      <td key={j} className={`py-2 pr-3 tabular-nums ${head[j]?.right ? "text-right" : "text-left"} ${j === 0 ? "font-medium" : ""}`}>{c}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        {rodape && <p className="mt-4 text-xs text-muted-foreground">{rodape}</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
+// Totais de uma lista de linhas de anúncio (Meta ou Google).
+function adTotals(linhas: any[]) {
+  const impressoes = sum(linhas, "impressions");
+  const cliques = sum(linhas, "link_clicks") || sum(linhas, "clicks");
+  const investimento = sum(linhas, "spend");
+  const compras = sum(linhas, "purchases") || sum(linhas, "conversions");
+  return {
+    investimento, impressoes, cliques, compras,
+    ctr: impressoes > 0 ? (cliques / impressoes) * 100 : 0,
+    cpc: cliques > 0 ? investimento / cliques : 0,
+    conversao: cliques > 0 ? (compras / cliques) * 100 : 0,
+    custoCompra: compras > 0 ? investimento / compras : 0,
+  };
+}
+
+// Uma linha por campanha, da que mais investiu para a que menos investiu.
+function campaignRows(linhas: any[]) {
+  const map = new Map<string, any[]>();
+  linhas.forEach((l) => {
+    const k = l.campaign_name || l.campaign_id || "Sem nome";
+    map.set(k, [...(map.get(k) ?? []), l]);
+  });
+  return Array.from(map.entries())
+    .map(([nome, ls]) => ({ nome, ...adTotals(ls) }))
+    .sort((a, b) => b.investimento - a.investimento);
+}
+
+function campaignOptions(linhas: any[]): Campaign[] {
+  const map = new Map<string, string>();
+  linhas.forEach((a) => a.campaign_id && !map.has(a.campaign_id) && map.set(a.campaign_id, a.campaign_name || a.campaign_id));
+  return Array.from(map.entries()).map(([campaign_id, campaign_name]) => ({ campaign_id, campaign_name }));
+}
+
+// Canal de divulgação a partir dos UTMs. Link da equipe (medium "timecupola") vira Equipe CUPOLA;
+// RD Station e e-mail viram E-mail marketing. O resto fica como veio (Instagram, Whatsapp...).
+function canalDe(t: Ticket): string {
+  // Faturado interno é venda da equipe (regra do painel de vendas do Summit).
+  if (t.source === "pipedrive") return "Equipe CUPOLA";
+  const u = utmLabel(t.utm_source);
+  if (!u) return t.coupon_code ? "Equipe CUPOLA" : "Sem link";
+  const medium = (t.utm_medium ?? "").trim().toLowerCase();
+  if (medium === "timecupola") return "Equipe CUPOLA";
+  if (/^(rd[-\s]?station|rd|e-?mail.*)$/i.test(u) || medium === "email") return "E-mail marketing";
+  return u;
+}
+
+// Ingressos e valor por canal, do maior para o menor.
+function vendasPorCanal(pagantes: Ticket[]) {
+  const map = new Map<string, { value: number; amount: number }>();
+  pagantes.forEach((t) => {
+    const k = canalDe(t);
+    const c = map.get(k) ?? { value: 0, amount: 0 };
+    map.set(k, { value: c.value + (t.quantity || 0), amount: c.amount + Number(t.total_price || 0) });
+  });
+  return Array.from(map.entries()).map(([label, v]) => ({ label, ...v })).sort((a, b) => b.value - a.value);
+}
+
+// ---------- Visão geral ----------
+function Overview({ adMetrics, emailCampaigns, tickets, goals, range }: MarketingTabsProps) {
+  const { paying } = useMemo(() => splitTickets(tickets), [tickets]);
+  const canais = useMemo(() => vendasPorCanal(paying), [paying]);
+  const midia = adTotals(adMetrics.filter((a) => a.source === "meta" || a.source === "google_ads"));
+  const sympla = paying.filter((t) => t.source !== "pipedrive");
+  const ingressosSympla = sympla.reduce((s, t) => s + (t.quantity || 0), 0);
+  const comLink = sympla.filter((t) => utmLabel(t.utm_source)).reduce((s, t) => s + (t.quantity || 0), 0);
+  const pagantes = paying.reduce((s, t) => s + (t.quantity || 0), 0);
+  const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
+
+  return (
+    <div className="space-y-6">
+      <Intro>O resumo do marketing no período: quanto foi investido em mídia, quanto custou cada venda e de onde vieram os compradores.</Intro>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCard title="Investimento em mídia" value={brl(midia.investimento, 2)} icon={Wallet} description="Meta Ads e Google Ads" />
+        <MetricCard title="Investimento por ingresso" value={pagantes > 0 ? brl(midia.investimento / pagantes, 2) : "—"} icon={Coins} description={`Investimento dividido por ${int(pagantes)} ingressos pagantes`} />
+        <MetricCard title="Receita por real investido" value={midia.investimento > 0 ? `${(receita / midia.investimento).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x` : "—"} icon={TrendingUp} description={`${brl(receita)} em vendas no período`} />
+        <MetricCard title="Vendas com link parametrizado" value={ingressosSympla > 0 ? pct((comLink / ingressosSympla) * 100, 0) : "—"} icon={Link2} description={`${int(comLink)} de ${int(ingressosSympla)} ingressos da Sympla têm UTM`} />
+      </div>
+      <FunnelKPISection adMetrics={adMetrics} emailCampaigns={emailCampaigns} tickets={tickets} goals={goals} range={range} />
+      {canais.length > 0 && <SegmentCard title="Vendas por canal" items={canais} rodape="Equipe CUPOLA soma os links da equipe, os cupons sem link e os faturados internos. O detalhe de cada link está na aba Links e UTMs." />}
+    </div>
+  );
+}
+
+// ---------- Mídia paga (Meta Ads e Google Ads usam o mesmo desenho) ----------
+function AdsTab({ fonte, adMetrics, previousAdMetrics, goals, range }: MarketingTabsProps & { fonte: "meta" | "google_ads" }) {
+  const todas = useMemo(() => adMetrics.filter((a) => a.source === fonte), [adMetrics, fonte]);
+  const [sel, setSel] = useState<string[]>([]);
+  const linhas = sel.length ? todas.filter((a) => sel.includes(a.campaign_id)) : todas;
+  const t = adTotals(linhas);
+  const ant = useMemo(() => {
+    const p = previousAdMetrics.filter((a) => a.source === fonte);
+    return sel.length || p.length === 0 ? null : adTotals(p);
+  }, [previousAdMetrics, fonte, sel]);
+  const ehMeta = fonte === "meta";
+  const g = (k: string) => (ehMeta ? findGoal(goals, k, range) : null);
+  const campanhas = campaignRows(linhas);
+  const nome = ehMeta ? "Meta Ads" : "Google Ads";
+
+  if (todas.length === 0) {
+    return <Empty>Sem dados do {nome} no período. Se esperava ver dados aqui, confira a integração na página Integrações.</Empty>;
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Intro>{ehMeta ? "Anúncios no Instagram e Facebook: alcance, cliques e o que o Pixel registrou no site." : "Anúncios na busca e na rede do Google: cliques, custo e conversões."}</Intro>
+        <CampaignFilter campaigns={campaignOptions(todas)} selected={sel} onChange={setSel} />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCard title="Investimento" value={t.investimento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} prefix="R$ " icon={Wallet} goal={g("meta_spend")} anterior={ant?.investimento} description={`${campanhas.length} campanhas no período`} />
+        <MetricCard title="Impressões" value={t.impressoes} icon={Eye} goal={g("meta_impressions")} anterior={ant?.impressoes} />
+        <MetricCard title="Cliques no Link" value={t.cliques} icon={MousePointerClick} goal={g("meta_link_clicks")} anterior={ant?.cliques} description={`CPC de ${brl(t.cpc, 2)}`} />
+        <MetricCard title="CTR" value={pct(t.ctr, 2)} icon={BarChart3} goal={g("meta_ctr")} anterior={ant?.ctr} description="Cliques no link / Impressões" />
+      </div>
+      {/* Segunda linha: o que o clique virou. Meta tem 5 indicadores, Google 2; a grade se ajusta sem buraco. */}
+      <div className={`grid gap-4 md:grid-cols-2 ${ehMeta ? "lg:grid-cols-5" : ""}`}>
+        <MetricCard title={ehMeta ? "Compras (Pixel)" : "Conversões"} value={t.compras} icon={Target} goal={g("meta_purchases")} anterior={ant?.compras} description={t.compras > 0 ? `${brl(t.custoCompra, 2)} por ${ehMeta ? "compra" : "conversão"}` : undefined} />
+        <MetricCard title="Taxa de Conversão" value={pct(t.conversao, 2)} icon={Target} goal={g("meta_conversion_rate")} anterior={ant?.conversao} description={ehMeta ? "Compras / Cliques no link" : "Conversões / Cliques"} />
+        {ehMeta && (
+          <>
+            <MetricCard title="Mensagens" value={sum(linhas, "messages")} icon={MessageCircle} goal={g("meta_messages")} description="Conversas iniciadas via anúncio" />
+            <MetricCard title="Adição de Carrinho" value={sum(linhas, "add_to_cart")} icon={ShoppingCart} goal={g("meta_add_to_cart")} description="Eventos add_to_cart do Pixel" />
+            <MetricCard title="Remarketing Qualificado" value={sum(linhas, "remarketing_qualified")} icon={Crosshair} goal={g("meta_remarketing")} description="Conversão customizada" />
+          </>
+        )}
+      </div>
+      <ClicksByDayChart adMetrics={linhas} previousAdMetrics={sel.length ? [] : previousAdMetrics.filter((a) => a.source === fonte)} />
+      <TableCard
+        title="Desempenho por campanha"
+        head={[{ label: "Campanha" }, { label: "Investimento", right: true }, { label: "Cliques", right: true }, { label: "CTR", right: true }, { label: "CPC", right: true }, { label: ehMeta ? "Compras" : "Conversões", right: true }, { label: "Custo por compra", right: true }]}
+        rows={campanhas.map((c) => [c.nome, brl(c.investimento, 2), int(c.cliques), pct(c.ctr, 2), brl(c.cpc, 2), int(c.compras), c.compras > 0 ? brl(c.custoCompra, 2) : "—"])}
+      />
+    </div>
+  );
+}
+
+// ---------- E-mail (RD Station) ----------
+// A conta do RD Station tem e-mails de outros produtos da CUPOLA. Os do Summit levam [SUM no nome; com eles presentes, só eles contam
+// (aqui e no Funil de KPIs).
+const DO_SUMMIT = /\[SUM/i;
+function emailsDoEvento(todos: any[]) {
+  const doEvento = todos.filter((c) => DO_SUMMIT.test(c.name || c.subject || ""));
+  return doEvento.length ? doEvento : todos;
+}
+
+function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsProps & { foraDoEvento: number }) {
+  const [sel, setSel] = useState<string[]>([]);
+  const [a, setA] = useState<string | null>(null);
+  const [b, setB] = useState<string | null>(null);
+  const opcoes = useMemo(() => {
+    const map = new Map<string, string>();
+    emailCampaigns.forEach((c) => c.rd_campaign_id && !map.has(c.rd_campaign_id) && map.set(c.rd_campaign_id, c.name || c.rd_campaign_id));
+    return Array.from(map.entries()).map(([campaign_id, campaign_name]) => ({ campaign_id, campaign_name }));
+  }, [emailCampaigns]);
+  const lista = sel.length ? emailCampaigns.filter((c) => sel.includes(c.rd_campaign_id)) : emailCampaigns;
+  const enviados = sum(lista, "total_sent");
+  const entregues = sum(lista, "total_delivered");
+  const abriram = sum(lista, "total_opened");
+  const clicaram = sum(lista, "total_clicked");
+  // Taxas pelo total (quem abriu / quem recebeu), não pela média das campanhas: campanha pequena não distorce.
+  const abertura = entregues > 0 ? (abriram / entregues) * 100 : 0;
+  const clique = entregues > 0 ? (clicaram / entregues) * 100 : 0;
+  const descadastros = sum(lista, "unsubscribes");
+
+  if (emailCampaigns.length === 0) return <Empty>Nenhum e-mail enviado pelo RD Station no período.</Empty>;
+
+  const linhaCampanha = (id: string | null) => {
+    const c = id ? emailCampaigns.filter((x) => x.rd_campaign_id === id) : [];
+    if (!c.length) return null;
+    const ent = sum(c, "total_delivered");
+    return { ent, abr: sum(c, "total_opened"), cli: sum(c, "total_clicked"), bou: sum(c, "total_bounced") };
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Intro>
+          E-mails do Summit enviados pelo RD Station: quantos chegaram, quantos abriram e quantos clicaram.
+          {foraDoEvento > 0 && ` ${foraDoEvento} e-mails de outros produtos da CUPOLA no período ficaram fora.`}
+        </Intro>
+        <CampaignFilter campaigns={opcoes} selected={sel} onChange={setSel} />
+      </div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCard title="Campanhas Enviadas" value={lista.length} icon={Mail} goal={findGoal(goals, "email_sent", range)} description={`${int(entregues)} entregues de ${int(enviados)} enviados`} />
+        <MetricCard title="Taxa de Abertura" value={pct(abertura)} icon={Mail} goal={findGoal(goals, "email_open_rate", range)} description={`${int(abriram)} pessoas abriram`} />
+        <MetricCard title="Taxa de Clique" value={pct(clique)} icon={MousePointerClick} goal={findGoal(goals, "email_click_rate", range)} description={`${int(clicaram)} pessoas clicaram`} />
+        <MetricCard title="Descadastros" value={descadastros} icon={Users} description={`${int(sum(lista, "total_bounced"))} e-mails voltaram (bounce)`} />
+      </div>
+      <TableCard
+        title="E-mails enviados"
+        head={[{ label: "Campanha" }, { label: "Envio" }, { label: "Entregues", right: true }, { label: "Abertura", right: true }, { label: "Clique", right: true }, { label: "Descadastros", right: true }]}
+        rows={[...lista]
+          .sort((x, y) => String(y.sent_at ?? "").localeCompare(String(x.sent_at ?? "")))
+          .map((c) => {
+            const ent = Number(c.total_delivered || 0);
+            return [
+              c.name || c.subject || c.rd_campaign_id,
+              c.sent_at ? new Date(c.sent_at).toLocaleDateString("pt-BR") : "—",
+              int(ent),
+              ent > 0 ? pct((Number(c.total_opened || 0) / ent) * 100) : "—",
+              ent > 0 ? pct((Number(c.total_clicked || 0) / ent) * 100) : "—",
+              int(Number(c.unsubscribes || 0)),
+            ];
+          })}
+      />
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2">Comparar dois e-mails <InfoTip title="Comparar dois e-mails" /></CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4 md:grid-cols-2">
+          {[{ v: a, set: setA, label: "E-mail A" }, { v: b, set: setB, label: "E-mail B" }].map(({ v, set, label }) => {
+            const d = linhaCampanha(v);
+            return (
+              <div key={label} className="rounded-2xl border p-4">
+                <Select value={v ?? ""} onValueChange={set}>
+                  <SelectTrigger><SelectValue placeholder={`Escolha o ${label}`} /></SelectTrigger>
+                  <SelectContent>
+                    {opcoes.map((o) => <SelectItem key={o.campaign_id} value={o.campaign_id}>{o.campaign_name}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {d && (
+                  <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+                    <dt className="text-muted-foreground">Entregues</dt><dd className="text-right font-semibold tabular-nums">{int(d.ent)}</dd>
+                    <dt className="text-muted-foreground">Abriram</dt><dd className="text-right font-semibold tabular-nums">{int(d.abr)} <span className="text-xs font-normal text-muted-foreground">({d.ent ? pct((d.abr / d.ent) * 100) : "—"})</span></dd>
+                    <dt className="text-muted-foreground">Clicaram</dt><dd className="text-right font-semibold tabular-nums">{int(d.cli)} <span className="text-xs font-normal text-muted-foreground">({d.ent ? pct((d.cli / d.ent) * 100) : "—"})</span></dd>
+                    <dt className="text-muted-foreground">Bounce</dt><dd className="text-right font-semibold tabular-nums">{int(d.bou)}</dd>
+                  </dl>
+                )}
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
+// ---------- Site (Google Analytics) ----------
+function SiteTab({ siteAnalytics, previousSiteAnalytics, ga4Events, goals, range }: MarketingTabsProps) {
+  const fontes = useMemo(() => {
+    const map = new Map<string, { sessions: number; conversions: number; eng: number; bounce: number; n: number }>();
+    for (const dia of siteAnalytics) {
+      const lista = dia.traffic_sources as any[] | null;
+      if (!Array.isArray(lista)) continue;
+      for (const s of lista) {
+        const k = s.source || s.channel || "(sem origem)";
+        const e = map.get(k) ?? { sessions: 0, conversions: 0, eng: 0, bounce: 0, n: 0 };
+        e.sessions += Number(s.sessions || 0);
+        e.conversions += Number(s.conversions || 0);
+        e.eng += Number(s.avg_engagement_time || 0);
+        e.bounce += Number(s.bounce_rate || 0);
+        e.n += 1;
+        map.set(k, e);
+      }
+    }
+    return Array.from(map.entries()).map(([source, v]) => ({ source, sessions: v.sessions, conversions: v.conversions, avg_engagement_time: v.n ? v.eng / v.n : 0, bounce_rate: v.n ? v.bounce / v.n : 0 }));
+  }, [siteAnalytics]);
+  const ant = previousSiteAnalytics.length ? { s: sum(previousSiteAnalytics, "sessions"), u: sum(previousSiteAnalytics, "users"), c: sum(previousSiteAnalytics, "conversions"), p: sum(previousSiteAnalytics, "pageviews") } : null;
+
+  if (siteAnalytics.length === 0 && ga4Events.length === 0) return <Empty>Sem dados do Google Analytics no período.</Empty>;
+
+  return (
+    <div className="space-y-6">
+      <Intro>Quem chegou ao site do evento, de onde veio e quantos avançaram até a compra.</Intro>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <MetricCard title="Sessões" value={sum(siteAnalytics, "sessions")} icon={Globe} goal={findGoal(goals, "site_visits", range)} anterior={ant?.s} />
+        <MetricCard title="Usuários" value={sum(siteAnalytics, "users")} icon={Users} goal={findGoal(goals, "site_users", range)} anterior={ant?.u} description="Total de usuários" />
+        <MetricCard title="Conversões" value={sum(siteAnalytics, "conversions")} icon={Target} goal={findGoal(goals, "site_conversions", range)} anterior={ant?.c} description="Key events do GA4" />
+        <MetricCard title="Pageviews" value={sum(siteAnalytics, "pageviews")} icon={FileText} goal={findGoal(goals, "site_pageviews", range)} anterior={ant?.p} description="Visualizações de página" />
+      </div>
+      <ConversionFunnelChart ga4Events={ga4Events} />
+      <SessionsByDayChart siteAnalytics={siteAnalytics} previousSiteAnalytics={previousSiteAnalytics} />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <SourceBreakdownTable title="Sessões por Origem" data={fontes} metricKey="sessions" />
+        <SourceBreakdownTable title="Conversões por Origem" data={fontes} metricKey="conversions" />
+        <SourceBreakdownDataTable title="Tempo Médio de Engajamento" data={fontes} metricKey="avg_engagement_time" formatValue={(v) => `${Math.round(v)}s`} />
+        <SourceBreakdownDataTable title="Taxa de Rejeição" data={fontes} metricKey="bounce_rate" formatValue={(v) => `${(v * 100).toFixed(1)}%`} />
+      </div>
+      <DemandGenTable ga4Events={ga4Events} />
+      <DemandGenByDayChart ga4Events={ga4Events} />
+    </div>
+  );
+}
+
+// ---------- Links e UTMs ----------
+const PERIODO = "periodo";
+
+function LinksTab({ tickets, allTickets }: MarketingTabsProps) {
+  const lotes = useMemo(() => {
+    const s = new Set<string>();
+    allTickets.forEach((t) => {
+      const l = t.source !== "pipedrive" ? batchOf(t.ticket_type) : null;
+      if (l) s.add(l);
+    });
+    return Array.from(s).sort((x, y) => batchOrder(x) - batchOrder(y));
+  }, [allTickets]);
+  const [recorte, setRecorte] = useState(PERIODO);
+
+  // Só Sympla: faturado interno não passa por link.
+  const base = (recorte === PERIODO ? tickets : allTickets.filter((t) => batchOf(t.ticket_type) === recorte)).filter((t) => t.source !== "pipedrive");
+  const { paying } = splitTickets(base);
+  const total = paying.reduce((s, t) => s + (t.quantity || 0), 0);
+
+  const porCanal = new Map<string, { q: number; v: number }>();
+  const porLink = new Map<string, { canal: string; source: string; medium: string; campaign: string; q: number; v: number }>();
+  paying.forEach((t) => {
+    const q = t.quantity || 0;
+    const v = Number(t.total_price || 0);
+    const canal = canalDe(t);
+    const c = porCanal.get(canal) ?? { q: 0, v: 0 };
+    porCanal.set(canal, { q: c.q + q, v: c.v + v });
+    if (!utmLabel(t.utm_source)) return;
+    const src = (t.utm_source ?? "").trim();
+    const med = (t.utm_medium ?? "").trim() || "—";
+    const camp = (t.utm_campaign ?? "").trim() || "—";
+    const k = `${canal}|${src}|${med}|${camp}`;
+    const l = porLink.get(k) ?? { canal, source: src, medium: med, campaign: camp, q: 0, v: 0 };
+    porLink.set(k, { ...l, q: l.q + q, v: l.v + v });
+  });
+  const canais = Array.from(porCanal.entries()).sort((a, b) => b[1].q - a[1].q);
+  const links = Array.from(porLink.values()).sort((a, b) => b.q - a.q);
+
+  const seletor = (
+    <Select value={recorte} onValueChange={setRecorte}>
+      <SelectTrigger className="h-9 w-[200px]"><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value={PERIODO}>Período escolhido</SelectItem>
+        {lotes.map((l) => <SelectItem key={l} value={l}>{l} (evento todo)</SelectItem>)}
+      </SelectContent>
+    </Select>
+  );
+
+  return (
+    <div className="space-y-6">
+      <Intro>Qual link levou cada venda da Sympla. Cada canal de divulgação deve usar o próprio link com UTM; venda com cupom e sem link conta para a Equipe CUPOLA.</Intro>
+      <div className="grid gap-4 md:grid-cols-3">
+        <MetricCard title="Ingressos da Sympla" value={total} icon={TicketIcon} description={recorte === PERIODO ? "Pagantes no período" : `Pagantes do ${recorte}`} />
+        <MetricCard title="Com link parametrizado" value={total ? pct(((links.reduce((s, l) => s + l.q, 0)) / total) * 100, 0) : "—"} icon={Link2} description={`${int(links.reduce((s, l) => s + l.q, 0))} ingressos com UTM`} />
+        <MetricCard title="Canais com venda" value={canais.filter(([k]) => k !== "Sem link").length} icon={BarChart3} />
+      </div>
+      <TableCard
+        title="Vendas por canal"
+        actions={seletor}
+        head={[{ label: "Canal" }, { label: "Ingressos", right: true }, { label: "% do total", right: true }, { label: "Valor", right: true }]}
+        rows={canais.map(([k, c]) => [k, int(c.q), total ? pct((c.q / total) * 100, 0) : "—", brl(c.v)])}
+        rodape="Links da equipe (medium timecupola) e cupom sem link contam para a Equipe CUPOLA, e RD Station conta como E-mail marketing. A meta de cada canal por lote entra aqui quando os números do planejamento forem cadastrados."
+      />
+      <TableCard
+        title="Por link parametrizado"
+        head={[{ label: "Canal" }, { label: "Source" }, { label: "Medium" }, { label: "Campanha" }, { label: "Ingressos", right: true }, { label: "Valor", right: true }]}
+        rows={links.map((l) => [l.canal, l.source, l.medium, l.campaign, int(l.q), brl(l.v)])}
+      />
+    </div>
+  );
+}
+
+const ABAS = [
+  { v: "geral", l: "Visão geral" },
+  { v: "meta", l: "Meta Ads" },
+  { v: "google", l: "Google Ads" },
+  { v: "email", l: "E-mail · RD Station" },
+  { v: "site", l: "Site · Analytics" },
+  { v: "links", l: "Links e UTMs" },
+];
+
+let abaLembrada = "geral";
+
+// Marketing em abas, uma por sistema, sempre com a mesma ordem: números do topo, gráfico, detalhe.
+export function MarketingTabs(todasProps: MarketingTabsProps) {
+  const emails = useMemo(() => emailsDoEvento(todasProps.emailCampaigns), [todasProps.emailCampaigns]);
+  const props = { ...todasProps, emailCampaigns: emails };
+  const temGoogle = props.adMetrics.some((a) => a.source === "google_ads");
+  const abas = ABAS.filter((a) => a.v !== "google" || temGoogle);
+  const [aba, setAbaState] = useState(abas.some((a) => a.v === abaLembrada) ? abaLembrada : "geral");
+  const setAba = (v: string) => {
+    abaLembrada = v;
+    setAbaState(v);
+  };
+
+  return (
+    <Tabs value={aba} onValueChange={setAba}>
+      <div className="-mx-1 mb-5 overflow-x-auto px-1">
+        <SlidingTabsList value={aba} className="w-max">
+          {abas.map(({ v, l }) => (
+            <TabsTrigger key={v} value={v} className="relative z-[1] data-[state=active]:bg-transparent data-[state=active]:text-background">
+              {l}
+            </TabsTrigger>
+          ))}
+        </SlidingTabsList>
+      </div>
+      <TabsContent value="geral" className="mt-0 animate-panel-in"><Overview {...props} /></TabsContent>
+      <TabsContent value="meta" className="mt-0 animate-panel-in"><AdsTab fonte="meta" {...props} /></TabsContent>
+      {temGoogle && <TabsContent value="google" className="mt-0 animate-panel-in"><AdsTab fonte="google_ads" {...props} /></TabsContent>}
+      <TabsContent value="email" className="mt-0 animate-panel-in"><EmailTab {...props} foraDoEvento={todasProps.emailCampaigns.length - emails.length} /></TabsContent>
+      <TabsContent value="site" className="mt-0 animate-panel-in"><SiteTab {...props} /></TabsContent>
+      <TabsContent value="links" className="mt-0 animate-panel-in"><LinksTab {...props} /></TabsContent>
+    </Tabs>
+  );
+}

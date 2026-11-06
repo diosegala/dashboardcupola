@@ -87,7 +87,20 @@ export const METRIC_INFO: Record<string, string> = {
 
   // Meta Ads
   Campanhas: "Campanhas do Meta Ads com dados no período.",
-  Investimento: "Valor investido em anúncios do Meta Ads no período.",
+  Investimento: "Valor investido nos anúncios desta plataforma no período.",
+  "Investimento em mídia": "Soma do que foi investido no Meta Ads e no Google Ads no período.",
+  "Investimento por ingresso": "Investimento em mídia dividido pelos ingressos pagantes do período (Sympla e faturados). Mostra quanto a mídia custou por venda, sem dizer que toda venda veio da mídia.",
+  "Receita por real investido": "Receita dos ingressos pagantes do período dividida pelo investimento em mídia. 5x quer dizer R$ 5 em vendas para cada R$ 1 investido.",
+  "Vendas com link parametrizado": "Parte dos ingressos pagos na Sympla que veio por um link com UTM. Quanto maior, melhor dá para saber qual canal trouxe a venda.",
+  "Com link parametrizado": "Parte dos ingressos pagos na Sympla, no recorte escolhido, que veio por um link com UTM.",
+  "Ingressos da Sympla": "Ingressos pagos na Sympla no recorte escolhido. Faturados internos não passam por link e ficam fora desta aba.",
+  "Canais com venda": "Quantos canais diferentes trouxeram pelo menos uma venda.",
+  "Vendas por canal": "Ingressos e valor por canal. O canal vem do utm_source do link; venda com cupom e sem link conta para a Equipe CUPOLA. Escolha o período do painel ou um lote inteiro.",
+  "Por link parametrizado": "Cada combinação de UTM (source, medium e campanha) usada nas compras, com ingressos e valor.",
+  "Desempenho por campanha": "Uma linha por campanha, da que mais investiu para a que menos. Custo por compra é o investimento dividido pelas compras registradas.",
+  "E-mails enviados": "Cada e-mail enviado pelo RD Station no período, do mais recente para o mais antigo. Abertura e clique sobre os e-mails entregues.",
+  "Comparar dois e-mails": "Escolha dois e-mails para ver lado a lado quantos chegaram, abriram e clicaram.",
+  Descadastros: "Pessoas que pediram para sair da lista nos e-mails do período.",
   "Impressões": "Quantas vezes os anúncios do Meta Ads apareceram na tela no período.",
   "Cliques no Link": "Cliques nos anúncios que levaram a pessoa para o link de destino.",
   CPC: "Custo por clique no link: investimento dividido pelos cliques no link.",
@@ -104,8 +117,8 @@ export const METRIC_INFO: Record<string, string> = {
 
   // E-mail (RD Station)
   "Campanhas Enviadas": "Campanhas de e-mail do RD Station enviadas no período.",
-  "Taxa de Abertura": "Média da taxa de abertura das campanhas de e-mail enviadas no período.",
-  "Taxa de Clique": "Média da taxa de cliques das campanhas de e-mail enviadas no período.",
+  "Taxa de Abertura": "Pessoas que abriram dividido pelos e-mails entregues no período, somando todas as campanhas.",
+  "Taxa de Clique": "Pessoas que clicaram dividido pelos e-mails entregues no período, somando todas as campanhas.",
 
   // Site (Google Analytics)
   "Sessões": "Visitas ao site registradas pelo Google Analytics no período.",
