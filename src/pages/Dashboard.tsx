@@ -4,17 +4,14 @@ import { goalsOfEvent, isEventClosed, useEvent } from "@/hooks/useEvent";
 import { useMemo, useState } from "react";
 import { coversWholeEvent, previousYear, ticketsInPeriod } from "@/lib/period";
 import { Skeleton } from "@/components/ui/skeleton";
-import { IntegrationsHealthCard } from "@/components/dashboard/IntegrationsHealthCard";
 import { CommercialOverview } from "@/components/dashboard/CommercialOverview";
 import { CommercialSegments } from "@/components/dashboard/CommercialSegments";
 import { CompareProvider } from "@/hooks/useCompare";
 import { CompareToggle } from "@/components/CompareToggle";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
-import { MarketingSection } from "@/components/dashboard/MarketingSection";
-import { FunnelKPISection } from "@/components/dashboard/FunnelKPISection";
-import { useAuth } from "@/hooks/useAuth";
+import { usePeriod } from "@/hooks/usePeriod";
+import { MarketingTabs } from "@/components/marketing/MarketingTabs";
 import {
-  getDefaultRange,
   getWholeRange,
   useAdMetrics,
   useEmailCampaigns,
@@ -31,12 +28,9 @@ export type PaginaDoPainel = "comercial" | "marketing";
 
 const TITULOS: Record<PaginaDoPainel, { titulo: string; descricao: string }> = {
   comercial: { titulo: "Comercial", descricao: "Vendas, receita e ritmo do evento" },
-  marketing: { titulo: "Marketing", descricao: "Investimento, funil e canais de aquisição" },
+  marketing: { titulo: "Marketing", descricao: "Mídia, e-mail, site e os links que trazem as vendas" },
 };
 
-// O período escolhido vale para as duas páginas: trocar entre Comercial e Marketing não o reinicia.
-// Sem escolha, o Comercial abre no evento inteiro e o Marketing no mês atual.
-let periodoLembrado: DateRange | null = null;
 
 function TabSkeleton() {
   return (
@@ -56,12 +50,8 @@ function TabSkeleton() {
 
 // Comercial e Marketing são páginas próprias no menu lateral; cada uma mostra o conteúdo que antes ficava em uma aba.
 export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
-  const { isAdmin } = useAuth();
-  const [range, setRangeState] = useState<DateRange>(() => periodoLembrado ?? (pagina === "comercial" ? getWholeRange() : getDefaultRange()));
-  const setRange = (r: DateRange) => {
-    periodoLembrado = r;
-    setRangeState(r);
-  };
+  // Período único do app: começa no evento inteiro e a escolha vale em todas as páginas até sair do login.
+  const [range, setRange] = usePeriod();
 
   const { event, events, isLoading: eventLoading } = useEvent();
   // Ano do evento anterior (o que a comparação usa); vazio quando não há evento anterior.
@@ -131,17 +121,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
         ) : (
           <div className="animate-panel-in space-y-8">
             {marketingLoading ? <TabSkeleton /> : <>
-            {isAdmin && <IntegrationsHealthCard />}
-
-            <FunnelKPISection
-              adMetrics={adMetrics.data ?? []}
-              emailCampaigns={emailCampaigns.data ?? []}
-              tickets={periodTickets}
-              goals={eventGoals}
-              range={range}
-            />
-
-            <MarketingSection
+            <MarketingTabs
               adMetrics={adMetrics.data ?? []}
               emailCampaigns={emailCampaigns.data ?? []}
               siteAnalytics={siteAnalytics.data ?? []}
@@ -151,6 +131,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
               goals={eventGoals}
               range={range}
               tickets={periodTickets}
+              allTickets={todas}
             />
             </>}
           </div>

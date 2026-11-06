@@ -25,6 +25,8 @@ export interface Ticket {
   company_size?: string | null;
   payment_method?: string | null;
   utm_source?: string | null;
+  utm_medium?: string | null;
+  utm_campaign?: string | null;
   // Faturados internamente vêm do Pipedrive (negócio ganho); o resto vem da Sympla.
   source?: "sympla" | "pipedrive";
   seller?: string | null;

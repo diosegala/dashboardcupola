@@ -5,6 +5,7 @@ import { IntegrationCard } from "@/components/integrations/IntegrationCard";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/PageHeader";
+import { IntegrationsHealthCard } from "@/components/dashboard/IntegrationsHealthCard";
 
 export default function Integrations() {
   const { integrations, isLoading, updateIntegration, syncIntegration } = useIntegrations();
@@ -32,6 +33,8 @@ export default function Integrations() {
   return (
     <div className="space-y-6">
       <PageHeader title="Integrações" description="Configure as integrações com Sympla, Pipedrive, Meta Ads e mais" />
+
+      <IntegrationsHealthCard />
 
       {isLoading ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">

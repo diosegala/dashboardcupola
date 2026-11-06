@@ -154,7 +154,7 @@ const CANAL_POR_APELIDO: Record<string, string> = { ig: "Instagram", instagram: 
 
 // UTM às vezes vem como códigos de letra ("(99,97,110,...)"): converte de volta para texto.
 // Maiúsculas, minúsculas e espaços sobrando não separam o mesmo canal ("Instagram" e "instagram " são um só).
-// Exportado também para o MarketingSection (card "Pagantes por origem (UTM)" vive na aba Marketing).
+// Exportado também para a página Marketing (card "Pagantes por origem (UTM)" vive na aba Marketing).
 export function utmLabel(v: string | null | undefined): string | null {
   const t = (v ?? "").trim();
   if (!t) return null;

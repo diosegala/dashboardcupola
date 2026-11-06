@@ -2,6 +2,8 @@ import { InfoTip } from "@/components/InfoTip";
 import { Fragment, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { TooltipPortal } from "@radix-ui/react-tooltip";
 import { Progress } from "@/components/ui/progress";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { parseDay } from "@/lib/period";
@@ -32,7 +34,16 @@ interface FunnelRowDef {
   metricKey: string;
   format?: "currency" | "number";
   note?: string;
+  // Explicação ao passar o mouse no objetivo: o que conta e de onde vem.
+  info: string;
 }
+
+// O que cada etapa do funil quer dizer, mostrado ao passar o mouse no selo.
+const STAGE_INFO: Record<string, string> = {
+  TOFU: "Topo do funil: gente que conheceu o evento e interagiu com a divulgação.",
+  MOFU: "Meio do funil: gente que demonstrou interesse e foi atrás de saber mais (clicou ou colocou no carrinho).",
+  BOFU: "Fundo do funil: conversa e compra. É onde o interesse vira ingresso vendido.",
+};
 
 interface WeekSlice {
   label: string;
@@ -48,13 +59,13 @@ const stageBadgeClass: Record<string, string> = {
 };
 
 const ROW_DEFS: FunnelRowDef[] = [
-  { stage: "TOFU", label: "Engajamento", metricKey: "funnel_tofu_engagement" },
-  { stage: "MOFU", label: "Carrinho Mídia", metricKey: "funnel_mofu_cart" },
-  { stage: "MOFU", label: "G.D Email", metricKey: "funnel_mofu_gd_email" },
-  { stage: "MOFU", label: "G.D Mídia", metricKey: "funnel_mofu_gd_midia" },
-  { stage: "BOFU", label: "Mensagens", metricKey: "funnel_bofu_messages", note: "Meta Ads" },
-  { stage: "BOFU", label: "Todas Vendas", metricKey: "funnel_bofu_sales" },
-  { stage: "BOFU", label: "Receita", metricKey: "funnel_bofu_revenue", format: "currency" },
+  { stage: "TOFU", label: "Engajamento", metricKey: "funnel_tofu_engagement", info: "Engajamento com os anúncios do Meta Ads (curtidas, comentários, compartilhamentos e cliques no post)." },
+  { stage: "MOFU", label: "Carrinho Mídia", metricKey: "funnel_mofu_cart", info: "Adições ao carrinho registradas pelo Pixel do Meta no site de venda." },
+  { stage: "MOFU", label: "G.D Email", metricKey: "funnel_mofu_gd_email", info: "Geração de demanda por e-mail: cliques nos e-mails do Summit enviados pelo RD Station." },
+  { stage: "MOFU", label: "G.D Mídia", metricKey: "funnel_mofu_gd_midia", info: "Geração de demanda por mídia: cliques no link dos anúncios do Meta Ads." },
+  { stage: "BOFU", label: "Mensagens", metricKey: "funnel_bofu_messages", note: "Meta Ads", info: "Conversas iniciadas pelo anúncio do Meta Ads (WhatsApp ou Direct)." },
+  { stage: "BOFU", label: "Todas Vendas", metricKey: "funnel_bofu_sales", info: "Ingressos pagantes vendidos no período (Sympla e faturados internos)." },
+  { stage: "BOFU", label: "Receita", metricKey: "funnel_bofu_revenue", format: "currency", info: "Valor dos ingressos pagantes vendidos no período." },
 ];
 
 function getWeeksInRange(from: Date, to: Date): WeekSlice[] {
@@ -142,7 +153,17 @@ function MetaPct({ actual, target }: { actual: number; target: number | null }) 
 export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, range }: FunnelKPISectionProps) {
   const metaAds = useMemo(() => adMetrics.filter((a) => a.source === "meta"), [adMetrics]);
 
-  const weeks = useMemo(() => getWeeksInRange(range.from, range.to), [range]);
+  // As semanas começam no primeiro dia com dado (em "Todo o período" o painel vai até 2020) e a tabela mostra
+  // no máximo as 12 mais recentes; o Período total continua somando tudo.
+  const weeks = useMemo(() => {
+    const datas = [...metaAds.map((a) => a.date), ...emailCampaigns.map((e) => e.sent_at), ...tickets.map((t) => t.sold_at)]
+      .filter(Boolean)
+      .map((d) => String(d).slice(0, 10))
+      .sort();
+    const primeiro = datas.length ? parseDay(datas[0]) : range.from;
+    const de = isAfter(primeiro, range.from) ? primeiro : range.from;
+    return getWeeksInRange(de, range.to).slice(-12);
+  }, [range, metaAds, emailCampaigns, tickets]);
   const showWeeks = weeks.length > 1;
 
   // Precompute actuals per period (total + per week)
@@ -243,12 +264,20 @@ export function FunnelKPISection({ adMetrics, emailCampaigns, tickets, goals, ra
               {data.map(({ def, totalActual, weekActuals, weekTargets, totalTarget }) => (
                 <tr key={def.metricKey} className="border-b last:border-0 hover:bg-muted/30">
                   <td className="sticky left-0 z-10 bg-card py-2.5 px-3 border-r">
-                    <Badge variant="secondary" className={stageBadgeClass[def.stage]}>
-                      {def.stage}
-                    </Badge>
+                    <Tooltip delayDuration={80}>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex cursor-help"><Badge variant="secondary" className={stageBadgeClass[def.stage]}>{def.stage}</Badge></span>
+                      </TooltipTrigger>
+                      <TooltipPortal><TooltipContent side="right" className="max-w-[260px]">{STAGE_INFO[def.stage]}</TooltipContent></TooltipPortal>
+                    </Tooltip>
                   </td>
                   <td className="sticky left-[72px] z-10 bg-card py-2.5 px-3 border-r">
-                    <span className="font-medium text-xs whitespace-nowrap">{def.label}</span>
+                    <Tooltip delayDuration={80}>
+                      <TooltipTrigger asChild>
+                        <span className="cursor-help font-medium text-xs whitespace-nowrap">{def.label}</span>
+                      </TooltipTrigger>
+                      <TooltipPortal><TooltipContent side="right" className="max-w-[260px]">{def.info}</TooltipContent></TooltipPortal>
+                    </Tooltip>
                     {def.note && <span className="text-[10px] text-muted-foreground ml-1">({def.note})</span>}
                   </td>
                   {temMeta && <td className="py-2.5 px-3 text-right tabular-nums bg-muted/10 border-r text-xs text-muted-foreground">{totalTarget != null ? fmtVal(totalTarget, def.format) : ""}</td>}
