@@ -112,6 +112,8 @@ async function fetchAllTimeTickets(eventId: string, columns: string) {
       .eq("event_id", eventId)
       // Linhas de estimativa de versões antigas da sincronização: não contam (só participantes reais).
       .not("sympla_order_id", "like", "pendente-%")
+      // Ordem fixa: sem ela, a paginação pode repetir ou pular linhas quando a sincronização grava no meio da leitura.
+      .order("id")
       .range(from, from + pageSize - 1);
     if (error) throw error;
     if (!data || data.length === 0) break;
@@ -135,6 +137,7 @@ export function usePreviousEventTickets(currentEventId: string, previousEventKey
           .select("data")
           .eq("event_key", previousEventKey)
           .eq("source_table", "ticket_sales")
+          .order("id")
           .range(from, from + 999);
         if (error) return [];
         all.push(...(data ?? []).map((r: any) => r.data));
@@ -163,6 +166,7 @@ export function usePreviousEventRows(previousEventKey: string, sourceTable: stri
           .eq("source_table", sourceTable)
           .gte("record_date", from)
           .lte("record_date", to)
+          .order("id")
           .range(start, start + 999);
         if (error) return [];
         all.push(...(data ?? []).map((r: any) => r.data));
@@ -217,6 +221,7 @@ async function fetchInvoicedTickets(symplaEventId: string, symplaSales: any[]) {
       .select("deal_id, name, quantity, item_price, sum, discount, discount_type"))
       .eq("is_enabled", true)
       .in("product_pd_id", ids)
+      .order("id")
       .range(from, from + 999);
     if (error) return [];
     linhas.push(...(data ?? []));
@@ -240,6 +245,7 @@ async function fetchInvoicedTickets(symplaEventId: string, symplaSales: any[]) {
         .in("status", ["won", "open"])
         .eq("is_deleted", false)
         .ilike("title", "%ingress%")
+        .order("id")
         .range(from, from + 999);
       if (error) break;
       (data ?? []).forEach((d) => negocios.has(d.id) || negocios.set(d.id, d));
