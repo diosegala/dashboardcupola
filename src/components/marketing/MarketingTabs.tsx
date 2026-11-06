@@ -26,6 +26,10 @@ import { SegmentCard, utmLabel } from "@/components/dashboard/CommercialSegments
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { batchOf, batchOrder } from "@/lib/batches";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
+import { ChartLegend } from "@/components/dashboard/charts/ChartLegend";
+import { useSeriesVisibility } from "@/components/dashboard/charts/chartSeries";
+import { cn } from "@/lib/utils";
 
 interface MarketingTabsProps {
   adMetrics: any[];
@@ -45,11 +49,6 @@ const sum = (arr: any[], key: string) => arr.reduce((s, r) => s + Number(r[key] 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number, casas = 0) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: casas, maximumFractionDigits: casas });
 const pct = (n: number, casas = 1) => `${n.toLocaleString("pt-BR", { minimumFractionDigits: casas, maximumFractionDigits: casas })}%`;
-
-// Uma frase dizendo o que a aba responde: quem abre entende antes de ler os números.
-function Intro({ children }: { children: ReactNode }) {
-  return <p className="max-w-3xl text-sm text-muted-foreground">{children}</p>;
-}
 
 function Empty({ children }: { children: ReactNode }) {
   return (
@@ -170,7 +169,6 @@ function Overview({ adMetrics, emailCampaigns, tickets, goals, range }: Marketin
 
   return (
     <div className="space-y-6">
-      <Intro>O resumo do marketing no período: quanto foi investido em mídia, quanto custou cada venda e de onde vieram os compradores.</Intro>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard title="Investimento em mídia" value={brl(midia.investimento, 2)} icon={Wallet} description="Meta Ads e Google Ads" />
         <MetricCard title="Investimento por ingresso" value={pagantes > 0 ? brl(midia.investimento / pagantes, 2) : "—"} icon={Coins} description={`Investimento dividido por ${int(pagantes)} ingressos pagantes`} />
@@ -210,11 +208,7 @@ function AdsTab({ fonte, adMetrics, previousAdMetrics, goals, range, foraAds = 0
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Intro>
-          {ehMeta ? "Anúncios do Summit no Instagram e Facebook: alcance, cliques e o que o Pixel registrou no site." : "Anúncios do Summit na busca e na rede do Google: cliques, custo e conversões."}
-          {foraAds > 0 && ` ${foraAds} campanhas de outros produtos da CUPOLA ficaram fora.`}
-        </Intro>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <CampaignFilter campaigns={campaignOptions(todas)} selected={sel} onChange={setSel} />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -283,20 +277,22 @@ function nomeDoEmail(bruto: string) {
   return normal.charAt(0).toUpperCase() + normal.slice(1);
 }
 
-// Gráfico iceberg dos e-mails do período: uma coluna por e-mail, em ordem de envio. Acima da linha d'água o que foi bom
-// (abertura e clique), abaixo o que pesou (descadastro e bounce). Cada métrica tem a própria escala: a barra mais alta
-// de cada cor é o e-mail que mais teve aquilo. O valor real fica escrito na barra.
+// Gráfico iceberg dos e-mails: uma coluna por e-mail, em ordem de envio. Acima da linha o que foi bom (abertura e clique),
+// abaixo o que pesou (descadastro e bounce). Mesmo estilo das barras do Comercial (Vendas por dia útil).
+// Cada métrica é desenhada em relação ao maior valor dela no recorte (o maior vira 100), porque clique é bem menor
+// que abertura; o tooltip mostra o valor real.
 const METRICAS_EMAIL = [
-  { chave: "abertura", titulo: "Abertura", cor: "bg-primary", lado: "cima", casas: 1 },
-  { chave: "clique", titulo: "Clique", cor: "bg-foreground/75", lado: "cima", casas: 2 },
-  { chave: "descadastro", titulo: "Descadastro", cor: "bg-bad", lado: "baixo", casas: 2 },
-  { chave: "bounce", titulo: "Bounce", cor: "bg-warn", lado: "baixo", casas: 2 },
+  { chave: "abertura", titulo: "Abertura", cor: "hsl(var(--chart-2))", lado: 1, pilha: "a", casas: 1, resumo: "Maior abertura" },
+  { chave: "clique", titulo: "Clique", cor: "hsl(var(--chart-3))", lado: 1, pilha: "b", casas: 2, resumo: "Maior clique" },
+  { chave: "descadastro", titulo: "Descadastro", cor: "hsl(var(--bad))", lado: -1, pilha: "a", casas: 2, resumo: "Mais descadastro" },
+  { chave: "bounce", titulo: "Bounce", cor: "hsl(var(--chart-5))", lado: -1, pilha: "b", casas: 2, resumo: "Mais bounce" },
 ] as const;
 type ChaveEmail = (typeof METRICAS_EMAIL)[number]["chave"];
 type LinhaEmail = Record<ChaveEmail, number> & { id: string; nome: string; data: string; quando: string; ent: number };
+const ULTIMOS = 10;
 
 function EmailCompareChart({ emails }: { emails: any[] }) {
-  const linhas = useMemo(
+  const todas = useMemo(
     () =>
       emails
         .filter((c) => Number(c.total_delivered || 0) > 0)
@@ -318,85 +314,116 @@ function EmailCompareChart({ emails }: { emails: any[] }) {
         .sort((a, b) => a.quando.localeCompare(b.quando)),
     [emails],
   );
-  const [foco, setFoco] = useState<string | null>(null);
+  const [modo, setModo] = useState<"ultimos" | "todos">("ultimos");
+  const series = useSeriesVisibility();
   const aguardando = emails.filter((c) => Number(c.total_sent || 0) > 0 && !Number(c.total_delivered || 0)).length;
-  if (linhas.length < 2) return null;
+  const linhas = modo === "todos" ? todas : todas.slice(-ULTIMOS);
 
-  const escala = Object.fromEntries(METRICAS_EMAIL.map((m) => [m.chave, Math.max(...linhas.map((l) => l[m.chave])) || 1])) as Record<ChaveEmail, number>;
-  const lider = Object.fromEntries(METRICAS_EMAIL.map((m) => [m.chave, linhas.reduce((a, b) => (b[m.chave] > a[m.chave] ? b : a)).id])) as Record<ChaveEmail, string>;
-  const ALTO = 150;
-  const BAIXO = 90;
-  const ativo = linhas.find((l) => l.id === foco);
-  const esmaece = (id: string) => (foco && foco !== id ? "opacity-35" : "");
-  const hover = (id: string) => ({ onMouseEnter: () => setFoco(id), onMouseLeave: () => setFoco(null) });
+  const { dados, lideres } = useMemo(() => {
+    const max = Object.fromEntries(METRICAS_EMAIL.map((m) => [m.chave, Math.max(...linhas.map((l) => l[m.chave]), 0) || 1])) as Record<ChaveEmail, number>;
+    const lideres = METRICAS_EMAIL.map((m) => ({ m, l: linhas.reduce((a, b) => (b[m.chave] > a[m.chave] ? b : a), linhas[0]) }));
+    const dados = linhas.map((l) => ({
+      ...l,
+      ...Object.fromEntries(METRICAS_EMAIL.map((m) => [`i_${m.chave}`, (l[m.chave] / max[m.chave]) * 100 * m.lado])),
+    }));
+    return { dados, lideres };
+  }, [linhas]);
 
-  const coluna = (l: LinhaEmail, lado: "cima" | "baixo") => (
-    <div className={`flex h-full justify-center gap-1 ${lado === "cima" ? "items-end" : "items-start"}`}>
-      {METRICAS_EMAIL.filter((m) => m.lado === lado).map((m) => {
-        const v = l[m.chave];
-        const h = Math.max(2, (v / escala[m.chave]) * (lado === "cima" ? ALTO : BAIXO) * 0.78);
-        const campeao = lider[m.chave] === l.id;
-        return (
-          <div key={m.chave} className={`flex w-[min(30px,42%)] flex-col items-center ${lado === "cima" ? "justify-end" : "justify-start"}`}>
-            {lado === "cima" && <span className="mb-0.5 text-[10px] font-semibold tabular-nums">{pct(v, m.casas)}</span>}
-            <div
-              className={`w-full ${m.cor} ${lado === "cima" ? "rounded-t-md" : "rounded-b-md"} transition-[height] duration-700 ease-out ${campeao ? "ring-2 ring-foreground/70 ring-offset-1 ring-offset-card" : ""}`}
-              style={{ height: h }}
-            />
-            {lado === "baixo" && <span className="mt-0.5 text-[10px] font-semibold tabular-nums">{pct(v, m.casas)}</span>}
-          </div>
-        );
-      })}
-    </div>
+  if (todas.length < 2) return <p className="py-10 text-center text-sm text-muted-foreground">É preciso ao menos 2 e-mails com relatório de entrega para comparar.</p>;
+
+  const botao = (m: "ultimos" | "todos", rotulo: string) => (
+    <button
+      type="button"
+      onClick={() => setModo(m)}
+      className={cn("rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150", modo === m ? "bg-foreground text-background" : "text-muted-foreground hover:bg-secondary hover:text-foreground")}
+    >
+      {rotulo}
+    </button>
   );
+  // Cada e-mail ganha ao menos 56 px: com dezenas, o gráfico desliza para o lado dentro do card.
+  const largura = Math.max(dados.length * 56, 320);
 
   return (
     <div>
-      <div className="pb-3">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        {todas.length > ULTIMOS ? (
+          <div className="inline-flex items-center gap-0.5 rounded-full border bg-secondary p-1">
+            {botao("ultimos", `Últimos ${ULTIMOS}`)}
+            {botao("todos", `Todos (${todas.length})`)}
+          </div>
+        ) : <span />}
+        <div className="flex items-center gap-1">
+          <ChartLegend
+            items={METRICAS_EMAIL.map((m) => ({ key: `i_${m.chave}`, label: m.titulo, color: m.cor, shape: "square" as const }))}
+            hidden={series.hidden}
+            onToggle={series.toggle}
+            onFocus={series.setFocused}
+          />
           <InfoTip
             title="Como ler o gráfico"
-            text={`Para cima, o que foi bom (abertura e clique, sobre os entregues); para baixo, o que pesou (descadastro sobre os entregues e bounce sobre os enviados). Cada métrica tem a própria escala: em cada cor, a barra mais alta, com contorno, é o e-mail campeão daquela métrica.${aguardando > 0 ? ` ${aguardando} e-mail ainda sem relatório de entrega do RD não entra.` : ""}`}
+            text={`Uma coluna por e-mail, em ordem de envio. Acima da linha, o que foi bom: abertura e clique, sobre os entregues. Abaixo, o que pesou: descadastro, sobre os entregues, e bounce, sobre os enviados. Cada métrica é comparada com o maior valor dela entre os e-mails mostrados, por isso clique e abertura cabem lado a lado. Passe o mouse numa coluna para ver os números reais.${aguardando > 0 ? ` ${aguardando} e-mail ainda sem relatório de entrega do RD não entra.` : ""}`}
           />
-          {METRICAS_EMAIL.map((m) => (
-            <span key={m.chave} className="flex items-center gap-1.5">
-              {m.chave === "abertura" && <b className="mr-1 font-medium text-foreground/70">Acima da linha ↑</b>}
-              {m.chave === "descadastro" && <b className="mr-1 font-medium text-foreground/70">Abaixo ↓</b>}
-              <i className={`inline-block h-2.5 w-2.5 rounded-sm ${m.cor}`} />
-              {m.titulo}
-            </span>
-          ))}
         </div>
       </div>
-      <div>
-        <div className="overflow-x-auto">
-          <div className="min-w-[520px]">
-            <div className="flex" style={{ height: ALTO }}>
-              {linhas.map((l) => (
-                <div key={l.id} {...hover(l.id)} className={`flex-1 px-1 transition-opacity ${esmaece(l.id)}`}>{coluna(l, "cima")}</div>
-              ))}
-            </div>
-            <div className="border-t-2 border-foreground/60" />
-            <div className="flex rounded-b-2xl bg-secondary/50" style={{ height: BAIXO }}>
-              {linhas.map((l) => (
-                <div key={l.id} {...hover(l.id)} className={`flex-1 px-1 transition-opacity ${esmaece(l.id)}`}>{coluna(l, "baixo")}</div>
-              ))}
-            </div>
-            <div className="mt-2 flex">
-              {linhas.map((l) => (
-                <div key={l.id} {...hover(l.id)} className={`flex-1 px-1 text-center transition-opacity ${esmaece(l.id)}`}>
-                  <p className="line-clamp-2 text-[11px] font-medium leading-tight">{l.nome}</p>
-                  <p className="text-[10px] text-muted-foreground">{l.data}</p>
-                </div>
-              ))}
-            </div>
+
+      {/* Leitura rápida: quem foi o destaque de cada métrica. */}
+      <div className="mb-4 grid grid-cols-2 gap-2 lg:grid-cols-4">
+        {lideres.map(({ m, l }) => (
+          <div key={m.chave} className="rounded-2xl border bg-secondary/40 px-3 py-2.5">
+            <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+              <i className="inline-block h-2 w-2 rounded-[2px]" style={{ background: m.cor }} />
+              {m.resumo}
+            </p>
+            <p className="text-lg font-semibold leading-tight tracking-[-0.02em] tabular-nums">{pct(l[m.chave], m.casas)}</p>
+            <p className="truncate text-[11px] text-muted-foreground" title={l.nome}>{l.data} · {l.nome}</p>
           </div>
+        ))}
+      </div>
+
+      <div className="overflow-x-auto">
+        <div style={{ minWidth: largura }}>
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={dados} stackOffset="sign" margin={{ left: 0, right: 8, top: 12, bottom: 0 }} barCategoryGap="28%">
+              <CartesianGrid vertical={false} horizontal={false} />
+              <XAxis dataKey="data" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} interval={0} className="fill-muted-foreground" />
+              <YAxis hide domain={[-100, 100]} />
+              <ReferenceLine y={0} stroke="hsl(var(--line-strong))" />
+              <Tooltip
+                cursor={{ fill: "hsl(var(--secondary))" }}
+                content={({ active, payload }) => {
+                  const l = active && payload?.[0]?.payload as LinhaEmail | undefined;
+                  if (!l) return null;
+                  return (
+                    <div className="max-w-[260px] rounded-[10px] border border-line-strong bg-card px-3 py-2 text-xs shadow-sm">
+                      <p className="font-semibold leading-snug">{l.nome}</p>
+                      <p className="mb-1.5 text-muted-foreground">{l.data} · {int(l.ent)} entregues</p>
+                      {METRICAS_EMAIL.map((m) => (
+                        <p key={m.chave} className="flex items-center justify-between gap-4">
+                          <span className="inline-flex items-center gap-1.5"><i className="inline-block h-2 w-2 rounded-[2px]" style={{ background: m.cor }} />{m.titulo}</span>
+                          <span className="tabular-nums">{pct(l[m.chave], m.casas)}</span>
+                        </p>
+                      ))}
+                    </div>
+                  );
+                }}
+              />
+              {METRICAS_EMAIL.map((m) => (
+                <Bar
+                  key={m.chave}
+                  dataKey={`i_${m.chave}`}
+                  name={m.titulo}
+                  stackId={m.pilha}
+                  fill={m.cor}
+                  fillOpacity={series.opacity(`i_${m.chave}`)}
+                  hide={series.hidden.has(`i_${m.chave}`)}
+                  radius={m.lado > 0 ? [5, 5, 0, 0] : [0, 0, 5, 5]}
+                  maxBarSize={22}
+                  animationDuration={900}
+                />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
         </div>
-        <p className="mt-3 min-h-[1rem] text-xs text-muted-foreground">
-          {ativo
-            ? `${ativo.nome}: ${int(ativo.ent)} entregues · abertura ${pct(ativo.abertura)} · clique ${pct(ativo.clique, 2)} · descadastro ${pct(ativo.descadastro, 2)} · bounce ${pct(ativo.bounce, 2)}`
-            : ""}
-        </p>
       </div>
     </div>
   );
@@ -525,11 +552,7 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Intro>
-          E-mails do Summit enviados pelo RD Station: quantos chegaram, quantos abriram e quantos clicaram.
-          {foraDoEvento > 0 && ` ${foraDoEvento} e-mails de outros produtos da CUPOLA no período ficaram fora.`}
-        </Intro>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
         <CampaignFilter campaigns={opcoes} selected={sel} onChange={setSel} />
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -633,7 +656,6 @@ function SiteTab({ siteAnalytics, previousSiteAnalytics, ga4Events, goals, range
 
   return (
     <div className="space-y-6">
-      <Intro>Quem chegou ao site do evento, de onde veio e quantos avançaram até a compra.</Intro>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard title="Sessões" value={sum(siteAnalytics, "sessions")} icon={Globe} goal={findGoal(goals, "site_visits", range)} anterior={ant?.s} />
         <MetricCard title="Usuários" value={sum(siteAnalytics, "users")} icon={Users} goal={findGoal(goals, "site_users", range)} anterior={ant?.u} description="Total de usuários" />
@@ -731,7 +753,6 @@ function LinksTab({ tickets, allTickets, goals }: MarketingTabsProps) {
 
   return (
     <div className="space-y-6">
-      <Intro>Qual canal e qual link levou cada venda. Cada canal de divulgação deve usar o próprio link com UTM; venda com cupom sem link e faturado interno contam para a Equipe CUPOLA.</Intro>
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard title="Ingressos pagantes" value={total} icon={TicketIcon} description={`Sympla e faturados ${nomeRecorte}`} />
         <MetricCard title="Com link parametrizado" value={totalSympla ? pct((comLink / totalSympla) * 100, 0) : "—"} icon={Link2} description={`${int(comLink)} de ${int(totalSympla)} ingressos da Sympla têm UTM`} />
