@@ -182,9 +182,15 @@ function Overview({ adMetrics, emailCampaigns, tickets, goals, range }: Marketin
 }
 
 // ---------- Mídia paga (Meta Ads e Google Ads usam o mesmo desenho) ----------
-const DO_SUMMIT_ADS = /summit/i;
+// O que é do Summit, em anúncios e e-mails: "summit", "[sum]", "[sum27]", "sum27" e variações, sem diferença de maiúsculas.
+const DO_SUMMIT = /summit|\[\s*sum\s*\d*\s*\]|\bsum\s*\d{2}\b/i;
+// Ano de edição escrito no nome ([SUM26], "SUM 26", "Summit 2026", "Summit 26"); null quando o nome não diz.
+function edicaoNoNome(nome: string): string | null {
+  const m = nome.match(/\[?\s*sum(?:mit)?\s*(?:20)?(\d{2})\b/i);
+  return m ? m[1] : null;
+}
 function campanhasDoEvento(linhas: any[]) {
-  const doEvento = linhas.filter((a) => DO_SUMMIT_ADS.test(a.campaign_name || ""));
+  const doEvento = linhas.filter((a) => DO_SUMMIT.test(a.campaign_name || ""));
   return doEvento.length ? doEvento : linhas;
 }
 
@@ -240,9 +246,8 @@ function AdsTab({ fonte, adMetrics, previousAdMetrics, goals, range, foraAds = 0
 }
 
 // ---------- E-mail (RD Station) ----------
-// A conta do RD Station tem e-mails de outros produtos da CUPOLA. Os do Summit levam [SUM no nome; com eles presentes, só eles contam
+// A conta do RD Station tem e-mails de outros produtos da CUPOLA. Com algum do Summit no período, só eles contam
 // (aqui e no Funil de KPIs).
-const DO_SUMMIT = /\[SUM/i;
 function emailsDoEvento(todos: any[]) {
   const doEvento = todos.filter((c) => DO_SUMMIT.test(c.name || c.subject || ""));
   return doEvento.length ? doEvento : todos;
@@ -259,9 +264,8 @@ function useEmailsDaEdicao() {
       const { data, error } = await supabase.from("email_campaigns").select("*").order("sent_at", { ascending: false, nullsFirst: false });
       if (error) throw error;
       const doSummit = (data ?? []).filter((c) => DO_SUMMIT.test(c.name || c.subject || ""));
-      // [SUM27] é a edição 2027. Sem esse código no nome, vale qualquer e-mail do Summit.
-      const daEdicao = ano ? doSummit.filter((c) => new RegExp(`\\[SUM${ano}\\]`, "i").test(c.name || c.subject || "")) : [];
-      return daEdicao.length ? daEdicao : doSummit;
+      // Fica fora só o que diz claramente ser de outra edição ([SUM26], "Summit 2026"); sem ano no nome, conta.
+      return ano ? doSummit.filter((c) => { const e = edicaoNoNome(c.name || c.subject || ""); return !e || e === ano; }) : doSummit;
     },
   });
 }
@@ -272,7 +276,7 @@ const COLUNAS_EMAIL = ["Enviados", "Entregues", "Bounce", "Abertura", "Clique", 
 // Nome do e-mail para leitura: sem a tag [SUM27] e sem palavras em caixa alta (LOTE ZERO vira Lote zero, TEASER vira Teaser).
 // CUPOLA fica sempre em maiúsculas. O que já vem em minúsculas ou misto fica como está.
 function nomeDoEmail(bruto: string) {
-  const sem = bruto.replace(/^\[SUM\d*\]\s*/i, "");
+  const sem = bruto.replace(/^\[\s*sum\s*\d*\s*\]\s*[|:-]?\s*/i, "");
   const normal = sem.replace(/\p{L}{2,}/gu, (w) => (w.toUpperCase() === "CUPOLA" ? "CUPOLA" : w === w.toUpperCase() ? w.toLowerCase() : w));
   return normal.charAt(0).toUpperCase() + normal.slice(1);
 }
