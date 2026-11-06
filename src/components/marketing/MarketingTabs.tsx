@@ -283,6 +283,101 @@ function nomeDoEmail(bruto: string) {
   return normal.charAt(0).toUpperCase() + normal.slice(1);
 }
 
+// Placar dos e-mails do período: uma linha por e-mail, abertura e clique lado a lado, cada um na própria escala
+// (clique é bem menor que abertura). A linha tracejada é a média do período; o melhor de cada métrica ganha selo.
+function EmailCompareChart({ emails }: { emails: any[] }) {
+  const linhas = useMemo(
+    () =>
+      emails
+        .filter((c) => Number(c.total_delivered || 0) > 0)
+        .map((c) => {
+          const ent = Number(c.total_delivered || 0);
+          return {
+            id: c.id,
+            nome: nomeDoEmail(String(c.name || c.subject || c.rd_campaign_id)),
+            data: c.sent_at ? new Date(c.sent_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" }) : "",
+            abertura: (Number(c.total_opened || 0) / ent) * 100,
+            clique: (Number(c.total_clicked || 0) / ent) * 100,
+            ent,
+            quando: String(c.sent_at ?? ""),
+          };
+        })
+        .sort((a, b) => b.quando.localeCompare(a.quando)),
+    [emails],
+  );
+  const [foco, setFoco] = useState<string | null>(null);
+  const aguardando = emails.filter((c) => Number(c.total_sent || 0) > 0 && !Number(c.total_delivered || 0)).length;
+  if (linhas.length < 2) return null;
+
+  const metricas = [
+    { chave: "abertura" as const, titulo: "Abertura", cor: "bg-primary", casas: 1 },
+    { chave: "clique" as const, titulo: "Clique", cor: "bg-foreground/75", casas: 2 },
+  ].map((m) => {
+    const valores = linhas.map((l) => l[m.chave]);
+    const max = Math.max(...valores) * 1.1 || 1;
+    // Média ponderada pelos entregues, a mesma conta dos cards.
+    const media = linhas.reduce((s, l) => s + l[m.chave] * l.ent, 0) / linhas.reduce((s, l) => s + l.ent, 0);
+    const melhor = linhas.reduce((a, b) => (b[m.chave] > a[m.chave] ? b : a)).id;
+    return { ...m, max, media, melhor };
+  });
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2">Desempenho de cada e-mail <InfoTip title="Desempenho de cada e-mail" /></CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Quanto mais longa a barra, melhor o e-mail. A linha tracejada é a média do período: barra que passa dela foi acima da média.
+          {aguardando > 0 && ` ${aguardando} e-mail ainda sem relatório de entrega não entra.`}
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-1">
+        {/* Legenda: cor de cada métrica e a média do período. */}
+        <div className="flex flex-wrap items-center gap-x-5 gap-y-1 pb-2 text-xs text-muted-foreground">
+          {metricas.map((m) => (
+            <span key={m.chave} className="flex items-center gap-1.5">
+              <i className={`inline-block h-2.5 w-2.5 rounded-full ${m.cor}`} />
+              {m.titulo} · média {pct(m.media, m.casas)}
+            </span>
+          ))}
+          <span className="flex items-center gap-1.5"><i className="inline-block h-3 border-l-2 border-dashed border-foreground/50" /> Média do período</span>
+        </div>
+        {linhas.map((l) => (
+          <div
+            key={l.id}
+            onMouseEnter={() => setFoco(l.id)}
+            onMouseLeave={() => setFoco(null)}
+            className={`grid grid-cols-1 gap-2 rounded-2xl px-2 py-3 transition-opacity duration-200 md:grid-cols-[minmax(0,0.9fr)_minmax(0,1.6fr)] md:items-center md:gap-5 ${foco && foco !== l.id ? "opacity-40" : ""} ${foco === l.id ? "bg-muted/50" : ""}`}
+          >
+            <div className="min-w-0">
+              <p className="line-clamp-2 text-sm font-medium leading-snug">{l.nome}</p>
+              <p className="mt-0.5 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                {l.data} · {int(l.ent)} entregues
+                {metricas.filter((m) => m.melhor === l.id).map((m) => (
+                  <span key={m.chave} className="rounded-full bg-foreground px-2 py-0.5 text-[10px] font-semibold text-background">Melhor {m.titulo.toLowerCase()}</span>
+                ))}
+              </p>
+            </div>
+            <div className="space-y-1.5">
+              {metricas.map((m) => {
+                const v = l[m.chave];
+                return (
+                  <div key={m.chave} className="flex items-center gap-3">
+                    <div className="relative h-4 flex-1 overflow-hidden rounded-full bg-secondary">
+                      <div className={`absolute inset-y-0 left-0 rounded-full ${m.cor} transition-[width] duration-700 ease-out`} style={{ width: `${(v / m.max) * 100}%` }} />
+                      <div className="absolute inset-y-0 border-l-2 border-dashed border-foreground/50" style={{ left: `${(m.media / m.max) * 100}%` }} />
+                    </div>
+                    <span className={`w-14 shrink-0 text-right text-sm tabular-nums ${v >= m.media ? "font-semibold" : "text-muted-foreground"}`}>{pct(v, m.casas)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
+
 function EmailList() {
   const { data = [], isLoading } = useEmailsDaEdicao();
   const [todos, setTodos] = useState(false);
@@ -346,7 +441,7 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
   const [b, setB] = useState<string | null>(null);
   const opcoes = useMemo(() => {
     const map = new Map<string, string>();
-    emailCampaigns.forEach((c) => c.rd_campaign_id && !map.has(c.rd_campaign_id) && map.set(c.rd_campaign_id, c.name || c.rd_campaign_id));
+    [...emailCampaigns].sort((x, y) => String(y.sent_at ?? "").localeCompare(String(x.sent_at ?? ""))).forEach((c) => c.rd_campaign_id && !map.has(c.rd_campaign_id) && map.set(c.rd_campaign_id, nomeDoEmail(String(c.name || c.subject || c.rd_campaign_id))));
     return Array.from(map.entries()).map(([campaign_id, campaign_name]) => ({ campaign_id, campaign_name }));
   }, [emailCampaigns]);
   const lista = sel.length ? emailCampaigns.filter((c) => sel.includes(c.rd_campaign_id)) : emailCampaigns;
@@ -434,6 +529,7 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
           </div>
         </CardContent>
       </Card>
+      <EmailCompareChart emails={lista} />
       <EmailList />
       <Card>
         <CardHeader className="pb-3">
