@@ -1,4 +1,9 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
+
+// Na aba Por lote, 3 lotes por página para a lista não crescer demais.
+const POR_PAGINA = 3;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTip } from "@/components/InfoTip";
 import { Chip } from "@/components/Chip";
@@ -21,6 +26,7 @@ interface SalesSectionProps {
 // Vendas por lote: cada lote deste ano com a meta do lote (se houver) e o mesmo lote do evento anterior (com a chave ligada).
 export function SalesSection({ goals, allTimeTickets = [], previousYearTickets = [], embedded = false }: SalesSectionProps) {
   const { ativo: comparar, rotulo } = useCompare();
+  const [pagina, setPagina] = useState(0);
 
   const { lotes, loteAtual } = useMemo(() => resumoLotes(goals, allTimeTickets, previousYearTickets), [allTimeTickets, previousYearTickets, goals]);
 
@@ -89,10 +95,14 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
 
   // Dentro de um card estreito, cada lote vira um bloco: os números quebram linha em vez de vazar ou cortar.
   if (embedded) {
+    const totalPaginas = Math.max(1, Math.ceil(lotes.length / POR_PAGINA));
+    const atual = Math.min(pagina, totalPaginas - 1);
+    // O lote mais novo sempre no topo.
+    const visiveis = [...lotes].reverse().slice(atual * POR_PAGINA, (atual + 1) * POR_PAGINA);
     return (
       <div className="space-y-3">
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
-          {lotes.map((l) => {
+          {visiveis.map((l) => {
             const vigente = l.lote === loteAtual;
             const pct = l.meta ? l.pagantes / l.meta : null;
             const saldo = l.meta ? Math.max(l.meta - l.pagantes, 0) : null;
@@ -134,6 +144,21 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
             );
           })}
         </ul>
+        {totalPaginas > 1 && (
+          <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span>
+              Página {atual + 1} de {totalPaginas} · {lotes.length} lotes
+            </span>
+            <div className="flex gap-1">
+              <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Lotes mais novos" disabled={atual === 0} onClick={() => setPagina(atual - 1)}>
+                <ChevronLeft className="h-3.5 w-3.5" />
+              </Button>
+              <Button variant="outline" size="icon" className="h-7 w-7" aria-label="Lotes mais antigos" disabled={atual >= totalPaginas - 1} onClick={() => setPagina(atual + 1)}>
+                <ChevronRight className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+          </div>
+        )}
         {legenda}
       </div>
     );
