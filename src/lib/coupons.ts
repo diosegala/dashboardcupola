@@ -17,36 +17,62 @@ export const COUPON_GROUPS: { key: CouponGroup; label: string }[] = [
 export const TEAM_DISCOUNT = 5;
 const TEAM_CODE = new RegExp(`^[A-Z]{3,}${TEAM_DISCOUNT}$`);
 
-// Contatos com cupom no formato da equipe que, por regra, não entram no ranking da equipe interna.
+// Pessoas com mais de um cupom e quem fica fora do ranking da equipe interna.
+// Cadastradas pelos admins em Configurações › Cupons e vendedores; o painel carrega a lista ao abrir.
 // codes: todos os cupons da pessoa, o primeiro é o principal; na lista de cupons eles contam como um só.
-// names: palavras que identificam a pessoa no campo "ID do canal de origem" do Pipedrive (sem acento, minúsculas).
-// Letícia Bello (Leticia Caetana Bello Pinguelli). LETICIAA5 é outra pessoa (Letícia Ardigó) e segue normal no ranking.
-export const OUTSIDE_TEAM_RANKING: { codes: string[]; names: string[][] }[] = [
-  { codes: ["LETICIAC5", "LETICIA10", "LETICIA15"], names: [["leticia", "bello"], ["leticia", "pinguelli"], ["leticia", "caetana"]] },
-];
+// sellerNames: como a pessoa aparece no campo "ID do canal de origem" do Pipedrive.
+export interface CouponPerson {
+  name: string;
+  codes: string[];
+  sellerNames: string[];
+  outsideRanking: boolean;
+}
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+const palavrasDe = (s: unknown) => semAcento(String(s ?? "")).split(/[^a-z0-9]+/).filter(Boolean);
+export const normalizeCode = (c: string) => c.trim().toUpperCase().replace(/\s+/g, "");
 
-function outsideEntry(code: string) {
-  return OUTSIDE_TEAM_RANKING.find((p) => p.codes.includes(code));
+let PESSOAS: CouponPerson[] = [];
+
+export function setCouponPeople(list: CouponPerson[]) {
+  PESSOAS = list
+    .map((p) => ({ ...p, codes: [...new Set(p.codes.map(normalizeCode).filter(Boolean))], sellerNames: p.sellerNames.map((n) => n.trim()).filter(Boolean) }))
+    .filter((p) => p.codes.length > 0 || p.sellerNames.length > 0);
+}
+
+export function getCouponPeople(): CouponPerson[] {
+  return PESSOAS;
+}
+
+function personOfCode(code: string) {
+  return PESSOAS.find((p) => p.codes.includes(code));
+}
+
+// Pessoa cadastrada a partir do vendedor do faturado no Pipedrive: todas as palavras de um dos nomes precisam aparecer.
+export function personBySeller(seller: unknown): CouponPerson | null {
+  const palavras = palavrasDe(seller);
+  if (!palavras.length) return null;
+  return PESSOAS.find((p) => p.sellerNames.some((n) => {
+    const alvo = palavrasDe(n);
+    return alvo.length > 0 && alvo.every((w) => palavras.includes(w));
+  })) ?? null;
 }
 
 // Código principal da pessoa: LETICIA10 → LETICIAC5. Os outros cupons ficam como vieram.
 export function canonicalCoupon(code: string): string {
-  return outsideEntry(code)?.codes[0] ?? code;
+  return personOfCode(code)?.codes[0] ?? code;
 }
 
 // Como mostrar o cupom na lista: os códigos da mesma pessoa juntos ("LETICIAC5 + LETICIA10").
 export function couponLabel(code: string): string {
-  return outsideEntry(code)?.codes.join(" + ") ?? code;
+  return personOfCode(code)?.codes.join(" + ") ?? code;
 }
 
 // Cupom principal de quem está fora do ranking, pelo vendedor do faturado no Pipedrive ("LETICIA BELLO" → LETICIAC5).
 export function outsideTeamBySeller(seller: unknown): string | null {
-  const palavras = semAcento(String(seller ?? "")).split(/[^a-z0-9]+/).filter(Boolean);
-  if (!palavras.length) return null;
-  const p = OUTSIDE_TEAM_RANKING.find((x) => x.names.some((n) => n.every((w) => palavras.includes(w))));
-  return p?.codes[0] ?? null;
+  const p = personBySeller(seller);
+  if (!p?.outsideRanking) return null;
+  return p.codes[0] ?? p.name.toUpperCase();
 }
 
 export interface ParsedCoupon {
@@ -64,6 +90,7 @@ export function parseCoupon(raw: string | null | undefined): ParsedCoupon | null
   const match = value.match(/^((?:R\$\s*)?[\d.,]+%?)\s+-\s+(.+)$/);
   const code = canonicalCoupon((match ? match[2] : value).trim().toUpperCase());
   const discount = match ? match[1].replace(/\s+/g, " ") : null;
+  const pessoa = personOfCode(code);
   let kind: CouponKind = "desconto";
   if (code.startsWith(INVOICED_COUPON_PREFIX)) kind = "faturado";
   else if (discount && /^100(?:[.,]0+)?%$/.test(discount)) kind = "cortesia";
@@ -73,8 +100,8 @@ export function parseCoupon(raw: string | null | undefined): ParsedCoupon | null
   if (kind === "faturado") group = "faturado";
   else if (/^GANHADOR|RESGATE/.test(code)) group = "resgate";
   else if (/PALESTR|SPEAKER/.test(code)) group = "palestrante";
-  else if (outsideEntry(code)) group = "parceiro";
-  else if (TEAM_CODE.test(code) && (percent === null || percent === TEAM_DISCOUNT)) group = "equipe";
+  else if (pessoa?.outsideRanking) group = "parceiro";
+  else if (TEAM_CODE.test(code) && (pessoa || percent === null || percent === TEAM_DISCOUNT)) group = "equipe";
   return { code, discount, kind, group };
 }
 
@@ -88,6 +115,9 @@ export function formatDiscount(discount: string | null): string {
 // Nome da pessoa a partir do cupom da equipe, só o primeiro nome: EMILLYN5 → Emillyn, ALINEB5 → Aline.
 // A letra solta no fim (inicial do sobrenome) sai quando é uma consoante em que nome brasileiro não costuma terminar.
 export function teamMemberName(code: string): string {
+  // Pessoa cadastrada em Configurações: usa o primeiro nome cadastrado.
+  const pessoa = personOfCode(code);
+  if (pessoa?.name.trim()) return pessoa.name.trim().split(/\s+/)[0];
   let base = code.replace(/\d+$/, "").toLowerCase();
   if (base.length > 4 && /[bcdfgjkpqtvwx]$/.test(base)) base = base.slice(0, -1);
   // Inicial do sobrenome igual à última letra do nome: LETICIAA5 → Leticia.

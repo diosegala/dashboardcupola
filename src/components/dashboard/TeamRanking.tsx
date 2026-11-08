@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Chip } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
-import { TEAM_DISCOUNT, outsideTeamBySeller, parseCoupon, teamMemberName } from "@/lib/coupons";
+import { TEAM_DISCOUNT, outsideTeamBySeller, parseCoupon, personBySeller, teamMemberName } from "@/lib/coupons";
 import { couponForSeller } from "@/lib/invoicedTickets";
 import { PRE_VENDA, batchOf, batchOrder } from "@/lib/batches";
 import { cn } from "@/lib/utils";
@@ -56,7 +56,8 @@ export function buildTeamRanking(paying: Ticket[], extraCoupons: string[] = []):
   // "Aline Borges" → ALINEB5. Os cupons vêm das vendas da Sympla e dos cadastrados em Configurações.
   const cuponsEquipe = [...new Set([...extraCoupons, ...paying.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code)])];
   const nomeDoFaturado = (t: Ticket) => {
-    const cupom = couponForSeller(t.seller, cuponsEquipe);
+    // Vendedor cadastrado em Configurações › Cupons e vendedores vale antes da adivinhação pelo nome.
+    const cupom = personBySeller(t.seller ?? t.seller_name)?.codes[0] ?? couponForSeller(t.seller, cuponsEquipe);
     return { nome: cupom ? teamMemberName(cupom) : (t.seller_name as string), cupom };
   };
 

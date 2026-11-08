@@ -1,10 +1,18 @@
 import { describe, expect, it } from "vitest";
-import { couponLabel, outsideTeamBySeller, parseCoupon } from "@/lib/coupons";
+import { beforeEach } from "vitest";
+import { couponLabel, outsideTeamBySeller, parseCoupon, setCouponPeople, teamMemberName } from "@/lib/coupons";
 import { buildTeamRanking } from "@/components/dashboard/TeamRanking";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 
 const venda = (coupon_code: string | null, extra: Partial<Ticket> = {}): Ticket =>
   ({ coupon_code, quantity: 1, total_price: 100, ticket_type: "Lote 0 | Ingresso Padrão", sold_at: "2026-11-01T12:00:00Z", status: "approved", source: "sympla", ...extra }) as Ticket;
+
+// Mesmo cadastro que está em Configurações › Cupons e vendedores.
+beforeEach(() => {
+  setCouponPeople([
+    { name: "Letícia Bello", codes: ["LETICIAC5", "LETICIA10", "LETICIA15"], sellerNames: ["Leticia Bello", "Leticia Pinguelli", "Leticia Caetana"], outsideRanking: true },
+  ]);
+});
 
 describe("Letícia Bello fora do ranking da equipe", () => {
   it("LETICIA10 conta como o mesmo cupom de LETICIAC5", () => {
@@ -37,5 +45,25 @@ describe("Letícia Bello fora do ranking da equipe", () => {
     ]);
     const nomes = r.lotes.flatMap((l) => l.ranking.map((v) => ({ nome: v.nome, vendas: v.vendas })));
     expect(nomes).toEqual([{ nome: "Leticia", vendas: 1 }]);
+  });
+});
+
+describe("pessoas cadastradas pelos admins", () => {
+  it("cupons da mesma pessoa somam juntos e ela segue no ranking quando não está marcada como fora", () => {
+    setCouponPeople([{ name: "Suellen Moreira", codes: ["SUELLEN5", "SUELLEN10"], sellerNames: ["Suelen Moreira"], outsideRanking: false }]);
+    expect(parseCoupon("10.00% - SUELLEN10")).toMatchObject({ code: "SUELLEN5", group: "equipe" });
+    expect(teamMemberName("SUELLEN5")).toBe("Suellen");
+    const r = buildTeamRanking([
+      venda("5.00% - SUELLEN5"),
+      venda("10.00% - SUELLEN10"),
+      venda(null, { source: "pipedrive", seller: "SUELEN MOREIRA", seller_name: "Suelen" } as Partial<Ticket>),
+    ]);
+    expect(r.lotes.flatMap((l) => l.ranking.map((v) => ({ nome: v.nome, vendas: v.vendas })))).toEqual([{ nome: "Suellen", vendas: 3 }]);
+  });
+
+  it("marcar a pessoa como fora do ranking tira todas as vendas dela", () => {
+    setCouponPeople([{ name: "Ana Souza", codes: ["ANAS5"], sellerNames: ["Ana Souza"], outsideRanking: true }]);
+    const r = buildTeamRanking([venda("5.00% - ANAS5"), venda(null, { source: "pipedrive", seller: "Ana Souza", seller_name: "Ana" } as Partial<Ticket>)]);
+    expect(r.lotes.flatMap((l) => l.ranking)).toEqual([]);
   });
 });
