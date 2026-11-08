@@ -35,6 +35,6 @@ describe("Letícia Bello fora do ranking da equipe", () => {
       venda("5.00% - LETICIAA5"),
     ]);
     const nomes = r.lotes.flatMap((l) => l.ranking.map((v) => ({ nome: v.nome, vendas: v.vendas })));
-    expect(nomes).toEqual([{ nome: "Leticiaa", vendas: 1 }]);
+    expect(nomes).toEqual([{ nome: "Leticia", vendas: 1 }]);
   });
 });

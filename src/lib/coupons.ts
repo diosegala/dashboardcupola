@@ -90,6 +90,8 @@ export function formatDiscount(discount: string | null): string {
 export function teamMemberName(code: string): string {
   let base = code.replace(/\d+$/, "").toLowerCase();
   if (base.length > 4 && /[bcdfgjkpqtvwx]$/.test(base)) base = base.slice(0, -1);
+  // Inicial do sobrenome igual à última letra do nome: LETICIAA5 → Leticia.
+  else if (base.length > 4 && /([aeiou])\1$/.test(base)) base = base.slice(0, -1);
   return base.charAt(0).toUpperCase() + base.slice(1);
 }
 
