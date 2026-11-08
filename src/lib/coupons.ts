@@ -22,7 +22,7 @@ const TEAM_CODE = new RegExp(`^[A-Z]{3,}${TEAM_DISCOUNT}$`);
 // names: palavras que identificam a pessoa no campo "ID do canal de origem" do Pipedrive (sem acento, minúsculas).
 // Letícia Bello (Leticia Caetana Bello Pinguelli). LETICIAA5 é outra pessoa (Letícia Ardigó) e segue normal no ranking.
 export const OUTSIDE_TEAM_RANKING: { codes: string[]; names: string[][] }[] = [
-  { codes: ["LETICIAC5", "LETICIA10"], names: [["leticia", "bello"], ["leticia", "pinguelli"], ["leticia", "caetana"]] },
+  { codes: ["LETICIAC5", "LETICIA10", "LETICIA15"], names: [["leticia", "bello"], ["leticia", "pinguelli"], ["leticia", "caetana"]] },
 ];
 
 const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
