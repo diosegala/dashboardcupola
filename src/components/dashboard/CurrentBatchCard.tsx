@@ -1,5 +1,8 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsTrigger } from "@/components/ui/tabs";
+import { SlidingTabsList } from "./SlidingTabsList";
+import { SalesSection } from "./SalesSection";
 import { InfoTip } from "@/components/InfoTip";
 import { CountUp } from "@/components/CountUp";
 import { CompareLine } from "@/components/CompareLine";
@@ -25,6 +28,8 @@ const C = 2 * Math.PI * R;
 // Destaque do lote à venda agora: vendidos x meta do lote, saldo, receita e vendas recentes.
 export function CurrentBatchCard({ goals, allTimeTickets = [], previousYearTickets = [], className }: Props) {
   const { ativo: comparar } = useCompare();
+  // Primeira aba: sempre o lote à venda agora. Segunda: todos os lotes (veio do card Ingressos emitidos).
+  const [visao, setVisao] = useState<"vigente" | "lotes">("vigente");
   const dados = useMemo(() => {
     const { lotes, loteAtual } = resumoLotes(goals, allTimeTickets, previousYearTickets);
     const lote = lotes.find((l) => l.lote === loteAtual) ?? null;
@@ -44,11 +49,25 @@ export function CurrentBatchCard({ goals, allTimeTickets = [], previousYearTicke
   }, [goals, allTimeTickets, previousYearTickets]);
 
   return (
-    <Card className={cn("flex flex-col gap-4 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
-      <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
-        Lote vigente <InfoTip title="Lote vigente" />
+    <Card className={cn("flex min-w-0 flex-col gap-4 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
+          Lote vigente <InfoTip title="Lote vigente" />
+        </div>
+        <Tabs value={visao} onValueChange={(v) => setVisao(v as "vigente" | "lotes")}>
+          <SlidingTabsList value={visao} className="h-9">
+            <TabsTrigger value="vigente" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
+              Lote vigente
+            </TabsTrigger>
+            <TabsTrigger value="lotes" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
+              Por lote
+            </TabsTrigger>
+          </SlidingTabsList>
+        </Tabs>
       </div>
-      {!dados ? (
+      {visao === "lotes" ? (
+        <SalesSection embedded goals={goals} allTimeTickets={allTimeTickets} previousYearTickets={previousYearTickets} />
+      ) : !dados ? (
         <p className="py-8 text-center text-xs text-muted-foreground">Nenhuma venda por lote ainda.</p>
       ) : (
         <Conteudo {...dados} comparar={comparar} />

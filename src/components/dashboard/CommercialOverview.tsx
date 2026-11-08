@@ -200,9 +200,6 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         emitidosAnterior={filtrado ? pAnterior?.issuedCount : m.anterior?.issuedCount}
         emitidosAtual={filtrado ? p.issuedCount : m.issuedCount}
         quando={filtrado ? "no mesmo período (aprovados)" : undefined}
-        goals={goals}
-        allTimeTickets={tickets}
-        previousYearTickets={previousTickets}
         className="col-span-12 lg:col-span-5"
       />
       <PaceGauge

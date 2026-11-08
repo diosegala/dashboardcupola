@@ -5,7 +5,6 @@ import { Tabs, TabsTrigger } from "@/components/ui/tabs";
 import { InfoTip } from "@/components/InfoTip";
 import { SlidingTabsList } from "./SlidingTabsList";
 import { COUNTS_ON_GOAL, ticketCategory, type TicketCategory } from "@/lib/ticketCategory";
-import { SalesSection } from "./SalesSection";
 import { TICKET_KINDS, ticketKind, type TicketKind } from "@/lib/ticketKinds";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { cn } from "@/lib/utils";
@@ -146,14 +145,8 @@ export function IssuedTicketsCard({
   emitidosAtual,
   quando = "na mesma data (aprovados)",
   className,
-  goals = [],
-  allTimeTickets = [],
-  previousYearTickets = [],
 }: {
   tickets: Ticket[];
-  goals?: any[];
-  allTimeTickets?: Ticket[];
-  previousYearTickets?: Ticket[];
   goal?: MetaEmitidos;
   // Ingressos aprovados (pagos, faturados e cortesias) até hoje e no evento anterior na mesma data.
   emitidosAnterior?: number | null;
@@ -162,10 +155,10 @@ export function IssuedTicketsCard({
   quando?: string;
   className?: string;
 }) {
-  const [visao, setVisao] = useState<"categoria" | "tipo" | "lote">("categoria");
+  const [visao, setVisao] = useState<"categoria" | "tipo">("categoria");
   const [ativa, setAtiva] = useState<number | null>(null);
 
-  const fatias = useMemo(() => (visao === "categoria" ? porCategoria(tickets) : visao === "tipo" ? porTipo(tickets) : []), [tickets, visao]);
+  const fatias = useMemo(() => (visao === "categoria" ? porCategoria(tickets) : porTipo(tickets)), [tickets, visao]);
   const total = fatias.reduce((s, f) => s + f.value, 0);
   const destaque = ativa != null ? fatias[ativa] : null;
 
@@ -178,7 +171,7 @@ export function IssuedTicketsCard({
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">Todos os ingressos do evento e quanto cada parte representa</p>
         </div>
-        <Tabs value={visao} onValueChange={(v) => { setVisao(v as "categoria" | "tipo" | "lote"); setAtiva(null); }}>
+        <Tabs value={visao} onValueChange={(v) => { setVisao(v as "categoria" | "tipo"); setAtiva(null); }}>
           <SlidingTabsList value={visao} className="h-9">
             <TabsTrigger value="categoria" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
               Por categoria
@@ -186,17 +179,9 @@ export function IssuedTicketsCard({
             <TabsTrigger value="tipo" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
               Por tipo
             </TabsTrigger>
-            <TabsTrigger value="lote" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
-              Por lote
-            </TabsTrigger>
           </SlidingTabsList>
         </Tabs>
       </CardHeader>
-      {visao === "lote" ? (
-        <CardContent>
-          <SalesSection embedded goals={goals} allTimeTickets={allTimeTickets} previousYearTickets={previousYearTickets} />
-        </CardContent>
-      ) : (
       <CardContent className="grid items-center gap-4 md:grid-cols-[180px_minmax(0,1fr)]">
         <div className="relative mx-auto h-[180px] w-[180px]">
           <ResponsiveContainer width="100%" height="100%">
@@ -280,7 +265,6 @@ export function IssuedTicketsCard({
           />
         )}
       </CardContent>
-      )}
     </Card>
   );
 }
