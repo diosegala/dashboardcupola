@@ -14,7 +14,7 @@ interface SalesSectionProps {
   goals: any[];
   allTimeTickets?: Ticket[];
   previousYearTickets?: Ticket[];
-  // Sem o card em volta: usado como aba dentro de "Ingressos emitidos".
+  // Sem o card em volta: usado como aba "Por lote" dentro de "Lote vigente".
   embedded?: boolean;
 }
 
@@ -87,7 +87,57 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
     <p className="text-xs text-muted-foreground">Saldo e % vendido usam a meta "Ingressos do lote" da aba Metas. Preço: valor mais comum pago sem cupom.</p>
   );
 
-  if (embedded) return <div className="space-y-3 overflow-x-auto">{lista}{legenda}</div>;
+  // Dentro de um card estreito, cada lote vira um bloco: os números quebram linha em vez de vazar ou cortar.
+  if (embedded) {
+    return (
+      <div className="space-y-3">
+        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">
+          {lotes.map((l) => {
+            const vigente = l.lote === loteAtual;
+            const pct = l.meta ? l.pagantes / l.meta : null;
+            const saldo = l.meta ? Math.max(l.meta - l.pagantes, 0) : null;
+            return (
+              <li key={l.lote} className={cn("space-y-1.5 px-3 py-2.5 text-[13px] tabular-nums", vigente && "bg-primary/10")}>
+                <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+                  <span className="flex min-w-0 items-center gap-1.5 font-semibold">
+                    <span className="break-words">{l.lote}</span>
+                    {vigente && <Chip variant="paid" dot={false} className="px-1.5 py-0 text-[10px]">Vigente</Chip>}
+                  </span>
+                  <span className="whitespace-nowrap">
+                    <b className="font-semibold">{int(l.pagantes)}</b>
+                    <span className="text-muted-foreground">{l.meta ? ` de ${int(l.meta)}` : " vendidos"}</span>
+                  </span>
+                </div>
+                {pct !== null && (
+                  <div className="flex items-center gap-2">
+                    <div className="h-1.5 flex-1 rounded-full bg-secondary">
+                      <i className={cn("block h-full rounded-full", vigente ? "bg-primary" : "bg-data-blue")} style={{ width: `${Math.min(pct, 1) * 100}%` }} />
+                    </div>
+                    <span className="w-9 shrink-0 text-right text-xs">{Math.round(pct * 100)}%</span>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
+                  <span>Preço <b className="font-medium text-foreground">{l.preco !== null ? brl(l.preco) : "—"}</b></span>
+                  {saldo !== null && <span>Saldo <b className="font-medium text-foreground">{int(saldo)}</b></span>}
+                  <span>
+                    Receita <b className="font-medium text-foreground">{brl(l.receita)}</b>
+                    {l.metaReceita ? ` (${Math.round((l.receita / l.metaReceita) * 100)}% de ${brl(l.metaReceita)})` : ""}
+                  </span>
+                  {mostrarAnterior && l.anterior !== null && (
+                    <span>
+                      {rotulo} <b className="font-medium text-foreground">{int(l.anterior)}</b>
+                      {l.anteriorReceita !== null ? ` · ${brl(l.anteriorReceita)}` : ""}
+                    </span>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+        {legenda}
+      </div>
+    );
+  }
 
   return (
     <Card>
