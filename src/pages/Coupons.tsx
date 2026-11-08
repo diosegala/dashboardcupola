@@ -207,7 +207,12 @@ export default function Coupons() {
                     ) : visiveis.map((c, i) => (
                       <TableRow key={c.code}>
                         <TableCell className="tabular-nums text-muted-foreground">{i + 1}º</TableCell>
-                        <TableCell className="font-medium">{couponLabel(c.code)}</TableCell>
+                        <TableCell className="font-medium">
+                          {couponLabel(c.code)}
+                          {couponLabel(c.code) !== c.code && (
+                            <span className="block text-[11px] font-normal text-muted-foreground">{couponCodes(c.code)}</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-muted-foreground">{rotuloGrupo(c.group)}</TableCell>
                         <TableCell className="tabular-nums">{c.discounts.length > 1 ? c.discounts.map(formatDiscount).join(" / ") : formatDiscount(c.discount)}</TableCell>
                         <TableCell><Chip variant={KIND_CHIP[c.kind].variant}>{KIND_CHIP[c.kind].label}</Chip></TableCell>
