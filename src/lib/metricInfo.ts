@@ -6,7 +6,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Códigos em circulação": "Quantidade de códigos de cupom diferentes usados em ingressos aprovados do evento.",
   "Vendas com cupom": "Ingressos aprovados que usaram algum cupom, de qualquer tipo.",
   "Hall da fama": "Soma das vendas pagantes de cada pessoa da equipe em todos os lotes, incluindo o atual. Aparecem os 3 primeiros; Ver mais abre o restante. Abaixo do nome, quantos lotes já encerrados a pessoa venceu. Empates ficam na mesma posição.",
-  "Cupons em uso": "Todos os cupons usados no evento, do mais usado para o menos usado. O grupo é identificado pelo código (equipe, resgate, palestrantes, parceiros). Vendas faturadas somam no cupom da equipe de quem vendeu (ex.: SUELLEN5) e contam como venda normal. Cupons da mesma pessoa aparecem juntos numa linha só (ex.: LETICIAC5 + LETICIA10 + LETICIA15, em Parceiros e outros). A pizza mostra os 5 mais usados do filtro atual; o resto fica em Outros.",
+  "Cupons em uso": "Todos os cupons usados no evento, do mais usado para o menos usado. O grupo é identificado pelo código (equipe, resgate, palestrantes, parceiros). Vendas faturadas somam no cupom da equipe de quem vendeu (ex.: SUELLEN5) e contam como venda normal. Cupons da mesma pessoa aparecem juntos numa linha só (ex.: LETICIAC5 + LETICIA10 + LETICIA15). Quem junta os cupons é o cadastro em Configurações › Cupons e vendedores. A pizza mostra os 5 mais usados do filtro atual; o resto fica em Outros.",
   // Aba Comercial (definições do ds-summit)
   "Meta de ingressos pagantes":
     "Soma dos ingressos pagos na Sympla com os faturados internamente. Cortesias, expositores e patrocinadores não entram. A meta é cadastrada na tela Metas.",
@@ -46,7 +46,7 @@ export const METRIC_INFO: Record<string, string> = {
   Cupons:
     "Cupons usados nos ingressos emitidos, separados por grupo: Faturados (negócios ganhos no Pipedrive, por vendedor), Resgate (GANHADOR ou RESGATE), Palestrantes, Equipe CUPOLA (nome + 5, com 5% de desconto) e Parceiros e outros.",
   "Ranking da equipe":
-    "Pagantes vendidos com o cupom de cada pessoa da equipe CUPOLA, lote a lote. Na linha do tempo, o lote atual (o da venda mais recente) abre sozinho; os lotes anteriores podem ser consultados e os próximos aparecem esmaecidos. Os 3 primeiros ficam em destaque e Ver mais abre os demais. Passe o mouse no nome para ver o cupom. Contatos de fora da equipe interna (ex.: Letícia Bello) não entram no ranking, mesmo vendendo.",
+    "Pagantes vendidos com o cupom de cada pessoa da equipe CUPOLA, lote a lote. Na linha do tempo, o lote atual (o da venda mais recente) abre sozinho; os lotes anteriores podem ser consultados e os próximos aparecem esmaecidos. Os 3 primeiros ficam em destaque e Ver mais abre os demais. Passe o mouse no nome para ver o cupom. Quem está marcado como fora do ranking em Configurações › Cupons e vendedores não entra, mesmo vendendo.",
 
   "Pessoas no evento": "Pessoas que compraram ou vão participar do evento selecionado, juntando comprador e participante quando têm o mesmo e-mail, CPF, telefone ou nome completo.",
   "Já vieram antes": "Pessoas do evento selecionado que também compraram ou participaram de algum evento anterior.",
