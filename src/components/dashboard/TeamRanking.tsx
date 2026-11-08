@@ -54,10 +54,10 @@ export function buildTeamRanking(paying: Ticket[], extraCoupons: string[] = []):
 
   // O vendedor do faturado entra no nome do cupom dele: "ISABELLE SALDANHA" → ISABELLE5, "Suelen Moreira" → SUELLEN5,
   // "Aline Borges" → ALINEB5. Os cupons vêm das vendas da Sympla e dos cadastrados em Configurações.
-  const cuponsEquipe = [...new Set([...extraCoupons, ...paying.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code)])];
+  const cuponsEquipe = [...new Set([...extraCoupons, ...getCouponPeople().filter((x) => !x.outsideRanking).flatMap((x) => x.codes.slice(0, 1)), ...paying.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code)])];
   const nomeDoFaturado = (t: Ticket) => {
     // Vendedor cadastrado em Configurações › Cupons e vendedores vale antes da adivinhação pelo nome.
-    const cupom = personBySeller(t.seller ?? t.seller_name)?.codes[0] ?? couponForSeller(t.seller, cuponsEquipe);
+    const cupom = personBySeller(t.seller ?? t.seller_name)?.codes[0] ?? (couponForSeller(t.seller, cuponsEquipe) ?? couponForSeller(t.seller_name, cuponsEquipe));
     return { nome: cupom ? teamMemberName(cupom) : (t.seller_name as string), cupom };
   };
 

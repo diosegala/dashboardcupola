@@ -66,7 +66,7 @@ export default function Coupons() {
         // Faturado de quem está fora do ranking soma no cupom dela, na Equipe CUPOLA.
         c = { code: foraDaEquipe, discount: null, kind: "desconto", group: "equipe" };
       } else if (t.source === "pipedrive") {
-        const cupom = personBySeller(t.seller ?? t.seller_name)?.codes[0] ?? couponForSeller(t.seller, cuponsEquipe);
+        const cupom = personBySeller(t.seller ?? t.seller_name)?.codes[0] ?? (couponForSeller(t.seller, cuponsEquipe) ?? couponForSeller(t.seller_name, cuponsEquipe));
         const code = cupom ?? String(t.seller_name ?? "Vendedor não informado").toUpperCase();
         c = { code, discount: null, kind: "desconto", group: "equipe" };
       } else c = parseCoupon(t.coupon_code);
