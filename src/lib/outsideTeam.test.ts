@@ -51,7 +51,7 @@ describe("Letícia Bello fora do ranking da equipe", () => {
 
 describe("pessoas cadastradas pelos admins", () => {
   it("cupons da mesma pessoa somam juntos e ela segue no ranking quando não está marcada como fora", () => {
-    setCouponPeople([{ name: "Suellen Moreira", codes: ["SUELLEN5", "SUELLEN10"], sellerNames: ["Suelen Moreira"], outsideRanking: false }]);
+    setCouponPeople([{ name: "Suellen", codes: ["SUELLEN5", "SUELLEN10"], sellerNames: ["Suelen Moreira"], outsideRanking: false }]);
     expect(parseCoupon("10.00% - SUELLEN10")).toMatchObject({ code: "SUELLEN5", group: "equipe" });
     expect(teamMemberName("SUELLEN5")).toBe("Suellen");
     const r = buildTeamRanking([
