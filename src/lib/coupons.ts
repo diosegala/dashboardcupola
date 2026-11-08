@@ -63,9 +63,19 @@ export function canonicalCoupon(code: string): string {
   return personOfCode(code)?.codes[0] ?? code;
 }
 
-// Como mostrar o cupom na lista: os códigos da mesma pessoa juntos ("LETICIAC5 + LETICIA10").
+// Como mostrar o cupom na lista: pessoa cadastrada aparece pelo nome ("Leticia B"); os outros pelo código.
 export function couponLabel(code: string): string {
+  return personOfCode(code)?.name.trim() || code;
+}
+
+// Todos os códigos por trás de uma linha da lista ("LETICIAC5 + LETICIA10 + LETICIA15").
+export function couponCodes(code: string): string {
   return personOfCode(code)?.codes.join(" + ") ?? code;
+}
+
+// Cupom de pessoa que segue no grupo, mas não pontua no ranking da equipe.
+export function isOutsideRanking(code: string): boolean {
+  return !!personOfCode(code)?.outsideRanking;
 }
 
 // Cupom principal de quem está fora do ranking, pelo vendedor do faturado no Pipedrive ("LETICIA BELLO" → LETICIAC5).
@@ -100,7 +110,6 @@ export function parseCoupon(raw: string | null | undefined): ParsedCoupon | null
   if (kind === "faturado") group = "faturado";
   else if (/^GANHADOR|RESGATE/.test(code)) group = "resgate";
   else if (/PALESTR|SPEAKER/.test(code)) group = "palestrante";
-  else if (pessoa?.outsideRanking) group = "parceiro";
   else if (TEAM_CODE.test(code) && (pessoa || percent === null || percent === TEAM_DISCOUNT)) group = "equipe";
   return { code, discount, kind, group };
 }

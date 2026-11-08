@@ -9,7 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Chip } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
-import { TEAM_DISCOUNT, outsideTeamBySeller, parseCoupon, personBySeller, teamMemberName } from "@/lib/coupons";
+import { TEAM_DISCOUNT, isOutsideRanking, outsideTeamBySeller, parseCoupon, personBySeller, teamMemberName } from "@/lib/coupons";
 import { couponForSeller } from "@/lib/invoicedTickets";
 import { PRE_VENDA, batchOf, batchOrder } from "@/lib/batches";
 import { cn } from "@/lib/utils";
@@ -73,8 +73,8 @@ export function buildTeamRanking(paying: Ticket[], extraCoupons: string[] = []):
     const c = parseCoupon(t.coupon_code);
     const faturado = t.source === "pipedrive";
     if (faturado ? !t.seller_name : c?.group !== "equipe") return;
-    // Contato fora da equipe interna (ex.: Letícia Bello): não entra no ranking, nem pelo faturado.
-    if (faturado && outsideTeamBySeller(t.seller ?? t.seller_name)) return;
+    // Marcado como fora do ranking em Configurações (ex.: Leticia B): segue na Equipe CUPOLA, mas não pontua.
+    if (faturado ? outsideTeamBySeller(t.seller ?? t.seller_name) : isOutsideRanking(c!.code)) return;
     const doFaturado = faturado ? nomeDoFaturado(t) : null;
     const nome = doFaturado ? doFaturado.nome : teamMemberName(c!.code);
     const marca = faturado ? FATURADO_LABEL : c!.code;

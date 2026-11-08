@@ -16,7 +16,7 @@ import { splitTickets } from "@/hooks/useCommercialMetrics";
 import { CRM_DISCOUNT_HINT, couponForSeller, crmDiscountCoverage } from "@/lib/invoicedTickets";
 import { TeamRanking, buildTeamRanking } from "@/components/dashboard/TeamRanking";
 import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
-import { COUPON_GROUPS, couponDiscountValue, couponLabel, formatDiscount, outsideTeamBySeller, parseCoupon, personBySeller, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
+import { COUPON_GROUPS, couponCodes, couponDiscountValue, couponLabel, formatDiscount, outsideTeamBySeller, parseCoupon, personBySeller, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -62,8 +62,8 @@ export default function Coupons() {
       let c: ParsedCoupon | null;
       const foraDaEquipe = t.source === "pipedrive" ? outsideTeamBySeller(t.seller ?? t.seller_name) : null;
       if (foraDaEquipe) {
-        // Faturado de contato fora da equipe interna soma no cupom dele, no grupo Parceiros e outros.
-        c = { code: foraDaEquipe, discount: null, kind: "desconto", group: "parceiro" };
+        // Faturado de quem está fora do ranking soma no cupom dela, na Equipe CUPOLA.
+        c = { code: foraDaEquipe, discount: null, kind: "desconto", group: "equipe" };
       } else if (t.source === "pipedrive") {
         const cupom = personBySeller(t.seller ?? t.seller_name)?.codes[0] ?? couponForSeller(t.seller, cuponsEquipe);
         const code = cupom ?? String(t.seller_name ?? "Vendedor não informado").toUpperCase();
@@ -87,7 +87,7 @@ export default function Coupons() {
   const grupos = COUPON_GROUPS.map((g) => ({ ...g, uses: cupons.filter((c) => c.group === g.key).reduce((s, c) => s + c.uses, 0) })).filter((g) => g.uses > 0);
   const grupoAtivo = grupos.some((g) => g.key === grupo) ? grupo : "todos";
   const termo = busca.trim().toUpperCase();
-  const visiveis = cupons.filter((c) => (grupoAtivo === "todos" || c.group === grupoAtivo) && (!termo || couponLabel(c.code).includes(termo)));
+  const visiveis = cupons.filter((c) => (grupoAtivo === "todos" || c.group === grupoAtivo) && (!termo || couponLabel(c.code).toUpperCase().includes(termo) || couponCodes(c.code).includes(termo)));
   const rotuloGrupo = (g: CouponGroup) => COUPON_GROUPS.find((x) => x.key === g)?.label ?? g;
 
   // Pizza: os 5 cupons mais usados (do filtro atual) e o resto somado em "Outros".
@@ -207,7 +207,12 @@ export default function Coupons() {
                     ) : visiveis.map((c, i) => (
                       <TableRow key={c.code}>
                         <TableCell className="tabular-nums text-muted-foreground">{i + 1}º</TableCell>
-                        <TableCell className="font-medium">{couponLabel(c.code)}</TableCell>
+                        <TableCell className="font-medium">
+                          {couponLabel(c.code)}
+                          {couponLabel(c.code) !== c.code && (
+                            <span className="block text-[11px] font-normal text-muted-foreground">{couponCodes(c.code)}</span>
+                          )}
+                        </TableCell>
                         <TableCell className="text-muted-foreground">{rotuloGrupo(c.group)}</TableCell>
                         <TableCell className="tabular-nums">{c.discounts.length > 1 ? c.discounts.map(formatDiscount).join(" / ") : formatDiscount(c.discount)}</TableCell>
                         <TableCell><Chip variant={KIND_CHIP[c.kind].variant}>{KIND_CHIP[c.kind].label}</Chip></TableCell>

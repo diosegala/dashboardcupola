@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { beforeEach } from "vitest";
-import { couponLabel, outsideTeamBySeller, parseCoupon, setCouponPeople, teamMemberName } from "@/lib/coupons";
+import { couponCodes, couponLabel, outsideTeamBySeller, parseCoupon, setCouponPeople, teamMemberName } from "@/lib/coupons";
 import { buildTeamRanking } from "@/components/dashboard/TeamRanking";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 
@@ -10,7 +10,7 @@ const venda = (coupon_code: string | null, extra: Partial<Ticket> = {}): Ticket 
 // Mesmo cadastro que está em Configurações › Cupons e vendedores.
 beforeEach(() => {
   setCouponPeople([
-    { name: "Letícia Bello", codes: ["LETICIAC5", "LETICIA10", "LETICIA15"], sellerNames: ["Leticia Bello", "Leticia Pinguelli", "Leticia Caetana"], outsideRanking: true },
+    { name: "Leticia B", codes: ["LETICIAC5", "LETICIA10", "LETICIA15"], sellerNames: ["Leticia Bello", "Leticia Pinguelli", "Leticia Caetana"], outsideRanking: true },
   ]);
 });
 
@@ -18,12 +18,13 @@ describe("Letícia Bello fora do ranking da equipe", () => {
   it("LETICIA10 conta como o mesmo cupom de LETICIAC5", () => {
     expect(parseCoupon("10.00% - LETICIA10")?.code).toBe("LETICIAC5");
     expect(parseCoupon("15.00% - LETICIA15")?.code).toBe("LETICIAC5");
-    expect(couponLabel("LETICIAC5")).toBe("LETICIAC5 + LETICIA10 + LETICIA15");
+    expect(couponLabel("LETICIAC5")).toBe("Leticia B");
+    expect(couponCodes("LETICIAC5")).toBe("LETICIAC5 + LETICIA10 + LETICIA15");
   });
 
-  it("os cupons da Bello não ficam no grupo da equipe", () => {
-    expect(parseCoupon("5.00% - LETICIAC5")?.group).toBe("parceiro");
-    expect(parseCoupon("10.00% - LETICIA10")?.group).toBe("parceiro");
+  it("os cupons da Bello ficam na Equipe CUPOLA", () => {
+    expect(parseCoupon("5.00% - LETICIAC5")?.group).toBe("equipe");
+    expect(parseCoupon("10.00% - LETICIA10")?.group).toBe("equipe");
   });
 
   it("LETICIAA5 (Letícia Ardigó) segue como equipe", () => {

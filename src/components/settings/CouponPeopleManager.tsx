@@ -173,8 +173,8 @@ export function CouponPeopleManager() {
             >
               <div className="space-y-1.5">
                 <Label htmlFor="cp-nome">Nome da pessoa</Label>
-                <Input id="cp-nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Letícia Bello" required />
-                <p className="text-xs text-muted-foreground">O primeiro nome aparece no ranking.</p>
+                <Input id="cp-nome" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Leticia B" required />
+                <p className="text-xs text-muted-foreground">É assim que a pessoa aparece na lista de Cupons. No ranking aparece o primeiro nome.</p>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="cp-cupons">Cupons</Label>
@@ -189,7 +189,7 @@ export function CouponPeopleManager() {
               <div className="flex items-center justify-between gap-3 rounded-lg border border-border p-3">
                 <div>
                   <Label htmlFor="cp-fora">Fora do ranking da equipe</Label>
-                  <p className="text-xs text-muted-foreground">As vendas dela não pontuam no ranking. Os cupons seguem na lista de Cupons, em Parceiros e outros.</p>
+                  <p className="text-xs text-muted-foreground">As vendas dela não pontuam no ranking. Os cupons seguem na lista de Cupons, no grupo de sempre.</p>
                 </div>
                 <Switch id="cp-fora" checked={form.outsideRanking} onCheckedChange={(v) => setForm({ ...form, outsideRanking: v })} />
               </div>
