@@ -68,3 +68,21 @@ describe("pessoas cadastradas pelos admins", () => {
     expect(r.lotes.flatMap((l) => l.ranking)).toEqual([]);
   });
 });
+
+describe("nomes padronizados da planilha", () => {
+  beforeEach(() => {
+    setCouponPeople([
+      { name: "Kariny", codes: ["KARINY5"], sellerNames: [], outsideRanking: false },
+      { name: "Aline B", codes: ["ALINEB5"], sellerNames: [], outsideRanking: false },
+      { name: "Erica", codes: ["ERICA"], sellerNames: [], outsideRanking: false },
+    ]);
+  });
+  it("mostra o nome de quem concedeu e, sem cadastro, o código completo", () => {
+    expect(couponLabel("KARINY5")).toBe("Kariny");
+    expect(couponLabel("ALINEB5")).toBe("Aline B");
+    expect(couponLabel("SECOVIPR5")).toBe("SECOVIPR5");
+  });
+  it("colaborador cadastrado fica na Equipe CUPOLA mesmo sem o 5 no código", () => {
+    expect(parseCoupon("5.00% - ERICA")?.group).toBe("equipe");
+  });
+});
