@@ -1,9 +1,6 @@
 import { useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
-
-// Na aba Por lote, 3 lotes por página para a lista não crescer demais.
-const POR_PAGINA = 3;
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTip } from "@/components/InfoTip";
 import { Chip } from "@/components/Chip";
@@ -11,6 +8,9 @@ import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { useCompare } from "@/hooks/useCompare";
 import { resumoLotes } from "@/lib/batchSummary";
 import { cn } from "@/lib/utils";
+
+// Na aba Por lote, 3 lotes por página para a lista não crescer demais.
+const POR_PAGINA = 3;
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
