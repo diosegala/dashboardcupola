@@ -30,6 +30,7 @@ import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContaine
 import { ChartLegend } from "@/components/dashboard/charts/ChartLegend";
 import { useSeriesVisibility } from "@/components/dashboard/charts/chartSeries";
 import { cn } from "@/lib/utils";
+import { canalDe } from "@/lib/salesChannel";
 
 interface MarketingTabsProps {
   adMetrics: any[];
@@ -132,34 +133,10 @@ function campaignOptions(linhas: any[]): Campaign[] {
   return Array.from(map.entries()).map(([campaign_id, campaign_name]) => ({ campaign_id, campaign_name }));
 }
 
-// Canal de divulgação a partir dos UTMs. Link da equipe (medium "timecupola") vira Equipe CUPOLA;
-// RD Station e e-mail viram E-mail marketing. O resto fica como veio (Instagram, Whatsapp...).
-function canalDe(t: Ticket): string {
-  // Faturado interno é venda da equipe (regra do painel de vendas do Summit).
-  if (t.source === "pipedrive") return "Equipe CUPOLA";
-  const u = utmLabel(t.utm_source);
-  if (!u) return t.coupon_code ? "Equipe CUPOLA" : "Sem link";
-  const medium = (t.utm_medium ?? "").trim().toLowerCase();
-  if (medium === "timecupola") return "Equipe CUPOLA";
-  if (/^(rd[-\s]?station|rd|e-?mail.*)$/i.test(u) || medium === "email") return "E-mail marketing";
-  return u;
-}
-
-// Ingressos e valor por canal, do maior para o menor.
-function vendasPorCanal(pagantes: Ticket[]) {
-  const map = new Map<string, { value: number; amount: number }>();
-  pagantes.forEach((t) => {
-    const k = canalDe(t);
-    const c = map.get(k) ?? { value: 0, amount: 0 };
-    map.set(k, { value: c.value + (t.quantity || 0), amount: c.amount + Number(t.total_price || 0) });
-  });
-  return Array.from(map.entries()).map(([label, v]) => ({ label, ...v })).sort((a, b) => b.value - a.value);
-}
-
 // ---------- Visão geral ----------
+// "Vendas por canal" (gráfico de barras) fica na aba Comercial; aqui segue só a tabela da aba Links.
 function Overview({ adMetrics, emailCampaigns, tickets, goals, range }: MarketingTabsProps) {
   const { paying } = useMemo(() => splitTickets(tickets), [tickets]);
-  const canais = useMemo(() => vendasPorCanal(paying), [paying]);
   const midia = adTotals(adMetrics.filter((a) => a.source === "meta" || a.source === "google_ads"));
   const sympla = paying.filter((t) => t.source !== "pipedrive");
   const ingressosSympla = sympla.reduce((s, t) => s + (t.quantity || 0), 0);
@@ -176,7 +153,6 @@ function Overview({ adMetrics, emailCampaigns, tickets, goals, range }: Marketin
         <MetricCard title="Vendas com link parametrizado" value={ingressosSympla > 0 ? pct((comLink / ingressosSympla) * 100, 0) : "—"} icon={Link2} description={`${int(comLink)} de ${int(ingressosSympla)} ingressos da Sympla têm UTM`} />
       </div>
       <FunnelKPISection adMetrics={adMetrics} emailCampaigns={emailCampaigns} tickets={tickets} goals={goals} range={range} />
-      {canais.length > 0 && <SegmentCard title="Vendas por canal" items={canais} rodape="Equipe CUPOLA soma os links da equipe, os cupons sem link e os faturados internos. O detalhe de cada link está na aba Links." />}
     </div>
   );
 }
