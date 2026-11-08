@@ -14,25 +14,20 @@ import { PeopleTable } from "@/components/buyers/PeopleTable";
 import { SellerBuyerList } from "@/components/buyers/SellerBuyerList";
 import { useAllTimeTicketSales, useFormAnswerCounts } from "@/hooks/useDashboardData";
 import { buildBuyers, eventRef, type DetailRow } from "@/lib/buyers";
+import { fetchAllPages } from "@/lib/fetchPages";
 
 const int = (n: number) => n.toLocaleString("pt-BR");
 
 // Lê uma consulta em páginas de 1000 linhas.
-async function paginado(consulta: (from: number) => PromiseLike<{ data: any[] | null; error: unknown }>) {
-  const todos: any[] = [];
-  for (let from = 0; ; from += 1000) {
-    const { data, error } = await consulta(from);
-    if (error || !data) break;
-    todos.push(...data);
-    if (data.length < 1000) break;
-  }
-  return todos;
+// Várias páginas ao mesmo tempo (fetchAllPages).
+function paginado(consulta: (from: number) => PromiseLike<{ data: any[] | null; error: unknown }>) {
+  return fetchAllPages((from) => consulta(from));
 }
 
 // Cupom de cada ingresso do evento: das vendas atuais e das guardadas na base própria.
 async function loadCoupons(e: EventRow): Promise<Map<string, string>> {
   const map = new Map<string, string>();
-  const historico = await paginado((from) =>
+  const historicoP = paginado((from) =>
     supabase
       .from("event_history" as any)
       .select("sid:data->>sympla_order_id, cupom:data->>coupon_code")
@@ -41,25 +36,27 @@ async function loadCoupons(e: EventRow): Promise<Map<string, string>> {
       .not("data->>coupon_code", "is", null)
       .range(from, from + 999),
   );
-  historico.forEach((r) => r.sid && r.cupom && map.set(String(r.sid), r.cupom));
-  if (e.sympla_event_id) {
-    const vendas = await paginado((from) =>
+  const vendasP = e.sympla_event_id
+    ? paginado((from) =>
       supabase
         .from("ticket_sales")
         .select("sympla_order_id, coupon_code")
         .eq("event_id", e.sympla_event_id!)
         .not("coupon_code", "is", null)
         .range(from, from + 999),
-    );
-    vendas.forEach((r) => map.set(String(r.sympla_order_id), r.coupon_code));
-  }
+    )
+    : Promise.resolve([]);
+  const [historico, vendas] = await Promise.all([historicoP, vendasP]);
+  historico.forEach((r) => r.sid && r.cupom && map.set(String(r.sid), r.cupom));
+  vendas.forEach((r) => map.set(String(r.sympla_order_id), r.coupon_code));
   return map;
 }
 
 // Dados completos de um evento: os da Sympla e os guardados na base própria, sem repetir pedidos, com o cupom.
 async function loadEventRows(e: EventRow): Promise<DetailRow[]> {
   const map = new Map<string, DetailRow>();
-  const historico = await paginado((from) =>
+  const cuponsP = loadCoupons(e);
+  const historicoP = paginado((from) =>
     supabase
       .from("event_history" as any)
       .select("data")
@@ -67,19 +64,19 @@ async function loadEventRows(e: EventRow): Promise<DetailRow[]> {
       .eq("source_table", "ticket_sales_details")
       .range(from, from + 999),
   );
-  historico.forEach((r) => map.set(r.data.sympla_order_id, r.data));
-  if (e.sympla_event_id) {
-    const id = e.sympla_event_id;
-    const atuais = await paginado((from) =>
+  const id = e.sympla_event_id;
+  const atuaisP = id
+    ? paginado((from) =>
       supabase
         .from("ticket_sales_details" as any)
         .select("sympla_order_id, participant_data, order_data")
         .or(`participant_data->>event_id.eq.${id},order_data->>event_id.eq.${id}`)
         .range(from, from + 999),
-    );
-    atuais.forEach((r) => map.set(r.sympla_order_id, r));
-  }
-  const cupons = await loadCoupons(e);
+    )
+    : Promise.resolve([]);
+  const [historico, atuais, cupons] = await Promise.all([historicoP, atuaisP, cuponsP]);
+  historico.forEach((r) => map.set(r.data.sympla_order_id, r.data));
+  atuais.forEach((r) => map.set(r.sympla_order_id, r));
   return Array.from(map.values()).map((r) => ({ ...r, coupon: cupons.get(String(r.sympla_order_id)) ?? null }));
 }
 
