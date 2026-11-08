@@ -16,7 +16,8 @@ import { splitTickets } from "@/hooks/useCommercialMetrics";
 import { CRM_DISCOUNT_HINT, couponForSeller, crmDiscountCoverage } from "@/lib/invoicedTickets";
 import { TeamRanking, buildTeamRanking } from "@/components/dashboard/TeamRanking";
 import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
-import { COUPON_GROUPS, couponCodes, couponDiscountValue, couponLabel, formatDiscount, outsideTeamBySeller, parseCoupon, personBySeller, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { COUPON_GROUPS, couponCodes, couponDiscountValue, couponLabel, formatDiscount, getCouponPeople, outsideTeamBySeller, parseCoupon, personBySeller, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -56,7 +57,7 @@ export default function Coupons() {
   const cupons = useMemo(() => {
     const map = new Map<string, CupomLinha>();
     const todos = [...paying, ...bonus];
-    const cuponsEquipe = [...new Set(todos.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code))];
+    const cuponsEquipe = [...new Set(todos.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code), ...getCouponPeople().filter((x) => !x.outsideRanking).flatMap((x) => x.codes.slice(0, 1)))];
     todos.forEach((t) => {
       // Faturado interno (Pipedrive) soma no cupom da equipe de quem vendeu (ex.: Suelen → SUELLEN5), como venda normal.
       let c: ParsedCoupon | null;
@@ -65,7 +66,7 @@ export default function Coupons() {
         // Faturado de quem está fora do ranking soma no cupom dela, na Equipe CUPOLA.
         c = { code: foraDaEquipe, discount: null, kind: "desconto", group: "equipe" };
       } else if (t.source === "pipedrive") {
-        const cupom = personBySeller(t.seller ?? t.seller_name)?.codes[0] ?? couponForSeller(t.seller, cuponsEquipe);
+        const cupom = personBySeller(t.seller ?? t.seller_name)?.codes[0] ?? (couponForSeller(t.seller, cuponsEquipe) ?? couponForSeller(t.seller_name, cuponsEquipe));
         const code = cupom ?? String(t.seller_name ?? "Vendedor não informado").toUpperCase();
         c = { code, discount: null, kind: "desconto", group: "equipe" };
       } else c = parseCoupon(t.coupon_code);
@@ -92,7 +93,7 @@ export default function Coupons() {
 
   // Pizza: os 5 cupons mais usados (do filtro atual) e o resto somado em "Outros".
   const pizza = useMemo(() => {
-    const top = visiveis.slice(0, 5).map((c) => ({ label: couponLabel(c.code), value: c.uses }));
+    const top = visiveis.slice(0, 5).map((c) => ({ label: couponLabel(c.code), codes: couponCodes(c.code), value: c.uses }));
     const resto = visiveis.slice(5).reduce((s, c) => s + c.uses, 0);
     return resto > 0 ? [...top, { label: "Outros", value: resto }] : top;
   }, [visiveis]);
@@ -179,7 +180,7 @@ export default function Coupons() {
                       <li key={p.label} className="flex items-center justify-between gap-2">
                         <span className="flex min-w-0 items-center gap-2">
                           <i className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: CORES[i % CORES.length] }} />
-                          <span className="truncate" title={p.label}>{p.label}</span>
+                          <span className="truncate" title={"codes" in p && p.codes ? `Cupom: ${p.codes}` : p.label}>{p.label}</span>
                         </span>
                         <b className="tabular-nums">{int(p.value)}</b>
                       </li>
@@ -208,9 +209,15 @@ export default function Coupons() {
                       <TableRow key={c.code}>
                         <TableCell className="tabular-nums text-muted-foreground">{i + 1}º</TableCell>
                         <TableCell className="font-medium">
-                          {couponLabel(c.code)}
-                          {couponLabel(c.code) !== c.code && (
-                            <span className="block text-[11px] font-normal text-muted-foreground">{couponCodes(c.code)}</span>
+                          {couponLabel(c.code) !== c.code ? (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className="cursor-help underline decoration-dotted decoration-muted-foreground/50 underline-offset-4">{couponLabel(c.code)}</span>
+                              </TooltipTrigger>
+                              <TooltipContent>Cupom: {couponCodes(c.code)}</TooltipContent>
+                            </Tooltip>
+                          ) : (
+                            c.code
                           )}
                         </TableCell>
                         <TableCell className="text-muted-foreground">{rotuloGrupo(c.group)}</TableCell>

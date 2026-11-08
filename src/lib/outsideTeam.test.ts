@@ -51,7 +51,7 @@ describe("Letícia Bello fora do ranking da equipe", () => {
 
 describe("pessoas cadastradas pelos admins", () => {
   it("cupons da mesma pessoa somam juntos e ela segue no ranking quando não está marcada como fora", () => {
-    setCouponPeople([{ name: "Suellen Moreira", codes: ["SUELLEN5", "SUELLEN10"], sellerNames: ["Suelen Moreira"], outsideRanking: false }]);
+    setCouponPeople([{ name: "Suellen", codes: ["SUELLEN5", "SUELLEN10"], sellerNames: ["Suelen Moreira"], outsideRanking: false }]);
     expect(parseCoupon("10.00% - SUELLEN10")).toMatchObject({ code: "SUELLEN5", group: "equipe" });
     expect(teamMemberName("SUELLEN5")).toBe("Suellen");
     const r = buildTeamRanking([
@@ -66,5 +66,23 @@ describe("pessoas cadastradas pelos admins", () => {
     setCouponPeople([{ name: "Ana Souza", codes: ["ANAS5"], sellerNames: ["Ana Souza"], outsideRanking: true }]);
     const r = buildTeamRanking([venda("5.00% - ANAS5"), venda(null, { source: "pipedrive", seller: "Ana Souza", seller_name: "Ana" } as Partial<Ticket>)]);
     expect(r.lotes.flatMap((l) => l.ranking)).toEqual([]);
+  });
+});
+
+describe("nomes padronizados da planilha", () => {
+  beforeEach(() => {
+    setCouponPeople([
+      { name: "Kariny", codes: ["KARINY5"], sellerNames: [], outsideRanking: false },
+      { name: "Aline B", codes: ["ALINEB5"], sellerNames: [], outsideRanking: false },
+      { name: "Erica", codes: ["ERICA"], sellerNames: [], outsideRanking: false },
+    ]);
+  });
+  it("mostra o nome de quem concedeu e, sem cadastro, o código completo", () => {
+    expect(couponLabel("KARINY5")).toBe("Kariny");
+    expect(couponLabel("ALINEB5")).toBe("Aline B");
+    expect(couponLabel("SECOVIPR5")).toBe("SECOVIPR5");
+  });
+  it("colaborador cadastrado fica na Equipe CUPOLA mesmo sem o 5 no código", () => {
+    expect(parseCoupon("5.00% - ERICA")?.group).toBe("equipe");
   });
 });

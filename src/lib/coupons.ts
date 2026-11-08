@@ -110,7 +110,7 @@ export function parseCoupon(raw: string | null | undefined): ParsedCoupon | null
   if (kind === "faturado") group = "faturado";
   else if (/^GANHADOR|RESGATE/.test(code)) group = "resgate";
   else if (/PALESTR|SPEAKER/.test(code)) group = "palestrante";
-  else if (TEAM_CODE.test(code) && (pessoa || percent === null || percent === TEAM_DISCOUNT)) group = "equipe";
+  else if (pessoa || (TEAM_CODE.test(code) && (percent === null || percent === TEAM_DISCOUNT))) group = "equipe";
   return { code, discount, kind, group };
 }
 
@@ -124,9 +124,9 @@ export function formatDiscount(discount: string | null): string {
 // Nome da pessoa a partir do cupom da equipe, só o primeiro nome: EMILLYN5 → Emillyn, ALINEB5 → Aline.
 // A letra solta no fim (inicial do sobrenome) sai quando é uma consoante em que nome brasileiro não costuma terminar.
 export function teamMemberName(code: string): string {
-  // Pessoa cadastrada em Configurações: usa o primeiro nome cadastrado.
+  // Pessoa cadastrada em Configurações: usa o nome cadastrado (ex.: "Aline B").
   const pessoa = personOfCode(code);
-  if (pessoa?.name.trim()) return pessoa.name.trim().split(/\s+/)[0];
+  if (pessoa?.name.trim()) return pessoa.name.trim();
   let base = code.replace(/\d+$/, "").toLowerCase();
   if (base.length > 4 && /[bcdfgjkpqtvwx]$/.test(base)) base = base.slice(0, -1);
   // Inicial do sobrenome igual à última letra do nome: LETICIAA5 → Leticia.
