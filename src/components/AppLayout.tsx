@@ -6,6 +6,7 @@ import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { EventProvider } from "@/hooks/useEvent";
 import { usePipedriveAutoSync } from "@/hooks/useSponsorship";
+import { CouponPeopleProvider } from "@/hooks/useCouponPeople";
 
 // Telas que a equipe de vendas pode abrir; as outras voltam para o ranking.
 const TELAS_EQUIPE = ["/", "/compradores"];
@@ -33,7 +34,9 @@ export function AppLayout() {
           <main className="mx-auto w-full max-w-[1240px] flex-1 px-4 pb-16 pt-10 sm:px-6">
             {/* O menu e o topo ficam na tela enquanto a página abre */}
             <Suspense fallback={null}>
-              <Outlet />
+              <CouponPeopleProvider>
+                <Outlet />
+              </CouponPeopleProvider>
             </Suspense>
           </main>
         </div>
