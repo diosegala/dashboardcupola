@@ -17,6 +17,38 @@ export const COUPON_GROUPS: { key: CouponGroup; label: string }[] = [
 export const TEAM_DISCOUNT = 5;
 const TEAM_CODE = new RegExp(`^[A-Z]{3,}${TEAM_DISCOUNT}$`);
 
+// Contatos com cupom no formato da equipe que, por regra, não entram no ranking da equipe interna.
+// codes: todos os cupons da pessoa, o primeiro é o principal; na lista de cupons eles contam como um só.
+// names: palavras que identificam a pessoa no campo "ID do canal de origem" do Pipedrive (sem acento, minúsculas).
+// Letícia Bello (Leticia Caetana Bello Pinguelli). LETICIAA5 é outra pessoa (Letícia Ardigó) e segue normal no ranking.
+export const OUTSIDE_TEAM_RANKING: { codes: string[]; names: string[][] }[] = [
+  { codes: ["LETICIAC5", "LETICIA10"], names: [["leticia", "bello"], ["leticia", "pinguelli"], ["leticia", "caetana"]] },
+];
+
+const semAcento = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+
+function outsideEntry(code: string) {
+  return OUTSIDE_TEAM_RANKING.find((p) => p.codes.includes(code));
+}
+
+// Código principal da pessoa: LETICIA10 → LETICIAC5. Os outros cupons ficam como vieram.
+export function canonicalCoupon(code: string): string {
+  return outsideEntry(code)?.codes[0] ?? code;
+}
+
+// Como mostrar o cupom na lista: os códigos da mesma pessoa juntos ("LETICIAC5 + LETICIA10").
+export function couponLabel(code: string): string {
+  return outsideEntry(code)?.codes.join(" + ") ?? code;
+}
+
+// Cupom principal de quem está fora do ranking, pelo vendedor do faturado no Pipedrive ("LETICIA BELLO" → LETICIAC5).
+export function outsideTeamBySeller(seller: unknown): string | null {
+  const palavras = semAcento(String(seller ?? "")).split(/[^a-z0-9]+/).filter(Boolean);
+  if (!palavras.length) return null;
+  const p = OUTSIDE_TEAM_RANKING.find((x) => x.names.some((n) => n.every((w) => palavras.includes(w))));
+  return p?.codes[0] ?? null;
+}
+
 export interface ParsedCoupon {
   code: string;
   // Desconto como a Sympla envia: "10.00%" ou "R$ 944.55".
@@ -30,7 +62,7 @@ export function parseCoupon(raw: string | null | undefined): ParsedCoupon | null
   const value = (raw ?? "").trim();
   if (!value) return null;
   const match = value.match(/^((?:R\$\s*)?[\d.,]+%?)\s+-\s+(.+)$/);
-  const code = (match ? match[2] : value).trim().toUpperCase();
+  const code = canonicalCoupon((match ? match[2] : value).trim().toUpperCase());
   const discount = match ? match[1].replace(/\s+/g, " ") : null;
   let kind: CouponKind = "desconto";
   if (code.startsWith(INVOICED_COUPON_PREFIX)) kind = "faturado";
@@ -41,6 +73,7 @@ export function parseCoupon(raw: string | null | undefined): ParsedCoupon | null
   if (kind === "faturado") group = "faturado";
   else if (/^GANHADOR|RESGATE/.test(code)) group = "resgate";
   else if (/PALESTR|SPEAKER/.test(code)) group = "palestrante";
+  else if (outsideEntry(code)) group = "parceiro";
   else if (TEAM_CODE.test(code) && (percent === null || percent === TEAM_DISCOUNT)) group = "equipe";
   return { code, discount, kind, group };
 }
@@ -57,6 +90,8 @@ export function formatDiscount(discount: string | null): string {
 export function teamMemberName(code: string): string {
   let base = code.replace(/\d+$/, "").toLowerCase();
   if (base.length > 4 && /[bcdfgjkpqtvwx]$/.test(base)) base = base.slice(0, -1);
+  // Inicial do sobrenome igual à última letra do nome: LETICIAA5 → Leticia.
+  else if (base.length > 4 && /([aeiou])\1$/.test(base)) base = base.slice(0, -1);
   return base.charAt(0).toUpperCase() + base.slice(1);
 }
 
