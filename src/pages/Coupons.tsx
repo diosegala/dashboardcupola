@@ -16,7 +16,7 @@ import { splitTickets } from "@/hooks/useCommercialMetrics";
 import { CRM_DISCOUNT_HINT, couponForSeller, crmDiscountCoverage } from "@/lib/invoicedTickets";
 import { TeamRanking, buildTeamRanking } from "@/components/dashboard/TeamRanking";
 import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
-import { COUPON_GROUPS, couponDiscountValue, couponLabel, formatDiscount, outsideTeamBySeller, parseCoupon, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
+import { COUPON_GROUPS, couponDiscountValue, couponLabel, formatDiscount, outsideTeamBySeller, parseCoupon, personBySeller, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -65,7 +65,7 @@ export default function Coupons() {
         // Faturado de contato fora da equipe interna soma no cupom dele, no grupo Parceiros e outros.
         c = { code: foraDaEquipe, discount: null, kind: "desconto", group: "parceiro" };
       } else if (t.source === "pipedrive") {
-        const cupom = couponForSeller(t.seller, cuponsEquipe);
+        const cupom = personBySeller(t.seller ?? t.seller_name)?.codes[0] ?? couponForSeller(t.seller, cuponsEquipe);
         const code = cupom ?? String(t.seller_name ?? "Vendedor não informado").toUpperCase();
         c = { code, discount: null, kind: "desconto", group: "equipe" };
       } else c = parseCoupon(t.coupon_code);
