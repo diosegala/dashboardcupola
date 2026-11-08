@@ -31,7 +31,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes acumulados x meta":
     "Linha cheia: total de pagantes semana a semana. Linha tracejada: trajetória até a meta no dia do evento, distribuída por dias úteis.",
   "Ingressos emitidos":
-    "Todos os ingressos do evento em três visões. Por categoria: contam na meta os pagos na Sympla (com ou sem cupom de desconto) e os faturados internamente; não contam as cortesias (cupom de 100% na Sympla) e os bonificados dos faturados, as credenciais (equipe, expositores, imprensa, mesmo que tenham valor), os gratuitos sem cupom e os pendentes. Por tipo: Padrão, VIP, combos, Grupo, Visita presencial e Credenciais, pelo nome na Sympla. Por lote: pagantes e receita de cada lote, com a meta do lote e o ano anterior.",
+    "Todos os ingressos do evento em duas visões. Por categoria: contam na meta os pagos na Sympla (com ou sem cupom de desconto) e os faturados internamente; não contam as cortesias (cupom de 100% na Sympla) e os bonificados dos faturados, as credenciais (equipe, expositores, imprensa, mesmo que tenham valor), os gratuitos sem cupom e os pendentes. Por tipo: Padrão, VIP, combos, Grupo, Visita presencial e Credenciais, pelo nome na Sympla. A visão por lote está no card Lote vigente.",
   "Composição":
     "Divide os ingressos emitidos entre os que contam na meta (pagos e faturados) e os bonificados (cortesias, credenciais e gratuitos).",
   "Vendas por dia útil":
@@ -80,7 +80,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Ticket Médio": "Receita do período dividida pela quantidade de ingressos vendidos no mesmo período.",
   "Progresso por Lote": "Ingressos vendidos em cada lote comparados à meta do lote.",
   "Lote vigente":
-    "Lote à venda agora: começa na primeira venda com o nome dele na Sympla e vale até a primeira venda do lote seguinte. Contam ingressos pagantes do lote; a meta vem de 'Ingressos do lote' na aba Metas.",
+    "Lote à venda agora: começa na primeira venda com o nome dele na Sympla e vale até a primeira venda do lote seguinte. Contam ingressos pagantes do lote; a meta vem de 'Ingressos do lote' na aba Metas. Na aba Por lote: preço, vendidos, saldo, % vendido e receita de cada lote, com o vigente em destaque.",
   "Vendas por lote":
     "Pagantes e receita de cada lote (Pré-venda, Lote 0, Lote 1…). Com meta do lote, aparece a marca da meta. Com a chave de comparação ligada, a linha tracejada mostra o mesmo lote do evento anterior, inteiro.",
   "Funil de KPIs":
