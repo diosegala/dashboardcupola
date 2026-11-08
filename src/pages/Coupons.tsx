@@ -16,7 +16,7 @@ import { splitTickets } from "@/hooks/useCommercialMetrics";
 import { CRM_DISCOUNT_HINT, couponForSeller, crmDiscountCoverage } from "@/lib/invoicedTickets";
 import { TeamRanking, buildTeamRanking } from "@/components/dashboard/TeamRanking";
 import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
-import { COUPON_GROUPS, couponDiscountValue, formatDiscount, parseCoupon, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
+import { COUPON_GROUPS, couponDiscountValue, couponLabel, formatDiscount, outsideTeamBySeller, parseCoupon, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -35,6 +35,8 @@ interface CupomLinha {
   discount: string | null;
   kind: CouponKind;
   group: CouponGroup;
+  // Mais de um desconto quando vários cupons da mesma pessoa contam como um só.
+  discounts: string[];
   uses: number;
   receita: number;
   desconto: number;
@@ -58,14 +60,19 @@ export default function Coupons() {
     todos.forEach((t) => {
       // Faturado interno (Pipedrive) soma no cupom da equipe de quem vendeu (ex.: Suelen → SUELLEN5), como venda normal.
       let c: ParsedCoupon | null;
-      if (t.source === "pipedrive") {
+      const foraDaEquipe = t.source === "pipedrive" ? outsideTeamBySeller(t.seller ?? t.seller_name) : null;
+      if (foraDaEquipe) {
+        // Faturado de contato fora da equipe interna soma no cupom dele, no grupo Parceiros e outros.
+        c = { code: foraDaEquipe, discount: null, kind: "desconto", group: "parceiro" };
+      } else if (t.source === "pipedrive") {
         const cupom = couponForSeller(t.seller, cuponsEquipe);
         const code = cupom ?? String(t.seller_name ?? "Vendedor não informado").toUpperCase();
         c = { code, discount: null, kind: "desconto", group: "equipe" };
       } else c = parseCoupon(t.coupon_code);
       if (!c) return;
-      const atual = map.get(c.code) ?? { ...c, uses: 0, receita: 0, desconto: 0 };
+      const atual = map.get(c.code) ?? { ...c, discounts: [], uses: 0, receita: 0, desconto: 0 };
       if (!atual.discount && c.discount) atual.discount = c.discount;
+      if (c.discount && !atual.discounts.includes(c.discount)) atual.discounts.push(c.discount);
       atual.uses += t.quantity || 0;
       atual.receita += Number(t.total_price || 0);
       atual.desconto += couponDiscountValue(t) + (t.discount_value || 0);
@@ -80,12 +87,12 @@ export default function Coupons() {
   const grupos = COUPON_GROUPS.map((g) => ({ ...g, uses: cupons.filter((c) => c.group === g.key).reduce((s, c) => s + c.uses, 0) })).filter((g) => g.uses > 0);
   const grupoAtivo = grupos.some((g) => g.key === grupo) ? grupo : "todos";
   const termo = busca.trim().toUpperCase();
-  const visiveis = cupons.filter((c) => (grupoAtivo === "todos" || c.group === grupoAtivo) && (!termo || c.code.includes(termo)));
+  const visiveis = cupons.filter((c) => (grupoAtivo === "todos" || c.group === grupoAtivo) && (!termo || couponLabel(c.code).includes(termo)));
   const rotuloGrupo = (g: CouponGroup) => COUPON_GROUPS.find((x) => x.key === g)?.label ?? g;
 
   // Pizza: os 5 cupons mais usados (do filtro atual) e o resto somado em "Outros".
   const pizza = useMemo(() => {
-    const top = visiveis.slice(0, 5).map((c) => ({ label: c.code, value: c.uses }));
+    const top = visiveis.slice(0, 5).map((c) => ({ label: couponLabel(c.code), value: c.uses }));
     const resto = visiveis.slice(5).reduce((s, c) => s + c.uses, 0);
     return resto > 0 ? [...top, { label: "Outros", value: resto }] : top;
   }, [visiveis]);
@@ -200,9 +207,9 @@ export default function Coupons() {
                     ) : visiveis.map((c, i) => (
                       <TableRow key={c.code}>
                         <TableCell className="tabular-nums text-muted-foreground">{i + 1}º</TableCell>
-                        <TableCell className="font-medium">{c.code}</TableCell>
+                        <TableCell className="font-medium">{couponLabel(c.code)}</TableCell>
                         <TableCell className="text-muted-foreground">{rotuloGrupo(c.group)}</TableCell>
-                        <TableCell className="tabular-nums">{formatDiscount(c.discount)}</TableCell>
+                        <TableCell className="tabular-nums">{c.discounts.length > 1 ? c.discounts.map(formatDiscount).join(" / ") : formatDiscount(c.discount)}</TableCell>
                         <TableCell><Chip variant={KIND_CHIP[c.kind].variant}>{KIND_CHIP[c.kind].label}</Chip></TableCell>
                         <TableCell className="text-right tabular-nums">{int(c.uses)}</TableCell>
                         <TableCell className="text-right tabular-nums">{brl(c.receita)}</TableCell>

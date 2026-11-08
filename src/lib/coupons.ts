@@ -73,6 +73,7 @@ export function parseCoupon(raw: string | null | undefined): ParsedCoupon | null
   if (kind === "faturado") group = "faturado";
   else if (/^GANHADOR|RESGATE/.test(code)) group = "resgate";
   else if (/PALESTR|SPEAKER/.test(code)) group = "palestrante";
+  else if (outsideEntry(code)) group = "parceiro";
   else if (TEAM_CODE.test(code) && (percent === null || percent === TEAM_DISCOUNT)) group = "equipe";
   return { code, discount, kind, group };
 }
