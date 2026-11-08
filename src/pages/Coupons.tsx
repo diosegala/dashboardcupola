@@ -17,7 +17,7 @@ import { CRM_DISCOUNT_HINT, couponForSeller, crmDiscountCoverage } from "@/lib/i
 import { TeamRanking, buildTeamRanking } from "@/components/dashboard/TeamRanking";
 import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { COUPON_GROUPS, couponCodes, couponDiscountValue, couponLabel, formatDiscount, outsideTeamBySeller, parseCoupon, personBySeller, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
+import { COUPON_GROUPS, couponCodes, couponDiscountValue, couponLabel, formatDiscount, getCouponPeople, outsideTeamBySeller, parseCoupon, personBySeller, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -57,7 +57,7 @@ export default function Coupons() {
   const cupons = useMemo(() => {
     const map = new Map<string, CupomLinha>();
     const todos = [...paying, ...bonus];
-    const cuponsEquipe = [...new Set(todos.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code))];
+    const cuponsEquipe = [...new Set(todos.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code), ...getCouponPeople().filter((x) => !x.outsideRanking).flatMap((x) => x.codes.slice(0, 1)))];
     todos.forEach((t) => {
       // Faturado interno (Pipedrive) soma no cupom da equipe de quem vendeu (ex.: Suelen → SUELLEN5), como venda normal.
       let c: ParsedCoupon | null;
