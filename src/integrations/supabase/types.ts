@@ -101,6 +101,36 @@ export type Database = {
         }
         Relationships: []
       }
+      coupon_people: {
+        Row: {
+          codes: string[]
+          created_at: string
+          id: string
+          name: string
+          outside_ranking: boolean
+          seller_names: string[]
+          updated_at: string
+        }
+        Insert: {
+          codes?: string[]
+          created_at?: string
+          id?: string
+          name: string
+          outside_ranking?: boolean
+          seller_names?: string[]
+          updated_at?: string
+        }
+        Update: {
+          codes?: string[]
+          created_at?: string
+          id?: string
+          name?: string
+          outside_ranking?: boolean
+          seller_names?: string[]
+          updated_at?: string
+        }
+        Relationships: []
+      }
       crm_leads: {
         Row: {
           added_at: string | null
