@@ -9,7 +9,8 @@ const venda = (coupon_code: string | null, extra: Partial<Ticket> = {}): Ticket 
 describe("Letícia Bello fora do ranking da equipe", () => {
   it("LETICIA10 conta como o mesmo cupom de LETICIAC5", () => {
     expect(parseCoupon("10.00% - LETICIA10")?.code).toBe("LETICIAC5");
-    expect(couponLabel("LETICIAC5")).toBe("LETICIAC5 + LETICIA10");
+    expect(parseCoupon("15.00% - LETICIA15")?.code).toBe("LETICIAC5");
+    expect(couponLabel("LETICIAC5")).toBe("LETICIAC5 + LETICIA10 + LETICIA15");
   });
 
   it("os cupons da Bello não ficam no grupo da equipe", () => {
