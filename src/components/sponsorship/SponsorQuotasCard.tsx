@@ -54,9 +54,7 @@ export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { r
             </div>
             <div>
               <div className="text-[clamp(32px,3.4vw,42px)] font-semibold leading-none tracking-[-0.035em] tabular-nums">{int(negociando)}</div>
-              <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <i className="h-2 w-2 rounded-full bg-muted-foreground/40" /> em negociação
-              </div>
+              <div className="mt-1.5 text-xs text-muted-foreground">em negociação</div>
             </div>
           </div>
           <CompareLine className="mt-2" anterior={cotasAnterior} atual={vendidas} />
