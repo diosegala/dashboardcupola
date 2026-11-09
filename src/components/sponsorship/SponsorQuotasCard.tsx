@@ -54,7 +54,7 @@ export function SponsorQuotasCard({
           <CardTitle className="flex items-center gap-2">
             Cotas vendidas <InfoTip title="Cotas vendidas" text={QUOTAS_INFO.card} />
           </CardTitle>
-          <div className="mt-3 flex items-end gap-6">
+          <div className="mt-3 flex flex-wrap items-end gap-x-6 gap-y-2">
             <div>
               <div className="text-[clamp(32px,3.4vw,42px)] font-semibold leading-none tracking-[-0.035em] tabular-nums">
                 {int(vendidas)}
@@ -66,7 +66,7 @@ export function SponsorQuotasCard({
             </div>
             <div>
               <div className="text-[clamp(32px,3.4vw,42px)] font-semibold leading-none tracking-[-0.035em] tabular-nums">{int(negociando)}</div>
-              <div className="mt-1.5 text-xs text-muted-foreground">em negociação</div>
+              <div className="mt-1.5 whitespace-nowrap text-xs text-muted-foreground">em negociação</div>
             </div>
           </div>
           <CompareLine className="mt-2" anterior={cotasAnterior} atual={vendidas} />
@@ -86,15 +86,22 @@ export function SponsorQuotasCard({
           alvo.rows.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma cota com meta, venda ou negociação ainda.</p>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[380px] text-left text-sm">
+            <div>
+              <table className="w-full table-fixed text-left text-sm">
+                <colgroup>
+                  <col />
+                  <col className="w-[52px]" />
+                  <col className="w-[64px]" />
+                  <col className="w-[44px]" />
+                  <col className="w-[60px]" />
+                </colgroup>
                 <thead>
                   <tr className="text-[11px] font-medium text-muted-foreground">
-                    <th className="pb-2 pr-2 font-medium">Cota</th>
-                    <th className="px-2 pb-2 text-right font-medium">Meta</th>
-                    <th className="px-2 pb-2 text-right font-medium">Vendidas</th>
-                    <th className="px-2 pb-2 text-right font-medium">% da meta</th>
-                    <th className="pl-2 pb-2 text-right font-medium">Falta</th>
+                    <th className="pb-2 pr-1.5 font-medium">Cota</th>
+                    <th className="px-1.5 pb-2 text-right font-medium">Meta</th>
+                    <th className="px-1.5 pb-2 text-right font-medium">Vendidas</th>
+                    <th className="px-1.5 pb-2 text-right font-medium">%</th>
+                    <th className="pl-1.5 pb-2 text-right font-medium">Falta</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -102,14 +109,14 @@ export function SponsorQuotasCard({
                     const total = r.key === "__total__";
                     return (
                       <tr key={r.key} className={total ? "border-t-2 font-semibold" : "border-t"}>
-                        <td className="max-w-[140px] truncate py-2 pr-2">{r.nome}</td>
-                        <td className="px-2 py-2 text-right tabular-nums">{r.meta != null ? int(r.meta) : <span className="text-muted-foreground">—</span>}</td>
-                        <td className="px-2 py-2 text-right tabular-nums">
-                          {int(r.vendidas)}
+                        <td className="break-words py-2 pr-1.5">
+                          {r.nome}
                           {r.emNegociacao > 0 && !total && <span className="block text-[10px] font-normal text-muted-foreground">+{int(r.emNegociacao)} em negociação</span>}
                         </td>
-                        <td className="px-2 py-2 text-right tabular-nums">{r.pct != null ? `${Math.round(r.pct * 100)}%` : <span className="text-muted-foreground">—</span>}</td>
-                        <td className="pl-2 py-2 text-right tabular-nums">
+                        <td className="whitespace-nowrap px-1.5 py-2 text-right tabular-nums">{r.meta != null ? int(r.meta) : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="whitespace-nowrap px-1.5 py-2 text-right tabular-nums">{int(r.vendidas)}</td>
+                        <td className="whitespace-nowrap px-1.5 py-2 text-right tabular-nums">{r.pct != null ? `${Math.round(r.pct * 100)}%` : <span className="text-muted-foreground">—</span>}</td>
+                        <td className="whitespace-nowrap pl-1.5 py-2 text-right tabular-nums">
                           {r.falta == null ? <span className="text-muted-foreground">—</span> : r.falta === 0 ? <span className="font-semibold text-ok">Atingida</span> : int(r.falta)}
                         </td>
                       </tr>
