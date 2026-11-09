@@ -34,7 +34,7 @@ export function AvisoDatas({ compacto }: { compacto?: boolean }) {
       <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
       <span>
         Faltam datas na configuração de lotes, então o lote vigente não foi definido.{" "}
-        <Link to="/settings" className="font-semibold underline">Completar em Configurações › Lotes</Link>
+        <Link to="/settings" className="font-semibold underline">Completar em Configurações › Eventos › Lotes</Link>
       </span>
     </div>
   );

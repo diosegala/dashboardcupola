@@ -152,6 +152,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   // Metas do evento definidas na tela Metas (sem elas, os cards ficam só com os números).
   const metaReceita = eventGoal(goals, "revenue");
   const metaEmitidos = eventGoal(goals, "issued_tickets");
+  const metaTicket = eventGoal(goals, "ticket_average");
   const temMeta = m.goal !== null;
   const temMetaReceita = m.revenueGoal !== null;
   // Comparação com o evento anterior só com a chave ligada.
@@ -244,6 +245,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
           <div className="rounded-2xl bg-secondary/60 px-3.5 py-3">
             <div className="text-[11px] text-muted-foreground">Ticket médio</div>
             <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{brl(pagantes > 0 ? receita / pagantes : 0)}</div>
+            {metaTicket && pagantes > 0 && <GoalMeter className="mt-2" actual={receita / pagantes} target={Number(metaTicket.target_value)} unit="brl" comparacao="minimo" />}
           </div>
           <div className="rounded-2xl bg-secondary/60 px-3.5 py-3">
             <div className="text-[11px] text-muted-foreground">Ingressos pagantes</div>

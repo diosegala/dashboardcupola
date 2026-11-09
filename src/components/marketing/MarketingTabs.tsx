@@ -149,10 +149,10 @@ function Overview({ adMetrics, emailCampaigns, tickets, goals, range }: Marketin
   return (
     <div className="space-y-6">
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <MetricCard title="Investimento em mídia" value={brl(midia.investimento, 2)} icon={Wallet} description="Meta Ads e Google Ads" />
-        <MetricCard title="Investimento por ingresso" value={pagantes > 0 ? brl(midia.investimento / pagantes, 2) : "—"} icon={Coins} description={`Investimento dividido por ${int(pagantes)} ingressos pagantes`} />
-        <MetricCard title="Receita por real investido" value={midia.investimento > 0 ? `${(receita / midia.investimento).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x` : "—"} icon={TrendingUp} description={`${brl(receita)} em vendas no período`} />
-        <MetricCard title="Vendas com link parametrizado" value={ingressosSympla > 0 ? pct((comLink / ingressosSympla) * 100, 0) : "—"} icon={Link2} description={`${int(comLink)} de ${int(ingressosSympla)} ingressos da Sympla têm UTM`} />
+        <MetricCard title="Investimento em mídia" value={brl(midia.investimento, 2)} icon={Wallet} goal={findGoal(goals, "media_spend", range)} goalUnit="brl" description="Meta Ads e Google Ads" />
+        <MetricCard title="Investimento por ingresso" value={pagantes > 0 ? brl(midia.investimento / pagantes, 2) : "—"} icon={Coins} goal={pagantes > 0 ? findGoal(goals, "media_cost_per_ticket", range) : null} goalUnit="brl" goalComparacao="maximo" description={`Investimento dividido por ${int(pagantes)} ingressos pagantes`} />
+        <MetricCard title="Receita por real investido" value={midia.investimento > 0 ? `${(receita / midia.investimento).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}x` : "—"} icon={TrendingUp} goal={midia.investimento > 0 ? findGoal(goals, "media_roas", range) : null} goalComparacao="minimo" description={`${brl(receita)} em vendas no período`} />
+        <MetricCard title="Vendas com link parametrizado" value={ingressosSympla > 0 ? pct((comLink / ingressosSympla) * 100, 0) : "—"} icon={Link2} goal={ingressosSympla > 0 ? findGoal(goals, "links_tracked_rate", range) : null} description={`${int(comLink)} de ${int(ingressosSympla)} ingressos da Sympla têm UTM`} />
       </div>
       <FunnelKPISection adMetrics={adMetrics} emailCampaigns={emailCampaigns} tickets={tickets} goals={goals} range={range} />
     </div>
@@ -182,7 +182,8 @@ function AdsTab({ fonte, adMetrics, previousAdMetrics, goals, range, foraAds = 0
     return sel.length || p.length === 0 ? null : adTotals(p);
   }, [previousAdMetrics, fonte, sel]);
   const ehMeta = fonte === "meta";
-  const g = (k: string) => (ehMeta ? findGoal(goals, k, range) : null);
+  // Google Ads tem as mesmas metas com o prefixo google_.
+  const g = (k: string) => findGoal(goals, ehMeta ? k : k.replace(/^meta_/, "google_"), range);
   const campanhas = campaignRows(linhas);
   const nome = ehMeta ? "Meta Ads" : "Google Ads";
 
@@ -198,11 +199,12 @@ function AdsTab({ fonte, adMetrics, previousAdMetrics, goals, range, foraAds = 0
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard title="Investimento" value={t.investimento.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} prefix="R$ " icon={Wallet} goal={g("meta_spend")} anterior={ant?.investimento} description={`${campanhas.length} campanhas no período`} />
         <MetricCard title="Impressões" value={t.impressoes} icon={Eye} goal={g("meta_impressions")} anterior={ant?.impressoes} />
-        <MetricCard title="Cliques no Link" value={t.cliques} icon={MousePointerClick} goal={g("meta_link_clicks")} anterior={ant?.cliques} description={`CPC de ${brl(t.cpc, 2)}`} />
+        <MetricCard title="Cliques no Link" value={t.cliques} icon={MousePointerClick} goal={g("meta_link_clicks")} anterior={ant?.cliques} />
         <MetricCard title="CTR" value={pct(t.ctr, 2)} icon={BarChart3} goal={g("meta_ctr")} anterior={ant?.ctr} description="Cliques no link / Impressões" />
       </div>
       {/* Segunda linha: o que o clique virou. Meta tem 5 indicadores, Google 2; a grade se ajusta sem buraco. */}
       <div className={`grid gap-4 md:grid-cols-2 ${ehMeta ? "lg:grid-cols-5" : ""}`}>
+        <MetricCard title="CPC" value={brl(t.cpc, 2)} icon={Coins} goal={t.cliques > 0 ? g("meta_cpc") : null} goalUnit="brl" goalComparacao="maximo" anterior={ant?.cpc} description="Investimento / Cliques no link" />
         <MetricCard title={ehMeta ? "Compras (Pixel)" : "Conversões"} value={t.compras} icon={Target} goal={g("meta_purchases")} anterior={ant?.compras} description={t.compras > 0 ? `${brl(t.custoCompra, 2)} por ${ehMeta ? "compra" : "conversão"}` : undefined} />
         <MetricCard title="Taxa de Conversão" value={pct(t.conversao, 2)} icon={Target} goal={g("meta_conversion_rate")} anterior={ant?.conversao} description={ehMeta ? "Compras / Cliques no link" : "Conversões / Cliques"} />
         {ehMeta && (
@@ -587,7 +589,7 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range, tickets, allTick
       </div>
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <MetricCard title="Campanhas Enviadas" value={lista.length} icon={Mail} goal={findGoal(goals, "email_sent", range)} description={`${int(enviados)} e-mails enviados no total`} />
-        <MetricCard title="Taxa de Entrega" value={comRetorno > 0 ? pct(entrega) : "—"} icon={Mail} description={`${int(entregues)} entregues de ${int(comRetorno)} com retorno`} />
+        <MetricCard title="Taxa de Entrega" value={comRetorno > 0 ? pct(entrega) : "—"} icon={Mail} goal={comRetorno > 0 ? findGoal(goals, "email_delivery_rate", range) : null} description={`${int(entregues)} entregues de ${int(comRetorno)} com retorno`} />
         <MetricCard title="Taxa de Abertura" value={pct(abertura)} icon={Mail} goal={findGoal(goals, "email_open_rate", range)} description={`${int(abriram)} pessoas abriram`} />
         <MetricCard title="Taxa de Clique" value={pct(clique)} icon={MousePointerClick} goal={findGoal(goals, "email_click_rate", range)} description={`${int(clicaram)} pessoas clicaram`} />
       </div>

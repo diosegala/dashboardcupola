@@ -19,6 +19,9 @@ import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { COUPON_GROUPS, couponCodes, couponDiscountValue, couponLabel, formatDiscount, getCouponPeople, outsideTeamBySeller, parseCoupon, personBySeller, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
+import { eventGoal } from "@/lib/goalMetrics";
+import { useGoals } from "@/hooks/useDashboardData";
+import { goalsOfEvent } from "@/hooks/useEvent";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -47,6 +50,8 @@ export default function Coupons() {
   const { isSeller } = useAuth();
   const { event } = useEvent();
   const vendas = useAllTimeTicketSales(event.sympla_event_id ?? "");
+  const { data: metas } = useGoals();
+  const metaEquipe = eventGoal(goalsOfEvent(metas ?? [], event), "team_sales");
   const totals = useCouponTotals(vendas.data ?? []);
   const [grupo, setGrupo] = useState<CouponGroup | "todos">("todos");
   const [busca, setBusca] = useState("");
@@ -126,7 +131,7 @@ export default function Coupons() {
 
           <div className="grid grid-cols-12 gap-[14px]">
             {ranking.lotes.some((l) => l.ranking.length > 0) ? (
-              <TeamRanking data={ranking} gerencial />
+              <TeamRanking data={ranking} gerencial metaPorPessoa={metaEquipe ? Number(metaEquipe.target_value) : null} />
             ) : (
               <Card className="col-span-12 p-8 text-center text-sm text-muted-foreground">Ninguém da equipe vendeu com cupom neste evento ainda.</Card>
             )}

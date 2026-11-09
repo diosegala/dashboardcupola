@@ -1,18 +1,17 @@
 import { useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CalendarRange, Plus, Save, Trash2 } from "lucide-react";
+import { Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { useEvent } from "@/hooks/useEvent";
+import type { EventRow } from "@/hooks/useEvent";
 import { EVENT_BATCHES_KEY, useEventBatches } from "@/hooks/useEventBatches";
 import { traduzirErro } from "@/lib/mensagensErro";
 
@@ -39,9 +38,8 @@ function problemas(linhas: Linha[]) {
 }
 
 // Datas de cada lote do evento: definem o lote vigente e o lote de cada venda no painel.
-export function BatchesManager() {
-  const { events, event } = useEvent();
-  const [eventId, setEventId] = useState<string>(event.id ?? "");
+export function BatchesManager({ event, open, onClose }: { event: EventRow | null; open: boolean; onClose: () => void }) {
+  const eventId = event?.id ?? "";
   const { data } = useEventBatches();
   const queryClient = useQueryClient();
   const [linhas, setLinhas] = useState<Linha[]>([]);
@@ -52,7 +50,7 @@ export function BatchesManager() {
         .filter((b) => b.event_id === eventId)
         .map((b) => ({ id: b.id, name: b.name, start_date: b.start_date ?? "", end_date: b.end_date ?? "", sort_order: b.sort_order ?? 0 })),
     );
-  }, [data, eventId]);
+  }, [data, eventId, open]);
 
   const atualizar = () => queryClient.invalidateQueries({ queryKey: EVENT_BATCHES_KEY });
   const salvar = useMutation({
@@ -78,24 +76,16 @@ export function BatchesManager() {
   const proximo = linhas.length ? Math.max(...linhas.map((l) => l.sort_order)) + 1 : 0;
 
   return (
-    <Card>
-      <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
-        <div>
-          <CardTitle className="flex items-center gap-2"><CalendarRange className="h-5 w-5" /> Lotes</CardTitle>
-          <CardDescription>
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-3xl rounded-[24px]">
+        <DialogHeader>
+          <DialogTitle>Lotes de {event?.name}</DialogTitle>
+          <DialogDescription>
             Início e término de cada lote, incluídos no período. O lote vigente troca à meia-noite (Brasília) do dia de início.
             Fora de qualquer lote, vale o próximo a começar.
-          </CardDescription>
-        </div>
-        <Select value={eventId} onValueChange={setEventId}>
-          <SelectTrigger className="h-9 w-[220px]"><SelectValue placeholder="Evento" /></SelectTrigger>
-          <SelectContent>
-            {events.filter((e) => e.id).map((e) => <SelectItem key={e.id!} value={e.id!}>{e.name}</SelectItem>)}
-          </SelectContent>
-        </Select>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="overflow-x-auto">
+          </DialogDescription>
+        </DialogHeader>
+        <div className="max-h-[60vh] overflow-auto">
           <Table>
             <TableHeader>
               <TableRow>
@@ -143,10 +133,12 @@ export function BatchesManager() {
             </TableBody>
           </Table>
         </div>
-        <Button variant="outline" size="sm" disabled={!eventId} onClick={() => setLinhas((ls) => [...ls, { name: `Lote ${proximo}`, start_date: "", end_date: "", sort_order: proximo }])}>
-          <Plus className="mr-1 h-4 w-4" /> Adicionar lote
-        </Button>
-      </CardContent>
-    </Card>
+        <div>
+          <Button variant="outline" size="sm" disabled={!eventId} onClick={() => setLinhas((ls) => [...ls, { name: `Lote ${proximo}`, start_date: "", end_date: "", sort_order: proximo }])}>
+            <Plus className="mr-1 h-4 w-4" /> Adicionar lote
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

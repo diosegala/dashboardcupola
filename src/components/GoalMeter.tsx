@@ -12,11 +12,13 @@ interface GoalMeterProps {
   periodStart?: string;
   periodEnd?: string;
   className?: string;
+  // Valores que não se acumulam no tempo: "minimo" precisa chegar à meta; "maximo" é teto (custo, quanto menor melhor).
+  comparacao?: "minimo" | "maximo";
 }
 
 // Sinalização de meta, igual em todo o painel: linha fina que enche até o realizado, marquinha do esperado para hoje
 // e a situação em texto. Só aparece quando existe meta.
-export function GoalMeter({ actual, target, unit = "num", periodStart, periodEnd, className }: GoalMeterProps) {
+export function GoalMeter({ actual, target, unit = "num", periodStart, periodEnd, className, comparacao }: GoalMeterProps) {
   const [cheio, setCheio] = useState(0);
   const frac = target > 0 ? actual / target : 0;
   useEffect(() => {
@@ -24,16 +26,21 @@ export function GoalMeter({ actual, target, unit = "num", periodStart, periodEnd
     return () => cancelAnimationFrame(id);
   }, [frac]);
 
-  // Taxas (%) não se acumulam no tempo: só comparam com a meta.
+  // Taxas (%) e custos não se acumulam no tempo: só comparam com a meta.
+  const modo = comparacao ?? (unit === "pct" ? "minimo" : null);
   const pace =
-    unit === "pct"
-      ? actual >= target
+    modo === "maximo"
+      ? actual <= target
         ? { label: "Na meta", variant: "ok" as const, expected: target }
-        : { label: "Abaixo da meta", variant: "warn" as const, expected: target }
-      : periodStart && periodEnd
-        ? goalPace(actual, target, periodStart, periodEnd)
-        : null;
-  const esperado = pace && unit !== "pct" && target > 0 ? Math.min(pace.expected / target, 1) : null;
+        : { label: "Acima da meta", variant: "warn" as const, expected: target }
+      : modo === "minimo"
+        ? actual >= target
+          ? { label: "Na meta", variant: "ok" as const, expected: target }
+          : { label: "Abaixo da meta", variant: "warn" as const, expected: target }
+        : periodStart && periodEnd
+          ? goalPace(actual, target, periodStart, periodEnd)
+          : null;
+  const esperado = pace && !modo && target > 0 ? Math.min(pace.expected / target, 1) : null;
 
   return (
     <div className={cn("space-y-1.5", className)}>

@@ -3,6 +3,7 @@ import type { LucideIcon } from "lucide-react";
 import { InfoTip } from "@/components/InfoTip";
 import { GoalMeter } from "@/components/GoalMeter";
 import { CompareLine } from "@/components/CompareLine";
+import type { GoalUnit } from "@/lib/goalMetrics";
 
 interface MetricCardProps {
   title: string;
@@ -15,15 +16,18 @@ interface MetricCardProps {
   description?: string;
   // Mesmo indicador no mesmo período do evento anterior (aparece com a chave "Comparar" ligada).
   anterior?: number | null;
+  // Para valores já formatados em texto (R$) e razões que não se acumulam no tempo.
+  goalUnit?: GoalUnit;
+  goalComparacao?: "minimo" | "maximo";
 }
 
-export function MetricCard({ title, value, icon: Icon, goal: goalRow, suffix, prefix, description, anterior }: MetricCardProps) {
+export function MetricCard({ title, value, icon: Icon, goal: goalRow, suffix, prefix, description, anterior, goalUnit, goalComparacao }: MetricCardProps) {
   // Texto no formato brasileiro ("12.345,67") ou com ponto decimal ("1.23", "12.5%").
   const bruto = String(value).replace(/[^0-9,.-]/g, "");
   const numericValue = typeof value === "number" ? value : parseFloat(bruto.includes(",") ? bruto.replace(/\./g, "").replace(",", ".") : bruto) || 0;
   const target = goalRow ? Number(goalRow.target_value) : 0;
   const isRate = typeof value === "string" && value.includes("%");
-  const unit = isRate ? "pct" : prefix?.includes("R$") ? "brl" : "num";
+  const unit = goalUnit ?? (isRate ? "pct" : prefix?.includes("R$") ? "brl" : "num");
 
   return (
     <Card className="hover:-translate-y-[3px] hover:border-line-strong">
@@ -53,7 +57,7 @@ export function MetricCard({ title, value, icon: Icon, goal: goalRow, suffix, pr
           }
         />
         {goalRow && target > 0 && (
-          <GoalMeter className="mt-3" actual={numericValue} target={target} unit={unit} periodStart={goalRow.period_start} periodEnd={goalRow.period_end} />
+          <GoalMeter className="mt-3" actual={numericValue} target={target} unit={unit} periodStart={goalRow.period_start} periodEnd={goalRow.period_end} comparacao={goalComparacao} />
         )}
       </CardContent>
     </Card>
