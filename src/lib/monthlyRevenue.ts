@@ -150,7 +150,9 @@ export function sponsorMonthly(opts: {
   const ant = anterior && anterior.length ? porMes(anterior, (h) => h.data, (h) => h.valor, 12) : null;
   const prev = previsto && previsto.length ? new Map(previsto.map((p) => [p.mes, p.valor])) : null;
   let acc = 0;
-  return listaMeses(inicio, fim < inicio ? inicio : fim).map((mes) => {
+  // Venda ganha depois do mês final (ex.: durante o evento) continua na soma, para bater com o total vendido.
+  const ultimo = vendas.reduce((max, v) => (v.ganhoEm.slice(0, 7) > max ? v.ganhoEm.slice(0, 7) : max), fim < inicio ? inicio : fim);
+  return listaMeses(inicio, ultimo).map((mes) => {
     const doMes = vendas.filter((v) => v.ganhoEm.slice(0, 7) === mes);
     const porCota: SponsorMonth["porCota"] = {};
     let valor = 0;

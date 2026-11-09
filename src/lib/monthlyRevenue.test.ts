@@ -43,6 +43,17 @@ describe("sponsorMonthly", () => {
     expect(m[1]).toMatchObject({ mes: "2026-11", valor: 3000, cotas: 0, parcial: true });
     expect(m[m.length - 1].acumulado).toBe(53000);
   });
+
+  it("não perde venda ganha depois do mês final", () => {
+    const m = sponsorMonthly({
+      vendas: [{ ganhoEm: "2027-06-02", valor: 700, quantidade: 1, cotaKey: "ouro", cota: "Ouro", adicional: false }],
+      inicio: "2027-04",
+      fim: "2027-05",
+      hoje: "2027-06",
+    });
+    expect(m.map((x) => x.mes)).toEqual(["2027-04", "2027-05", "2027-06"]);
+    expect(m[m.length - 1].acumulado).toBe(700);
+  });
 });
 
 describe("monthlyRevenueGoals", () => {
