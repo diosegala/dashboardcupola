@@ -248,6 +248,7 @@ export function EmailLinkNotice({ semLigacao }: { semLigacao: number }) {
 // Avisos de inconsistência, só para administradores.
 export function EmailLinkWarnings({ avisos, nomeDe }: { avisos: LinkWarning[]; nomeDe: (id: string) => string }) {
   const { isAdmin } = useAuth();
+  const decide = useDecide();
   if (!isAdmin || !avisos.length) return null;
   const qtd = (a: LinkWarning) => `${int(a.ingressos)} ${a.ingressos === 1 ? "ingresso" : "ingressos"} (${brl(a.receita)})`;
   const texto = (a: LinkWarning) => {
@@ -264,7 +265,16 @@ export function EmailLinkWarnings({ avisos, nomeDe }: { avisos: LinkWarning[]; n
         Para investigar nos e-mails (só administradores)
       </div>
       <ul className="list-disc space-y-0.5 pl-4">
-        {avisos.map((a) => <li key={`${a.tipo}-${a.utmContent}`}>{texto(a)}</li>)}
+        {avisos.map((a) => (
+          <li key={`${a.tipo}-${a.utmContent}`}>
+            {texto(a)}
+            {a.tipo === "so_horario" && a.emails.length === 1 && (
+              <button type="button" className="ml-1 font-semibold text-foreground underline-offset-2 hover:underline" disabled={decide.isPending} onClick={() => decide.mutate({ utm: a.utmContent, emailId: a.emails[0] })}>
+                Confirmar sugestão
+              </button>
+            )}
+          </li>
+        ))}
       </ul>
     </div>
   );

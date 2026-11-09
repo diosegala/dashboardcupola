@@ -31,6 +31,8 @@ import { ChartLegend } from "@/components/dashboard/charts/ChartLegend";
 import { useSeriesVisibility } from "@/components/dashboard/charts/chartSeries";
 import { cn } from "@/lib/utils";
 import { canalDe } from "@/lib/salesChannel";
+import { EMAIL_SALES_INFO, EmailLinkNotice, EmailLinkWarnings, EmailSalesBadge, EmailSalesSheet, useEmailAttribution } from "@/components/marketing/EmailSales";
+import type { EmailSalesBucket } from "@/lib/emailAttribution";
 
 interface MarketingTabsProps {
   adMetrics: any[];
@@ -409,15 +411,52 @@ function EmailCompareChart({ emails }: { emails: any[] }) {
   );
 }
 
-function EmailList({ data, isLoading }: { data: any[]; isLoading: boolean }) {
+function EmailList({ data, isLoading, tickets, allTickets }: { data: any[]; isLoading: boolean; tickets: Ticket[]; allTickets: Ticket[] }) {
   const [todos, setTodos] = useState(false);
-  const visiveis = todos ? data : data.slice(0, POR_PAGINA);
+  const [soComVenda, setSoComVenda] = useState(false);
+  const [recorte, setRecorte] = useState(PERIODO);
+  const [aberto, setAberto] = useState<EmailSalesBucket | null>(null);
+  const lotes = useMemo(() => {
+    const s = new Set<string>();
+    allTickets.forEach((t) => { const l = batchOf(t.ticket_type); if (l) s.add(l); });
+    return Array.from(s).sort((x, y) => batchOrder(x) - batchOrder(y));
+  }, [allTickets]);
+  // Mesmo recorte da meta por canal: período do painel, evento todo ou um lote.
+  const base = recorte === PERIODO ? tickets : recorte === EVENTO ? allTickets : allTickets.filter((t) => batchOf(t.ticket_type) === recorte);
+  const attr = useEmailAttribution(data, base);
+  const nomeDe = (id: string) => nomeDoEmail(String(data.find((c) => String(c.rd_campaign_id) === id)?.name ?? id));
+  const filtrados = soComVenda ? data.filter((c) => attr.porEmail.has(String(c.rd_campaign_id))) : data;
+  const visiveis = todos ? filtrados : filtrados.slice(0, POR_PAGINA);
+  const comSelo = [...attr.porEmail.values()].reduce((t, b) => t + b.ingressos, 0);
 
   return (
-    <div>
-      <div className="pb-3">
-        <p className="text-xs text-muted-foreground">{isLoading ? "Carregando…" : `${data.length} e-mails desta edição, do mais recente para o mais antigo. Não depende do período escolhido.`}</p>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {isLoading ? "Carregando…" : `${filtrados.length} e-mails desta edição, do mais recente para o mais antigo. ${int(comSelo)} de ${int(attr.total)} ingressos do canal E-mail marketing têm selo.`}
+          <InfoTip title="Vendas por e-mail" text={EMAIL_SALES_INFO} />
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={recorte} onValueChange={setRecorte}>
+            <SelectTrigger className="h-8 w-auto min-w-[150px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value={PERIODO}>Vendas do período</SelectItem>
+              <SelectItem value={EVENTO}>Evento todo</SelectItem>
+              {lotes.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <button
+            type="button"
+            aria-pressed={soComVenda}
+            onClick={() => setSoComVenda((v) => !v)}
+            className={cn("rounded-full px-3 py-1.5 text-xs font-semibold transition-colors", soComVenda ? "bg-primary text-primary-foreground" : "bg-secondary text-foreground/75")}
+          >
+            Só com venda
+          </button>
+        </div>
       </div>
+      <EmailLinkWarnings avisos={attr.avisos} nomeDe={nomeDe} />
+      <EmailLinkNotice semLigacao={attr.semLigacao} />
       <div>
         {/* Tela larga: linha com colunas. Tela menor: cada e-mail vira um bloco com os números embaixo do nome. Nada corta. */}
         <div className="hidden items-center gap-2 border-b pb-2 text-xs text-muted-foreground xl:flex">
@@ -440,7 +479,10 @@ function EmailList({ data, isLoading }: { data: any[]; isLoading: boolean }) {
           return (
             <div key={c.id} className="flex flex-col gap-3 border-b border-border/60 py-3 text-sm last:border-0 hover:bg-muted/40 xl:flex-row xl:items-center xl:gap-2">
               <div className="min-w-0 xl:flex-1 xl:pr-2">
-                <p className="line-clamp-2 font-medium leading-snug" title={c.name || ""}>{nome}</p>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="line-clamp-2 font-medium leading-snug" title={c.name || ""}>{nome}</p>
+                  {attr.porEmail.get(String(c.rd_campaign_id)) && <EmailSalesBadge bucket={attr.porEmail.get(String(c.rd_campaign_id))!} onClick={() => setAberto(attr.porEmail.get(String(c.rd_campaign_id))!)} />}
+                </div>
                 <p className="text-xs text-muted-foreground">{c.sent_at ? new Date(c.sent_at).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit", month: "2-digit", year: "numeric" }) : "Sem data de envio"}</p>
               </div>
               <dl className="grid grid-cols-3 gap-x-3 gap-y-2 sm:grid-cols-6 xl:contents">
@@ -454,18 +496,26 @@ function EmailList({ data, isLoading }: { data: any[]; isLoading: boolean }) {
             </div>
           );
         })}
-        {data.length > POR_PAGINA && (
+        {soComVenda && filtrados.length === 0 && <p className="py-6 text-center text-sm text-muted-foreground">Nenhum e-mail com venda identificada neste recorte.</p>}
+        {filtrados.length > POR_PAGINA && (
           <div className="mt-3 text-center">
-            <Button variant="ghost" size="sm" onClick={() => setTodos((v) => !v)}>{todos ? "Mostrar menos" : `Ver todos os ${data.length}`}</Button>
+            <Button variant="ghost" size="sm" onClick={() => setTodos((v) => !v)}>{todos ? "Mostrar menos" : `Ver todos os ${filtrados.length}`}</Button>
           </div>
         )}
       </div>
+      <EmailSalesSheet
+        bucket={aberto}
+        emailName={aberto ? nomeDe(aberto.emailId) : ""}
+        emails={data.map((c) => ({ id: String(c.rd_campaign_id), nome: nomeDoEmail(String(c.name || c.subject || c.rd_campaign_id)) }))}
+        vendas={attr.vendas}
+        onClose={() => setAberto(null)}
+      />
     </div>
   );
 }
 
 // E-mails enviados: um card, duas visões dos mesmos e-mails da edição. Gráfico para bater o olho, lista para os números.
-function EmailsCard() {
+function EmailsCard({ tickets, allTickets }: { tickets: Ticket[]; allTickets: Ticket[] }) {
   const { data = [], isLoading } = useEmailsDaEdicao();
   const [visao, setVisao] = useState("grafico");
   return (
@@ -481,13 +531,13 @@ function EmailsCard() {
         </Tabs>
       </CardHeader>
       <CardContent className="animate-panel-in" key={visao}>
-        {visao === "grafico" ? <EmailCompareChart emails={data} /> : <EmailList data={data} isLoading={isLoading} />}
+        {visao === "grafico" ? <EmailCompareChart emails={data} /> : <EmailList data={data} isLoading={isLoading} tickets={tickets} allTickets={allTickets} />}
       </CardContent>
     </Card>
   );
 }
 
-function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsProps & { foraDoEvento: number }) {
+function EmailTab({ emailCampaigns, foraDoEvento, goals, range, tickets, allTickets }: MarketingTabsProps & { foraDoEvento: number }) {
   const [sel, setSel] = useState<string[]>([]);
   const [a, setA] = useState<string | null>(null);
   const [b, setB] = useState<string | null>(null);
@@ -577,7 +627,7 @@ function EmailTab({ emailCampaigns, foraDoEvento, goals, range }: MarketingTabsP
           </div>
         </CardContent>
       </Card>
-      <EmailsCard />
+      <EmailsCard tickets={tickets} allTickets={allTickets} />
       <Card>
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-2">Comparar dois e-mails <InfoTip title="Comparar dois e-mails" /></CardTitle>
