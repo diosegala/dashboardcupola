@@ -8,6 +8,7 @@ import { CompanyRanking } from "@/components/buyers/profile/CompanyRanking";
 import { BubblesViz, CloudViz, DonutViz, HighlightViz, VizCard, vizFor, VIZ, type Item } from "@/components/buyers/profile/ProfileViz";
 import { themeCharts } from "@/lib/formQuestions";
 import { isApproved } from "@/lib/eventConfig";
+import { cn } from "@/lib/utils";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import type { Company, EventRef, Person } from "@/lib/buyers";
 
@@ -75,7 +76,7 @@ function PerfilBarras({ items, total }: { items: Item[]; total: number }) {
 function Destaque({ titulo, valor, sufixo, cor, atraso }: { titulo: string; valor: number; sufixo?: string; cor: string; atraso: number }) {
   return (
     <Card
-      className="relative col-span-6 flex animate-[pop-in_600ms_cubic-bezier(.16,1,.3,1)_both] flex-col gap-2 overflow-hidden p-5 lg:col-span-3"
+      className="relative flex animate-[pop-in_600ms_cubic-bezier(.16,1,.3,1)_both] flex-col gap-2 overflow-hidden p-5"
       style={{ animationDelay: `${atraso}ms` }}
     >
       <span className="absolute -right-6 -top-6 h-20 w-20 rounded-full opacity-20 blur-xl" style={{ background: cor }} aria-hidden />
@@ -113,10 +114,13 @@ export function ProfileCharts({ tickets, formAnswers, people, companies, eventos
 
   const cidades = temas.find((t) => t.title === "Cidades");
   const empresasForm = temas.find((t) => t.title === "Empresas");
-  const outros = [
+  const graficos = [
     ...(porPerfil.length ? [{ title: "Perfil da empresa", items: porPerfil }] : []),
     ...temas.filter((t) => t.title !== "Cidades" && t.title !== "Empresas"),
   ].filter((t) => t.items.length > 0 && !COMPACTOS.includes(t.title));
+  // Quem compra (cargo e perfil da empresa) fica junto; as demais perguntas vêm depois.
+  const quem = ["Cargo", "Perfil da empresa"].flatMap((title) => graficos.filter((t) => t.title === title));
+  const outros = graficos.filter((t) => !quem.includes(t));
   const compactos = COMPACTOS.flatMap((title) => temas.filter((t) => t.title === title && t.items.length > 0));
 
   const admin = !!(people && companies && eventos && eventSlug);
@@ -128,54 +132,58 @@ export function ProfileCharts({ tickets, formAnswers, people, companies, eventos
     return <p className="py-12 text-center text-sm text-muted-foreground">Ainda não há participantes nem respostas do formulário para este evento.</p>;
   }
 
+  const temMapa = Object.keys(porUf).length > 0;
+  const temCidades = !!cidades && cidades.items.length > 0;
+  const mostraVoltaram = admin && noEvento.length > 0;
+
   return (
     <div className="grid grid-cols-12 gap-[14px]">
-      <Destaque titulo="Participantes" valor={participantes} cor={VIZ[0]} atraso={0} />
-      <Destaque titulo="Estados" valor={Object.keys(porUf).length} cor={VIZ[1]} atraso={80} />
-      {admin && noEvento.length > 0 ? (
-        <Destaque titulo="Voltaram à CUPOLA" valor={Math.round((voltaram / noEvento.length) * 100)} sufixo="%" cor={VIZ[2]} atraso={160} />
-      ) : (
-        <Destaque titulo="Cidades" valor={cidades?.distinct ?? 0} cor={VIZ[2]} atraso={160} />
-      )}
-      <Destaque titulo="Empresas" valor={empresasNoEvento} cor={VIZ[3]} atraso={240} />
+      {/* Números: pessoas, depois localização (estados e cidades) e empresas. */}
+      <div className={cn("col-span-12 grid grid-cols-2 gap-[14px] [&>*:last-child:nth-child(odd)]:col-span-2 lg:[&>*:last-child:nth-child(odd)]:col-span-1", mostraVoltaram ? "lg:grid-cols-5" : "lg:grid-cols-4")}>
+        <Destaque titulo="Participantes" valor={participantes} cor={VIZ[0]} atraso={0} />
+        {mostraVoltaram && <Destaque titulo="Voltaram à CUPOLA" valor={Math.round((voltaram / noEvento.length) * 100)} sufixo="%" cor={VIZ[2]} atraso={60} />}
+        <Destaque titulo="Estados" valor={Object.keys(porUf).length} cor={VIZ[1]} atraso={120} />
+        <Destaque titulo="Cidades" valor={cidades?.distinct ?? 0} cor={VIZ[4]} atraso={180} />
+        <Destaque titulo="Empresas" valor={empresasNoEvento} cor={VIZ[3]} atraso={240} />
+      </div>
 
-      {Object.keys(porUf).length > 0 && (
-        <VizCard title="De onde vêm" subtitle="Cada quadradinho é um estado; quanto mais forte a cor, mais gente." className="col-span-12 xl:col-span-7">
+      {/* Localização: região e estado ao lado da cidade. */}
+      {temMapa && (
+        <VizCard title="De onde vêm" subtitle="Cada quadradinho é um estado; quanto mais forte a cor, mais gente." className={cn("col-span-12", temCidades && "xl:col-span-7")}>
           <BrazilTileMap porUf={porUf} />
         </VizCard>
       )}
+      {temCidades && (
+        <VizCard title="Cidades" subtitle={`${int(cidades!.distinct)} cidades diferentes`} className={cn("col-span-12", temMapa && "xl:col-span-5")}>
+          <CloudViz items={cidades!.items} limite={30} />
+        </VizCard>
+      )}
 
-      {outros.map((t, i) => (
+      {/* Quem compra: cargo ao lado do perfil da empresa. */}
+      {quem.map((t) => (
         <VizCard
           key={t.title}
           title={t.title}
-          subtitle={
-            t.title === "Perfil da empresa"
-              ? `% de ${int(responderamPerfil)} participantes que responderam. Cada um pode marcar mais de um perfil.`
-              : undefined
-          }
-          className={i === 0 && Object.keys(porUf).length > 0 ? "col-span-12 xl:col-span-5" : "col-span-12 md:col-span-6 xl:col-span-4"}
+          subtitle={t.title === "Perfil da empresa" ? `% de ${int(responderamPerfil)} participantes que responderam. Cada um pode marcar mais de um perfil.` : undefined}
+          className={cn("col-span-12", quem.length > 1 && "md:col-span-6")}
         >
-          {t.title === "Perfil da empresa" ? (
-            <PerfilBarras items={t.items} total={responderamPerfil} />
-          ) : (
-            <Grafico title={t.title} items={t.items} />
-          )}
+          {t.title === "Perfil da empresa" ? <PerfilBarras items={t.items} total={responderamPerfil} /> : <Grafico title={t.title} items={t.items} />}
+        </VizCard>
+      ))}
+
+      {outros.map((t) => (
+        <VizCard key={t.title} title={t.title} className="col-span-12 md:col-span-6 xl:col-span-4">
+          <Grafico title={t.title} items={t.items} />
         </VizCard>
       ))}
 
       {compactos.map((t) => (
         <VizCard key={t.title} title={t.title} className={compactos.length > 1 ? "col-span-12 sm:col-span-6" : "col-span-12"}>
-          <ListaCompacta items={t.items} />
+          {t.items.length > 1 ? <DonutViz items={t.items} /> : <ListaCompacta items={t.items} />}
         </VizCard>
       ))}
 
-      {cidades && cidades.items.length > 0 && (
-        <VizCard title="Cidades" subtitle={`${int(cidades.distinct)} cidades diferentes`} className="col-span-12">
-          <CloudViz items={cidades.items} limite={30} />
-        </VizCard>
-      )}
-
+      {/* Empresas da casa fecha a página. */}
       {admin ? (
         <CompanyRanking companies={companies!} eventos={eventos!} eventSlug={eventSlug!} />
       ) : (
