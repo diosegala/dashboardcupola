@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMyTeamCoupons } from "@/hooks/useTeam";
 import { eventGoal } from "@/lib/goalMetrics";
 import { cn } from "@/lib/utils";
+import { CategorySalesCard } from "./CategorySalesCard";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 
@@ -155,11 +156,14 @@ const CANAL_POR_APELIDO: Record<string, string> = { ig: "Instagram", instagram: 
 // UTM às vezes vem como códigos de letra ("(99,97,110,...)"): converte de volta para texto.
 // Maiúsculas, minúsculas e espaços sobrando não separam o mesmo canal ("Instagram" e "instagram " são um só).
 // Exportado também para a página Marketing (card "Pagantes por origem (UTM)" vive na aba Marketing).
-export function utmLabel(v: string | null | undefined): string | null {
+export function utmTexto(v: string | null | undefined): string {
   const t = (v ?? "").trim();
-  if (!t) return null;
   const codes = t.match(/^[({[]?\s*(\d{2,3}(?:\s*,\s*\d{2,3})+)\s*[)}\]]?$/);
-  const texto = (codes ? String.fromCharCode(...codes[1].split(",").map((n) => Number(n.trim()))) : t).trim().replace(/\s+/g, " ").toLowerCase();
+  return (codes ? String.fromCharCode(...codes[1].split(",").map((n) => Number(n.trim()))) : t).trim().replace(/\s+/g, " ");
+}
+
+export function utmLabel(v: string | null | undefined): string | null {
+  const texto = utmTexto(v).toLowerCase();
   if (!texto) return null;
   return CANAL_POR_APELIDO[texto] ?? texto.charAt(0).toUpperCase() + texto.slice(1);
 }
@@ -274,6 +278,7 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
   // Descontos concedidos agora fica ao lado da Receita acumulada (CommercialOverview).
   return (
     <div className="grid grid-cols-12 gap-[14px]">
+      <CategorySalesCard paying={paying} className="col-span-12" />
       {segmentos.map((s) => (
         <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className="col-span-12" />
       ))}

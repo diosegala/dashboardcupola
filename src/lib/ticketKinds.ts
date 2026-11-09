@@ -15,8 +15,8 @@ export function ticketKind(name: string | null | undefined): TicketKind {
   const vip = /\bvip\b/.test(n);
   // Combo: o nome muda entre lotes e versões da API ("Combo Padrão", "Padrão + Visita").
   if (/\bcombo\b|\+\s*visita/.test(n)) return vip ? "VIP Combo" : "Padrão Combo";
-  // Grupo: "Grupo", "Ingressos em grupos" ou faixa de quantidade ("2 a 5 Ingressos Padrão", "6 a 10 Ingressos").
-  if (/\bgrupos?\b|\b\d+\s*a\s*\d+\s*ingressos\b/.test(n)) return "Grupo";
+  // Grupo: "Grupo", "Ingressos em grupos" ou faixa de quantidade ("2 a 5 Ingressos Padrão", "10% OFF - 2 a 5 - Padrão").
+  if (/\bgrupos?\b|\b\d+\s*a\s*\d+\s*(ingressos\b|-)/.test(n)) return "Grupo";
   if (/visita presencial/.test(n) && !/ingresso/.test(n)) return "Visita presencial";
   if (vip) return "VIP";
   if (CREDENCIAIS.test(n) && !/padrao/.test(n)) return "Credenciais";

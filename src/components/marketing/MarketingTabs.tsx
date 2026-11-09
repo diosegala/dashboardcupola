@@ -22,7 +22,7 @@ import { DemandGenTable } from "@/components/dashboard/charts/DemandGenTable";
 import { DemandGenByDayChart } from "@/components/dashboard/charts/DemandGenByDayChart";
 import { SourceBreakdownTable } from "@/components/dashboard/SourceBreakdownTable";
 import { SourceBreakdownDataTable } from "@/components/dashboard/SourceBreakdownDataTable";
-import { SegmentCard, utmLabel } from "@/components/dashboard/CommercialSegments";
+import { SegmentCard, utmLabel, utmTexto } from "@/components/dashboard/CommercialSegments";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { batchOf, batchOrder } from "@/lib/batches";
@@ -756,15 +756,16 @@ function LinksTab({ tickets, allTickets, goals }: MarketingTabsProps) {
   }
   const canais = Array.from(porCanal.entries()).sort((a, b) => b[1].q - a[1].q);
 
-  const porLink = new Map<string, { canal: string; source: string; medium: string; campaign: string; q: number; v: number }>();
+  const porLink = new Map<string, { canal: string; source: string; medium: string; campaign: string; content: string; q: number; v: number }>();
   sympla.forEach((t) => {
     if (!utmLabel(t.utm_source)) return;
     const canal = canalDe(t);
-    const src = (t.utm_source ?? "").trim();
-    const med = (t.utm_medium ?? "").trim() || "—";
-    const camp = (t.utm_campaign ?? "").trim() || "—";
-    const k = `${canal}|${src}|${med}|${camp}`;
-    const l = porLink.get(k) ?? { canal, source: src, medium: med, campaign: camp, q: 0, v: 0 };
+    const src = utmTexto(t.utm_source);
+    const med = utmTexto(t.utm_medium) || "—";
+    const camp = utmTexto(t.utm_campaign) || "—";
+    const cont = utmTexto(t.utm_content) || "—";
+    const k = `${canal}|${src}|${med}|${camp}|${cont}`;
+    const l = porLink.get(k) ?? { canal, source: src, medium: med, campaign: camp, content: cont, q: 0, v: 0 };
     porLink.set(k, { ...l, q: l.q + (t.quantity || 0), v: l.v + Number(t.total_price || 0) });
   });
   const links = Array.from(porLink.values()).sort((a, b) => b.q - a.q);
@@ -819,8 +820,8 @@ function LinksTab({ tickets, allTickets, goals }: MarketingTabsProps) {
       />
       <TableCard
         title="Por link parametrizado"
-        head={[{ label: "Canal" }, { label: "Source" }, { label: "Medium" }, { label: "Campanha" }, { label: "Ingressos", right: true }, { label: "Valor", right: true }]}
-        rows={links.map((l) => [l.canal, l.source, l.medium, l.campaign, int(l.q), brl(l.v)])}
+        head={[{ label: "Canal" }, { label: "Link" }, { label: "Source" }, { label: "Medium" }, { label: "Campanha" }, { label: "Content" }, { label: "Ingressos", right: true }, { label: "Valor", right: true }]}
+        rows={links.map((l) => [l.canal, `${l.source} / ${l.medium} / ${l.campaign} / ${l.content}`, l.source, l.medium, l.campaign, l.content, int(l.q), brl(l.v)])}
         rodape="Só vendas da Sympla: faturado interno não passa por link."
       />
     </div>

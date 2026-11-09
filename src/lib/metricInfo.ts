@@ -1,3 +1,7 @@
+// Regras repetidas em mais de um indicador: um texto só, para não divergirem.
+export const VALOR_LIQUIDO_SYMPLA = "Os valores da Sympla são líquidos: já estão sem a taxa da Sympla (cerca de 6,3% do preço do ingresso). Faturados internos entram pelo valor do produto no negócio.";
+const LOTE_DO_FATURADO = "Faturado interno entra no lote vigente na data de criação do negócio, mesmo que o ganho aconteça depois da virada, porque o preço combinado é o daquele lote.";
+
 // Definições em linguagem de negócio usadas no botão "i" de cada indicador e gráfico.
 export const METRIC_INFO: Record<string, string> = {
   // Página Cupons
@@ -6,7 +10,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Códigos em circulação": "Quantidade de códigos de cupom diferentes usados em ingressos aprovados do evento.",
   "Vendas com cupom": "Ingressos aprovados que usaram algum cupom, de qualquer tipo.",
   "Hall da fama": "Soma das vendas pagantes de cada pessoa da equipe em todos os lotes, incluindo o atual. Aparecem os 3 primeiros; Ver mais abre o restante. Abaixo do nome, quantos lotes já encerrados a pessoa venceu. Empates ficam na mesma posição.",
-  "Cupons em uso": "Todos os cupons usados no evento, do mais usado para o menos usado. O grupo é identificado pelo código (equipe, resgate, palestrantes, parceiros). Vendas faturadas somam no cupom da equipe de quem vendeu (ex.: SUELLEN5) e contam como venda normal. Cupons da mesma pessoa aparecem juntos numa linha só, com o nome dela (ex.: Leticia B soma LETICIAC5, LETICIA10 e LETICIA15). A pizza mostra os 5 mais usados do filtro atual; o resto fica em Outros.",
+  "Cupons em uso": "Todos os cupons usados no evento, do mais usado para o menos usado. O grupo é identificado pelo código (equipe, resgate, palestrantes, parceiros). Vendas faturadas somam no cupom da equipe de quem vendeu (ex.: SUELLEN5) e contam como venda normal. Cupons da mesma pessoa aparecem juntos numa linha só, com o nome dela (ex.: Leticia B soma LETICIAC5, LETICIA10 e LETICIA15). A pizza mostra os 5 mais usados do filtro atual; o resto fica em Outros. A linha Sem cupom soma os ingressos pagos na Sympla sem nenhum código.",
   // Aba Comercial (definições do ds-summit)
   "Meta de ingressos pagantes":
     "Soma dos ingressos pagos na Sympla com os faturados internamente. Cortesias, expositores e patrocinadores não entram. A meta é cadastrada na tela Metas.",
@@ -19,7 +23,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagos na Sympla":
     "Pedidos aprovados na Sympla com qualquer valor acima de zero. Pendentes e cancelados não contam.",
   "Faturados internamente":
-    "Ingressos vendidos pelo comercial fora da Sympla: negócios ganhos no Pipedrive com produto Ingressos Summit, pela quantidade e pelo valor do produto, na data em que o negócio foi ganho. O comercial só marca como ganho depois do contrato assinado ou da primeira parcela paga, então ganho conta como vendido, mesmo parcelado. Negócios abertos (negociação, fechamento) aparecem à parte e não contam. Forma de pagamento \"Bonificação / Permuta\" ou produto com valor zero no negócio conta como bonificado. Parcelado só é indicado. 2 ou mais ingressos Padrão no mesmo negócio contam como Grupo. O ano anterior não tem faturados internos. O resgate na Sympla (cupom de 100% com o nome da empresa, como COPAAZUL100) só dá baixa: não conta de novo.",
+    "Ingressos vendidos pelo comercial fora da Sympla: negócios ganhos no Pipedrive com produto Ingressos Summit, pela quantidade e pelo valor do produto, na data em que o negócio foi ganho. O comercial só marca como ganho depois do contrato assinado ou da primeira parcela paga, então ganho conta como vendido, mesmo parcelado. Negócios abertos (negociação, fechamento) aparecem à parte e não contam. Forma de pagamento \"Bonificação / Permuta\" ou produto com valor zero no negócio conta como bonificado. Parcelado só é indicado. 2 ou mais ingressos Padrão no mesmo negócio contam como Grupo. O ano anterior não tem faturados internos. O resgate na Sympla (cupom de 100% com o nome da empresa, como COPAAZUL100) só dá baixa: não conta de novo. " + LOTE_DO_FATURADO,
   Bonificados:
     "Ingressos aprovados sem valor: cortesias, expositores, patrocinadores, convidados e equipe. Ficam visíveis para controle de lotação, mas não somam na meta nem na receita.",
   "Ingressos pagantes":
@@ -27,7 +31,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes acumulados": "Total de pagantes semana a semana desde a primeira venda. Com uma meta de pagantes na tela Metas, aparece também a trajetória até ela.",
   "Descontos concedidos (Comercial)": "Soma do que deixou de ser cobrado com cupons de desconto parcial. Cupons de 100% não entram. O % é sobre a receita bruta: receita paga + descontos. Faturados internos só entram quando o desconto do produto vem preenchido no Pipedrive.",
   "Receita acumulada x meta": "Receita dos pagantes somada semana a semana desde a primeira venda. A linha tracejada é a trajetória até a meta de receita definida na aba Metas, distribuída pelos dias úteis até o evento. A linha pontilhada é o evento anterior na mesma data, quando 'Comparar' está ligado.",
-  "Receita acumulada": "Total: ingressos mais patrocínios. Ingressos: valor dos pagantes (Sympla e faturados internos), sem cancelados nem cortesias. Patrocínios: negócios ganhos no Pipedrive, os mesmos da página Patrocínios. As barras mostram cada mês, e a mais clara é o mês atual, ainda parcial. Ticket médio, pagantes e meta de receita valem sempre para ingressos.",
+  "Receita acumulada": "Total: ingressos mais patrocínios. Ingressos: valor dos pagantes (Sympla e faturados internos), sem cancelados nem cortesias. Patrocínios: negócios ganhos no Pipedrive, os mesmos da página Patrocínios. As barras mostram cada mês, e a mais clara é o mês atual, ainda parcial. Ticket médio, pagantes e meta de receita valem sempre para ingressos. " + VALOR_LIQUIDO_SYMPLA,
   "Pagantes acumulados x meta":
     "Linha cheia: total de pagantes semana a semana. Linha tracejada: trajetória até a meta no dia do evento, distribuída por dias úteis.",
   "Ingressos emitidos":
@@ -81,9 +85,11 @@ export const METRIC_INFO: Record<string, string> = {
   "Ticket Médio": "Receita do período dividida pela quantidade de ingressos vendidos no mesmo período.",
   "Progresso por Lote": "Ingressos vendidos em cada lote comparados à meta do lote.",
   "Lote vigente":
-    "Lote à venda agora: começa na primeira venda com o nome dele na Sympla e vale até a primeira venda do lote seguinte. Contam ingressos pagantes do lote; a meta vem de 'Ingressos do lote' na aba Metas. Na aba Por lote: preço, vendidos, saldo, % vendido e receita de cada lote, do mais novo para o mais antigo, 3 por página, com o vigente em destaque.",
+    "Lote à venda agora: começa na primeira venda com o nome dele na Sympla e vale até a primeira venda do lote seguinte. Contam ingressos pagantes do lote; a meta vem de 'Ingressos do lote' na aba Metas. Na aba Por lote: preço, vendidos, saldo, % vendido e receita de cada lote, do mais novo para o mais antigo, 3 por página, com o vigente em destaque. " + LOTE_DO_FATURADO + " " + VALOR_LIQUIDO_SYMPLA,
   "Vendas por lote":
-    "Pagantes e receita de cada lote (Pré-venda, Lote 0, Lote 1…). Com meta do lote, aparece a marca da meta. Com a chave de comparação ligada, a linha tracejada mostra o mesmo lote do evento anterior, inteiro.",
+    "Pagantes e receita de cada lote (Pré-venda, Lote 0, Lote 1…). Com meta do lote, aparece a marca da meta. Com a chave de comparação ligada, a linha tracejada mostra o mesmo lote do evento anterior, inteiro. " + LOTE_DO_FATURADO,
+  "Individual, grupo, VIP ou combo":
+    "Ingressos pagantes do período em uma categoria só, pelo nome do tipo na Sympla. Individual: ingresso Padrão avulso. Grupo: ingressos em grupo; nos faturados, 2 ou mais Padrão no mesmo negócio. Combo: ingresso com visita. Pedidos: pedidos da Sympla e negócios do Pipedrive. Valor médio: valor dividido pelos ingressos. " + VALOR_LIQUIDO_SYMPLA,
   "Funil de KPIs":
     "Resultado de cada etapa do funil, do engajamento até a venda, semana a semana e comparado à meta de cada semana.",
   "Funil de Deals por Estágio": "Negócios do CRM em cada estágio do funil comercial.",
@@ -98,7 +104,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Com link parametrizado": "Parte dos ingressos pagos na Sympla, no recorte escolhido, que veio por um link com UTM.",
   "Canais com venda": "Quantos canais diferentes trouxeram pelo menos uma venda.",
   "Vendas por canal": "Vendidos de cada canal contra a meta do planejamento, no lote escolhido (abre no vigente) ou no evento todo, dentro do período do topo. Selo verde: bateu a meta; âmbar: ainda não. Canal sem meta mostra só a venda. Sem canal identificado não tem meta. A soma dos canais é o total de pagantes.",
-  "Por link parametrizado": "Cada combinação de UTM (source, medium e campanha) usada nas compras, com ingressos e valor.",
+  "Por link parametrizado": "Cada combinação de UTM (source, medium, campanha e content) usada nas compras, com ingressos e valor. A coluna Link junta as quatro partes.",
   "Desempenho por campanha": "Uma linha por campanha, da que mais investiu para a que menos. Custo por compra é o investimento dividido pelas compras registradas.",
   "E-mails enviados": "Todos os e-mails desta edição do Summit enviados pelo RD Station, do mais recente para o mais antigo. Importante: no RD, o nome do e-mail precisa começar com a tag [SUM27] para aparecer aqui; sem a tag, o painel não reconhece como e-mail do Summit. A tag fica oculta na lista. Abertura e clique sobre os e-mails entregues.",
   "Desempenho de cada e-mail": "Uma coluna por e-mail do período, em ordem de envio. Acima da linha: abertura e clique (sobre os entregues). Abaixo: descadastro (sobre os entregues) e bounce (sobre os enviados). Cada métrica tem a própria escala, então a barra mais alta de cada cor, com contorno, é o e-mail que mais teve aquilo. Passe o mouse num e-mail para ver todos os números.",

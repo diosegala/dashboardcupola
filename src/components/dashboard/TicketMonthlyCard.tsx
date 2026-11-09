@@ -1,3 +1,4 @@
+import { VALOR_LIQUIDO_SYMPLA } from "@/lib/metricInfo";
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InfoTip } from "@/components/InfoTip";
@@ -42,7 +43,7 @@ export function TicketMonthlyCard({ className, meses, filtrado }: { className?: 
             Faturamento de ingressos por mês
             <InfoTip
               title="Faturamento de ingressos por mês"
-              text="Quanto foi vendido em ingressos em cada mês. Sympla conta pela data da compra e faturados internos pela data em que o negócio foi ganho. Cancelados e cortesias ficam fora. O número sobre a barra é a quantidade de ingressos e a linha mostra o total acumulado. O mês atual ainda está em andamento (parcial). A linha tracejada é a edição anterior no mesmo mês, quando 'Comparar' está ligado."
+              text={`Quanto foi vendido em ingressos em cada mês. Sympla conta pela data da compra e faturados internos pela data em que o negócio foi ganho. Cancelados e cortesias ficam fora. O número sobre a barra é a quantidade de ingressos e a linha mostra o total acumulado. O mês atual ainda está em andamento (parcial). A linha tracejada é a edição anterior no mesmo mês, quando 'Comparar' está ligado. ${VALOR_LIQUIDO_SYMPLA}`}
             />
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">
