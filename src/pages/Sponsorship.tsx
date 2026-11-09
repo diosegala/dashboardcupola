@@ -350,7 +350,7 @@ export default function Sponsorship() {
                   campos={[view.statusOf("deliveries"), view.statusOf("brand")]}
                 />
                 )}
-                {isAdmin && pendentes.length > 0 && (
+                {false && isAdmin && pendentes.length > 0 && (
                   <Card className="col-span-12">
                     <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-3">
                       <div>
