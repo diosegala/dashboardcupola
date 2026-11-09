@@ -209,9 +209,10 @@ export function CloudViz({ items, limite = 24, unidade = "pessoas" }: { items: I
             <span
               key={it.label}
               title={`${it.label}: ${int(it.value)} ${it.value === 1 ? unidade.replace(/s$/, "") : unidade}`}
-              className="group inline-flex animate-[pop-in_600ms_cubic-bezier(.16,1,.3,1)_both] cursor-default items-center gap-1.5 rounded-full px-3 py-1 font-semibold transition-transform duration-200 hover:scale-105"
+              className="group inline-flex animate-[pop-in_600ms_cubic-bezier(.16,1,.3,1)_both] cursor-default items-center gap-1.5 rounded-full px-3 py-1 font-medium transition-transform duration-200 hover:scale-105"
               style={{
-                fontSize: `${12 + peso * 9}px`,
+                // Sempre menor que o título do card (15px); quem tem mais pessoas se destaca pela cor.
+                fontSize: `${12 + peso * 2}px`,
                 background: `color-mix(in oklab, ${VIZ[n % VIZ.length]} ${Math.round(10 + peso * 22)}%, transparent)`,
                 animationDelay: `${n * 45}ms`,
               }}
@@ -219,7 +220,7 @@ export function CloudViz({ items, limite = 24, unidade = "pessoas" }: { items: I
               <span className="inline-block animate-[bob_4s_ease-in-out_infinite]" style={{ animationDelay: `${(n % 7) * 0.45}s`, animationDuration: `${3.2 + (n % 5) * 0.6}s` }}>
                 {it.label}
               </span>
-              <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">{int(it.value)}</span>
+              <span className="text-[11px] font-normal tabular-nums text-muted-foreground">{int(it.value)}</span>
             </span>
           );
         })}
