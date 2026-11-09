@@ -194,6 +194,9 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
         unit_price: l.item_price ?? (Number(l.quantity) ? Number(l.sum ?? 0) / Number(l.quantity) : 0),
         discount_value: discountValue(l),
         sold_at: quando,
+        // Lote do faturado: vale a data em que o negócio foi criado/acordado, mesmo que o ganho no CRM caia
+        // depois da virada de lote (o preço já era do lote anterior).
+        batch_at: d.created_at_source ?? quando,
         // Data de cada parcela paga: não vem do CRM (o ganho já indica contrato assinado ou 1ª parcela paga).
         paid_at: null as string | null,
         status: ganho ? "approved" : "crm_open",
@@ -207,7 +210,7 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
         // Na origem da venda (Marketing) o faturado aparece como venda direta: nem sempre é da equipe do ranking
         // (o site pede para grandes quantidades chamarem o comercial).
         utm_source: INVOICED_CHANNEL,
-        ticket_type: `${batchAt(quando, symplaSales)} | ${tipoDe(l.name)}`,
+        ticket_type: `${batchAt(d.created_at_source ?? quando, symplaSales)} | ${tipoDe(l.name)}`,
         seller: vendedor,
         seller_name: sellerFirstName(vendedor),
         company: d.org_name || titulo.empresa,

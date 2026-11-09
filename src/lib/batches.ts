@@ -49,7 +49,7 @@ export function batchOnDate(date: string, starts: { lote: string; desde: string 
 // continua na Pré-venda. O tipo (Padrão, VIP, combo) não muda.
 // Com calendário cadastrado (Configurações › Lotes), vale o lote cujo período contém o dia da venda em Brasília;
 // antes do primeiro lote, Lote 0; depois do último, o último.
-export function withBatchByDate<T extends { sold_at?: string | null; ticket_type?: string | null; source?: string }>(tickets: T[], calendario: BatchDates[] = []): T[] {
+export function withBatchByDate<T extends { sold_at?: string | null; batch_at?: string | null; ticket_type?: string | null; source?: string }>(tickets: T[], calendario: BatchDates[] = []): T[] {
   const datados = calendario.filter((c) => c.start_date && c.end_date);
   const starts = datados.length
     ? datados.map((c) => ({ lote: c.name, desde: c.start_date as string })).sort((a, b) => a.desde.localeCompare(b.desde))
@@ -59,7 +59,7 @@ export function withBatchByDate<T extends { sold_at?: string | null; ticket_type
     const proprio = batchOf(t.ticket_type);
     if (!t.sold_at || !proprio) return t;
     if (proprio === PRE_VENDA && t.source !== "pipedrive") return t;
-    const lote = loteDe(t.sold_at);
+    const lote = loteDe(t.batch_at ?? t.sold_at);
     if (lote === proprio) return t;
     const resto = (t.ticket_type ?? "").split("|").slice(1).join("|").trim();
     return { ...t, ticket_type: resto ? `${lote} | ${resto}` : lote };
