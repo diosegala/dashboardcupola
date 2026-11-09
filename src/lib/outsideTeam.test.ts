@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { beforeEach } from "vitest";
 import { couponCodes, couponLabel, outsideTeamBySeller, parseCoupon, setCouponPeople, teamMemberName } from "@/lib/coupons";
 import { buildTeamRanking } from "@/components/dashboard/TeamRanking";
-import type { Ticket } from "@/hooks/useCommercialMetrics";
+import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 
 const venda = (coupon_code: string | null, extra: Partial<Ticket> = {}): Ticket =>
   ({ coupon_code, quantity: 1, total_price: 100, ticket_type: "Lote 0 | Ingresso Padrão", sold_at: "2026-11-01T12:00:00Z", status: "approved", source: "sympla", ...extra }) as Ticket;
@@ -90,5 +90,30 @@ describe("nomes padronizados da planilha", () => {
     expect(parseCoupon("5.00% - TIME CUPOLA")).toMatchObject({ code: "ERICA", group: "equipe" });
     const r = buildTeamRanking([venda("5.00% - ERICA"), venda("5.00% - ERICA"), venda("5.00% - TIME CUPOLA")]);
     expect(r.lotes.flatMap((l) => l.ranking.map((v) => ({ nome: v.nome, vendas: v.vendas })))).toEqual([{ nome: "Erica", vendas: 3 }]);
+  });
+});
+
+describe("Suellen: pagos somam juntos, cortesia fica separada", () => {
+  beforeEach(() => {
+    setCouponPeople([
+      { name: "Suellen", codes: ["SUELLEN5", "SUELLEN10", "SUELLEN20"], sellerNames: ["Suellen Moreira", "Suelle Moreira"], outsideRanking: false },
+    ]);
+  });
+
+  it("SUELLEN10 e SUELLEN20 contam como Suellen; SUELEN_CORTESIAREALIZA não", () => {
+    expect(parseCoupon("10.00% - SUELLEN10")?.code).toBe("SUELLEN5");
+    expect(parseCoupon("20.00% - SUELLEN20")?.code).toBe("SUELLEN5");
+    expect(parseCoupon("100.00% - SUELEN_CORTESIAREALIZA")?.code).not.toBe("SUELLEN5");
+  });
+
+  it("no ranking entram só os pagos: cupom pago e faturado das duas grafias", () => {
+    const { paying } = splitTickets([
+      venda("10.00% - SUELLEN10"),
+      venda(null, { source: "pipedrive", seller: "SUELLEN MOREIRA", seller_name: "Suellen", ticket_type: "Lote 0 | Ingresso Padrão" } as Partial<Ticket>),
+      venda(null, { source: "pipedrive", seller: "SUELLE MOREIRA", seller_name: "Suelle", ticket_type: "Lote 0 | Ingresso Padrão" } as Partial<Ticket>),
+      venda("100.00% - SUELEN_CORTESIAREALIZA", { total_price: 0, unit_price: 0 } as Partial<Ticket>),
+    ]);
+    const r = buildTeamRanking(paying);
+    expect(r.lotes.flatMap((l) => l.ranking.map((v) => ({ nome: v.nome, vendas: v.vendas })))).toEqual([{ nome: "Suellen", vendas: 3 }]);
   });
 });
