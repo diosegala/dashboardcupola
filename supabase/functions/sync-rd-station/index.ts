@@ -195,6 +195,44 @@ Deno.serve(async (req) => {
 
     console.log(`sync-rd-station - upserted ${rows.length} campaigns`);
 
+    // As estatísticas do RD só chegam no dia seguinte (D-1). Para o e-mail enviado hoje já aparecer na lista,
+    // a lista de e-mails do RD traz nome, horário e quantidade enviada na hora. Abertura e clique ficam
+    // "Aguardando" até a estatística chegar, e aí os números acima substituem estes.
+    const comEstatistica = new Set(rows.map((r: any) => r.rd_campaign_id));
+    const limite = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    const recentes: any[] = [];
+    let paginas = 0;
+    for (let page = 1; page <= 40; page++) {
+      const r = await fetchWithRetry(`https://api.rd.services/platform/emails?page=${page}&page_size=125`, accessToken);
+      if (!r || !r.ok) {
+        if (r) console.log(`sync-rd-station - emails list ${r.status}: ${(await r.text()).slice(0, 200)}`);
+        break;
+      }
+      const body = await r.json();
+      const items: any[] = body.items ?? [];
+      paginas = page;
+      for (const e of items) {
+        const quando = e.send_at ? new Date(e.send_at).getTime() : NaN;
+        const enviado = String(e.status ?? "").toUpperCase() === "SENT" || (Number.isFinite(quando) && quando <= Date.now());
+        if (!enviado || !Number.isFinite(quando) || quando < limite || quando > Date.now()) continue;
+        const id = String(e.campaign_id ?? e.id);
+        if (comEstatistica.has(id)) continue;
+        recentes.push({
+          rd_campaign_id: id,
+          name: e.name ?? null,
+          sent_at: new Date(quando).toISOString(),
+          total_sent: Number(e.leads_count ?? 0),
+          synced_at: new Date().toISOString(),
+        });
+      }
+      if (items.length < 125) break;
+    }
+    if (recentes.length) {
+      const { error } = await supabase.from("email_campaigns").upsert(recentes, { onConflict: "rd_campaign_id" });
+      if (error) throw error;
+    }
+    console.log(`sync-rd-station - emails list: ${paginas} pages, ${recentes.length} recent emails without stats yet`);
+
     await supabase.from("integrations").update({
       sync_status: "idle",
       last_synced_at: new Date().toISOString(),
