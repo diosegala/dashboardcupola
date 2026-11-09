@@ -85,4 +85,10 @@ describe("nomes padronizados da planilha", () => {
   it("colaborador cadastrado fica na Equipe CUPOLA mesmo sem o 5 no código", () => {
     expect(parseCoupon("5.00% - ERICA")?.group).toBe("equipe");
   });
+  it("cupom com espaço (TIME CUPOLA) cadastrado para Erica soma junto com ERICA", () => {
+    setCouponPeople([{ name: "Erica", codes: ["ERICA", "TIMECUPOLA"], sellerNames: [], outsideRanking: false }]);
+    expect(parseCoupon("5.00% - TIME CUPOLA")).toMatchObject({ code: "ERICA", group: "equipe" });
+    const r = buildTeamRanking([venda("5.00% - ERICA"), venda("5.00% - ERICA"), venda("5.00% - TIME CUPOLA")]);
+    expect(r.lotes.flatMap((l) => l.ranking.map((v) => ({ nome: v.nome, vendas: v.vendas })))).toEqual([{ nome: "Erica", vendas: 3 }]);
+  });
 });
