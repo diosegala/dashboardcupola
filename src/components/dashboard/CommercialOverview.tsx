@@ -33,8 +33,7 @@ import { CompareLine } from "@/components/CompareLine";
 import { useCompare } from "@/hooks/useCompare";
 import { eventGoal } from "@/lib/goalMetrics";
 import { ChartLegend } from "./charts/ChartLegend";
-import { SegmentCard } from "./CommercialSegments";
-import { vendasPorCanal } from "@/lib/salesChannel";
+import { ChannelGoalsCard } from "./ChannelGoalsCard";
 import { PREVIOUS_YEAR_KEY, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -169,7 +168,6 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   const emNegociacaoCrm = useMemo(() => tickets.filter((t) => ticketCategory(t) === "negociacao").reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
   const coberturaCrm = useMemo(() => crmDiscountCoverage(doPeriodo), [doPeriodo]);
   const mostrarDescontos = useCouponTotals(doPeriodo).comCupom > 0 || coberturaCrm.negocios > 0;
-  const canais = useMemo(() => vendasPorCanal(splitTickets(doPeriodo).paying), [doPeriodo]);
 
   return (
     <div className="grid grid-cols-12 gap-[14px]">
@@ -275,14 +273,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
       </Card>
 
       {/* Vendas por canal (veio da aba Marketing): segue o período escolhido. */}
-      {canais.length > 0 && (
-        <SegmentCard
-          className="col-span-12"
-          title="Vendas por canal"
-          items={canais}
-          rodape="Equipe CUPOLA soma os links da equipe, os cupons sem link e os faturados internos. O detalhe de cada link está na aba Marketing › Links."
-        />
-      )}
+      <ChannelGoalsCard tickets={doPeriodo} allTickets={tickets} goals={goals} />
 
       {/* Linha 3: pagantes acumulados x trajetória */}
       <Card className="col-span-12">

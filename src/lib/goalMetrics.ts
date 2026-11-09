@@ -7,7 +7,7 @@
 export type GoalScope = "evento" | "periodo" | "lote" | "cota" | "ano" | "canal";
 
 // Canais de venda sugeridos na meta por canal (os mesmos nomes da aba Marketing › Links). Outro nome pode ser digitado.
-export const CANAIS_DE_VENDA = ["Equipe CUPOLA", "E-mail marketing", "Instagram", "Whatsapp", "Sem link"];
+export const CANAIS_DE_VENDA = ["BDR", "Anúncios", "Equipe CUPOLA", "Imobi Report", "E-mail marketing", "Patrocinadores", "Instagram Rodrigo", "Redes sociais"];
 export type GoalUnit = "num" | "brl" | "pct";
 
 export interface GoalDef {
@@ -62,7 +62,7 @@ export const GOAL_SECTIONS: GoalSection[] = [
     title: "Canais de venda",
     description: "Quantos ingressos cada canal deve vender em cada lote, como no planejamento.",
     items: [
-      { id: "channel_sales", key: "channel_sales", label: "Vendas do canal no lote", where: "Marketing › Links › Vendas por canal", unit: "num", scope: "canal", info: "Ingressos que o canal deve vender no lote. Na aba Links do Marketing, escolha o lote para ver vendidos, meta, % e quanto falta. Em Evento todo, as metas dos lotes somam." },
+      { id: "channel_sales", key: "channel_sales", label: "Vendas do canal no lote", where: "Comercial › Vendas por canal", unit: "num", scope: "canal", info: "Ingressos que o canal deve vender no lote. Na aba Links do Marketing, escolha o lote para ver vendidos, meta, % e quanto falta. Em Evento todo, as metas dos lotes somam." },
     ],
   },
   {
