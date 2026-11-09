@@ -45,7 +45,9 @@ export function getCouponPeople(): CouponPerson[] {
 }
 
 function personOfCode(code: string) {
-  return PESSOAS.find((p) => p.codes.includes(code));
+  // Os cupons cadastrados ficam sem espaços ("TIMECUPOLA"); a Sympla pode mandar "TIME CUPOLA".
+  const alvo = normalizeCode(code);
+  return PESSOAS.find((p) => p.codes.includes(alvo));
 }
 
 // Pessoa cadastrada a partir do vendedor do faturado no Pipedrive: todas as palavras de um dos nomes precisam aparecer.
