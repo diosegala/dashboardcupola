@@ -57,7 +57,7 @@ export default function Coupons() {
   const cupons = useMemo(() => {
     const map = new Map<string, CupomLinha>();
     const todos = [...paying, ...bonus];
-    const cuponsEquipe = [...new Set(todos.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code), ...getCouponPeople().filter((x) => !x.outsideRanking).flatMap((x) => x.codes.slice(0, 1)))];
+    const cuponsEquipe = [...new Set([...todos.map((t) => parseCoupon(t.coupon_code)).filter((c) => c?.group === "equipe").map((c) => c!.code), ...getCouponPeople().filter((x) => !x.outsideRanking).flatMap((x) => x.codes.slice(0, 1))])];
     todos.forEach((t) => {
       // Faturado interno (Pipedrive) soma no cupom da equipe de quem vendeu (ex.: Suelen → SUELLEN5), como venda normal.
       let c: ParsedCoupon | null;
