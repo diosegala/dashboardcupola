@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/InfoTip";
 import { CountUp } from "@/components/CountUp";
-import { countBy } from "@/components/dashboard/CommercialSegments";
+import { companyProfiles, countProfiles } from "@/lib/companyProfile";
 import { BrazilTileMap, ufDe } from "@/components/buyers/profile/BrazilTileMap";
 import { CompanyRanking } from "@/components/buyers/profile/CompanyRanking";
 import { BubblesViz, CloudViz, DonutViz, HighlightViz, VizCard, vizFor, VIZ, type Item } from "@/components/buyers/profile/ProfileViz";
@@ -29,6 +29,31 @@ function Grafico({ title, items }: { title: string; items: Item[] }) {
   if (forma === "highlight") return <HighlightViz items={items} />;
   if (forma === "donut") return <DonutViz items={items} />;
   return <BubblesViz items={items} />;
+}
+
+// Perfis somados: barra = % dos participantes que marcaram o perfil (a soma passa de 100% porque a resposta é múltipla).
+function PerfilBarras({ items, total }: { items: Item[]; total: number }) {
+  return (
+    <ul className="flex flex-col gap-3">
+      {items.map((it, i) => {
+        const f = it.value / (total || 1);
+        const cor = it.label === "Outros" ? "hsl(var(--muted-foreground) / 0.55)" : VIZ[i % VIZ.length];
+        return (
+          <li key={it.label} className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className="font-medium">{it.label}</span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                <b className="font-semibold text-foreground">{Math.round(f * 100)}%</b> · {int(it.value)}
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${Math.min(f, 1) * 100}%`, background: cor }} />
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
 
 function Destaque({ titulo, valor, sufixo, cor, atraso }: { titulo: string; valor: number; sufixo?: string; cor: string; atraso: number }) {
@@ -63,7 +88,11 @@ export function ProfileCharts({ tickets, formAnswers, people, companies, eventos
     });
     return map;
   }, [aprovados]);
-  const porPerfil = useMemo(() => countBy(aprovados, (t) => t.company_size), [aprovados]);
+  const porPerfil = useMemo(() => countProfiles(aprovados, (t) => t.company_size, (t) => t.quantity || 0), [aprovados]);
+  const responderamPerfil = useMemo(
+    () => aprovados.reduce((s, t) => s + (companyProfiles(t.company_size).length ? t.quantity || 0 : 0), 0),
+    [aprovados],
+  );
   const temas = useMemo(() => themeCharts(formAnswers), [formAnswers]);
 
   const cidades = temas.find((t) => t.title === "Cidades");
@@ -103,9 +132,18 @@ export function ProfileCharts({ tickets, formAnswers, people, companies, eventos
         <VizCard
           key={t.title}
           title={t.title}
+          subtitle={
+            t.title === "Perfil da empresa"
+              ? `% de ${int(responderamPerfil)} participantes que responderam. Cada um pode marcar mais de um perfil.`
+              : undefined
+          }
           className={i === 0 && Object.keys(porUf).length > 0 ? "col-span-12 xl:col-span-5" : "col-span-12 md:col-span-6 xl:col-span-4"}
         >
-          <Grafico title={t.title} items={t.items} />
+          {t.title === "Perfil da empresa" ? (
+            <PerfilBarras items={t.items} total={responderamPerfil} />
+          ) : (
+            <Grafico title={t.title} items={t.items} />
+          )}
         </VizCard>
       ))}
 
