@@ -17,6 +17,7 @@ export interface DealRow {
   org_pd_id?: number | null;
   owner_name?: string | null;
   stage_id?: string | null;
+  stage_name?: string | null;
   stage_changed_at?: string | null;
   created_at_source?: string | null;
   lost_at?: string | null;
@@ -190,6 +191,75 @@ export function computeSponsorship(
     }
   }
   return out;
+}
+
+// ---------- por responsável ----------
+// Mesma regra das barras de cotas: fechamentos = m.vendas; negociações = linhas do evento em negócios abertos.
+export interface OwnerLine {
+  dealId: string;
+  empresa: string;
+  cotaKey: string; // mesma chave das linhas do card de cotas ("" = outros, ADDONS_KEY = adicionais)
+  produto: string;
+  quantidade: number;
+  valor: number;
+  quando: string | null; // fechamento: dia do ganho
+  etapa: string | null; // negociação: etapa no Pipedrive
+}
+export interface OwnerSummary {
+  nome: string;
+  fechados: OwnerLine[];
+  abertos: OwnerLine[];
+  qtdFechada: number;
+  valorFechado: number;
+  qtdNegociacao: number;
+  valorNegociacao: number;
+}
+
+export function byOwner(config: SponsorshipDraft, m: SponsorshipMetrics, deals: DealRow[], lines: DealProductRow[], catalog: CatalogRow[]): OwnerSummary[] {
+  const SEM = "Sem responsável";
+  const pipes = new Set(config.pipelines.filter((p) => p.represents !== "ingressos").map((p) => p.pipeline_pd_id));
+  const byId = new Map(catalog.filter((c) => (c.kind ?? "product") === "product").map((c) => [c.pd_id, c]));
+  const nameOf = (l: DealProductRow) => (l.product_pd_id != null ? byId.get(l.product_pd_id)?.name : null) ?? l.name ?? "Produto";
+  const isEventLine = (l: DealProductRow) => {
+    const p = l.product_pd_id != null ? byId.get(l.product_pd_id) : undefined;
+    return isEventProduct({ name: p?.name ?? l.name, code: p?.code ?? null }, config.product_term, config.product_code);
+  };
+  const keyOf = (l: DealProductRow, nome: string) => quotaOfProduct(nome, config.quotas)?.key ?? (isAddonProduct(nome, l.variation_pd_id != null) ? ADDONS_KEY : "");
+  const map = new Map<string, OwnerSummary>();
+  const get = (n: string | null | undefined) => {
+    const nome = (n ?? "").trim() || SEM;
+    let o = map.get(nome);
+    if (!o) map.set(nome, (o = { nome, fechados: [], abertos: [], qtdFechada: 0, valorFechado: 0, qtdNegociacao: 0, valorNegociacao: 0 }));
+    return o;
+  };
+  for (const v of m.vendas) {
+    const o = get(v.closer);
+    o.fechados.push({ dealId: v.dealId, empresa: v.empresa, cotaKey: v.cotaKey ?? (v.adicional ? ADDONS_KEY : ""), produto: v.cota ?? v.produto, quantidade: v.quantidade, valor: v.valor, quando: v.ganhoEm, etapa: null });
+    o.qtdFechada += v.quantidade;
+    o.valorFechado += v.valor;
+  }
+  const linesOf = new Map<string, DealProductRow[]>();
+  for (const l of lines) if (l.is_enabled && isEventLine(l)) linesOf.set(l.deal_id, [...(linesOf.get(l.deal_id) ?? []), l]);
+  for (const d of deals) {
+    if (d.is_deleted || d.status !== "open" || d.pipeline_pd_id == null || !pipes.has(d.pipeline_pd_id)) continue;
+    const own = linesOf.get(d.id) ?? [];
+    if (!own.length) continue;
+    const o = get(d.owner_name);
+    for (const l of own) {
+      const nome = nameOf(l);
+      const k = keyOf(l, nome);
+      const q = Number(l.quantity) || 0;
+      const valor = Number(l.sum) || 0;
+      o.abertos.push({ dealId: d.id, empresa: d.org_name || d.title || "Sem empresa", cotaKey: k, produto: quotaOfProduct(nome, config.quotas)?.name ?? nome, quantidade: q, valor, quando: null, etapa: d.stage_name ?? null });
+      o.qtdNegociacao += q;
+      o.valorNegociacao += valor;
+    }
+  }
+  for (const o of map.values()) {
+    o.fechados.sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
+    o.abertos.sort((a, b) => b.valor - a.valor);
+  }
+  return [...map.values()].sort((a, b) => b.valorFechado - a.valorFechado || b.valorNegociacao - a.valorNegociacao || a.nome.localeCompare(b.nome, "pt-BR"));
 }
 
 // ---------- cotas vendidas ----------

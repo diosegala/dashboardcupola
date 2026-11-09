@@ -21,6 +21,7 @@ import {
   SPONSOR_GOAL_KEYS,
   addDays,
   computeSponsorship,
+  byOwner,
   exampleDataset,
   examplePrevious,
   quotaBreakdown,
@@ -48,6 +49,7 @@ import {
 } from "@/lib/sponsorshipExtra";
 import { SponsorRevenueCard } from "@/components/sponsorship/SponsorRevenueCard";
 import { SponsorQuotasCard } from "@/components/sponsorship/SponsorQuotasCard";
+import { SponsorOwnersCard } from "@/components/sponsorship/SponsorOwnersCard";
 import { SponsorPaceCard } from "@/components/sponsorship/SponsorPaceCard";
 import { SponsorSalesCard, type SalesColumn } from "@/components/sponsorship/SponsorSalesCard";
 import { SponsorProspectCard } from "@/components/sponsorship/SponsorProspectCard";
@@ -189,6 +191,7 @@ export default function Sponsorship() {
       receb: receipts(cfg, m, dealsById, exemplo ? src.installments : instReal, event.end_date),
       entregas: deliveries(cfg, m, dealsById, cupons),
       adicionais: addonItems(m),
+      owners: byOwner(cfg, m, src.deals, src.lines, src.catalog),
       semParcelas: !exemplo && m.vendas.length > 0 && !instReal.some((p) => m.vendas.some((v) => v.dealId === p.deal_id)),
       account: exemplo ? null : realConfig.crm_account,
     };
@@ -212,6 +215,7 @@ export default function Sponsorship() {
     );
   }, [exemplo, data.data, valorHist.data, realConfig, hoje]);
 
+  const [cotaSel, setCotaSel] = useState<string | null>(null);
   const quotaRows = useMemo(() => quotaBreakdown(view.m, view.cfg.quotas, view.quotaGoals), [view]);
   const metaCotas = Object.values(view.quotaGoals).reduce((s, v) => s + v, 0) || null;
   const semanal = useMemo(() => weeklySeries(view.m, { inicio, abertura, hoje, meta: view.goals.ampliada, anterior: view.curva }), [view, inicio, abertura, hoje]);
@@ -287,9 +291,22 @@ export default function Sponsorship() {
                   lastSync={exemplo ? null : data.data?.lastSync ?? null}
                   exemplo={exemplo}
                 />
-                <SponsorQuotasCard className="col-span-12 lg:col-span-5" rows={quotaRows} cotasAnterior={view.cotasAnterior} />
-                <SponsorPaceCard
+                <SponsorQuotasCard
+                  className="col-span-12 lg:col-span-5"
+                  rows={quotaRows}
+                  cotasAnterior={view.cotasAnterior}
+                  selectedKey={cotaSel}
+                  onSelect={(k) => setCotaSel((s) => (s === k ? null : k))}
+                />
+                <SponsorOwnersCard
                   className="col-span-12 lg:col-span-7"
+                  owners={view.owners}
+                  rows={quotaRows}
+                  selectedKey={cotaSel}
+                  onClear={() => setCotaSel(null)}
+                />
+                <SponsorPaceCard
+                  className="col-span-12"
                   semanas={semanal.semanas}
                   meta={view.goals.ampliada}
                   metaCotas={metaCotas}

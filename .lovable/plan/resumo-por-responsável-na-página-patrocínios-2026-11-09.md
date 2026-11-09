@@ -13,7 +13,7 @@ A integração já traz tudo o que o resumo precisa, sem puxar nada novo:
 
 ## O que será criado
 
-Um card novo, **"Por responsável"**, ao lado do card Cotas vendidas. O card **Ritmo**, que hoje fica nesse lugar, desce para a linha de baixo, sem outras mudanças. Em telas menores, o resumo aparece abaixo das cotas.
+Um card novo, **"Vendas por responsável"**, após do card Cotas vendidas. O card **Ritmo**, que hoje fica nesse lugar, desce, sem outras mudanças.
 
 Cada responsável vem do Pipedrive e aparece num bloco próprio, ordenado pelo valor fechado:
 

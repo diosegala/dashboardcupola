@@ -125,7 +125,7 @@ export function useSponsorshipData(config: SponsorshipDraft | undefined) {
         supabase
           .from("deals")
           .select(
-            "id, pipedrive_deal_id, title, org_name, org_pd_id, owner_name, status, value, won_at, lost_at, lost_reason, created_at_source, stage_id, stage_changed_at, label_ids, custom_fields, products_count, pipeline_pd_id, is_deleted",
+            "id, pipedrive_deal_id, title, org_name, org_pd_id, owner_name, status, value, won_at, lost_at, lost_reason, created_at_source, stage_id, stage_name, stage_changed_at, label_ids, custom_fields, products_count, pipeline_pd_id, is_deleted",
           )
           .eq("crm_account", account)
           .in("pipeline_pd_id", pipes)
