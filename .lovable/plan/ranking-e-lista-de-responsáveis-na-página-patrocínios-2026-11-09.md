@@ -12,6 +12,7 @@ A integração já traz tudo. Não é preciso puxar nada novo:
 ## Card "Vendas por responsável" (substitui o atual)
 
 No topo:
+
 - a frase curta de sempre: "Quem fechou, quem está negociando e quem perdeu cada cota, com os dados do Pipedrive.";
 - o seletor **Ranking | Lista**, igual às abas da página. Ranking abre por padrão;
 - uma linha de filtros comum às duas visões, que se mantém ao trocar de visão: **cota** (Todas, Platina, Prata… vindas do Pipedrive), e na Lista também **status**, **responsável** e **busca por empresa**.
@@ -65,4 +66,17 @@ Clicar numa cota em "Por cota" aplica esse filtro de cota. Um novo clique, ou "T
   - Nova função `displayOwnerName(full, all)` para primeiro nome, apelido Bello e desempate por inicial.
 - Testes: as somas de ganhos e negociações por cota batem com `quotaBreakdown`; a conversão é ganhos ÷ (ganhos + perdidos); os nomes saem como Keity, Leticia Bello e "Ana P." no desempate; valor 0 vira null.
 - `SponsorOwnersCard.tsx` é reescrito com `CardTabs` (Ranking/Lista), filtros num estado único e uma `Sheet` para o painel.
-- `Sponsorship.tsx`: passa as linhas novas e mantém `cotaSel` ligado ao filtro de cota.
+- `Sponsorship.tsx`: passa as linhas novas e mantém `cotaSel` ligado ao filtro de cota.  
+
+
+&nbsp;
+
+O plano está aprovado, com três ajustes:
+
+- na Lista, abra por padrão com o filtro de status em "Em negociação", que é a visão mais usada no dia a dia
+
+- na linha do ranking, inclua a quantidade de perdidos junto com vendidas e em negociação
+
+- a exceção de nome deve valer para a responsável Leticia C. Bello Pinguelli especificamente, e não para qualquer nome com "Bello"
+
+Pode seguir com a implementação.
