@@ -22,7 +22,13 @@ export function SlidingTabsList({ value, className, children }: SlidingTabsListP
     medir();
     window.addEventListener("resize", medir);
     document.fonts?.ready.then(medir);
-    return () => window.removeEventListener("resize", medir);
+    // A lista pode quebrar em mais linhas quando o card estreita: remede junto.
+    const ro = typeof ResizeObserver !== "undefined" && listRef.current ? new ResizeObserver(medir) : null;
+    if (ro && listRef.current) ro.observe(listRef.current);
+    return () => {
+      window.removeEventListener("resize", medir);
+      ro?.disconnect();
+    };
   }, [value]);
 
   return (
