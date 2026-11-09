@@ -9,7 +9,7 @@ import { brl } from "./SponsorRevenueCard";
 export const QUOTAS_INFO = {
   card: "Quantidade do produto da cota em negócios ganhos. Um negócio com 2 unidades conta 2 cotas. Os nomes vêm dos produtos do Pipedrive.",
   porCota:
-    "Verde forte = cotas vendidas. Verde claro = cotas em negócios abertos. Todas as linhas usam a mesma escala. Com meta cadastrada (menu Metas), a linha vai até a meta da cota.",
+    "A barra verde mostra só as cotas vendidas. As negociações em andamento aparecem no texto abaixo de cada linha. Todas as linhas usam a mesma escala. Com meta cadastrada (menu Metas), a linha vai até a meta da cota.",
   receita: "Quanto cada cota já vendeu, em reais. Com meta de cotas cadastrada, mostra quantas faltam para a meta.",
   metaFalta:
     "Para cada cota: meta (menu Metas), cotas vendidas, % da meta e quantas faltam. O total soma só as cotas que têm meta. Cota sem meta aparece com traço. Em negociação são cotas em negócios abertos, que ainda não contam como vendidas.",
@@ -55,7 +55,7 @@ export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { r
             <div>
               <div className="text-[clamp(32px,3.4vw,42px)] font-semibold leading-none tracking-[-0.035em] tabular-nums">{int(negociando)}</div>
               <div className="mt-1.5 inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <i className="h-2 w-2 rounded-full bg-primary/35" /> em negociação
+                <i className="h-2 w-2 rounded-full bg-muted-foreground/40" /> em negociação
               </div>
             </div>
           </div>
@@ -125,7 +125,6 @@ export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { r
                   </div>
                   <div className="flex h-2 overflow-hidden rounded-full bg-secondary">
                     <div className="sp-grow h-full bg-primary" style={{ width: `${(r.vendidas / escala) * 100}%` }} />
-                    <div className="sp-grow h-full bg-primary/35" style={{ width: `${(r.emNegociacao / escala) * 100}%` }} />
                   </div>
                   <div className="text-[11px] text-muted-foreground">
                     {int(r.vendidas)} {r.vendidas === 1 ? "vendida" : "vendidas"} · {int(r.emNegociacao)} em negociação
