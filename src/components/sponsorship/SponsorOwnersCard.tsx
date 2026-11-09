@@ -108,7 +108,7 @@ export function SponsorOwnersCard({
           </div>
           <CardTabs
             value={aba}
-            onChange={setAba}
+            onChange={(v) => setAba(v as typeof aba)}
             tabs={[
               { value: "ranking", label: "Ranking", info: INFO.ranking },
               { value: "lista", label: "Lista", info: INFO.lista },
