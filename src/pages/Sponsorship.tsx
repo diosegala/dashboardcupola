@@ -51,7 +51,7 @@ import { SponsorRevenueCard } from "@/components/sponsorship/SponsorRevenueCard"
 import { SponsorQuotasCard } from "@/components/sponsorship/SponsorQuotasCard";
 import { SponsorOwnersCard } from "@/components/sponsorship/SponsorOwnersCard";
 import { SponsorPaceCard } from "@/components/sponsorship/SponsorPaceCard";
-import { SponsorSalesCard, type SalesColumn } from "@/components/sponsorship/SponsorSalesCard";
+import { type SalesColumn } from "@/components/sponsorship/SponsorSalesCard";
 import { SponsorProspectCard } from "@/components/sponsorship/SponsorProspectCard";
 import { SponsorRenewalCard } from "@/components/sponsorship/SponsorRenewalCard";
 import { SponsorReceiptsCard } from "@/components/sponsorship/SponsorReceiptsCard";
@@ -350,13 +350,6 @@ export default function Sponsorship() {
                   campos={[view.statusOf("deliveries"), view.statusOf("brand")]}
                 />
                 )}
-                <SponsorSalesCard
-                  className="col-span-12"
-                  metrics={view.m}
-                  account={view.account}
-                  columns={view.columns}
-                  campos={SALES_FIELD_COLUMNS.map((c) => view.statusOf(c.key))}
-                />
                 {isAdmin && pendentes.length > 0 && (
                   <Card className="col-span-12">
                     <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-3">
