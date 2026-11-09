@@ -80,13 +80,15 @@ export function ticketMonthly(opts: {
     const m = mesBrasilia(t.sold_at);
     return !min || m < min ? m : min;
   }, null);
-  const inicio = opts.inicio ?? primeiro ?? hoje;
+  let inicio = opts.inicio ?? primeiro ?? hoje;
+  if (primeiro && primeiro < inicio) inicio = primeiro;
+  const ultimo = todos.reduce((max, t) => (t.sold_at && mesBrasilia(t.sold_at) > max ? mesBrasilia(t.sold_at) : max), fim);
   const s = porMes(sympla, (t) => t.sold_at, valorDe);
   const f = porMes(faturados, (t) => t.sold_at, valorDe);
   const q = porMes(todos, (t) => t.sold_at, qtdDe);
   const ant = anterior && anterior.length ? porMes(anterior, (t) => t.sold_at, valorDe, 12) : null;
   let acc = 0;
-  return listaMeses(inicio < fim ? inicio : fim, fim < (primeiro ?? fim) ? primeiro! : fim).map((mes) => {
+  return listaMeses(inicio, ultimo).map((mes) => {
     const sympla = s.get(mes) ?? 0;
     const faturado = f.get(mes) ?? 0;
     acc += sympla + faturado;
