@@ -48,7 +48,7 @@ export function SponsorProspectCard({ data, responsavel, onResponsavel, metaAbor
   return (
     <Card className={className}>
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-3">
-        <div>
+        <div className="shrink-0">
           <CardTitle className="flex items-center gap-2">
             Prospecção <InfoTip title="Prospecção" text={PROSPECT_INFO.card} />
           </CardTitle>

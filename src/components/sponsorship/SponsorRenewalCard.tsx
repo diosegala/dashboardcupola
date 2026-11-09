@@ -48,7 +48,7 @@ export function SponsorRenewalCard({ rows, rotuloAnterior, cotaAnteriorFalta, of
   return (
     <Card className={className}>
       <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-3">
-        <div>
+        <div className="shrink-0">
           <CardTitle className="flex items-center gap-2">
             Renovação <InfoTip title="Renovação" text={RENEWAL_INFO.card} />
           </CardTitle>
