@@ -32,6 +32,14 @@ export function answerKey(answer: string): { key: string; label: string } {
   return { key: base, label: limpo.charAt(0).toUpperCase() + limpo.slice(1) };
 }
 
+// Cargo: "CEO / Dono" e "Dono / Sócio" são a mesma posição na empresa; "Outro" e "Outros" também.
+export function roleKey(answer: string): { key: string; label: string } {
+  const base = semAcento(answer).toLowerCase();
+  if (/\b(dono|socio|ceo|proprietari[oa])\b/.test(base)) return { key: "dono", label: "Dono / Sócio / CEO" };
+  if (/^\s*outros?\s*$/.test(base)) return { key: "outros", label: "Outros" };
+  return answerKey(answer);
+}
+
 // Cidade escrita de vários jeitos ("porto alegre - RS", "Porto Alegre/RS") vira "Porto Alegre".
 const MINUSCULAS = new Set(["da", "de", "do", "das", "dos", "e"]);
 export function cityKey(answer: string): { key: string; label: string } {
@@ -57,7 +65,7 @@ export function themeCharts(rows: { question: string; answer: string; total: num
   rows.forEach((r) => {
     const tema = questionTheme(r.question);
     if (!tema) return;
-    const { key, label } = tema === "Cidades" ? cityKey(r.answer) : answerKey(r.answer);
+    const { key, label } = tema === "Cidades" ? cityKey(r.answer) : tema === "Cargo" ? roleKey(r.answer) : answerKey(r.answer);
     if (!key) return;
     const respostas = temas.get(tema) ?? new Map();
     const atual = respostas.get(key) ?? { label, value: 0 };
