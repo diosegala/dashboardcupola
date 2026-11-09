@@ -27,7 +27,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes acumulados": "Total de pagantes semana a semana desde a primeira venda. Com uma meta de pagantes na tela Metas, aparece também a trajetória até ela.",
   "Descontos concedidos (Comercial)": "Soma do que deixou de ser cobrado com cupons de desconto parcial. Cupons de 100% não entram. O % é sobre a receita bruta: receita paga + descontos. Faturados internos só entram quando o desconto do produto vem preenchido no Pipedrive.",
   "Receita acumulada x meta": "Receita dos pagantes somada semana a semana desde a primeira venda. A linha tracejada é a trajetória até a meta de receita definida na aba Metas, distribuída pelos dias úteis até o evento. A linha pontilhada é o evento anterior na mesma data, quando 'Comparar' está ligado.",
-  "Receita acumulada": "Valor dos ingressos pagantes desde a abertura das vendas. Com a meta de receita da aba Metas, mostra o % atingido e quanto falta.",
+  "Receita acumulada": "Total: ingressos mais patrocínios. Ingressos: valor dos pagantes (Sympla e faturados internos), sem cancelados nem cortesias. Patrocínios: negócios ganhos no Pipedrive, os mesmos da página Patrocínios. As barras mostram cada mês, e a mais clara é o mês atual, ainda parcial. Ticket médio, pagantes e meta de receita valem sempre para ingressos.",
   "Pagantes acumulados x meta":
     "Linha cheia: total de pagantes semana a semana. Linha tracejada: trajetória até a meta no dia do evento, distribuída por dias úteis.",
   "Ingressos emitidos":

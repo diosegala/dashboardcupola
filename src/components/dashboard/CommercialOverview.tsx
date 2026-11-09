@@ -37,6 +37,15 @@ import { ChannelGoalsCard } from "./ChannelGoalsCard";
 import { resumoLotes } from "@/lib/batchSummary";
 import { hojeBrasilia } from "@/lib/batchCalendar";
 import { PREVIOUS_YEAR_KEY, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
+import { TicketMonthlyCard } from "./TicketMonthlyCard";
+import { RevenueMiniChart, type FonteReceita } from "./RevenueMiniChart";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useEvent } from "@/hooks/useEvent";
+import { useSponsorshipSales } from "@/hooks/useSponsorshipSales";
+import type { DateRange } from "@/hooks/useDashboardData";
+import { inPeriod, previousYear } from "@/lib/period";
+import { mesBrasilia, monthlyRevenueGoals, sponsorMonthly, ticketMonthly, totalMonthly } from "@/lib/monthlyRevenue";
+import { format } from "date-fns";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number) =>
@@ -112,6 +121,8 @@ interface CommercialOverviewProps {
   previousPeriodTickets?: any[];
   // O período escolhido não cobre o evento inteiro.
   filtrado?: boolean;
+  // Período escolhido no topo: limita os meses e as vendas de patrocínio quando filtrado.
+  range?: DateRange;
   goals: any[];
   previousTickets?: any[];
   eventParams?: EventParams;
@@ -132,7 +143,7 @@ function totais(lista: any[]) {
   return { payingCount: qtd(paying), issuedCount: qtd(paying) + qtd(bonus), revenue: paying.reduce((s, t) => s + Number(t.total_price || 0), 0) };
 }
 
-export function CommercialOverview({ tickets, periodTickets, previousPeriodTickets = [], filtrado = false, goals, previousTickets = [], eventParams }: CommercialOverviewProps) {
+export function CommercialOverview({ tickets, periodTickets, previousPeriodTickets = [], filtrado = false, range, goals, previousTickets = [], eventParams }: CommercialOverviewProps) {
   const m = useCommercialMetrics(tickets, goals, previousTickets, eventParams);
   // Sem período escolhido, os cards de período mostram o evento inteiro (mesmos números de antes).
   const doPeriodo = filtrado && periodTickets ? periodTickets : tickets;
@@ -182,6 +193,55 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   const coberturaCrm = useMemo(() => crmDiscountCoverage(doPeriodo), [doPeriodo]);
   const mostrarDescontos = useCouponTotals(doPeriodo).comCupom > 0 || coberturaCrm.negocios > 0;
 
+  // Visão mês a mês: ingressos e patrocínios do evento do topo, respeitando o período escolhido.
+  const { event } = useEvent();
+  const patrocinio = useSponsorshipSales();
+  const [fonteReceita, setFonteReceita] = useState<FonteReceita>("total");
+  const hojeDia = hojeBrasilia();
+  const hojeMes = hojeDia.slice(0, 7);
+  const mesEvento = mesBrasilia(event.start_date ?? event.end_date);
+  const emPeriodo = filtrado && range ? range : null;
+  const fimMeses = emPeriodo ? [format(emPeriodo.to, "yyyy-MM"), mesEvento].sort()[0] : mesEvento;
+  const vendasPatrocinio = useMemo(
+    () => (emPeriodo ? patrocinio.vendas.filter((v) => inPeriod(v.ganhoEm, emPeriodo)) : patrocinio.vendas),
+    [patrocinio.vendas, emPeriodo],
+  );
+  const receitaPatrocinio = useMemo(() => vendasPatrocinio.reduce((s, v) => s + v.valor, 0), [vendasPatrocinio]);
+  const mesesIngressos = useMemo(() => {
+    const atuais = splitTickets(doPeriodo);
+    return ticketMonthly({
+      sympla: atuais.paidSympla,
+      faturados: atuais.invoiced,
+      anterior: splitTickets(filtrado ? previousPeriodTickets : previousTickets).paying,
+      fim: fimMeses,
+      hoje: hojeMes,
+      metas: monthlyRevenueGoals(goals),
+    });
+  }, [doPeriodo, filtrado, previousPeriodTickets, previousTickets, fimMeses, hojeMes, goals]);
+  const mesesTotal = useMemo(
+    () => totalMonthly(mesesIngressos, sponsorMonthly({ vendas: vendasPatrocinio, fim: fimMeses, hoje: hojeMes }), hojeMes),
+    [mesesIngressos, vendasPatrocinio, fimMeses, hojeMes],
+  );
+  // Patrocínio da edição anterior no mesmo ponto (mesma data ou mesmo período), para a comparação.
+  const patrocinioAnterior = useMemo(() => {
+    if (!patrocinio.anterior) return null;
+    const limite = `${Number(hojeDia.slice(0, 4)) - 1}${hojeDia.slice(4)}`;
+    const periodoAnterior = emPeriodo ? previousYear(emPeriodo) : null;
+    return patrocinio.anterior
+      .filter((h) => (periodoAnterior ? inPeriod(h.data, periodoAnterior) : !!h.data && h.data.slice(0, 10) <= limite))
+      .reduce((s, h) => s + h.valor, 0);
+  }, [patrocinio.anterior, emPeriodo, hojeDia]);
+  const receitaAnterior = filtrado ? pAnterior?.revenue : m.anterior?.revenue;
+  const valorFonte = fonteReceita === "ingressos" ? receita : fonteReceita === "patrocinios" ? receitaPatrocinio : receita + receitaPatrocinio;
+  // No Total, só compara quando as duas partes existem no ano anterior.
+  const anteriorFonte = fonteReceita === "ingressos"
+    ? receitaAnterior
+    : fonteReceita === "patrocinios"
+      ? patrocinioAnterior
+      : receitaAnterior != null && patrocinioAnterior !== null ? receitaAnterior + patrocinioAnterior : null;
+  const carregandoFonte = fonteReceita !== "ingressos" && patrocinio.isLoading;
+  const soIngressos = fonteReceita === "ingressos" ? "" : " (ingressos)";
+
   return (
     <div className="grid grid-cols-12 gap-[14px]">
       {/* Linha 1: pagantes e lote vigente */}
@@ -226,24 +286,46 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
       {/* Receita acumulada e Descontos concedidos num único card: ticket médio e pagantes lado a lado, descontos no rodapé. */}
       <Card className="col-span-12 flex flex-col gap-4 p-5 hover:-translate-y-[3px] hover:border-line-strong md:col-span-6 lg:col-span-4">
         <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
-            {filtrado ? "Receita no período" : "Receita acumulada"}
-            <InfoTip title="Receita acumulada" />
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
+              {filtrado ? "Receita no período" : "Receita acumulada"}
+              <InfoTip title="Receita acumulada" />
+            </div>
+            <Tabs value={fonteReceita} onValueChange={(v) => setFonteReceita(v as FonteReceita)}>
+              <SlidingTabsList value={fonteReceita} className="h-8">
+                {([["ingressos", "Ingressos"], ["patrocinios", "Patrocínios"], ["total", "Total"]] as const).map(([v, nome]) => (
+                  <TabsTrigger key={v} value={v} className="relative z-[1] px-2 py-1 text-[11px] data-[state=active]:bg-transparent data-[state=active]:text-background">
+                    {nome}
+                  </TabsTrigger>
+                ))}
+              </SlidingTabsList>
+            </Tabs>
           </div>
-          <div className="whitespace-nowrap text-[clamp(28px,2.8vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]">
-            <CountUp value={receita} format={brl} />
-          </div>
-          <CompareLine
-            anterior={filtrado ? pAnterior?.revenue : m.anterior?.revenue}
-            atual={receita}
-            formato={brl}
-            quando={filtrado ? "no mesmo período" : undefined}
-          />
+          {carregandoFonte ? (
+            <Skeleton className="h-11 w-40" />
+          ) : (
+            <div className="whitespace-nowrap text-[clamp(28px,2.8vw,40px)] font-semibold leading-[1.1] tracking-[-0.035em]">
+              <CountUp value={valorFonte} format={brl} />
+            </div>
+          )}
+          {!carregandoFonte && (
+            <CompareLine
+              anterior={anteriorFonte}
+              atual={valorFonte}
+              formato={brl}
+              quando={filtrado ? "no mesmo período" : undefined}
+            />
+          )}
+          {fonteReceita !== "ingressos" && !patrocinio.isLoading && !patrocinio.configurado && (
+            <p className="text-xs text-muted-foreground">Patrocínio ainda não configurado neste evento{fonteReceita === "total" ? ": o Total mostra só ingressos" : ""}.</p>
+          )}
         </div>
+
+        {carregandoFonte ? <Skeleton className="h-[72px] w-full" /> : <RevenueMiniChart meses={mesesTotal} fonte={fonteReceita} />}
 
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-2xl bg-secondary/60 px-3.5 py-3">
-            <div className="text-[11px] text-muted-foreground">Ticket médio</div>
+            <div className="text-[11px] text-muted-foreground">Ticket médio{soIngressos}</div>
             <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{brl(pagantes > 0 ? receita / pagantes : 0)}</div>
             {metaTicket && pagantes > 0 && <GoalMeter className="mt-2" actual={receita / pagantes} target={Number(metaTicket.target_value)} unit="brl" comparacao="minimo" />}
           </div>
@@ -256,7 +338,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         {/* A meta de receita é do evento inteiro: some quando o período é só uma parte. */}
         {!filtrado && m.revenueGoal !== null && (
           <div className="flex items-center justify-between gap-2 text-xs">
-            <span className="font-semibold text-foreground">{Math.round((m.revenue / m.revenueGoal) * 100)}% da meta</span>
+            <span className="font-semibold text-foreground">{Math.round((m.revenue / m.revenueGoal) * 100)}% da meta{soIngressos}</span>
             <span className="text-muted-foreground">
               {m.revenue >= m.revenueGoal ? "Meta atingida" : `Faltam ${brl(m.revenueGoal - m.revenue)}`}
             </span>
@@ -402,6 +484,9 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
           </ResponsiveContainer>
         </CardContent>
       </Card>
+
+      {/* Linha 3c: faturamento de ingressos mês a mês */}
+      <TicketMonthlyCard className="col-span-12" meses={mesesIngressos} filtrado={filtrado} />
 
       {/* Linha 4: vendas por dia (últimos dias úteis ou dia da semana) */}
       <Card className="col-span-12">

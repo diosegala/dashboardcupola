@@ -110,6 +110,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
                   periodTickets={periodTickets}
                   previousPeriodTickets={previousPeriodTickets}
                   filtrado={filtrado}
+                  range={range}
                   goals={eventGoals}
                   previousTickets={previousTickets.data ?? []}
                   eventParams={eventParams}
