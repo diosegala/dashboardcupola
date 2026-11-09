@@ -57,7 +57,9 @@ import { SponsorRenewalCard } from "@/components/sponsorship/SponsorRenewalCard"
 import { SponsorReceiptsCard } from "@/components/sponsorship/SponsorReceiptsCard";
 import { SponsorDeliveriesCard } from "@/components/sponsorship/SponsorDeliveriesCard";
 import { SponsorAddonsCard } from "@/components/sponsorship/SponsorAddonsCard";
-import { CrmWarning } from "@/components/sponsorship/parts";
+import { SponsorMonthlyCard } from "@/components/sponsorship/SponsorMonthlyCard";
+import { previousSponsorSales } from "@/hooks/useSponsorshipSales";
+import { sponsorMonthly } from "@/lib/monthlyRevenue";
 
 const goalValue = (goals: any[], key: string) => {
   const g = eventGoal(goals, key);
@@ -171,6 +173,9 @@ export default function Sponsorship() {
       },
     }));
     const instReal = exemplo ? [] : data.data!.installments;
+    const receb = receipts(cfg, m, dealsById, exemplo ? src.installments : instReal, event.end_date);
+    // Edição anterior por data, para a comparação mês a mês (planilha oficial ou ganhos do CRM).
+    const vendasAnteriores = exemplo ? null : previousSponsorSales(hist, cfg, src.deals, src.lines, src.catalog, prev ? { inicio: prev.inicio, fim: prev.fim } : null);
     return {
       cfg,
       m,
@@ -188,7 +193,8 @@ export default function Sponsorship() {
         : undefined),
       oficial,
       cotasAnterior,
-      receb: receipts(cfg, m, dealsById, exemplo ? src.installments : instReal, event.end_date),
+      receb,
+      vendasAnteriores,
       entregas: deliveries(cfg, m, dealsById, cupons),
       adicionais: addonItems(m),
       ownerDeals: sponsorDeals(cfg, m, src.deals, src.lines, src.catalog, window, hoje),
@@ -221,6 +227,17 @@ export default function Sponsorship() {
   const semanal = useMemo(() => weeklySeries(view.m, { inicio, abertura, hoje, meta: view.goals.ampliada, anterior: view.curva }), [view, inicio, abertura, hoje]);
   const diasAntes = Math.max(Math.round((Date.parse(`${abertura}T12:00:00Z`) - Date.parse(`${hoje}T12:00:00Z`)) / 86400000), 0);
   const vendidoAnterior = view.curva ? view.curva(diasAntes) : null;
+  const mensal = useMemo(
+    () => sponsorMonthly({
+      vendas: view.m.vendas,
+      anterior: view.vendasAnteriores,
+      previsto: view.receb.fonte !== "nenhuma" ? view.receb.porMes : null,
+      inicio: inicio.slice(0, 7) > hoje.slice(0, 7) ? null : (view.m.vendas.length ? null : hoje.slice(0, 7)),
+      fim: abertura.slice(0, 7),
+      hoje: hoje.slice(0, 7),
+    }),
+    [view, inicio, abertura, hoje],
+  );
   const pendentes = view.status.filter((s) => s.state !== "ok" && !HIDDEN_INFO_KEYS.includes(s.key));
 
   // Lê a conta do Pipedrive de novo e guarda os campos: campo criado no CRM ativa a parte da página que depende dele
@@ -313,6 +330,7 @@ export default function Sponsorship() {
                   ritmoSemanal={semanal.ritmoSemanal}
                   semanasRestantes={semanal.semanasRestantes}
                 />
+                <SponsorMonthlyCard className="col-span-12" meses={mensal} temParcelas={view.receb.fonte !== "nenhuma"} exemplo={exemplo} />
                 <SponsorProspectCard
                   className="col-span-12 lg:col-span-7"
                   data={view.prospect}
