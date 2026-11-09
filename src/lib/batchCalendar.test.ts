@@ -25,12 +25,13 @@ describe("lote vigente pelas datas", () => {
     expect(situacao(LOTES[2], "2026-11-10")).toBe("nao_iniciado");
     expect(situacao(LOTES[0], "2026-11-10")).toBe("encerrado");
   });
-  it("lote esgotado continua vigente até o término e lote sem venda aparece", () => {
+  it("lote que bateu a meta continua vigente até o término; lote futuro não aparece", () => {
     const goals = [{ metric_key: "tickets_sold", ticket_type: "Lote 1", target_value: 1 }];
     const tickets: any[] = [{ ticket_type: "Lote 1 | Padrão", quantity: 2, total_price: 200, unit_price: 100, status: "approved", sold_at: "2026-11-09T12:00:00Z", source: "sympla" }];
     const r = resumoLotes(goals, tickets, [], LOTES, "2026-11-20");
     expect(r.loteAtual).toBe("Lote 1");
-    expect(r.lotes.find((l) => l.lote === "Lote 1")?.esgotado).toBe(true);
-    expect(r.lotes.find((l) => l.lote === "Lote 2")?.situacao).toBe("nao_iniciado");
+    expect(r.lotes.find((l) => l.lote === "Lote 1")?.metaAtingida).toBe(true);
+    expect(r.lotes.find((l) => l.lote === "Lote 2")).toBeUndefined();
+    expect(resumoLotes([], [], [], LOTES, "2026-11-26").lotes.map((l) => l.lote)).toContain("Lote 2");
   });
 });
