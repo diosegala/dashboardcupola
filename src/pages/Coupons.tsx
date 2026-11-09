@@ -87,6 +87,12 @@ export default function Coupons() {
     return Array.from(map.values()).sort((a, b) => b.uses - a.uses || a.code.localeCompare(b.code));
   }, [paying, bonus]);
 
+  // Pagos na Sympla sem nenhum código. Faturado interno não entra: ele não usa cupom na compra.
+  const semCupom = useMemo(() => {
+    const lista = paying.filter((t) => t.source !== "pipedrive" && !parseCoupon(t.coupon_code));
+    return { usos: lista.reduce((s, t) => s + (t.quantity || 0), 0), receita: lista.reduce((s, t) => s + Number(t.total_price || 0), 0) };
+  }, [paying]);
+
   const { gratuitos, descontos, cuponsUsados, comCupom } = totals;
   const cobertura = crmDiscountCoverage(paying);
 
@@ -233,6 +239,18 @@ export default function Coupons() {
                         <TableCell className="text-right tabular-nums">{c.desconto > 0 ? brl(c.desconto) : "—"}</TableCell>
                       </TableRow>
                     ))}
+                    {grupoAtivo === "todos" && !termo && semCupom.usos > 0 && (
+                      <TableRow className="bg-secondary/40">
+                        <TableCell className="text-muted-foreground">—</TableCell>
+                        <TableCell className="font-medium">Sem cupom</TableCell>
+                        <TableCell className="text-muted-foreground">Só Sympla</TableCell>
+                        <TableCell>—</TableCell>
+                        <TableCell>—</TableCell>
+                        <TableCell className="text-right tabular-nums">{int(semCupom.usos)}</TableCell>
+                        <TableCell className="text-right tabular-nums">{brl(semCupom.receita)}</TableCell>
+                        <TableCell className="text-right">—</TableCell>
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </div>
