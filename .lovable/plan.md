@@ -1,49 +1,55 @@
-# Vendas por e-mail: o que falta para ligar a venda ao e-mail
+# Vendas por e-mail com ligação automática
 
-## Resultado da verificação
+O padrão de UTM continua como está e não há cadastro manual. O painel liga cada venda a um e-mail sozinho e mostra o grau de certeza de cada ligação.
 
-| Pergunta | Resposta |
-|---|---|
-| RD Station traz links ou UTMs de cada e-mail? | **Não.** A sincronização só traz números de desempenho: nome, ID da campanha, data, enviados, entregues, aberturas, cliques e bounce. Nada sobre os links. |
-| Sympla traz os UTMs de cada pedido? | **Sim.** Traz utm_source, utm_medium e utm_campaign. Também traz **utm_content** e utm_term, que chegam da Sympla mas hoje ficam guardados sem uso. |
-| Existe um campo em comum? | **Não existe um código em comum.** Todos os e-mails usam a mesma campanha `cupola_summit`. O que muda entre eles é só o **utm_content**, um apelido livre como `segredo-curadoria`, `ingresso-pendente` ou `vendas-abertas`. O RD não traz esse apelido, então hoje a ligação teria que ser por semelhança com o nome do e-mail. |
+## Etapa 1: dados (antes de qualquer tela)
 
-Dados de hoje: 13 pedidos vieram de e-mail desde outubro. Dos pedidos de e-mail no histórico, cerca de 1 em cada 5 não tem utm_content, e esses nunca poderão ser ligados a um e-mail.
+- **Guardar o utm_content** de cada pedido da Sympla junto com os outros UTMs.
+  - Preencher os pedidos antigos com o que já está guardado da Sympla, sem chamar a API de novo.
+  - A sincronização da Sympla passa a gravar o campo nos próximos pedidos.
+- **Verificar a API do RD.** Vou testar se alguma parte da API devolve o conteúdo de cada e-mail com os links.
+  - Se devolver, os links com utm_content viram uma pista a mais, e essas ligações passam a "confiável".
+  - Se não devolver, sigo só com nome e horário e conto o resultado para você.
 
-## Por isso, não construo o selo ainda
+## Etapa 2: regra de ligação (automática)
 
-Ligar por semelhança de nome é frágil. "segredo-curadoria" com "Segredos da curadoria do CUPOLA Summit (ass. Kariny)" até funciona, mas "6h-para-garantir" não bate com nenhum nome de e-mail. Isso daria selos errados ou faltando.
+Para cada utm_content dos pedidos de e-mail, o painel procura o e-mail do RD com três pistas:
 
-## O que precisa ser feito
+1. **Código exato:** o nome do e-mail no RD começa com um código igual ao utm_content (ex.: `sum27-segredo-curadoria`). A ligação é **exata**.
+2. **Nome parecido:** compara o utm_content com o nome do e-mail, ignorando maiúsculas, acentos, hífens e palavras pequenas (de, do, o, a, seu…). Isso vale para envios da mesma edição.
+3. **Horário:** busca o e-mail enviado mais perto, e antes, da primeira venda com aquele utm_content. A janela é de até 3 dias.
 
-### 1. Padrão de UTM nos links dos e-mails, a partir de agora (time de marketing)
+Classificação de cada ligação:
 
-```text
-utm_source=rd-station
-utm_medium=email
-utm_campaign=cupola_summit_2027
-utm_content=<ID da campanha no RD>
-```
+| Situação | Classificação | Selo |
+|---|---|---|
+| Código exato, ou o link do e-mail vindo do RD | Exata | normal |
+| Nome e horário apontam para o mesmo e-mail | Confiável | normal |
+| Só uma das pistas aponta com segurança | Provável | contorno tracejado + "ligação estimada" |
+| Nenhuma pista segura, ou pistas em conflito | Sem ligação | sem selo; a venda segue no canal E-mail marketing |
 
-O ID da campanha é o número que aparece no RD Station. Por exemplo, 20466375 é "Segredos da curadoria". Com o ID no utm_content, a ligação fica exata e automática.
+**Confirmar ou corrigir (só administrador):** no selo de uma ligação provável, um clique em "Confirmar" ou em "Trocar e-mail" grava a decisão. Essa decisão prevalece sobre a suposição dali em diante. Não existe tela de cadastro: a ação fica no próprio selo.
 
-Alternativa, se o ID for difícil de colocar no link: manter o apelido no utm_content e cadastrar no painel qual apelido corresponde a cada e-mail.
+## Etapa 3: conferência antes de publicar
 
-### 2. Ajustes no painel (eu faço, quando aprovar)
+Antes de mexer na aba, mostro aqui no chat a lista completa de ligações para você conferir: utm_content, e-mail escolhido, classificação, pistas usadas, vendas e receita.
 
-- Passar a guardar o **utm_content** de cada pedido da Sympla junto com os outros UTMs. Os dados já existem e podem ser preenchidos também para os pedidos antigos, sem chamar a API de novo.
-- Criar em **Configurações** uma tela simples de "Apelidos de e-mail": apelido do link → e-mail do RD. Ela serve para os envios antigos e para quem não usar o ID.
-- Depois disso, construir o selo "N vendas" no nome do e-mail, como você descreveu: receita ao passar o mouse, filtro "só com venda", filtros globais e lote, e a mesma conta do canal E-mail marketing.
+## Etapa 4: aba de e-mails
 
-### 3. Envios antigos
+- **Selo "N vendas"** ao lado do nome do e-mail, só quando houver venda. Ao passar o mouse, mostra a receita. O e-mail sem venda fica como hoje.
+- **Filtro "Só com venda"**, que respeita as datas do painel e o lote selecionado.
+- **Os números batem com o canal E-mail marketing** da meta por canal. A venda entra pela mesma regra de atribuição e com os mesmos cancelamentos fora. A soma dos selos mais as vendas "sem ligação" é igual ao canal.
+- **Clique no selo:** abre a lista das vendas daquele e-mail, com ingresso comprado e nome do comprador.
+- **Clique no comprador:** abre os mesmos dados que a tela Compradores mostra para essa pessoa, nas mesmas colunas e com as mesmas permissões. Quem não pode ver um dado lá também não vê aqui.
+- **Aviso no padrão do aviso do CRM:**
+  - "O RD Station não informa o link de cada e-mail. Por isso, parte das ligações entre venda e e-mail é estimada pelo nome e pelo horário de envio, e aparece como *ligação estimada*."
+  - "Para ter certeza: comece o nome do e-mail no RD com um código curto (ex.: `sum27-segredo-curadoria`) e use o mesmo código no utm_content do link."
+  - "Vendas sem identificação no link continuam contando no canal E-mail marketing, mesmo sem selo."
+- **Uma legenda curta no "i"** explica que o selo mostra quantos ingressos cada e-mail vendeu e serve para repetir os e-mails que funcionaram nos próximos lotes.
 
-- **Dá para recuperar a maior parte**: os pedidos com utm_content já guardado podem ser ligados pelo cadastro de apelidos. Posso trazer uma primeira sugestão automática de correspondência para você só confirmar.
-- **Não dá para recuperar** os pedidos de e-mail sem utm_content (cerca de 20%). Eles continuam contando no canal E-mail marketing, mas sem e-mail específico.
+## Detalhes técnicos
 
-### Sobre a API do RD
-
-A API de análise de e-mails do RD, que é a usada hoje, não traz os links. Não confirmei se outra parte da API do RD devolve o conteúdo de cada e-mail com os links. Mesmo que devolva, o padrão de UTM do item 1 continua sendo o caminho mais confiável.
-
-## Decisão que preciso de você
-
-Aprovar este plano significa: eu faço o item 2, ou seja, guardar o utm_content, criar o cadastro de apelidos com sugestão automática e construir o selo. Enquanto isso, o marketing passa a usar o padrão do item 1.
+- Migração: nova coluna `utm_content` em `ticket_sales` e preenchimento a partir de `ticket_sales_details.order_data->'utm'->>'utm_content'`. A função `sync-sympla` passa a gravar a coluna. Esta é uma mudança de tabela e de função que você está aprovando aqui.
+- Nova tabela `email_sale_links` (utm_content, rd_campaign_id, decisão, decided_by, decided_at). Ela guarda só as decisões do admin. Leitura para usuários autenticados; escrita só para admin, protegida por RLS com `has_role`.
+- Regra pura em `src/lib/emailAttribution.ts`, com testes para: código exato, nome parecido, só horário (caso "6h-para-garantir"), conflito vira sem ligação, decisão do admin prevalece, e soma igual ao canal E-mail marketing.
+- Verificação da API do RD feita pela sincronização existente. Se houver endpoint com o conteúdo do e-mail, adiciono a coleta dos links numa coluna nova de `email_campaigns`, também nesta aprovação.
