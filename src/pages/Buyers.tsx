@@ -1,8 +1,6 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
-import { useEvent, type EventRow } from "@/hooks/useEvent";
+import { useEvent } from "@/hooks/useEvent";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -37,7 +35,7 @@ export default function Buyers() {
 // Perfil de quem vem ao evento (todos) e a lista de pessoas com filtros (só administradores).
 function FullBuyers() {
   const { isAdmin } = useAuth();
-  const { events, event } = useEvent();
+  const { event } = useEvent();
   const [aba, setAba] = useState("perfil");
   const perfilTickets = useAllTimeTicketSales(event.sympla_event_id ?? "");
   const perfilRespostas = useFormAnswerCounts(event.sympla_event_id ?? "");
