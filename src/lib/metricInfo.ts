@@ -103,7 +103,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Vendas com link parametrizado": "Parte dos ingressos pagos na Sympla que veio por um link com UTM. Quanto maior, melhor dá para saber qual canal trouxe a venda.",
   "Com link parametrizado": "Parte dos ingressos pagos na Sympla, no recorte escolhido, que veio por um link com UTM.",
   "Canais com venda": "Quantos canais diferentes trouxeram pelo menos uma venda.",
-  "Vendas por canal": "Vendidos de cada canal contra a meta do planejamento, no lote escolhido (abre no vigente) ou no evento todo, dentro do período do topo. Selo verde: bateu a meta; âmbar: ainda não. Canal sem meta mostra só a venda. Sem canal identificado não tem meta. A soma dos canais é o total de pagantes.",
+  "Vendas por canal": "Vendidos de cada canal contra a meta do planejamento, no lote escolhido (abre no vigente) ou no evento todo, dentro do período do topo. Selo verde: bateu a meta. Canal sem meta mostra só a venda. Sem canal identificado não tem meta. A soma dos canais é o total de pagantes.",
   "Por link parametrizado": "Cada combinação de UTM (source, medium, campanha e content) usada nas compras, com ingressos e valor. A coluna Link junta as quatro partes.",
   "Desempenho por campanha": "Uma linha por campanha, da que mais investiu para a que menos. Custo por compra é o investimento dividido pelas compras registradas.",
   "E-mails enviados": "Todos os e-mails desta edição do Summit enviados pelo RD Station, do mais recente para o mais antigo. Importante: no RD, o nome do e-mail precisa começar com a tag [SUM27] para aparecer aqui; sem a tag, o painel não reconhece como e-mail do Summit. A tag fica oculta na lista. Abertura e clique sobre os e-mails entregues.",
