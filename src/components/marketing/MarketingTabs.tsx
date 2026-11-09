@@ -736,7 +736,7 @@ function LinksTab({ tickets, allTickets, goals }: MarketingTabsProps) {
       <div className="grid gap-4 md:grid-cols-3">
         <MetricCard title="Ingressos pagantes" value={total} icon={TicketIcon} description={`Sympla e faturados ${nomeRecorte}`} />
         <MetricCard title="Com link parametrizado" value={totalSympla ? pct((comLink / totalSympla) * 100, 0) : "—"} icon={Link2} description={`${int(comLink)} de ${int(totalSympla)} ingressos da Sympla têm UTM`} />
-        <MetricCard title="Canais com venda" value={canais.filter(([k, c]) => k !== "Sem link" && c.q > 0).length} icon={BarChart3} />
+        <MetricCard title="Canais com venda" value={canais.filter(([k, c]) => k !== "Sem canal identificado" && c.q > 0).length} icon={BarChart3} />
       </div>
       <TableCard
         title="Vendas por canal"
