@@ -37,7 +37,7 @@ function texto(v: string | null | undefined): string {
 
 // Cupom da Letícia Bello em qualquer variação (LETICIAC5, LETICIA10, LEITICIA10…), menos LETICIAA5 (outra Letícia).
 export function cupomBello(code: string | null | undefined): boolean {
-  const c = normalizeCode(code ?? "");
+  const c = normalizeCode((code ?? "").replace(/^.*\s-\s/, ""));
   return /^LEI?TICIA/.test(c) && !/^LETICIAA/.test(c);
 }
 
