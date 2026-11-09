@@ -48,3 +48,27 @@ describe("ligação venda → e-mail", () => {
     expect(nomeParecido("vendas-abertas", "[SUM27] Segredos da curadoria")).toBe(false);
   });
 });
+
+describe("resumo e avisos", () => {
+  it("selos + sem ligação somam o canal e geram os três avisos", async () => {
+    const { summarizeEmailSales } = await import("./emailAttribution");
+    const sales = [
+      { id: "a", utmContent: "vendas-abertas", soldAt: "2026-11-03T16:00:00Z", quantidade: 2, valor: 1600 },
+      { id: "b", utmContent: "vendas-abertas", soldAt: "2026-11-06T18:00:00Z", quantidade: 1, valor: 800 },
+      { id: "c", utmContent: "6h-para-garantir", soldAt: "2026-11-08T12:00:00Z", quantidade: 1, valor: 900 },
+      { id: "d", utmContent: "lista_de_espera", soldAt: "2026-11-04T12:00:00Z", quantidade: 3, valor: 2700 },
+      { id: "e", utmContent: null, soldAt: "2026-11-04T12:00:00Z", quantidade: 1, valor: 900 },
+    ];
+    const links = linkSales(sales, emails, [{ utm_content: "lista_de_espera", rd_campaign_id: null }]);
+    const r = summarizeEmailSales(sales, links);
+    const comSelo = [...r.porEmail.values()].reduce((t, b) => t + b.ingressos, 0);
+    expect(comSelo + r.semLigacao).toBe(8);
+    expect(r.porEmail.get("1")?.ingressos).toBe(2);
+    expect(r.semLigacao).toBe(5);
+    expect(r.avisos.map((a) => `${a.tipo}:${a.utmContent}:${a.ingressos}`).sort()).toEqual([
+      "sem_email:lista_de_espera:3",
+      "so_horario:6h-para-garantir:1",
+      "varios_emails:vendas-abertas:3",
+    ]);
+  });
+});
