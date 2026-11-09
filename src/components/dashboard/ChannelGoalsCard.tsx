@@ -73,11 +73,6 @@ export function ChannelGoalsCard({ tickets, allTickets, goals }: Props) {
               <SelectItem value={EVENTO}>Evento todo</SelectItem>
             </SelectContent>
           </Select>
-          {isAdmin && (
-            <Link to="/goals" aria-label="Editar metas por canal" className="rounded-md p-2 text-muted-foreground hover:bg-secondary hover:text-foreground">
-              <Pencil className="h-4 w-4" />
-            </Link>
-          )}
         </div>
       </CardHeader>
       <CardContent>
