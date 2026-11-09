@@ -1,12 +1,9 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
-import { Pencil } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InfoTip } from "@/components/InfoTip";
 import { Chip } from "@/components/Chip";
-import { useAuth } from "@/hooks/useAuth";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { batchOf, batchOrder } from "@/lib/batches";
 import { resumoLotes } from "@/lib/batchSummary";
@@ -31,7 +28,6 @@ interface Props {
 }
 
 export function ChannelGoalsCard({ tickets, allTickets, goals }: Props) {
-  const { isAdmin } = useAuth();
   const { loteAtual, lotes: resumo, faltamDatas } = useMemo(() => resumoLotes(goals, allTickets, []), [goals, allTickets]);
   const lotes = useMemo(() => {
     const s = new Set<string>();
