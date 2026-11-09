@@ -350,38 +350,6 @@ export default function Sponsorship() {
                   campos={[view.statusOf("deliveries"), view.statusOf("brand")]}
                 />
                 )}
-                {false && isAdmin && pendentes.length > 0 && (
-                  <Card className="col-span-12">
-                    <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0 pb-3">
-                      <div>
-                      <CardTitle className="flex items-center gap-2">
-                        Campos do CRM para investigar
-                        <InfoTip
-                          title="Campos do CRM para investigar"
-                          text="Informações que a planilha de patrocínio acompanhava e que ainda não estão completas no Pipedrive: o campo não existe ou está vazio nas vendas desta edição. Some daqui quando o campo existir e estiver preenchido. Só administradores veem."
-                        />
-                      </CardTitle>
-                      <p className="text-xs text-muted-foreground">
-                        {pendentes.length} de {visibleInfoFields().length} informações pendentes. Cada card também mostra o aviso do que depende dele.
-                        {realConfig.crm_read.read_at && ` Campos conferidos em ${new Date(realConfig.crm_read.read_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}.`}
-                      </p>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <Button variant="outline" size="sm" className="rounded-full" onClick={conferirCampos} disabled={read.isPending || save.isPending}>
-                          <RefreshCw className={`h-4 w-4 ${read.isPending ? "animate-spin" : ""}`} />
-                          Conferir campos de novo
-                        </Button>
-                        <InfoTip
-                          title="Conferir campos de novo"
-                          text="Depois de criar um campo no Pipedrive, clique aqui: o painel lê a conta, encontra o campo pelo nome, tipo e opções e ativa a parte da página que depende dele. O aviso some quando o campo também estiver preenchido nas vendas."
-                        />
-                      </div>
-                    </CardHeader>
-                    <CardContent>
-                      <CrmWarning fields={pendentes} />
-                    </CardContent>
-                  </Card>
-                )}
               </div>
               {!exemplo && data.data?.lastSync && (
                 <p className="text-right text-[11px] text-muted-foreground">
