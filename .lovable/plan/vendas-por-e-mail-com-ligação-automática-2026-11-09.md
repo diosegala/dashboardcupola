@@ -21,12 +21,14 @@ Para cada utm_content dos pedidos de e-mail, o painel procura o e-mail do RD com
 
 Classificação de cada ligação:
 
-| Situação | Classificação | Selo |
-|---|---|---|
-| Código exato, ou o link do e-mail vindo do RD | Exata | normal |
-| Nome e horário apontam para o mesmo e-mail | Confiável | normal |
-| Só uma das pistas aponta com segurança | Provável | contorno tracejado + "ligação estimada" |
-| Nenhuma pista segura, ou pistas em conflito | Sem ligação | sem selo; a venda segue no canal E-mail marketing |
+
+| Situação                                      | Classificação | Selo                                              |
+| --------------------------------------------- | ------------- | ------------------------------------------------- |
+| Código exato, ou o link do e-mail vindo do RD | Exata         | normal                                            |
+| Nome e horário apontam para o mesmo e-mail    | Confiável     | normal                                            |
+| Só uma das pistas aponta com segurança        | Provável      | contorno tracejado + "ligação estimada"           |
+| Nenhuma pista segura, ou pistas em conflito   | Sem ligação   | sem selo; a venda segue no canal E-mail marketing |
+
 
 **Confirmar ou corrigir (só administrador):** no selo de uma ligação provável, um clique em "Confirmar" ou em "Trocar e-mail" grava a decisão. Essa decisão prevalece sobre a suposição dali em diante. Não existe tela de cadastro: a ação fica no próprio selo.
 
@@ -52,4 +54,14 @@ Antes de mexer na aba, mostro aqui no chat a lista completa de ligações para v
 - Migração: nova coluna `utm_content` em `ticket_sales` e preenchimento a partir de `ticket_sales_details.order_data->'utm'->>'utm_content'`. A função `sync-sympla` passa a gravar a coluna. Esta é uma mudança de tabela e de função que você está aprovando aqui.
 - Nova tabela `email_sale_links` (utm_content, rd_campaign_id, decisão, decided_by, decided_at). Ela guarda só as decisões do admin. Leitura para usuários autenticados; escrita só para admin, protegida por RLS com `has_role`.
 - Regra pura em `src/lib/emailAttribution.ts`, com testes para: código exato, nome parecido, só horário (caso "6h-para-garantir"), conflito vira sem ligação, decisão do admin prevalece, e soma igual ao canal E-mail marketing.
-- Verificação da API do RD feita pela sincronização existente. Se houver endpoint com o conteúdo do e-mail, adiciono a coleta dos links numa coluna nova de `email_campaigns`, também nesta aprovação.
+- Verificação da API do RD feita pela sincronização existente. Se houver endpoint com o conteúdo do e-mail, adiciono a coleta dos links numa coluna nova de `email_campaigns`, também nesta aprovação.  
+  
+  
+Plano aprovado, com um ajuste para a pista de horário não ser decisiva:
+  - o horário nunca liga uma venda a um e-mail sozinho. Ele serve só para reforçar o nome ou desempatar
+  - código exato: ligação exata, selo normal
+  - nome parecido e horário compatível: confiável, selo normal
+  - só nome parecido: provável, selo tracejado com "ligação estimada"
+  - só horário, sem nome compatível: não gera selo. Mostre apenas para administradores como sugestão para confirmar. Depois de confirmada, a ligação vira confiável
+  - se o mesmo utm_content tiver nome compatível com mais de um e-mail, use o horário para ligar cada venda ao e-mail compatível enviado mais perto, e antes, daquela venda
+  Atualize os testes com esses casos e o texto do aviso para dizer que as ligações estimadas usam o nome do e-mail. Pode seguir com a implementação e me mostre a lista de ligações antes de publicar.

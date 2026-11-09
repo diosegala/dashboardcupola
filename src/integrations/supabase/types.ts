@@ -748,6 +748,30 @@ export type Database = {
         }
         Relationships: []
       }
+      email_sale_links: {
+        Row: {
+          decided_at: string
+          decided_by: string | null
+          decision: string
+          rd_campaign_id: string | null
+          utm_content: string
+        }
+        Insert: {
+          decided_at?: string
+          decided_by?: string | null
+          decision?: string
+          rd_campaign_id?: string | null
+          utm_content: string
+        }
+        Update: {
+          decided_at?: string
+          decided_by?: string | null
+          decision?: string
+          rd_campaign_id?: string | null
+          utm_content?: string
+        }
+        Relationships: []
+      }
       event_batches: {
         Row: {
           created_at: string
@@ -1246,6 +1270,7 @@ export type Database = {
           total_price: number
           unit_price: number
           utm_campaign: string | null
+          utm_content: string | null
           utm_medium: string | null
           utm_source: string | null
         }
@@ -1271,6 +1296,7 @@ export type Database = {
           total_price?: number
           unit_price?: number
           utm_campaign?: string | null
+          utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
         }
@@ -1296,6 +1322,7 @@ export type Database = {
           total_price?: number
           unit_price?: number
           utm_campaign?: string | null
+          utm_content?: string | null
           utm_medium?: string | null
           utm_source?: string | null
         }

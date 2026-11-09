@@ -231,6 +231,7 @@ Deno.serve(async (req) => {
         utm_source: order?.utm?.utm_source ?? order?.utm_data?.utm_source ?? null,
         utm_medium: order?.utm?.utm_medium ?? order?.utm_data?.utm_medium ?? null,
         utm_campaign: order?.utm?.utm_campaign ?? order?.utm_data?.utm_campaign ?? null,
+        utm_content: order?.utm?.utm_content ?? order?.utm_data?.utm_content ?? null,
         synced_at: new Date().toISOString(),
       });
     });
