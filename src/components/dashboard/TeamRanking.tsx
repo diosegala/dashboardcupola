@@ -12,6 +12,7 @@ import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { TEAM_DISCOUNT, isOutsideRanking, getCouponPeople, outsideTeamBySeller, parseCoupon, personBySeller, teamMemberName } from "@/lib/coupons";
 import { couponForSeller } from "@/lib/invoicedTickets";
 import { PRE_VENDA, batchOf, batchOrder } from "@/lib/batches";
+import { batchCalendar, loteVigente, type BatchDates } from "@/lib/batchCalendar";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -46,7 +47,7 @@ export const FATURADO_LABEL = "Faturado interno";
 export const posicaoDe = <T extends { vendas: number }>(ranking: T[], v: T) => 1 + ranking.filter((x) => x.vendas > v.vendas).length;
 
 // Ranking da equipe por lote, a partir das vendas pagantes. O lote atual é o da venda mais recente do evento.
-export function buildTeamRanking(paying: Ticket[], extraCoupons: string[] = []): TeamRankingData {
+export function buildTeamRanking(paying: Ticket[], extraCoupons: string[] = [], calendario: BatchDates[] = batchCalendar()): TeamRankingData {
   const porLote = new Map<string, Map<string, Vendedor>>();
   const limiteRecente = subDays(new Date(), 7).toISOString();
   let ultimaVenda = "";
@@ -89,6 +90,10 @@ export function buildTeamRanking(paying: Ticket[], extraCoupons: string[] = []):
     porLote.set(lote, pessoas);
   });
 
+  // Com datas cadastradas em Configurações › Lotes, o lote atual é o do calendário (troca à meia-noite de Brasília),
+  // mesmo antes da primeira venda dele. Sem calendário, segue o lote da venda mais recente.
+  const doCalendario = loteVigente(calendario).lote;
+  if (doCalendario) loteAtual = doCalendario;
   if (loteAtual && !porLote.has(loteAtual)) porLote.set(loteAtual, new Map());
   const lotes = Array.from(porLote.entries())
     .map(([lote, pessoas]) => ({
