@@ -123,3 +123,69 @@ export function linkSales(sales: SaleRef[], emails: EmailRef[], decisions: Decis
 // Nível que aparece no selo de um e-mail: o mais fraco entre as vendas exibidas (exata/confiável = normal).
 export const levelRank: Record<LinkLevel, number> = { exata: 4, confiavel: 3, provavel: 2, sugestao: 1, sem: 0 };
 export const showsBadge = (l: LinkLevel) => l === "exata" || l === "confiavel" || l === "provavel";
+
+// ---------- resumo por e-mail e avisos ----------
+export interface EmailSale {
+  id: string;
+  utmContent: string | null;
+  soldAt: string | null;
+  quantidade: number;
+  valor: number;
+}
+export interface EmailSalesBucket {
+  emailId: string;
+  level: LinkLevel; // nível mais fraco entre as vendas com selo
+  ingressos: number;
+  receita: number;
+  vendas: EmailSale[];
+  utms: string[];
+}
+export interface LinkWarning {
+  tipo: "sem_email" | "so_horario" | "varios_emails";
+  utmContent: string;
+  ingressos: number;
+  receita: number;
+  emails: string[]; // e-mails envolvidos (sugestão ou ligações)
+}
+
+export function summarizeEmailSales(sales: EmailSale[], links: SaleLink[]) {
+  const porEmail = new Map<string, EmailSalesBucket>();
+  const porUtm = new Map<string, { sales: EmailSale[]; links: SaleLink[] }>();
+  let semLigacao = 0;
+  let semLigacaoReceita = 0;
+  links.forEach((l, i) => {
+    const s = sales[i];
+    if (l.utmContent) {
+      const u = porUtm.get(l.utmContent) ?? { sales: [], links: [] };
+      u.sales.push(s);
+      u.links.push(l);
+      porUtm.set(l.utmContent, u);
+    }
+    if (l.emailId && showsBadge(l.level)) {
+      const b = porEmail.get(l.emailId) ?? { emailId: l.emailId, level: l.level, ingressos: 0, receita: 0, vendas: [], utms: [] };
+      if (levelRank[l.level] < levelRank[b.level]) b.level = l.level;
+      b.ingressos += s.quantidade;
+      b.receita += s.valor;
+      b.vendas.push(s);
+      if (l.utmContent && !b.utms.includes(l.utmContent)) b.utms.push(l.utmContent);
+      porEmail.set(l.emailId, b);
+    } else {
+      semLigacao += s.quantidade;
+      semLigacaoReceita += s.valor;
+    }
+  });
+  const avisos: LinkWarning[] = [];
+  for (const [utm, { sales: ss, links: ls }] of porUtm) {
+    const soma = (f: (l: SaleLink) => boolean) => {
+      const idx = ls.map((l, i) => (f(l) ? i : -1)).filter((i) => i >= 0);
+      return { ingressos: idx.reduce((t, i) => t + ss[i].quantidade, 0), receita: idx.reduce((t, i) => t + ss[i].valor, 0) };
+    };
+    const sem = soma((l) => l.level === "sem");
+    if (sem.ingressos > 0) avisos.push({ tipo: "sem_email", utmContent: utm, ...sem, emails: [] });
+    const sug = soma((l) => l.level === "sugestao");
+    if (sug.ingressos > 0) avisos.push({ tipo: "so_horario", utmContent: utm, ...sug, emails: [...new Set(ls.filter((l) => l.level === "sugestao").map((l) => l.emailId!))] });
+    const ligados = [...new Set(ls.filter((l) => l.emailId && showsBadge(l.level)).map((l) => l.emailId!))];
+    if (ligados.length > 1) avisos.push({ tipo: "varios_emails", utmContent: utm, ...soma((l) => !!l.emailId && showsBadge(l.level)), emails: ligados });
+  }
+  return { porEmail, semLigacao, semLigacaoReceita, avisos };
+}

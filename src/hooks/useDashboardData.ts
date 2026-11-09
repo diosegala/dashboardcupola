@@ -250,7 +250,7 @@ export function useAllTimeTicketSales(eventId: string) {
       // Colunas de pagamento e origem só existem depois do SQL novo; sem elas, busca as básicas.
       let sympla: any[];
       try {
-        sympla = await fetchAllTimeTickets(eventId, `${BASE_TICKET_COLUMNS}, payment_method, utm_source, utm_medium, utm_campaign`);
+        sympla = await fetchAllTimeTickets(eventId, `${BASE_TICKET_COLUMNS}, payment_method, utm_source, utm_medium, utm_campaign, utm_content, sympla_order_id, order_id, buyer_name`);
       } catch (err: any) {
         if (err?.code !== "42703") throw err;
         sympla = await fetchAllTimeTickets(eventId, BASE_TICKET_COLUMNS);
