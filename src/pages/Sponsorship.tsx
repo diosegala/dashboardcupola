@@ -21,7 +21,7 @@ import {
   SPONSOR_GOAL_KEYS,
   addDays,
   computeSponsorship,
-  byOwner,
+  sponsorDeals,
   exampleDataset,
   examplePrevious,
   quotaBreakdown,
@@ -191,7 +191,7 @@ export default function Sponsorship() {
       receb: receipts(cfg, m, dealsById, exemplo ? src.installments : instReal, event.end_date),
       entregas: deliveries(cfg, m, dealsById, cupons),
       adicionais: addonItems(m),
-      owners: byOwner(cfg, m, src.deals, src.lines, src.catalog),
+      ownerDeals: sponsorDeals(cfg, m, src.deals, src.lines, src.catalog, window, hoje),
       semParcelas: !exemplo && m.vendas.length > 0 && !instReal.some((p) => m.vendas.some((v) => v.dealId === p.deal_id)),
       account: exemplo ? null : realConfig.crm_account,
     };
@@ -300,10 +300,10 @@ export default function Sponsorship() {
                 />
                 <SponsorOwnersCard
                   className="col-span-12 lg:col-span-7"
-                  owners={view.owners}
+                  deals={view.ownerDeals}
                   rows={quotaRows}
                   selectedKey={cotaSel}
-                  onClear={() => setCotaSel(null)}
+                  onSelectQuota={setCotaSel}
                 />
                 <SponsorPaceCard
                   className="col-span-12"
