@@ -156,25 +156,40 @@ describe("receita de patrocínio", () => {
 });
 
 
-describe("byOwner", () => {
-  it("bate com as barras de cotas e ignora perdidos", async () => {
-    const { byOwner } = await import("@/lib/sponsorshipMetrics");
+describe("responsáveis", () => {
+  it("bate com as barras, conta perdidos da edição e calcula a conversão", async () => {
+    const { sponsorDeals, ownerRanking } = await import("@/lib/sponsorshipMetrics");
     const deals = [
       deal("a", "won", "2026-11-05T12:00:00Z", { owner_name: "Kate" }),
       deal("b", "won", "2026-11-06T12:00:00Z", { owner_name: "Michel" }),
-      deal("c", "open", null, { owner_name: "Kate", stage_name: "Proposta" }),
-      deal("d", "lost", null, { owner_name: "Fábio" }),
+      deal("c", "open", null, { owner_name: "Kate", stage_name: "Proposta", stage_changed_at: "2026-11-01T12:00:00Z" }),
+      deal("d", "lost", null, { owner_name: "Kate", lost_at: "2026-10-01T12:00:00Z", lost_reason: "" }),
+      deal("e", "lost", null, { owner_name: "Kate", lost_at: "2025-10-01T12:00:00Z" }),
     ];
-    const lines = [line("a", 1, 100000, { quantity: 2 }), line("b", 2, 50000), line("c", 2, 50000), line("d", 1, 100000)];
+    const lines = [line("a", 1, 100000, { quantity: 2 }), line("b", 2, 50000), line("c", 2, 0), line("d", 1, 100000)];
     const w = { previousEnd: "2026-05-30", eventEnd: "2027-05-22" };
     const m = computeSponsorship(config, deals, lines, catalog, w);
-    const rows = quotaBreakdown(m, config.quotas, {});
-    const o = byOwner(config, m, deals, lines, catalog);
-    expect(o.map((x) => x.nome)).toEqual(["Kate", "Michel"]);
-    for (const r of rows) {
-      expect(o.flatMap((x) => x.fechados).filter((l) => l.cotaKey === r.key).reduce((s, l) => s + l.quantidade, 0)).toBe(r.vendidas);
-      expect(o.flatMap((x) => x.abertos).filter((l) => l.cotaKey === r.key).reduce((s, l) => s + l.quantidade, 0)).toBe(r.emNegociacao);
+    const rows = sponsorDeals(config, m, deals, lines, catalog, w, "2026-11-09");
+    for (const r of quotaBreakdown(m, config.quotas, {})) {
+      const rk = ownerRanking(rows, r.key, "valor");
+      expect(rk.reduce((s, o) => s + o.cotasVendidas, 0)).toBe(r.vendidas);
+      expect(rk.reduce((s, o) => s + o.emNegociacao, 0)).toBe(r.emNegociacao);
     }
-    expect(o[0].abertos[0].etapa).toBe("Proposta");
+    const kate = ownerRanking(rows, null, "valor").find((o) => o.owner === "Kate")!;
+    expect(kate.perdidos).toBe(1);
+    expect(kate.conversao).toBe(0.5);
+    const aberto = rows.find((r) => r.status === "negociacao")!;
+    expect(aberto.valor).toBeNull();
+    expect(aberto.diasNaEtapa).toBe(8);
+    expect(rows.find((r) => r.status === "perdido")!.motivo).toBeNull();
+  });
+  it("nomes: primeiro nome, Leticia Bello e desempate pela inicial", async () => {
+    const { ownerDisplayNames } = await import("@/lib/sponsorshipMetrics");
+    const n = ownerDisplayNames(["KEITY souza", "Leticia C. Bello Pinguelli", "Ana Paula Prado", "Ana Lima", "Leticia Bellotti"]);
+    expect(n.get("KEITY souza")).toBe("Keity");
+    expect(n.get("Leticia C. Bello Pinguelli")).toBe("Leticia Bello");
+    expect(n.get("Leticia Bellotti")).toBe("Leticia B.");
+    expect(n.get("Ana Paula Prado")).toBe("Ana P.");
+    expect(n.get("Ana Lima")).toBe("Ana L.");
   });
 });

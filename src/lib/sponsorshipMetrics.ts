@@ -194,29 +194,36 @@ export function computeSponsorship(
 }
 
 // ---------- por responsável ----------
-// Mesma regra das barras de cotas: fechamentos = m.vendas; negociações = linhas do evento em negócios abertos.
-export interface OwnerLine {
+// Ganhos e abertos seguem a mesma regra das barras de cotas; perdidos = perdidos dentro da edição.
+export type DealStatusPt = "ganho" | "negociacao" | "perdido";
+export interface SponsorDealRow {
+  key: string;
   dealId: string;
   empresa: string;
-  cotaKey: string; // mesma chave das linhas do card de cotas ("" = outros, ADDONS_KEY = adicionais)
-  produto: string;
+  cotaKey: string; // mesma chave das barras ("" = outros, ADDONS_KEY = adicionais, "__semcota" = perdido sem produto)
+  cota: string;
+  owner: string; // nome completo no Pipedrive
+  status: DealStatusPt;
+  valor: number | null; // null = valor não informado
   quantidade: number;
-  valor: number;
-  quando: string | null; // fechamento: dia do ganho
-  etapa: string | null; // negociação: etapa no Pipedrive
+  data: string | null; // AAAA-MM-DD: ganho, perda ou última mudança de etapa
+  etapa: string | null;
+  diasNaEtapa: number | null;
+  desdeCriacao: boolean;
+  motivo: string | null;
 }
-export interface OwnerSummary {
-  nome: string;
-  fechados: OwnerLine[];
-  abertos: OwnerLine[];
-  qtdFechada: number;
-  valorFechado: number;
-  qtdNegociacao: number;
-  valorNegociacao: number;
-}
+export const NO_QUOTA_KEY = "__semcota";
+const SEM_RESP = "Sem responsável";
 
-export function byOwner(config: SponsorshipDraft, m: SponsorshipMetrics, deals: DealRow[], lines: DealProductRow[], catalog: CatalogRow[]): OwnerSummary[] {
-  const SEM = "Sem responsável";
+export function sponsorDeals(
+  config: SponsorshipDraft,
+  m: SponsorshipMetrics,
+  deals: DealRow[],
+  lines: DealProductRow[],
+  catalog: CatalogRow[],
+  window: { previousEnd: string | null; eventEnd: string },
+  hoje: string,
+): SponsorDealRow[] {
   const pipes = new Set(config.pipelines.filter((p) => p.represents !== "ingressos").map((p) => p.pipeline_pd_id));
   const byId = new Map(catalog.filter((c) => (c.kind ?? "product") === "product").map((c) => [c.pd_id, c]));
   const nameOf = (l: DealProductRow) => (l.product_pd_id != null ? byId.get(l.product_pd_id)?.name : null) ?? l.name ?? "Produto";
@@ -225,41 +232,96 @@ export function byOwner(config: SponsorshipDraft, m: SponsorshipMetrics, deals: 
     return isEventProduct({ name: p?.name ?? l.name, code: p?.code ?? null }, config.product_term, config.product_code);
   };
   const keyOf = (l: DealProductRow, nome: string) => quotaOfProduct(nome, config.quotas)?.key ?? (isAddonProduct(nome, l.variation_pd_id != null) ? ADDONS_KEY : "");
-  const map = new Map<string, OwnerSummary>();
-  const get = (n: string | null | undefined) => {
-    const nome = (n ?? "").trim() || SEM;
-    let o = map.get(nome);
-    if (!o) map.set(nome, (o = { nome, fechados: [], abertos: [], qtdFechada: 0, valorFechado: 0, qtdNegociacao: 0, valorNegociacao: 0 }));
-    return o;
-  };
-  for (const v of m.vendas) {
-    const o = get(v.closer);
-    o.fechados.push({ dealId: v.dealId, empresa: v.empresa, cotaKey: v.cotaKey ?? (v.adicional ? ADDONS_KEY : ""), produto: v.cota ?? v.produto, quantidade: v.quantidade, valor: v.valor, quando: v.ganhoEm, etapa: null });
-    o.qtdFechada += v.quantidade;
-    o.valorFechado += v.valor;
-  }
+  const cotaNome = (k: string, nome: string) => (k === ADDONS_KEY ? "Adicionais" : quotaOfProduct(nome, config.quotas)?.name ?? (k === "" ? "Outros produtos" : nome));
+  const val = (n: number) => (n > 0 ? n : null);
+  const dealsById = new Map(deals.map((d) => [d.id, d]));
   const linesOf = new Map<string, DealProductRow[]>();
   for (const l of lines) if (l.is_enabled && isEventLine(l)) linesOf.set(l.deal_id, [...(linesOf.get(l.deal_id) ?? []), l]);
+  const out: SponsorDealRow[] = [];
+  m.vendas.forEach((v, i) => {
+    const k = v.cotaKey ?? (v.adicional ? ADDONS_KEY : "");
+    out.push({ key: `w${i}`, dealId: v.dealId, empresa: v.empresa, cotaKey: k, cota: v.cota ?? (k === ADDONS_KEY ? "Adicionais" : "Outros produtos"), owner: v.closer?.trim() || SEM_RESP, status: "ganho", valor: val(v.valor), quantidade: v.quantidade, data: v.ganhoEm, etapa: null, diasNaEtapa: null, desdeCriacao: false, motivo: null });
+  });
+  const dias = (iso: string) => Math.max(Math.round((Date.parse(`${hoje}T12:00:00Z`) - Date.parse(`${saoPauloDate(iso)}T12:00:00Z`)) / 86400000), 0);
   for (const d of deals) {
-    if (d.is_deleted || d.status !== "open" || d.pipeline_pd_id == null || !pipes.has(d.pipeline_pd_id)) continue;
+    if (d.is_deleted || d.pipeline_pd_id == null || !pipes.has(d.pipeline_pd_id)) continue;
     const own = linesOf.get(d.id) ?? [];
-    if (!own.length) continue;
-    const o = get(d.owner_name);
-    for (const l of own) {
-      const nome = nameOf(l);
-      const k = keyOf(l, nome);
-      const q = Number(l.quantity) || 0;
-      const valor = Number(l.sum) || 0;
-      o.abertos.push({ dealId: d.id, empresa: d.org_name || d.title || "Sem empresa", cotaKey: k, produto: quotaOfProduct(nome, config.quotas)?.name ?? nome, quantidade: q, valor, quando: null, etapa: d.stage_name ?? null });
-      o.qtdNegociacao += q;
-      o.valorNegociacao += valor;
+    const empresa = d.org_name || d.title || "Sem empresa";
+    const owner = d.owner_name?.trim() || SEM_RESP;
+    if (d.status === "open" && own.length) {
+      const ref = d.stage_changed_at ?? d.created_at_source ?? null;
+      own.forEach((l, i) => {
+        const nome = nameOf(l);
+        const k = keyOf(l, nome);
+        out.push({ key: `o${d.id}${i}`, dealId: d.id, empresa, cotaKey: k, cota: cotaNome(k, nome), owner, status: "negociacao", valor: val(Number(l.sum) || 0), quantidade: Number(l.quantity) || 0, data: ref ? saoPauloDate(ref) : null, etapa: d.stage_name ?? null, diasNaEtapa: ref ? dias(ref) : null, desdeCriacao: !d.stage_changed_at && !!ref, motivo: null });
+      });
+    } else if (d.status === "lost" && inEdition(d.lost_at ?? null, window.previousEnd, window.eventEnd)) {
+      const base = { dealId: d.id, empresa, owner, status: "perdido" as const, data: saoPauloDate(d.lost_at as string), etapa: null, diasNaEtapa: null, desdeCriacao: false, motivo: d.lost_reason?.trim() || null };
+      if (!own.length) out.push({ ...base, key: `l${d.id}`, cotaKey: NO_QUOTA_KEY, cota: "Sem cota", valor: val(Number(d.value) || 0), quantidade: 1 });
+      else own.forEach((l, i) => {
+        const nome = nameOf(l);
+        const k = keyOf(l, nome);
+        out.push({ ...base, key: `l${d.id}${i}`, cotaKey: k, cota: cotaNome(k, nome), valor: val(Number(l.sum) || 0), quantidade: Number(l.quantity) || 0 });
+      });
     }
   }
-  for (const o of map.values()) {
-    o.fechados.sort((a, b) => String(b.quando).localeCompare(String(a.quando)));
-    o.abertos.sort((a, b) => b.valor - a.valor);
+  void dealsById;
+  return out;
+}
+
+export interface OwnerRank {
+  owner: string;
+  valorFechado: number;
+  cotasVendidas: number;
+  emNegociacao: number;
+  perdidos: number;
+  ganhosNegocios: number;
+  conversao: number | null;
+}
+const negocios = (rs: SponsorDealRow[], st: DealStatusPt) => new Set(rs.filter((r) => r.status === st).map((r) => r.dealId)).size;
+export function ownerStats(owner: string, rs: SponsorDealRow[]): OwnerRank {
+  const g = negocios(rs, "ganho");
+  const p = negocios(rs, "perdido");
+  return {
+    owner,
+    valorFechado: rs.filter((r) => r.status === "ganho").reduce((s, r) => s + (r.valor ?? 0), 0),
+    cotasVendidas: rs.filter((r) => r.status === "ganho").reduce((s, r) => s + r.quantidade, 0),
+    emNegociacao: rs.filter((r) => r.status === "negociacao").reduce((s, r) => s + r.quantidade, 0),
+    perdidos: p,
+    ganhosNegocios: g,
+    conversao: g + p > 0 ? g / (g + p) : null,
+  };
+}
+export function ownerRanking(rows: SponsorDealRow[], cota: string | null, ordem: "valor" | "cotas"): OwnerRank[] {
+  const f = cota == null ? rows : rows.filter((r) => r.cotaKey === cota);
+  const by = new Map<string, SponsorDealRow[]>();
+  for (const r of f) by.set(r.owner, [...(by.get(r.owner) ?? []), r]);
+  return [...by.entries()]
+    .map(([o, rs]) => ownerStats(o, rs))
+    .sort((a, b) => (ordem === "valor" ? b.valorFechado - a.valorFechado || b.cotasVendidas - a.cotasVendidas : b.cotasVendidas - a.cotasVendidas || b.valorFechado - a.valorFechado) || b.emNegociacao - a.emNegociacao || a.owner.localeCompare(b.owner, "pt-BR"));
+}
+
+// Nome de exibição: primeiro nome; exceção pedida para Leticia C. Bello Pinguelli; mesmo primeiro nome ganha a inicial do sobrenome.
+const fold = (s: string) => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z ]/g, " ").replace(/\s+/g, " ").trim();
+const cap = (w: string) => (w ? w.charAt(0).toLocaleUpperCase("pt-BR") + w.slice(1).toLocaleLowerCase("pt-BR") : w);
+export function ownerDisplayNames(all: string[]): Map<string, string> {
+  const out = new Map<string, string>();
+  const partes = (n: string) => n.trim().split(/\s+/).filter(Boolean);
+  const primeiros = new Map<string, number>();
+  for (const n of new Set(all)) {
+    const p = fold(partes(n)[0] ?? "");
+    primeiros.set(p, (primeiros.get(p) ?? 0) + 1);
   }
-  return [...map.values()].sort((a, b) => b.valorFechado - a.valorFechado || b.valorNegociacao - a.valorNegociacao || a.nome.localeCompare(b.nome, "pt-BR"));
+  for (const n of new Set(all)) {
+    if (n === SEM_RESP) { out.set(n, n); continue; }
+    const f = fold(n);
+    if (f === "leticia c bello pinguelli" || f === "leticia caetana bello pinguelli") { out.set(n, "Leticia Bello"); continue; }
+    const ps = partes(n);
+    const nome = cap(ps[0] ?? n);
+    const repetido = (primeiros.get(fold(ps[0] ?? "")) ?? 0) > 1 && ps.length > 1;
+    out.set(n, repetido ? `${nome} ${ps[ps.length - 1].charAt(0).toLocaleUpperCase("pt-BR")}.` : nome);
+  }
+  return out;
 }
 
 // ---------- cotas vendidas ----------
