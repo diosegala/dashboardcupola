@@ -36,7 +36,6 @@ export function ChannelGoalsCard({ tickets, allTickets, goals }: Props) {
   const lotes = useMemo(() => {
     const s = new Set<string>();
     allTickets.forEach((t) => { const b = batchOf(t.ticket_type); if (b) s.add(b); });
-    goals.filter((g) => g.metric_key === "channel_sales").forEach((g) => { const b = batchOf(g.ticket_type); if (b) s.add(b); });
     resumo.forEach((l) => s.add(l.lote));
     return Array.from(s).sort((a, b) => batchOrder(a) - batchOrder(b));
   }, [allTickets, goals, resumo]);
