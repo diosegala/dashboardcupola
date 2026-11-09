@@ -109,7 +109,10 @@ export function linkSales(sales: SaleRef[], emails: EmailRef[], decisions: Decis
       const escolhido =
         (Number.isFinite(quando) && maisPertoAntes(porNome, quando)) ||
         [...porNome].sort((a, b) => ts(b.sentAt) - ts(a.sentAt))[0];
-      const horarioConfirma = !!pelaPrimeira && (pelaPrimeira.id === escolhido.id || (Number.isFinite(quando) && maisPertoAntes(porNome, quando)?.id === escolhido.id && porNome.length > 1));
+      // Horário compatível: o e-mail escolhido saiu antes da primeira venda desse link, em até 3 dias.
+      const ini = primeira.get(k);
+      const t = ts(escolhido.sentAt);
+      const horarioConfirma = ini != null && Number.isFinite(t) && t <= ini && ini - t <= JANELA_MS;
       return { ...base, emailId: escolhido.id, level: horarioConfirma ? "confiavel" : "provavel", porNome: true, porHorario: horarioConfirma };
     }
     if (pelaPrimeira) return { ...base, emailId: pelaPrimeira.id, level: "sugestao", porHorario: true };
