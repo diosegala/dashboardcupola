@@ -9,7 +9,7 @@ export const PERFIS = {
   corretor: "Corretor de imóveis",
   incorporadora: "Incorporadora",
   imobiliaria: "Imobiliária (sem detalhe)",
-  outro: "Outro",
+  outro: "Outros",
 } as const;
 export type Perfil = (typeof PERFIS)[keyof typeof PERFIS];
 

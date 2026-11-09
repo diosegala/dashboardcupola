@@ -6,13 +6,13 @@ describe("perfil da empresa", () => {
     expect(companyProfiles("Imobiliária de Venda e Locação")).toEqual(["Aluguel", "Venda de terceiros"]);
     expect(companyProfiles("Imobiliária de Venda")).toEqual(["Venda de terceiros"]);
     expect(companyProfiles("Imobiliária de Locação")).toEqual(["Aluguel"]);
-    expect(companyProfiles("Outros")).toEqual(["Outro"]);
+    expect(companyProfiles("Outros")).toEqual(["Outros"]);
   });
   it("formulário novo com várias opções, com e sem acento, e em lista", () => {
     expect(companyProfiles("Imobiliaria Aluguel|Imobiliaria Venda (terceiros)|Imobiliaria Venda (lançamentos)|Corretor de Imóveis")).toEqual([
       "Aluguel", "Venda de terceiros", "Lançamentos", "Corretor de imóveis",
     ]);
-    expect(companyProfiles('["Imobiliária Aluguel","Outro"]')).toEqual(["Aluguel", "Outro"]);
+    expect(companyProfiles('["Imobiliária Aluguel","Outro"]')).toEqual(["Aluguel", "Outros"]);
     expect(companyProfiles("5")).toEqual([]);
   });
   it("soma os iguais por participante", () => {
