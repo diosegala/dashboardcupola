@@ -14,7 +14,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { canalDe } from "@/lib/salesChannel";
 import { formatPhone, normName, type Person } from "@/lib/buyers";
-import { linkSales, summarizeEmailSales, type Decision, type EmailSale, type EmailSalesBucket, type LinkWarning } from "@/lib/emailAttribution";
+import { groupByPurchase, linkSales, summarizeEmailSales, type Decision, type EmailSale, type EmailSalesBucket, type LinkWarning } from "@/lib/emailAttribution";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
