@@ -84,7 +84,7 @@ export function ChannelGoalsCard({ tickets, allTickets, goals }: Props) {
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 text-sm">
                   <span className="flex items-center gap-2 font-medium">
                     {l.label}
-                    {l.meta != null && <Chip variant={l.value >= l.meta ? "ok" : "warn"}>{l.value >= l.meta ? "Bateu" : "Ainda não"}</Chip>}
+                    {l.meta != null && l.value >= l.meta && <Chip variant="ok">Bateu</Chip>}
                   </span>
                   <span className="text-muted-foreground">
                     <b className="text-foreground">{int(l.value)}</b>
