@@ -14,7 +14,8 @@ export interface Lote {
   anteriorReceita: number | null;
   // Pelas datas da configuração de lotes (null quando o lote não está cadastrado).
   situacao: Situacao | null;
-  esgotado: boolean;
+  // Vendidos chegaram à meta do lote (não quer dizer que esgotou).
+  metaAtingida: boolean;
   inicio: string | null;
   fim: string | null;
 }
@@ -61,7 +62,7 @@ export function resumoLotes(goals: any[], allTimeTickets: Ticket[], previousYear
       const c = calendario.find((x) => x.name === lote);
       const pagantes = atual.get(lote)?.pagantes ?? 0;
       const meta = metas.get(lote) ?? null;
-      return { situacao: c ? situacao(c, hoje) : null, esgotado: !!meta && pagantes >= meta, inicio: c?.start_date ?? null, fim: c?.end_date ?? null };
+      return { situacao: c ? situacao(c, hoje) : null, metaAtingida: !!meta && pagantes >= meta, inicio: c?.start_date ?? null, fim: c?.end_date ?? null };
     };
     const { byBatch: precos } = fullPrices(allTimeTickets);
     const lotes: Lote[] = Array.from(nomes)
@@ -77,7 +78,9 @@ export function resumoLotes(goals: any[], allTimeTickets: Ticket[], previousYear
         anteriorReceita: anterior.get(lote)?.receita ?? null,
         ...doCalendario(lote),
       }));
-    return { lotes, loteAtual, faltamDatas: vig.faltamDatas };
+    // Lotes futuros só entram quando a data de início chegar (o vigente sempre aparece, mesmo se ainda for começar).
+    const visiveis = lotes.filter((l) => l.situacao !== "nao_iniciado" || l.lote === loteAtual);
+    return { lotes: visiveis, loteAtual, faltamDatas: vig.faltamDatas };
 }
 
 // Progresso de um lote em relação à meta: % vendido e saldo (null sem meta).

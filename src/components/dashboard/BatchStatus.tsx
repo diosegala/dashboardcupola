@@ -8,8 +8,8 @@ import { cn } from "@/lib/utils";
 // "2026-11-09" → "09/11/2026"
 export const dataCurta = (d: string) => d.split("-").reverse().join("/");
 
-// Selos do lote: Vigente, Encerrado ou Não iniciado (pelas datas da configuração) e Esgotado.
-export function LoteSelos({ lote, vigente, pequeno }: { lote: Pick<Lote, "situacao" | "esgotado">; vigente?: boolean; pequeno?: boolean }) {
+// Selos do lote: Vigente, Encerrado ou Não iniciado (pelas datas da configuração) e Meta atingida.
+export function LoteSelos({ lote, vigente, pequeno }: { lote: Pick<Lote, "situacao" | "metaAtingida">; vigente?: boolean; pequeno?: boolean }) {
   const cls = cn(pequeno && "px-1.5 py-0 text-[10px]");
   return (
     <>
@@ -20,7 +20,7 @@ export function LoteSelos({ lote, vigente, pequeno }: { lote: Pick<Lote, "situac
       ) : lote.situacao === "nao_iniciado" ? (
         <Chip variant="blue" dot={false} className={cls}>Não iniciado</Chip>
       ) : null}
-      {lote.esgotado && <Chip variant="warn" dot={false} className={cls}>Esgotado</Chip>}
+      {lote.metaAtingida && <Chip variant="ok" dot={false} className={cls}>Meta atingida</Chip>}
     </>
   );
 }
