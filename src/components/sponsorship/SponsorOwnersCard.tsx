@@ -116,11 +116,11 @@ export function SponsorOwnersCard({
           />
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <Select value={selectedKey ?? "__todas"} onValueChange={(v) => onSelectQuota(v === "__todas" ? null : v)}>
+          <Select value={selectedKey == null ? "__todas" : selectedKey || "__outros"} onValueChange={(v) => onSelectQuota(v === "__todas" ? null : v === "__outros" ? "" : v)}>
             <SelectTrigger className="h-8 w-auto min-w-[130px] text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value="__todas">Todas as cotas</SelectItem>
-              {cotas.map(([k, n]) => <SelectItem key={k || "outros"} value={k}>{n}</SelectItem>)}
+              {cotas.map(([k, n]) => <SelectItem key={k || "outros"} value={k || "__outros"}>{n}</SelectItem>)}
             </SelectContent>
           </Select>
           {aba === "ranking" ? (
