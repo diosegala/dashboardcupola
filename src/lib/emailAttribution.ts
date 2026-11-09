@@ -189,3 +189,18 @@ export function summarizeEmailSales(sales: EmailSale[], links: SaleLink[]) {
   }
   return { porEmail, semLigacao, semLigacaoReceita, avisos };
 }
+
+// Detalhe do selo: uma linha por compra (pedido da Sympla), somando ingressos e valor dos participantes do pedido.
+export function groupByPurchase<T extends EmailSale>(vendas: T[], pedidoDe: (v: T) => string) {
+  const map = new Map<string, { pedido: string; vendas: T[]; ingressos: number; valor: number; soldAt: string | null }>();
+  for (const v of vendas) {
+    const k = pedidoDe(v);
+    const g = map.get(k) ?? { pedido: k, vendas: [], ingressos: 0, valor: 0, soldAt: v.soldAt };
+    g.vendas.push(v);
+    g.ingressos += v.quantidade;
+    g.valor += v.valor;
+    if (String(v.soldAt ?? "") < String(g.soldAt ?? "")) g.soldAt = v.soldAt;
+    map.set(k, g);
+  }
+  return [...map.values()].sort((a, b) => String(b.soldAt).localeCompare(String(a.soldAt)));
+}
