@@ -232,7 +232,7 @@ export default function Sponsorship() {
       vendas: view.m.vendas,
       anterior: view.vendasAnteriores,
       previsto: view.receb.fonte !== "nenhuma" ? view.receb.porMes : null,
-      inicio: inicio.slice(0, 7) > hoje.slice(0, 7) ? null : (view.m.vendas.length ? null : hoje.slice(0, 7)),
+      inicio: inicio.slice(0, 7),
       fim: abertura.slice(0, 7),
       hoje: hoje.slice(0, 7),
     }),
