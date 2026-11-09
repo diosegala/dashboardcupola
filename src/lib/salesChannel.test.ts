@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { setCouponPeople } from "@/lib/coupons";
-import { canalDe, metaDoCanal, vendasPorCanal } from "@/lib/salesChannel";
+import { canalDe, cupomDePatrocinador, metaDoCanal, vendasPorCanal } from "@/lib/salesChannel";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { batchOf } from "@/lib/batches";
 
@@ -19,6 +19,13 @@ describe("canal de venda", () => {
   it("UTM tem prioridade sobre o cupom", () => expect(canalDe(v({ utm_source: "rd-station", utm_medium: "email", coupon_code: "5.00% - KARINY5" }))).toBe("E-mail marketing"));
   it("LETICIA10 sem link → BDR", () => expect(canalDe(v({ coupon_code: "10.00% - LETICIA10" }))).toBe("BDR"));
   it("LETICIAA5 sem link → Equipe CUPOLA", () => expect(canalDe(v({ coupon_code: "5.00% - LETICIAA5" }))).toBe("Equipe CUPOLA"));
+  it("cupom marcado como de patrocinador sem link → Patrocinadores", () => expect(canalDe(v({ coupon_code: "40.00% - MAXIMIZA40", sponsor_coupon: true }))).toBe("Patrocinadores"));
+  it("UTM tem prioridade sobre cupom de patrocinador", () => expect(canalDe(v({ utm_source: "rd-station", utm_medium: "email", coupon_code: "MAXIMIZA40", sponsor_coupon: true }))).toBe("E-mail marketing"));
+  it("nome da empresa patrocinadora vira cupom", () => {
+    expect(cupomDePatrocinador("40.00% - MAXIMIZA40", ["Maximiza Imóveis Ltda"])).toBe(true);
+    expect(cupomDePatrocinador("40.00% - MAXIMIZA40", ["Outra Empresa"])).toBe(false);
+    expect(cupomDePatrocinador("5.00% - KARINY5", ["Kariny Imóveis"])).toBe(false);
+  });
   it("faturado da Bello → BDR", () => expect(canalDe(v({ source: "pipedrive", seller: "Leticia Bello" }))).toBe("BDR"));
   it("faturado de outro vendedor → Equipe CUPOLA", () => expect(canalDe(v({ source: "pipedrive", seller: "Kariny Silva" }))).toBe("Equipe CUPOLA"));
   it("sem link e sem cupom → Sem canal identificado", () => expect(canalDe(v())).toBe("Sem canal identificado"));

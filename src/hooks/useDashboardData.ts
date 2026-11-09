@@ -2,7 +2,8 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { startOfMonth, endOfMonth, format, subYears } from "date-fns";
 import { withSaleDate } from "@/lib/period";
-import { invoicedToTickets, isTicketProduct, redeemedDeal } from "@/lib/invoicedTickets";
+import { invoicedToTickets, isTicketProduct, parseDealTitle, redeemedDeal } from "@/lib/invoicedTickets";
+import { cupomDePatrocinador } from "@/lib/salesChannel";
 import { withBatchByDate } from "@/lib/batches";
 import { batchCalendar } from "@/lib/batchCalendar";
 import { batchCalendarVersion } from "@/hooks/useEventBatches";
@@ -233,6 +234,20 @@ async function fetchInvoicedRaw(symplaEventId: string): Promise<InvoicedRaw> {
   return { deals: [...negocios.values()].filter(doEvento), linhas, account };
 }
 
+// Empresas que já fecharam patrocínio: os nomes delas costumam virar cupom. Quem não lê o CRM recebe lista vazia.
+async function fetchSponsorCompanies(symplaEventId: string): Promise<string[]> {
+  const { data: ev } = await supabase.from("events").select("id").eq("sympla_event_id", symplaEventId).maybeSingle();
+  if (!ev) return [];
+  const { data: cfg } = await supabase.from("sponsorship_config").select("crm_account, pipelines").eq("event_id", ev.id).maybeSingle();
+  const account = cfg?.crm_account?.trim();
+  const funis = ((cfg?.pipelines as any[]) ?? []).filter((p) => p.represents !== "ingressos").map((p) => Number(p.pipeline_pd_id));
+  if (!account || !funis.length) return [];
+  const ganhos = await fetchAllPages((from, to) =>
+    supabase.from("deals").select("id, org_name, title").eq("crm_account", account).in("pipeline_pd_id", funis)
+      .eq("status", "won").eq("is_deleted", false).order("id").range(from, to) as any);
+  return [...new Set((ganhos as any[]).map((d) => d.org_name || parseDealTitle(d.title).empresa).filter(Boolean))] as string[];
+}
+
 function invoicedFromRaw(raw: InvoicedRaw, symplaSales: any[]) {
   if (!raw) return [];
   // Conta do Pipedrive em cada ingresso, para o painel abrir o negócio no CRM.
@@ -247,6 +262,7 @@ export function useAllTimeTicketSales(eventId: string) {
     queryFn: async () => {
       // CRM e Sympla são lidos ao mesmo tempo.
       const crm = fetchInvoicedRaw(eventId).catch(() => null);
+      const patrocinadores = fetchSponsorCompanies(eventId).catch(() => [] as string[]);
       // Colunas de pagamento e origem só existem depois do SQL novo; sem elas, busca as básicas.
       let sympla: any[];
       try {
@@ -258,9 +274,11 @@ export function useAllTimeTicketSales(eventId: string) {
       const faturados = invoicedFromRaw(await crm, sympla);
       // Resgate na Sympla de um faturado ganho (cupom com o nome da empresa): vira baixa, não cortesia nem venda.
       const empresas = faturados.filter((f) => f.status === "approved").map((f) => ({ deal_id: f.deal_id, company: f.company }));
+      const nomesPatrocinadores = await patrocinadores;
       const comResgate = sympla.map((t) => {
         const deal = redeemedDeal(t.coupon_code, empresas);
-        return deal ? { ...t, redeems: deal } : t;
+        const sponsor_coupon = cupomDePatrocinador(t.coupon_code, nomesPatrocinadores);
+        return deal || sponsor_coupon ? { ...t, ...(deal ? { redeems: deal } : {}), sponsor_coupon } : t;
       });
       // Lote pela data: vale o lote vigente no dia da venda (muda na primeira venda do lote seguinte).
       return withBatchByDate([...comResgate, ...faturados], batchCalendar(eventId));

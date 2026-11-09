@@ -16,7 +16,7 @@ const EVENTO = "__evento";
 export const REGRAS_CANAL =
   "Como cada venda ganha um canal: 1) faturado interno conta para a Equipe CUPOLA, ou para BDR quando a vendedora é a Letícia Bello; " +
   "2) na Sympla, o link parametrizado (UTMs) decide, mesmo quando a compra usou cupom; todo link com \"bdr\" é BDR; " +
-  "3) sem link, ou com link que não identifica o canal, o cupom decide: cupons da Letícia Bello (exceto LETICIAA5) são BDR e os cupons nominais da equipe são Equipe CUPOLA; " +
+  "3) sem link, ou com link que não identifica o canal, o cupom decide: cupons da Letícia Bello (exceto LETICIAA5) são BDR, cupons com o nome de uma empresa que fechou patrocínio são Patrocinadores e os cupons nominais da equipe são Equipe CUPOLA; " +
   "4) o resto fica em Sem canal identificado, fora das metas. Vendas canceladas não contam.";
 
 interface Props {

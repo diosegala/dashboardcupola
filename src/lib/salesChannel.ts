@@ -1,5 +1,6 @@
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { normalizeCode, parseCoupon, personBySeller } from "@/lib/coupons";
+import { chave } from "@/lib/invoicedTickets";
 
 // Canais do planejamento, na ordem do card. "Sem canal identificado" fica fora das metas.
 export const CANAIS = [
@@ -41,6 +42,19 @@ export function cupomBello(code: string | null | undefined): boolean {
   return /^LEI?TICIA/.test(c) && !/^LETICIAA/.test(c);
 }
 
+// O nome do patrocinador costuma virar cupom (Maximiza Imóveis → MAXIMIZA40). Só olha cupons fora dos grupos conhecidos
+// (equipe, resgate, palestrante) e exige ao menos 4 letras, para não confundir nomes curtos.
+export function cupomDePatrocinador(raw: string | null | undefined, empresas: (string | null | undefined)[]): boolean {
+  const c = parseCoupon(raw);
+  if (c?.group !== "parceiro") return false;
+  const codigo = chave(c.code.replace(/\d+$/, ""));
+  if (codigo.length < 4) return false;
+  return empresas.some((e) => {
+    const k = chave(e);
+    return k.length >= 4 && (k.startsWith(codigo) || codigo.startsWith(k));
+  });
+}
+
 function vendedorBello(seller: unknown): boolean {
   const s = String(seller ?? "").toLowerCase();
   if (/bello/.test(s) || /^leticia\s*(c|10|15)?$/.test(s.trim())) return true;
@@ -69,6 +83,7 @@ export function canalDe(t: Ticket): string {
   if (doLink) return doLink;
   if (t.coupon_code) {
     if (cupomBello(t.coupon_code)) return "BDR";
+    if (t.sponsor_coupon) return "Patrocinadores";
     if (parseCoupon(t.coupon_code)?.group === "equipe") return "Equipe CUPOLA";
   }
   return SEM_CANAL;
