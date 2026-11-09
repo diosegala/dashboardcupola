@@ -16,3 +16,14 @@ describe("lotes", () => {
     expect(batchOf(r[2].ticket_type)).toBe("Lote 0");
   });
 });
+
+describe("faturado na virada de lote", () => {
+  it("usa a data de criação do negócio para o lote", () => {
+    const cal = [
+      { name: "Lote 0", start_date: "2026-11-03", end_date: "2026-11-08" },
+      { name: "Lote 1", start_date: "2026-11-09", end_date: "2026-11-25" },
+    ];
+    const [t] = withBatchByDate([{ ticket_type: "Lote 1 | Ingresso VIP", sold_at: "2026-11-09T12:21:12Z", batch_at: "2026-11-06T19:45:13Z", source: "pipedrive" }], cal);
+    expect(t.ticket_type).toBe("Lote 0 | Ingresso VIP");
+  });
+});
