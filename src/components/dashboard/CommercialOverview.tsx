@@ -33,7 +33,6 @@ import { CompareLine } from "@/components/CompareLine";
 import { useCompare } from "@/hooks/useCompare";
 import { eventGoal } from "@/lib/goalMetrics";
 import { ChartLegend } from "./charts/ChartLegend";
-import { SegmentCard } from "./CommercialSegments";
 import { ChannelGoalsCard } from "./ChannelGoalsCard";
 import { PREVIOUS_YEAR_KEY, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
 
