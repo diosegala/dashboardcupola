@@ -46,6 +46,8 @@ export interface Ticket {
   conferir?: string | null;
   // Resgate na Sympla de um faturado: id do negócio no Pipedrive (não conta como venda nem cortesia).
   redeems?: string | null;
+  // Cupom com o nome de uma empresa que fechou patrocínio: conta no canal Patrocinadores.
+  sponsor_coupon?: boolean;
   // Desconto em R$ dado no negócio do Pipedrive (linha do produto), quando preenchido.
   discount_value?: number;
   // Faturado com Forma de pagamento "Bonificação / Permuta" e número de parcelas (quando parcelado).
