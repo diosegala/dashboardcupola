@@ -57,7 +57,8 @@ export const METRIC_INFO: Record<string, string> = {
     "Quantas vendas pagantes cada dia da semana teve desde a abertura das vendas. O melhor dia fica em destaque. Cortesias e credenciais não entram.",
 
   "Região": "Região de quem vai ao evento, pelo estado informado no formulário de inscrição da Sympla. Ingressos aprovados.",
-  "Perfil da empresa": "Perfil da empresa de quem vai ao evento, informado no formulário de inscrição da Sympla.",
+  "Perfil da empresa":
+    "Perfil da empresa de quem vai ao evento, informado no formulário de inscrição da Sympla. Respostas parecidas são somadas (com ou sem acento, formulário antigo ou novo; \"Venda e Locação\" conta em Aluguel e em Venda de terceiros). Como dá para marcar mais de um perfil, a soma das porcentagens passa de 100%.",
   Acessibilidade: "Recursos de acessibilidade pedidos no formulário de inscrição. Respostas parecidas são agrupadas.",
   Cargo: "Cargo informado no formulário de inscrição.",
   Cidades: "Cidades informadas no formulário de inscrição. Grafias diferentes da mesma cidade são juntadas; o tamanho mostra quantas pessoas.",
