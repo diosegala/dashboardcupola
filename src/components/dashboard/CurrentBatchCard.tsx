@@ -85,7 +85,7 @@ function Conteudo({ lote, vHoje, v7, comparar }: { lote: ReturnType<typeof resum
   return (
     <div className="flex flex-1 flex-col justify-between gap-4">
       <div>
-        <div className="flex flex-wrap items-center gap-2 text-lg font-semibold leading-tight">{lote.lote} <LoteSelos lote={lote} /></div>
+        <div className="flex flex-wrap items-center gap-2 text-lg font-semibold leading-tight">{lote.lote} <LoteSelos lote={lote} vigente /></div>
         {lote.inicio && lote.fim && <p className="mt-1 text-xs text-muted-foreground">{dataCurta(lote.inicio)} a {dataCurta(lote.fim)}</p>}
       </div>
       <svg viewBox="0 0 140 140" className="mx-auto h-auto w-full max-w-[170px]" role="img" aria-label={`${lote.pagantes} vendidos${lote.meta ? ` de ${lote.meta}` : ""}`}>

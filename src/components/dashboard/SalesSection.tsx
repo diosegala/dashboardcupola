@@ -62,7 +62,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                 <td className="px-3 py-2.5 font-semibold">
                   <span className="flex items-center gap-1.5">
                     {l.lote}
-                    <LoteSelos lote={l} pequeno />
+                    <LoteSelos lote={l} vigente={vigente} pequeno />
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-right">{l.preco !== null ? brl(l.preco) : "—"}</td>
@@ -115,7 +115,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <span className="flex min-w-0 items-center gap-1.5 font-semibold">
                     <span className="break-words">{l.lote}</span>
-                    <LoteSelos lote={l} pequeno />
+                    <LoteSelos lote={l} vigente={vigente} pequeno />
                   </span>
                   <span className="whitespace-nowrap">
                     <b className="font-semibold">{int(l.pagantes)}</b>
