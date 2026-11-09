@@ -5,7 +5,9 @@ import { Card } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { useEvent } from "@/hooks/useEvent";
 import { useMyTeamCoupons } from "@/hooks/useTeam";
-import { useAllTimeTicketSales } from "@/hooks/useDashboardData";
+import { goalsOfEvent } from "@/hooks/useEvent";
+import { useAllTimeTicketSales, useGoals } from "@/hooks/useDashboardData";
+import { eventGoal } from "@/lib/goalMetrics";
 import { splitTickets } from "@/hooks/useCommercialMetrics";
 import { TeamRanking, TeamStanding, buildTeamRanking, findMe } from "@/components/dashboard/TeamRanking";
 
@@ -15,6 +17,8 @@ export function SellerHome() {
   const { event } = useEvent();
   const vendas = useAllTimeTicketSales(event.sympla_event_id ?? "");
   const meusCupons = useMyTeamCoupons();
+  const { data: metas } = useGoals();
+  const metaEquipe = eventGoal(goalsOfEvent(metas ?? [], event), "team_sales");
 
   const ranking = useMemo(() => buildTeamRanking(splitTickets(vendas.data ?? []).paying), [vendas.data]);
   const eu = useMemo(() => findMe(ranking, meusCupons.data ?? [], profile?.name), [ranking, meusCupons.data, profile?.name]);
@@ -35,7 +39,7 @@ export function SellerHome() {
         <>
           <TeamStanding data={ranking} eu={eu} eventName={event.name} />
           {ranking.lotes.some((l) => l.ranking.length > 0) ? (
-            <TeamRanking data={ranking} eu={eu} />
+            <TeamRanking data={ranking} eu={eu} metaPorPessoa={metaEquipe ? Number(metaEquipe.target_value) : null} />
           ) : (
             <Card className="p-8 text-center text-sm text-muted-foreground">Ninguém da equipe vendeu com cupom neste evento ainda.</Card>
           )}

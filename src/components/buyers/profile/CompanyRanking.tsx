@@ -1,7 +1,8 @@
 import { useMemo, useState } from "react";
-import { Heart, Ticket, UsersRound } from "lucide-react";
+import { ChevronDown, Heart, Ticket, UsersRound } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { VizCard, VIZ } from "@/components/buyers/profile/ProfileViz";
 import type { Company, EventRef } from "@/lib/buyers";
 import { cn } from "@/lib/utils";
@@ -22,6 +23,7 @@ interface Linha {
 export function CompanyRanking({ companies, eventos, eventSlug }: { companies: Company[]; eventos: EventRef[]; eventSlug: string }) {
   const [busca, setBusca] = useState("");
   const [limite, setLimite] = useState(PASSO);
+  const [aberto, setAberto] = useState(false);
 
   const linhas = useMemo<Linha[]>(
     () =>
@@ -54,7 +56,6 @@ export function CompanyRanking({ companies, eventos, eventSlug }: { companies: C
   const termo = busca.trim().toLowerCase();
   const posicao = new Map(linhas.map((l, i) => [l.c.id, i + 1]));
   const lista = termo ? linhas.filter((l) => l.c.name.toLowerCase().includes(termo) || (l.c.cnpj ?? "").includes(termo.replace(/\D/g, "") || "#")) : linhas;
-  const maxPagos = Math.max(...linhas.map((l) => l.pagos), 1);
 
   return (
     <VizCard
@@ -90,62 +91,46 @@ export function CompanyRanking({ companies, eventos, eventSlug }: { companies: C
         ))}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="text-[13px] font-semibold text-foreground/75">Ranking de fidelidade</div>
-        <Input value={busca} onChange={(e) => { setBusca(e.target.value); setLimite(PASSO); }} placeholder="Achar empresa ou CNPJ" className="h-9 max-w-[240px] rounded-full" />
-      </div>
+      <Button variant="outline" className="w-fit rounded-full" aria-expanded={aberto} onClick={() => setAberto((a) => !a)}>
+        Ranking de fidelidade
+        <ChevronDown className={cn("h-4 w-4 transition-transform", aberto && "rotate-180")} />
+      </Button>
 
-      <ol className="flex flex-col">
-        {lista.slice(0, limite).map((l) => {
-          const pos = posicao.get(l.c.id) ?? 0;
-          return (
-            <li key={l.c.id} className="grid grid-cols-[34px_minmax(0,1fr)_auto] items-center gap-3 border-t py-2.5 first:border-t-0 sm:grid-cols-[34px_minmax(0,1.4fr)_minmax(0,1fr)_110px_120px]">
-              <span
-                className={cn(
-                  "flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold tabular-nums",
-                  pos <= 3 ? "text-white" : "bg-secondary text-muted-foreground",
-                )}
-                style={pos <= 3 ? { background: [VIZ[2], VIZ[0], VIZ[4]][pos - 1] } : undefined}
-              >
-                {pos}
-              </span>
-              <span className="min-w-0">
-                <span className="block truncate text-[13px] font-semibold" title={l.c.name}>{l.c.name}</span>
-                {l.estreante && <span className="text-[11px] font-semibold" style={{ color: VIZ[4] }}>Estreante</span>}
-              </span>
-              {/* Linha do tempo: uma bolinha por evento CUPOLA, cheia quando a empresa veio */}
-              <span className="hidden items-center gap-1 sm:flex" aria-label={`Veio a ${l.eventos} de ${eventos.length} eventos`}>
-                {eventos.map((ev) => {
-                  const veio = !!l.c.events[ev.slug];
-                  return (
-                    <i
-                      key={ev.slug}
-                      title={`${ev.label}: ${veio ? `${int(l.c.events[ev.slug].people.size)} pessoas` : "não veio"}`}
-                      className={cn("inline-block h-3 w-3 rounded-full", !veio && "border border-line-strong", ev.slug === eventSlug && veio && "ring-2 ring-primary ring-offset-1 ring-offset-card")}
-                      style={veio ? { background: VIZ[1] } : undefined}
-                    />
-                  );
-                })}
-                <span className="ml-1.5 text-xs tabular-nums text-muted-foreground">{int(l.eventos)}</span>
-              </span>
-              <span className="hidden text-right text-xs text-muted-foreground sm:block">
-                <b className="text-[13px] font-semibold text-foreground tabular-nums">{int(l.agora)}</b> {l.agora === 1 ? "pessoa" : "pessoas"} agora
-              </span>
-              <span className="flex items-center justify-end gap-2" title={`${int(l.pagos)} ingressos pagos em todos os eventos`}>
-                <span className="hidden h-1.5 w-14 overflow-hidden rounded-full bg-secondary sm:block">
-                  <i className="block h-full rounded-full" style={{ width: `${(l.pagos / maxPagos) * 100}%`, background: VIZ[3] }} />
-                </span>
-                <span className="text-xs tabular-nums"><b className="font-semibold">{int(l.pagos)}</b> pagos</span>
-              </span>
-            </li>
-          );
-        })}
-      </ol>
-      {lista.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma empresa com esse nome neste evento.</p>}
-      {lista.length > limite && (
-        <Button variant="outline" className="w-fit self-center rounded-full" onClick={() => setLimite((n) => n + PASSO)}>
-          Ver mais {int(Math.min(PASSO, lista.length - limite))}
-        </Button>
+      {aberto && (
+        <>
+          <Input value={busca} onChange={(e) => { setBusca(e.target.value); setLimite(PASSO); }} placeholder="Achar empresa ou CNPJ" className="h-9 max-w-[240px] rounded-full" />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-12">#</TableHead>
+                <TableHead>Empresa</TableHead>
+                <TableHead className="text-right">Eventos CUPOLA</TableHead>
+                <TableHead className="text-right">Pessoas neste evento</TableHead>
+                <TableHead className="text-right">Ingressos pagos (todos os eventos)</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {lista.slice(0, limite).map((l) => (
+                <TableRow key={l.c.id}>
+                  <TableCell className="tabular-nums text-muted-foreground">{posicao.get(l.c.id)}</TableCell>
+                  <TableCell className="font-medium">
+                    {l.c.name}
+                    {l.estreante && <span className="ml-2 text-xs font-normal text-muted-foreground">Estreante</span>}
+                  </TableCell>
+                  <TableCell className="text-right tabular-nums">{int(l.eventos)} de {int(eventos.length)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{int(l.agora)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{int(l.pagos)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          {lista.length === 0 && <p className="text-sm text-muted-foreground">Nenhuma empresa com esse nome neste evento.</p>}
+          {lista.length > limite && (
+            <Button variant="outline" className="w-fit self-center rounded-full" onClick={() => setLimite((n) => n + PASSO)}>
+              Ver mais {int(Math.min(PASSO, lista.length - limite))}
+            </Button>
+          )}
+        </>
       )}
     </VizCard>
   );

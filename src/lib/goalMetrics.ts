@@ -36,6 +36,7 @@ export const GOAL_SECTIONS: GoalSection[] = [
       { id: "paying_tickets", key: "paying_tickets", label: "Ingressos pagantes", where: "Meta do evento, Ritmo de vendas, Pagantes acumulados e Vendas por dia útil", unit: "num", scope: "evento" },
       { id: "revenue", key: "revenue", label: "Meta de receita (R$)", where: "Card Receita acumulada e gráfico Receita acumulada x meta", unit: "brl", scope: "evento" },
       { id: "issued_tickets", key: "issued_tickets", label: "Ingressos emitidos", where: "Ingressos emitidos (pagos, faturados e cortesias)", unit: "num", scope: "evento" },
+      { id: "ticket_average", key: "ticket_average", label: "Ticket médio (R$)", where: "Card Receita acumulada › Ticket médio", unit: "brl", scope: "evento" },
     ],
   },
   {
@@ -47,7 +48,7 @@ export const GOAL_SECTIONS: GoalSection[] = [
       { id: "sponsor_budget", key: "sponsor_budget", label: "Orçamento (R$)", where: "Patrocínios › Receita de patrocínio", unit: "brl", scope: "evento", info: "Receita de patrocínio prevista no orçamento do evento (DRE). Aparece como marca no card Receita de patrocínio." },
       { id: "sponsor_quotas", key: "sponsor_quotas", label: "Cotas vendidas", where: "Patrocínios › Cotas vendidas", unit: "num", scope: "cota", info: "Quantidade a vender em cada nível de cota. Aparece em Cotas vendidas." },
       { id: "sponsor_receipts", key: "sponsor_receipts", label: "Recebimento no ano (R$)", where: "Patrocínios › Recebimentos (quando o campo de vencimento existir)", unit: "brl", scope: "ano", info: "Caixa de patrocínio que deve entrar no ano. Aparece em Recebimentos." },
-      { id: "sponsor_approaches", key: "sponsor_approaches", label: "Abordagens", where: "Patrocínios › Prospecção (fase seguinte)", unit: "num", scope: "periodo", info: "Empresas a abordar nas datas da meta. Com conversão de 7%, define o volume de prospecção. Aparece em Prospecção." },
+      { id: "sponsor_approaches", key: "sponsor_approaches", label: "Abordagens", where: "Patrocínios › Prospecção", unit: "num", scope: "periodo", info: "Empresas a abordar nas datas da meta. Com conversão de 7%, define o volume de prospecção. Aparece em Prospecção." },
     ],
   },
   {
@@ -67,8 +68,18 @@ export const GOAL_SECTIONS: GoalSection[] = [
   },
   {
     title: "Equipe de vendas",
-    description: "Quanto cada pessoa da equipe deve vender em cada lote.",
+    description: "Quantos pagantes cada pessoa da equipe deve vender por lote. O valor é o mesmo para todos os lotes e pessoas.",
     items: [{ id: "team_sales", key: "team_sales", label: "Vendas por pessoa no lote", where: "Ranking da equipe", unit: "num", scope: "evento" }],
+  },
+  {
+    title: "Marketing › Visão geral",
+    description: "Vale para as datas da meta; aparece quando o período do painel cruza essas datas.",
+    items: [
+      { id: "media_spend", key: "media_spend", label: "Investimento em mídia", where: "Marketing › Visão geral", unit: "brl", scope: "periodo" },
+      { id: "media_cost_per_ticket", key: "media_cost_per_ticket", label: "Investimento por ingresso (R$)", where: "Marketing › Visão geral", unit: "brl", scope: "periodo", info: "Teto: quanto menor, melhor. Fica Na meta enquanto estiver igual ou abaixo do valor." },
+      { id: "media_roas", key: "media_roas", label: "Receita por real investido", where: "Marketing › Visão geral", unit: "num", scope: "periodo", info: "Quantos reais em vendas para cada R$ 1 investido. Use 5 para 5x." },
+      { id: "links_tracked_rate", key: "links_tracked_rate", label: "Vendas com link parametrizado", where: "Marketing › Visão geral", unit: "pct", scope: "periodo" },
+    ],
   },
   {
     title: "Meta Ads",
@@ -83,6 +94,20 @@ export const GOAL_SECTIONS: GoalSection[] = [
       { id: "meta_messages", key: "meta_messages", label: "Mensagens", where: "Marketing › Meta Ads", unit: "num", scope: "periodo" },
       { id: "meta_add_to_cart", key: "meta_add_to_cart", label: "Adição de carrinho", where: "Marketing › Meta Ads", unit: "num", scope: "periodo" },
       { id: "meta_remarketing", key: "meta_remarketing", label: "Remarketing qualificado", where: "Marketing › Meta Ads", unit: "num", scope: "periodo" },
+      { id: "meta_cpc", key: "meta_cpc", label: "CPC (R$)", where: "Marketing › Meta Ads", unit: "brl", scope: "periodo", info: "Teto: quanto menor, melhor. Fica Na meta enquanto estiver igual ou abaixo do valor." },
+    ],
+  },
+  {
+    title: "Google Ads",
+    description: "Vale para as datas da meta; aparece quando o período do painel cruza essas datas.",
+    items: [
+      { id: "google_spend", key: "google_spend", label: "Investimento", where: "Marketing › Google Ads", unit: "brl", scope: "periodo" },
+      { id: "google_impressions", key: "google_impressions", label: "Impressões", where: "Marketing › Google Ads", unit: "num", scope: "periodo" },
+      { id: "google_link_clicks", key: "google_link_clicks", label: "Cliques no link", where: "Marketing › Google Ads", unit: "num", scope: "periodo" },
+      { id: "google_ctr", key: "google_ctr", label: "CTR", where: "Marketing › Google Ads", unit: "pct", scope: "periodo" },
+      { id: "google_cpc", key: "google_cpc", label: "CPC (R$)", where: "Marketing › Google Ads", unit: "brl", scope: "periodo", info: "Teto: quanto menor, melhor. Fica Na meta enquanto estiver igual ou abaixo do valor." },
+      { id: "google_purchases", key: "google_purchases", label: "Conversões", where: "Marketing › Google Ads", unit: "num", scope: "periodo" },
+      { id: "google_conversion_rate", key: "google_conversion_rate", label: "Taxa de conversão", where: "Marketing › Google Ads", unit: "pct", scope: "periodo" },
     ],
   },
   {
@@ -90,6 +115,7 @@ export const GOAL_SECTIONS: GoalSection[] = [
     description: "Vale para as datas da meta.",
     items: [
       { id: "email_sent", key: "email_sent", label: "Campanhas enviadas", where: "Marketing › RD Station", unit: "num", scope: "periodo" },
+      { id: "email_delivery_rate", key: "email_delivery_rate", label: "Taxa de entrega", where: "Marketing › RD Station", unit: "pct", scope: "periodo" },
       { id: "email_open_rate", key: "email_open_rate", label: "Taxa de abertura", where: "Marketing › RD Station", unit: "pct", scope: "periodo" },
       { id: "email_click_rate", key: "email_click_rate", label: "Taxa de clique", where: "Marketing › RD Station", unit: "pct", scope: "periodo" },
     ],

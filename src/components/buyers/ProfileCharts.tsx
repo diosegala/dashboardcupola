@@ -23,6 +23,22 @@ interface ProfileChartsProps {
   eventSlug?: string;
 }
 
+// Perguntas secundárias: lista curta, lado a lado, sem gráfico.
+const COMPACTOS = ["Visita presencial", "Acessibilidade"];
+
+function ListaCompacta({ items }: { items: Item[] }) {
+  return (
+    <ul className="flex max-h-24 flex-col gap-1 overflow-y-auto text-sm">
+      {items.map((it) => (
+        <li key={it.label} className="flex items-baseline justify-between gap-3">
+          <span className="min-w-0 truncate text-muted-foreground" title={it.label}>{it.label}</span>
+          <b className="shrink-0 font-semibold tabular-nums">{int(it.value)}</b>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Grafico({ title, items }: { title: string; items: Item[] }) {
   const forma = vizFor(title, items);
   if (forma === "cloud") return <CloudViz items={items} />;
@@ -100,7 +116,8 @@ export function ProfileCharts({ tickets, formAnswers, people, companies, eventos
   const outros = [
     ...(porPerfil.length ? [{ title: "Perfil da empresa", items: porPerfil }] : []),
     ...temas.filter((t) => t.title !== "Cidades" && t.title !== "Empresas"),
-  ].filter((t) => t.items.length > 0);
+  ].filter((t) => t.items.length > 0 && !COMPACTOS.includes(t.title));
+  const compactos = COMPACTOS.flatMap((title) => temas.filter((t) => t.title === title && t.items.length > 0));
 
   const admin = !!(people && companies && eventos && eventSlug);
   const noEvento = admin ? people!.filter((p) => p.events[eventSlug!]) : [];
@@ -144,6 +161,12 @@ export function ProfileCharts({ tickets, formAnswers, people, companies, eventos
           ) : (
             <Grafico title={t.title} items={t.items} />
           )}
+        </VizCard>
+      ))}
+
+      {compactos.map((t) => (
+        <VizCard key={t.title} title={t.title} className={compactos.length > 1 ? "col-span-12 sm:col-span-6" : "col-span-12"}>
+          <ListaCompacta items={t.items} />
         </VizCard>
       ))}
 
