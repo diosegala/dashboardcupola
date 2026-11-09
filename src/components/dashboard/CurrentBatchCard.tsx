@@ -11,6 +11,7 @@ import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { batchOf } from "@/lib/batches";
 import { progressoLote, resumoLotes } from "@/lib/batchSummary";
 import { cn } from "@/lib/utils";
+import { AvisoDatas, LoteSelos, dataCurta } from "./BatchStatus";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -31,9 +32,9 @@ export function CurrentBatchCard({ goals, allTimeTickets = [], previousYearTicke
   // Primeira aba: sempre o lote à venda agora. Segunda: todos os lotes (veio do card Ingressos emitidos).
   const [visao, setVisao] = useState<"vigente" | "lotes">("vigente");
   const dados = useMemo(() => {
-    const { lotes, loteAtual } = resumoLotes(goals, allTimeTickets, previousYearTickets);
+    const { lotes, loteAtual, faltamDatas } = resumoLotes(goals, allTimeTickets, previousYearTickets);
     const lote = lotes.find((l) => l.lote === loteAtual) ?? null;
-    if (!lote) return null;
+    if (!lote) return faltamDatas ? { faltamDatas } : null;
     const hoje = new Date();
     const chaveHoje = hoje.toLocaleDateString("sv-SE");
     const seteDias = new Date(hoje.getTime() - 7 * 86400000).toISOString();
@@ -45,7 +46,7 @@ export function CurrentBatchCard({ goals, allTimeTickets = [], previousYearTicke
       if (new Date(t.sold_at).toLocaleDateString("sv-SE") === chaveHoje) vHoje += q;
       if (t.sold_at >= seteDias) v7 += q;
     });
-    return { lote, vHoje, v7 };
+    return { lote, vHoje, v7, faltamDatas: false };
   }, [goals, allTimeTickets, previousYearTickets]);
 
   return (
@@ -67,10 +68,12 @@ export function CurrentBatchCard({ goals, allTimeTickets = [], previousYearTicke
       </div>
       {visao === "lotes" ? (
         <SalesSection embedded goals={goals} allTimeTickets={allTimeTickets} previousYearTickets={previousYearTickets} />
-      ) : !dados ? (
-        <p className="py-8 text-center text-xs text-muted-foreground">Nenhuma venda por lote ainda.</p>
+      ) : dados?.faltamDatas ? (
+        <AvisoDatas />
+      ) : !dados || !("lote" in dados) || !dados.lote ? (
+        <p className="py-8 text-center text-xs text-muted-foreground">Nenhum lote cadastrado ainda.</p>
       ) : (
-        <Conteudo {...dados} comparar={comparar} />
+        <Conteudo lote={dados.lote} vHoje={dados.vHoje} v7={dados.v7} comparar={comparar} />
       )}
     </Card>
   );
@@ -81,7 +84,10 @@ function Conteudo({ lote, vHoje, v7, comparar }: { lote: ReturnType<typeof resum
   const frac = pct === null ? 1 : Math.min(pct, 1);
   return (
     <div className="flex flex-1 flex-col justify-between gap-4">
-      <div className="text-lg font-semibold leading-tight">{lote.lote}</div>
+      <div>
+        <div className="flex flex-wrap items-center gap-2 text-lg font-semibold leading-tight">{lote.lote} <LoteSelos lote={lote} /></div>
+        {lote.inicio && lote.fim && <p className="mt-1 text-xs text-muted-foreground">{dataCurta(lote.inicio)} a {dataCurta(lote.fim)}</p>}
+      </div>
       <svg viewBox="0 0 140 140" className="mx-auto h-auto w-full max-w-[170px]" role="img" aria-label={`${lote.pagantes} vendidos${lote.meta ? ` de ${lote.meta}` : ""}`}>
         <circle cx="70" cy="70" r={R} fill="none" stroke="hsl(var(--secondary))" strokeWidth="12" />
         <circle
