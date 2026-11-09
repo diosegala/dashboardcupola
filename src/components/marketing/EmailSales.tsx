@@ -127,7 +127,15 @@ export function EmailSalesSheet({
   const [pessoa, setPessoa] = useState<Person | null>(null);
   const [troca, setTroca] = useState<string>("");
   const ids = new Set(bucket?.vendas.map((v) => v.id));
-  const lista = vendas.filter((v) => ids.has(v.id)).sort((a, b) => String(b.soldAt).localeCompare(String(a.soldAt)));
+  const compras = groupByPurchase(
+    vendas.filter((v) => ids.has(v.id)),
+    (v) => String(v.ticket.order_id ?? v.ticket.sympla_order_id ?? v.id),
+  );
+  const tiposDe = (vs: EmailSaleRow[]) => {
+    const m = new Map<string, number>();
+    vs.forEach((v) => m.set(v.ticket.ticket_type ?? "Ingresso", (m.get(v.ticket.ticket_type ?? "Ingresso") ?? 0) + v.quantidade));
+    return [...m.entries()].map(([t, n]) => (n > 1 ? `${int(n)}× ${t}` : t)).join(" · ");
+  };
 
   const acharPessoa = (t: Ticket): Person | null => {
     const pedidos = [t.order_id, t.sympla_order_id].filter(Boolean).map(String);
@@ -144,7 +152,7 @@ export function EmailSalesSheet({
           <SheetHeader>
             <SheetTitle className="pr-6 text-base leading-snug">{emailName}</SheetTitle>
             <SheetDescription>
-              {bucket && `${int(bucket.ingressos)} ${bucket.ingressos === 1 ? "ingresso vendido" : "ingressos vendidos"} · ${brl(bucket.receita)}`}
+              {bucket && `${int(compras.length)} ${compras.length === 1 ? "compra" : "compras"} · ${int(bucket.ingressos)} ${bucket.ingressos === 1 ? "ingresso" : "ingressos"} · ${brl(bucket.receita)}`}
               {bucket?.level === "provavel" && <span className="block text-[11px]">Ligação estimada pelo nome do e-mail.</span>}
             </SheetDescription>
           </SheetHeader>
@@ -168,10 +176,11 @@ export function EmailSalesSheet({
           )}
 
           <ul className="mt-4 divide-y">
-            {lista.map((v) => {
+            {compras.map((c) => {
+              const v = c.vendas[0];
               const p = isAdmin ? acharPessoa(v.ticket) : null;
               return (
-                <li key={v.id} className="flex items-start justify-between gap-3 py-2.5 text-sm">
+                <li key={c.pedido} className="flex items-start justify-between gap-3 py-2.5 text-sm">
                   <div className="min-w-0">
                     {isAdmin ? (
                       <button type="button" className="text-left font-medium hover:underline disabled:no-underline" disabled={!p} onClick={() => p && setPessoa(p)}>
@@ -181,12 +190,12 @@ export function EmailSalesSheet({
                       <span className="text-[11px] text-muted-foreground">Comprador visível só para administradores</span>
                     )}
                     <div className="text-[11px] text-muted-foreground">
-                      {v.ticket.ticket_type ?? "Ingresso"} · {dataHora(v.soldAt)}
+                      {tiposDe(c.vendas)} · {dataHora(c.soldAt)}
                     </div>
                   </div>
                   <div className="shrink-0 text-right tabular-nums">
-                    <div className="font-semibold">{brl(v.valor)}</div>
-                    {v.quantidade > 1 && <div className="text-[11px] text-muted-foreground">{int(v.quantidade)} ingressos</div>}
+                    <div className="font-semibold">{brl(c.valor)}</div>
+                    <div className="text-[11px] text-muted-foreground">{int(c.ingressos)} {c.ingressos === 1 ? "ingresso" : "ingressos"}</div>
                   </div>
                 </li>
               );
