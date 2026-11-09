@@ -155,3 +155,26 @@ describe("receita de patrocínio", () => {
   });
 });
 
+
+describe("byOwner", () => {
+  it("bate com as barras de cotas e ignora perdidos", async () => {
+    const { byOwner } = await import("@/lib/sponsorshipMetrics");
+    const deals = [
+      deal("a", "won", "2026-11-05T12:00:00Z", { owner_name: "Kate" }),
+      deal("b", "won", "2026-11-06T12:00:00Z", { owner_name: "Michel" }),
+      deal("c", "open", null, { owner_name: "Kate", stage_name: "Proposta" }),
+      deal("d", "lost", null, { owner_name: "Fábio" }),
+    ];
+    const lines = [line("a", 1, 100000, { quantity: 2 }), line("b", 2, 50000), line("c", 2, 50000), line("d", 1, 100000)];
+    const w = { previousEnd: "2026-05-30", eventEnd: "2027-05-22" };
+    const m = computeSponsorship(config, deals, lines, catalog, w);
+    const rows = quotaBreakdown(m, config.quotas, {});
+    const o = byOwner(config, m, deals, lines, catalog);
+    expect(o.map((x) => x.nome)).toEqual(["Kate", "Michel"]);
+    for (const r of rows) {
+      expect(o.flatMap((x) => x.fechados).filter((l) => l.cotaKey === r.key).reduce((s, l) => s + l.quantidade, 0)).toBe(r.vendidas);
+      expect(o.flatMap((x) => x.abertos).filter((l) => l.cotaKey === r.key).reduce((s, l) => s + l.quantidade, 0)).toBe(r.emNegociacao);
+    }
+    expect(o[0].abertos[0].etapa).toBe("Proposta");
+  });
+});

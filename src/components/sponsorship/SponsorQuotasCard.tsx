@@ -19,7 +19,19 @@ export const QUOTAS_INFO = {
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 
-export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { rows: QuotaRow[]; cotasAnterior?: number | null; className?: string }) {
+export function SponsorQuotasCard({
+  rows,
+  cotasAnterior = null,
+  className,
+  selectedKey = null,
+  onSelect,
+}: {
+  rows: QuotaRow[];
+  cotasAnterior?: number | null;
+  className?: string;
+  selectedKey?: string | null;
+  onSelect?: (key: string) => void;
+}) {
   const [aba, setAba] = useState<"cota" | "meta" | "receita">("cota");
   const alvo = quotaTargets(rows);
   const ehCota = (r: QuotaRow) => r.key !== "" && r.key !== ADDONS_KEY;
@@ -111,9 +123,16 @@ export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { r
           comMovimento.length === 0 ? (
             <p className="text-sm text-muted-foreground">Nenhuma cota vendida nem em negociação ainda.</p>
           ) : (
-            <div className="space-y-4">
+            <div className="space-y-2">
               {comMovimento.map((r) => (
-                <div key={r.key || "outros"} className="space-y-1">
+                <button
+                  type="button"
+                  key={r.key || "outros"}
+                  onClick={() => onSelect?.(r.key)}
+                  aria-pressed={selectedKey === r.key}
+                  title="Ver quem fechou e quem negocia esta cota"
+                  className={`block w-full space-y-1 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-secondary/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${selectedKey === r.key ? "ring-1 ring-foreground/30 bg-secondary/40" : ""}`}
+                >
                   <div className="flex items-baseline justify-between gap-3 text-sm">
                     <span className="min-w-0 truncate font-medium">{r.nome}</span>
                     <span className="shrink-0 font-semibold tabular-nums">
@@ -129,7 +148,7 @@ export function SponsorQuotasCard({ rows, cotasAnterior = null, className }: { r
                     {r.meta != null && r.vendidas >= r.meta && <span className="font-semibold text-ok"> · meta atingida</span>}
                     {r.meta != null && r.vendidas < r.meta && <span> · faltam {int(r.meta - r.vendidas)}</span>}
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )
