@@ -4,6 +4,8 @@ import { startOfMonth, endOfMonth, format, subYears } from "date-fns";
 import { withSaleDate } from "@/lib/period";
 import { invoicedToTickets, isTicketProduct, redeemedDeal } from "@/lib/invoicedTickets";
 import { withBatchByDate } from "@/lib/batches";
+import { batchCalendar } from "@/lib/batchCalendar";
+import { batchCalendarVersion } from "@/hooks/useEventBatches";
 import { fetchAllPages } from "@/lib/fetchPages";
 
 export interface DateRange {
@@ -240,7 +242,7 @@ function invoicedFromRaw(raw: InvoicedRaw, symplaSales: any[]) {
 // Todas as vendas do evento: Sympla + faturados internamente (Pipedrive), no mesmo formato.
 export function useAllTimeTicketSales(eventId: string) {
   return useQuery({
-    queryKey: ["ticket_sales_all_time", eventId],
+    queryKey: ["ticket_sales_all_time", eventId, batchCalendarVersion()],
     enabled: !!eventId,
     queryFn: async () => {
       // CRM e Sympla são lidos ao mesmo tempo.
@@ -261,7 +263,7 @@ export function useAllTimeTicketSales(eventId: string) {
         return deal ? { ...t, redeems: deal } : t;
       });
       // Lote pela data: vale o lote vigente no dia da venda (muda na primeira venda do lote seguinte).
-      return withBatchByDate([...comResgate, ...faturados]);
+      return withBatchByDate([...comResgate, ...faturados], batchCalendar(eventId));
     },
   });
 }

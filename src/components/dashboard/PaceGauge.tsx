@@ -5,6 +5,7 @@ import { InfoTip } from "@/components/InfoTip";
 import { CountUp } from "@/components/CountUp";
 import { cn } from "@/lib/utils";
 import { CompareLine } from "@/components/CompareLine";
+import { AvisoDatas } from "./BatchStatus";
 
 interface PaceGaugeProps {
   currentPace: number;
@@ -16,6 +17,8 @@ interface PaceGaugeProps {
   ritmoAnterior?: number | null;
   // Pagantes que faltam para a meta.
   faltam?: number;
+  // Lote vigente pelas datas da configuração de lotes (o mesmo do card "Lote vigente").
+  lote?: { nome: string; dias: number; faltam: number | null } | { faltamDatas: true } | null;
   className?: string;
 }
 
@@ -32,7 +35,7 @@ const point = (frac: number, r = R) => {
 const arcLength = Math.PI * R;
 
 // Velocímetro do ritmo: o arco enche até o ritmo atual e um marcador mostra o ritmo necessário.
-export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritmoAnterior, faltam = 0, className }: PaceGaugeProps) {
+export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritmoAnterior, faltam = 0, lote, className }: PaceGaugeProps) {
   // Escala vai até o dobro do necessário (ou até o atual, se passar disso).
   const temMeta = requiredPace !== null;
   const max = temMeta ? Math.max((requiredPace as number) * 2, currentPace * 1.1, 1) : Math.max(currentPace * 1.4, 1);
@@ -102,6 +105,17 @@ export function PaceGauge({ currentPace, requiredPace, remainingDays, chip, ritm
               <span className="text-xs text-muted-foreground">Defina a meta de pagantes na aba Metas</span>
             )}
           </div>
+          {lote && ("faltamDatas" in lote ? <AvisoDatas compacto /> : (
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <span className="text-xs font-semibold text-muted-foreground">{lote.nome} (lote vigente)</span>
+              {lote.faltam !== null ? (
+                <span><b className="font-semibold text-foreground">{fmt(lote.dias ? Math.ceil(lote.faltam / lote.dias) : lote.faltam)}</b> <span className="text-muted-foreground">por dia para a meta do lote</span></span>
+              ) : null}
+              <span className="text-xs text-muted-foreground">
+                {lote.faltam !== null ? `${lote.faltam.toLocaleString("pt-BR")} faltam · ` : ""}{lote.dias.toLocaleString("pt-BR")} {lote.dias === 1 ? "dia" : "dias"} até o fim do lote
+              </span>
+            </div>
+          ))}
           <CompareLine anterior={ritmoAnterior} atual={currentPace} formato={(n) => `${fmt(n)}/dia`} quando="nesta época" />
           {chip && (
             <span>

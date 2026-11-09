@@ -20,6 +20,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useToast } from "@/hooks/use-toast";
 import { EventsManager } from "@/components/settings/EventsManager";
 import { CouponPeopleManager } from "@/components/settings/CouponPeopleManager";
+import { BatchesManager } from "@/components/settings/BatchesManager";
 import { UserPlus, Shield, Eye, Loader2, Mail, Trash2, CheckCircle2, Clock, Trophy } from "lucide-react";
 import { useTeamCoupons } from "@/hooks/useTeam";
 
@@ -234,6 +235,7 @@ export default function Settings() {
 
       <EventsManager users={users ?? []} />
 
+      <BatchesManager />
       <CouponPeopleManager />
 
       <Card>

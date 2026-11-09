@@ -1,3 +1,4 @@
+import { batchCalendar } from "@/lib/batchCalendar";
 import { useEffect, useState } from "react";
 import { addWeeks, endOfMonth, endOfWeek, format, startOfMonth, startOfWeek } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -66,7 +67,8 @@ export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose
   const porCanal = def?.scope === "canal";
   // Meta por canal vale para o lote inteiro (Lote 0, Lote 1...), não para um tipo de ingresso.
   // A lista de tipos de ingresso pode não trazer todos os lotes, então o calendário completo (Pré-venda e Lotes 0 a 8) entra sempre.
-  const calendario = [PRE_VENDA, ...Array.from({ length: 9 }, (_, i) => `Lote ${i}`)];
+  const cadastrados = batchCalendar().map((c) => c.name);
+  const calendario = [PRE_VENDA, ...(cadastrados.length ? cadastrados : Array.from({ length: 9 }, (_, i) => `Lote ${i}`))];
   const lotesDoCalendario = [...new Set([...calendario, ...(lotes.map(batchOf).filter(Boolean) as string[])])].sort((a, b) => batchOrder(a) - batchOrder(b));
   // Metas por lote (ingressos, receita, canal) usam o lote inteiro, igual aos cards do painel.
   const opcoesLote = lotesDoCalendario;

@@ -4,3 +4,4 @@
 - Manual CRM calls require verified admin claims, webhooks require constant-time Basic validation, and scheduled CRM calls require timestamped HMAC validation; unauthenticated sync requests must never bypass authorization.
 - CRM conflict targets follow the live composite unique indexes including product kind; never infer constraints from old migrations or alter tables to fit integrations.
 - Coupon aliases and ranking exclusions live in the `coupon_people` table, loaded once in the app layout into `src/lib/coupons.ts`; never hardcode people in code so admins can change them without a deploy.
+- Batch dates live in the `event_batches` table (Configurações › Lotes), loaded once in the app layout into `src/lib/batchCalendar.ts`; the current batch and each sale's batch come only from those dates in Brasília time, so admins change batches without a deploy.

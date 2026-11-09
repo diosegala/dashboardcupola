@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { batchOf, batchOrder } from "@/lib/batches";
 import { resumoLotes } from "@/lib/batchSummary";
+import { AvisoDatas } from "./BatchStatus";
 import { CANAIS, SEM_CANAL, metaDoCanal, vendasPorCanal } from "@/lib/salesChannel";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -31,13 +32,14 @@ interface Props {
 
 export function ChannelGoalsCard({ tickets, allTickets, goals }: Props) {
   const { isAdmin } = useAuth();
-  const { loteAtual } = useMemo(() => resumoLotes(goals, allTickets, []), [goals, allTickets]);
+  const { loteAtual, lotes: resumo, faltamDatas } = useMemo(() => resumoLotes(goals, allTickets, []), [goals, allTickets]);
   const lotes = useMemo(() => {
     const s = new Set<string>();
     allTickets.forEach((t) => { const b = batchOf(t.ticket_type); if (b) s.add(b); });
     goals.filter((g) => g.metric_key === "channel_sales").forEach((g) => { const b = batchOf(g.ticket_type); if (b) s.add(b); });
+    resumo.forEach((l) => s.add(l.lote));
     return Array.from(s).sort((a, b) => batchOrder(a) - batchOrder(b));
-  }, [allTickets, goals]);
+  }, [allTickets, goals, resumo]);
   const [escolha, setEscolha] = useState<string | null>(null);
   const recorte = escolha ?? loteAtual ?? EVENTO;
   const lote = recorte === EVENTO ? null : recorte;
@@ -80,6 +82,7 @@ export function ChannelGoalsCard({ tickets, allTickets, goals }: Props) {
         </div>
       </CardHeader>
       <CardContent>
+        {faltamDatas && <div className="mb-4"><AvisoDatas compacto /></div>}
         <Tabs defaultValue="canais">
           <TabsList className="mb-4">
             <TabsTrigger value="canais">Por canal</TabsTrigger>

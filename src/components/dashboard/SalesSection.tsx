@@ -7,6 +7,7 @@ import { Chip } from "@/components/Chip";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { useCompare } from "@/hooks/useCompare";
 import { resumoLotes } from "@/lib/batchSummary";
+import { LoteSelos, dataCurta } from "./BatchStatus";
 import { cn } from "@/lib/utils";
 
 // Na aba Por lote, 3 lotes por página para a lista não crescer demais.
@@ -26,9 +27,12 @@ interface SalesSectionProps {
 // Vendas por lote: cada lote deste ano com a meta do lote (se houver) e o mesmo lote do evento anterior (com a chave ligada).
 export function SalesSection({ goals, allTimeTickets = [], previousYearTickets = [], embedded = false }: SalesSectionProps) {
   const { ativo: comparar, rotulo } = useCompare();
-  const [pagina, setPagina] = useState(0);
 
   const { lotes, loteAtual } = useMemo(() => resumoLotes(goals, allTimeTickets, previousYearTickets), [allTimeTickets, previousYearTickets, goals]);
+  // Abre na página do lote vigente (a lista vem do mais novo para o mais antigo).
+  const posVigente = [...lotes].reverse().findIndex((l) => l.lote === loteAtual);
+  const [paginaEscolhida, setPagina] = useState<number | null>(null);
+  const pagina = paginaEscolhida ?? Math.max(0, Math.floor(posVigente / POR_PAGINA));
 
   if (lotes.length === 0) return embedded ? <p className="py-8 text-center text-xs text-muted-foreground">Nenhuma venda por lote ainda.</p> : null;
 
@@ -58,7 +62,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                 <td className="px-3 py-2.5 font-semibold">
                   <span className="flex items-center gap-1.5">
                     {l.lote}
-                    {vigente && <Chip variant="paid" dot={false} className="px-1.5 py-0 text-[10px]">Vigente</Chip>}
+                    <LoteSelos lote={l} vigente={vigente} pequeno />
                   </span>
                 </td>
                 <td className="px-3 py-2.5 text-right">{l.preco !== null ? brl(l.preco) : "—"}</td>
@@ -111,7 +115,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                 <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
                   <span className="flex min-w-0 items-center gap-1.5 font-semibold">
                     <span className="break-words">{l.lote}</span>
-                    {vigente && <Chip variant="paid" dot={false} className="px-1.5 py-0 text-[10px]">Vigente</Chip>}
+                    <LoteSelos lote={l} vigente={vigente} pequeno />
                   </span>
                   <span className="whitespace-nowrap">
                     <b className="font-semibold">{int(l.pagantes)}</b>
@@ -133,6 +137,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                     Receita <b className="font-medium text-foreground">{brl(l.receita)}</b>
                     {l.metaReceita ? ` (${Math.round((l.receita / l.metaReceita) * 100)}% de ${brl(l.metaReceita)})` : ""}
                   </span>
+                  {l.inicio && l.fim && <span>{dataCurta(l.inicio)} a {dataCurta(l.fim)}</span>}
                   {mostrarAnterior && l.anterior !== null && (
                     <span>
                       {rotulo} <b className="font-medium text-foreground">{int(l.anterior)}</b>

@@ -1,6 +1,7 @@
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { batchOf, batchOrder } from "@/lib/batches";
 import { fullPrices } from "@/lib/lotPrice";
+import { batchCalendar, hojeBrasilia, loteVigente, situacao, type BatchDates, type Situacao } from "@/lib/batchCalendar";
 
 export interface Lote {
   lote: string;
@@ -11,6 +12,11 @@ export interface Lote {
   metaReceita: number | null;
   anterior: number | null;
   anteriorReceita: number | null;
+  // Pelas datas da configuração de lotes (null quando o lote não está cadastrado).
+  situacao: Situacao | null;
+  esgotado: boolean;
+  inicio: string | null;
+  fim: string | null;
 }
 
 // Soma pagantes e receita por lote (Pré-venda, Lote 0, Lote 1…), juntando os nomes que mudam a cada ano.
@@ -29,7 +35,7 @@ export function porLote(tickets: Ticket[]) {
 }
 
 // Lotes do evento (mesma regra da aba "Por lote"): vigente = lote com a venda pagante mais recente.
-export function resumoLotes(goals: any[], allTimeTickets: Ticket[], previousYearTickets: Ticket[]) {
+export function resumoLotes(goals: any[], allTimeTickets: Ticket[], previousYearTickets: Ticket[], calendario: BatchDates[] = batchCalendar(), hoje = hojeBrasilia()) {
     const atual = porLote(allTimeTickets);
     const anterior = porLote(previousYearTickets);
     // Metas por lote: a meta de ingressos do lote (tela Metas), somando os nomes que caem no mesmo lote.
@@ -45,8 +51,18 @@ export function resumoLotes(goals: any[], allTimeTickets: Ticket[], previousYear
     };
     const metas = somaMetas("tickets_sold");
     const metasReceita = somaMetas("revenue");
-    const nomes = new Set([...atual.keys(), ...metas.keys(), ...metasReceita.keys()]);
-    const loteAtual = Array.from(atual.entries()).sort((a, b) => b[1].ultimaVenda.localeCompare(a[1].ultimaVenda))[0]?.[0] ?? null;
+    const nomes = new Set([...atual.keys(), ...metas.keys(), ...metasReceita.keys(), ...calendario.map((c) => c.name)]);
+    // Com calendário cadastrado, vale a data de hoje (Brasília); sem ele, o lote da venda mais recente (regra antiga).
+    const vig = loteVigente(calendario, hoje);
+    const loteAtual = calendario.length
+      ? vig.lote
+      : Array.from(atual.entries()).sort((a, b) => b[1].ultimaVenda.localeCompare(a[1].ultimaVenda))[0]?.[0] ?? null;
+    const doCalendario = (lote: string) => {
+      const c = calendario.find((x) => x.name === lote);
+      const pagantes = atual.get(lote)?.pagantes ?? 0;
+      const meta = metas.get(lote) ?? null;
+      return { situacao: c ? situacao(c, hoje) : null, esgotado: !!meta && pagantes >= meta, inicio: c?.start_date ?? null, fim: c?.end_date ?? null };
+    };
     const { byBatch: precos } = fullPrices(allTimeTickets);
     const lotes: Lote[] = Array.from(nomes)
       .sort((a, b) => batchOrder(a) - batchOrder(b))
@@ -59,8 +75,9 @@ export function resumoLotes(goals: any[], allTimeTickets: Ticket[], previousYear
         metaReceita: metasReceita.get(lote) ?? null,
         anterior: anterior.get(lote)?.pagantes ?? null,
         anteriorReceita: anterior.get(lote)?.receita ?? null,
+        ...doCalendario(lote),
       }));
-    return { lotes, loteAtual };
+    return { lotes, loteAtual, faltamDatas: vig.faltamDatas };
 }
 
 // Progresso de um lote em relação à meta: % vendido e saldo (null sem meta).

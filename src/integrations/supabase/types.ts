@@ -748,6 +748,44 @@ export type Database = {
         }
         Relationships: []
       }
+      event_batches: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          event_id: string
+          id: string
+          name: string
+          sort_order: number
+          start_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          event_id: string
+          id?: string
+          name: string
+          sort_order?: number
+          start_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          event_id?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "event_batches_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       event_history: {
         Row: {
           archived_at: string
