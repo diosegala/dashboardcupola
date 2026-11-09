@@ -1,5 +1,5 @@
-import { Suspense, type CSSProperties } from "react";
-import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Suspense, useEffect, useRef, type CSSProperties } from "react";
+import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
@@ -17,6 +17,18 @@ export function AppLayout() {
   const { pathname } = useLocation();
   // Pipedrive atualiza sozinho enquanto um administrador está com o painel aberto.
   usePipedriveAutoSync(isAdmin && !isSeller);
+  // Ao entrar na visão da equipe (login de vendedor, recarregar a página ou "Ver como a equipe"), abre sempre no ranking.
+  const navigate = useNavigate();
+  const entrou = useRef(false);
+  useEffect(() => {
+    if (!isSeller) {
+      entrou.current = false;
+      return;
+    }
+    if (entrou.current) return;
+    entrou.current = true;
+    if (pathname !== "/") navigate("/", { replace: true });
+  }, [isSeller, pathname, navigate]);
   if (isSeller && !TELAS_EQUIPE.includes(pathname)) return <Navigate to="/" replace />;
 
   return (
