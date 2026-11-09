@@ -113,9 +113,7 @@ describe("Suellen: pagos somam juntos, cortesia fica separada", () => {
       venda(null, { source: "pipedrive", seller: "SUELLE MOREIRA", seller_name: "Suelle", ticket_type: "Lote 0 | Ingresso Padrão" } as Partial<Ticket>),
       venda("100.00% - SUELEN_CORTESIAREALIZA", { total_price: 0, unit_price: 0 } as Partial<Ticket>),
     ]);
-    const lote = buildTeamRanking(paying).lotes.find((l) => l.lote === "Lote 0")!;
-    const nomes = lote.vendedores.map((v) => v.nome);
-    expect(nomes).toEqual(["Suellen"]);
-    expect(lote.vendedores[0].vendas).toBe(3);
+    const r = buildTeamRanking(paying);
+    expect(r.lotes.flatMap((l) => l.ranking.map((v) => ({ nome: v.nome, vendas: v.vendas })))).toEqual([{ nome: "Suellen", vendas: 3 }]);
   });
 });
