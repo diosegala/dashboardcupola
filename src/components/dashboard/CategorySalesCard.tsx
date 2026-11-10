@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { InfoTip } from "@/components/InfoTip";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { salesByCategory, type CategoryRow } from "@/lib/salesCategories";
+import { COLUNAS_CATEGORIA } from "@/lib/metricInfo";
 
 // Texto do mouse: Grupo e Combo mostram a divisão Padrão/VIP; Visita avulsa, as compradas junto com o evento.
 function detalhe(l: CategoryRow): string | undefined {
@@ -20,6 +21,18 @@ const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const CORES = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 const TITULO = "Padrão, VIP, combo ou grupo";
+
+// Cabeçalho da coluna com o "i" que explica o que ela mostra.
+function Th({ children, right = false }: { children: string; right?: boolean }) {
+  return (
+    <TableHead className={cn(right && "text-right")}>
+      <span className={cn("inline-flex items-center gap-1", right && "justify-end")}>
+        {children}
+        <InfoTip title={children} text={COLUNAS_CATEGORIA[children]} />
+      </span>
+    </TableHead>
+  );
+}
 
 // Barra de 100% com a tabela servindo de legenda: uma linha por categoria.
 export function CategorySalesCard({ paying, className }: { paying: Ticket[]; className?: string }) {
@@ -46,12 +59,12 @@ export function CategorySalesCard({ paying, className }: { paying: Ticket[]; cla
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Categoria</TableHead>
-                <TableHead className="text-right">Ingressos</TableHead>
-                <TableHead className="text-right">%</TableHead>
-                <TableHead className="text-right">Pedidos</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="text-right">Valor médio</TableHead>
+                <Th>Categoria</Th>
+                <Th right>Ingressos</Th>
+                <Th right>%</Th>
+                <Th right>Pedidos</Th>
+                <Th right>Valor</Th>
+                <Th right>Valor médio</Th>
               </TableRow>
             </TableHeader>
             <TableBody>
