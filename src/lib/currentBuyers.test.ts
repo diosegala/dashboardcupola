@@ -59,14 +59,14 @@ describe("currentBuyers", () => {
     expect(invoicedPeople([{ deal_id: "D1", company: "Acme", quantity: 3, status: "approved" }], { D1: 3 }, evento)).toHaveLength(0);
   });
 
-  it("faturadosDasVendas separa os faturados, dá o nome de quem vendeu e conta os resgatados", () => {
+  it("faturadosDasVendas separa os faturados, mantém quem vendeu e conta os resgatados", () => {
     const { faturados, resgatados } = faturadosDasVendas([
-      { source: "pipedrive", deal_id: "D1", quantity: 10, status: "approved", seller: "Venda interna - Suelen" },
+      { source: "pipedrive", deal_id: "D1", quantity: 10, status: "approved", seller: "Venda interna - Suelen", seller_name: "Suelen" },
       { source: "sympla", quantity: 1, status: "approved", redeems: "D1" },
       { source: "sympla", quantity: 1, status: "approved" },
     ]);
     expect(faturados).toHaveLength(1);
-    expect(faturados[0].seller_name).toBeTruthy();
+    expect(faturados[0].seller_name).toBe("Suelen");
     expect(resgatados).toEqual({ D1: 1 });
   });
 });
