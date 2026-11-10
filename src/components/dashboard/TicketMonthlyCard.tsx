@@ -1,6 +1,9 @@
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { VALOR_LIQUIDO_SYMPLA } from "@/lib/metricInfo";
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { InfoTip } from "@/components/InfoTip";
 import { ChartLegend } from "./charts/ChartLegend";
 import { PREVIOUS_YEAR_KEY, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
@@ -17,6 +20,7 @@ const int = (n: number) => n.toLocaleString("pt-BR");
 
 // Faturamento de ingressos mês a mês: Sympla e faturados empilhados, acumulado, quantidade e ano anterior.
 export function TicketMonthlyCard({ className, meses, filtrado }: { className?: string; meses: TicketMonth[]; filtrado?: boolean }) {
+  const [tabelaAberta, setTabelaAberta] = useState(false);
   const { ativo: comparar, rotulo } = useCompare();
   const series = useSeriesVisibility();
   const temAnterior = meses.some((m) => m.anoAnterior !== null);
@@ -104,45 +108,53 @@ export function TicketMonthlyCard({ className, meses, filtrado }: { className?: 
             {comparar && !temAnterior && (
               <p className="text-[11px] text-muted-foreground">Sem vendas da edição anterior para comparar mês a mês.</p>
             )}
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-xs tabular-nums">
-                <thead>
-                  <tr className="border-b text-right text-[11px] text-muted-foreground">
-                    <th className="py-1.5 pr-3 text-left font-medium">Mês</th>
-                    <th className="px-3 py-1.5 font-medium">Ingressos</th>
-                    <th className="px-3 py-1.5 font-medium">Sympla</th>
-                    <th className="px-3 py-1.5 font-medium">Faturados</th>
-                    <th className="px-3 py-1.5 font-medium">Total</th>
-                    <th className="px-3 py-1.5 font-medium">Acumulado</th>
-                    {temMeta && <th className="py-1.5 pl-3 font-medium">Meta</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {linhas.map((m) => (
-                    <tr key={m.mes} className="border-b border-border/60 text-right">
-                      <td className={cn("py-1.5 pr-3 text-left", m.parcial && "text-muted-foreground")}>{rotuloMes(m.mes, true)}{m.parcial && " · parcial"}</td>
-                      <td className="px-3 py-1.5">{int(m.ingressos)}</td>
-                      <td className="px-3 py-1.5">{brl(m.sympla)}</td>
-                      <td className="px-3 py-1.5">{brl(m.faturado)}</td>
-                      <td className="px-3 py-1.5 font-semibold">{brl(m.total)}</td>
-                      <td className="px-3 py-1.5">{brl(m.acumulado)}</td>
-                      {temMeta && <td className="py-1.5 pl-3">{m.meta !== null ? brl(m.meta) : "—"}</td>}
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="text-right font-semibold">
-                    <td className="py-1.5 pr-3 text-left">Total</td>
-                    <td className="px-3 py-1.5">{int(ingressos)}</td>
-                    <td className="px-3 py-1.5">{brl(totalSympla)}</td>
-                    <td className="px-3 py-1.5">{brl(totalFaturado)}</td>
-                    <td className="px-3 py-1.5">{brl(total)}</td>
-                    <td className="px-3 py-1.5">{brl(total)}</td>
-                    {temMeta && <td className="py-1.5 pl-3" />}
-                  </tr>
-                </tfoot>
-              </table>
-            </div>
+            <Collapsible open={tabelaAberta} onOpenChange={setTabelaAberta}>
+              <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 rounded-[10px] border bg-secondary/50 px-3 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
+                <span>Tabela mês a mês</span>
+                <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 transition-transform", tabelaAberta && "rotate-180")} />
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-3 overflow-x-auto">
+                  <table className="w-full min-w-[560px] text-xs tabular-nums">
+                    <thead>
+                      <tr className="border-b text-right text-[11px] text-muted-foreground">
+                        <th className="py-1.5 pr-3 text-left font-medium">Mês</th>
+                        <th className="px-3 py-1.5 font-medium">Ingressos</th>
+                        <th className="px-3 py-1.5 font-medium">Sympla</th>
+                        <th className="px-3 py-1.5 font-medium">Faturados</th>
+                        <th className="px-3 py-1.5 font-medium">Total</th>
+                        <th className="px-3 py-1.5 font-medium">Acumulado</th>
+                        {temMeta && <th className="py-1.5 pl-3 font-medium">Meta</th>}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {linhas.map((m) => (
+                        <tr key={m.mes} className="border-b border-border/60 text-right">
+                          <td className={cn("py-1.5 pr-3 text-left", m.parcial && "text-muted-foreground")}>{rotuloMes(m.mes, true)}{m.parcial && " · parcial"}</td>
+                          <td className="px-3 py-1.5">{int(m.ingressos)}</td>
+                          <td className="px-3 py-1.5">{brl(m.sympla)}</td>
+                          <td className="px-3 py-1.5">{brl(m.faturado)}</td>
+                          <td className="px-3 py-1.5 font-semibold">{brl(m.total)}</td>
+                          <td className="px-3 py-1.5">{brl(m.acumulado)}</td>
+                          {temMeta && <td className="py-1.5 pl-3">{m.meta !== null ? brl(m.meta) : "—"}</td>}
+                        </tr>
+                      ))}
+                    </tbody>
+                    <tfoot>
+                      <tr className="text-right font-semibold">
+                        <td className="py-1.5 pr-3 text-left">Total</td>
+                        <td className="px-3 py-1.5">{int(ingressos)}</td>
+                        <td className="px-3 py-1.5">{brl(totalSympla)}</td>
+                        <td className="px-3 py-1.5">{brl(totalFaturado)}</td>
+                        <td className="px-3 py-1.5">{brl(total)}</td>
+                        <td className="px-3 py-1.5">{brl(total)}</td>
+                        {temMeta && <td className="py-1.5 pl-3" />}
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           </>
         )}
       </CardContent>
