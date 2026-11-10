@@ -10,7 +10,6 @@ import { Input } from "@/components/ui/input";
 import { eventRef, type DetailRow } from "@/lib/buyers";
 import { currentBuyers } from "@/lib/currentBuyers";
 import { personBySeller } from "@/lib/coupons";
-import { cn } from "@/lib/utils";
 
 // Lista da equipe: só quem já comprou o evento selecionado (Sympla + faturados). Atualiza sozinha.
 const CINCO_MIN = 5 * 60 * 1000;
