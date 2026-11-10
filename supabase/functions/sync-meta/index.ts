@@ -95,13 +95,15 @@ Deno.serve(async (req) => {
     const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
     if (backfillDesde && chamadaAdmin) {
-      // Busca o período em janelas de um mês, já dia a dia (time_increment=1), e grava sem apagar nada.
+      // Busca o período em janelas de poucos dias, já dia a dia (time_increment=1), e grava sem apagar nada.
+      const janelaDias = Math.min(Math.max(Number(body.janela_dias) || 7, 1), 31);
       const fim = backfillAte ?? new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
       const janelas: Array<{ since: string; until: string }> = [];
       let inicio = new Date(`${backfillDesde}T00:00:00Z`);
       const limite = new Date(`${fim}T00:00:00Z`);
       while (inicio <= limite) {
-        const ultimo = new Date(Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth() + 1, 0));
+        // Janelas curtas: períodos longos com ações fazem a API do Meta falhar.
+        const ultimo = new Date(inicio.getTime() + (janelaDias - 1) * 86400000);
         const ate = ultimo < limite ? ultimo : limite;
         janelas.push({ since: inicio.toISOString().slice(0, 10), until: ate.toISOString().slice(0, 10) });
         inicio = new Date(ate.getTime() + 86400000);
