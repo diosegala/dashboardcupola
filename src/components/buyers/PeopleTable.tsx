@@ -248,8 +248,10 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
                 {lista.slice(0, limite).map(({ p, eventosDaPessoa, cupons, pendencias }) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">
-                      {p.name}
-                      {p.invoiced && <Chip variant="blue" className="ml-2">Faturado</Chip>}
+                      <span className="flex items-center gap-1.5">
+                        <span className="block max-w-[170px] truncate">{p.name}</span>
+                        {p.invoiced && <Chip variant="blue" className="shrink-0">Faturado</Chip>}
+                      </span>
                       {restrito && pareceContato && contatoConfere(p) && (
                         <Chip variant="blue" className="ml-2">Contato confere</Chip>
                       )}
