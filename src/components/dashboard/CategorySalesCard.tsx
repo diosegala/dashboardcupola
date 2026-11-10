@@ -22,6 +22,18 @@ const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", curren
 const CORES = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
 const TITULO = "Padrão, VIP, combo ou grupo";
 
+// Cabeçalho da coluna com o "i" que explica o que ela mostra.
+function Th({ children, right = false }: { children: string; right?: boolean }) {
+  return (
+    <TableHead className={cn(right && "text-right")}>
+      <span className={cn("inline-flex items-center gap-1", right && "justify-end")}>
+        {children}
+        <InfoTip title={children} text={COLUNAS_CATEGORIA[children]} />
+      </span>
+    </TableHead>
+  );
+}
+
 // Barra de 100% com a tabela servindo de legenda: uma linha por categoria.
 export function CategorySalesCard({ paying, className }: { paying: Ticket[]; className?: string }) {
   const linhas = useMemo(() => salesByCategory(paying), [paying]);
@@ -47,12 +59,12 @@ export function CategorySalesCard({ paying, className }: { paying: Ticket[]; cla
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Categoria</TableHead>
-                <TableHead className="text-right">Ingressos</TableHead>
-                <TableHead className="text-right">%</TableHead>
-                <TableHead className="text-right">Pedidos</TableHead>
-                <TableHead className="text-right">Valor</TableHead>
-                <TableHead className="text-right">Valor médio</TableHead>
+                <Th>Categoria</Th>
+                <Th right>Ingressos</Th>
+                <Th right>%</Th>
+                <Th right>Pedidos</Th>
+                <Th right>Valor</Th>
+                <Th right>Valor médio</Th>
               </TableRow>
             </TableHeader>
             <TableBody>
