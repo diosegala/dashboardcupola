@@ -6,3 +6,4 @@
 - Coupon aliases and ranking exclusions live in the `coupon_people` table, loaded once in the app layout into `src/lib/coupons.ts`; never hardcode people in code so admins can change them without a deploy.
 - Batch dates live in the `event_batches` table (Configurações › Lotes), loaded once in the app layout into `src/lib/batchCalendar.ts`; the current batch and each sale's batch come only from those dates in Brasília time, so admins change batches without a deploy.
 - Sale→email attribution lives in `src/lib/emailAttribution.ts` (pure, tested) over `ticket_sales.utm_content`; admin overrides live in `email_sale_links`, so guesses never need code changes and the badge totals stay equal to the E-mail marketing channel.
+- Integration status, catalog (labels, schedule, credential fields) and plain-language error explanations live in `src/lib/integrationHealth.ts` (pure, tested); the Integrações page and credentials dialog read only from it so status rules never diverge.
