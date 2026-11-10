@@ -7,6 +7,7 @@ import {
   mergeParticipants,
   partialSyncMessage,
   participantPrice,
+  pendingToCheck,
   participantsToCancel,
   PENDING_PREFIX,
   ticketKey,
@@ -162,7 +163,21 @@ Deno.serve(async (req) => {
     const ordersById = juncaoPedidos.orders;
     // Diagnóstico (só no resumo, nada é gravado): pedidos em qualquer status, para achar os que aparecem confirmados na
     // tela da Sympla e faltam na lista padrão. Em 10/11/2026 a tela tinha 91 confirmados e as listas, 88.
-    const pedidosTodosStatus = await diagnosticoPedidos(base, `${api}/v1.6.0/events/${eventId}`, apiToken, ordersById);
+    const { resumo: pedidosTodosStatus, lista: todosOsStatus } = await diagnosticoPedidos(base, `${api}/v1.6.0/events/${eventId}`, apiToken, ordersById);
+
+    // 4b. Pedido que a lista dá como pendente: consulta o próprio pedido, que traz o status atual. Boleto pago depois da
+    // compra entra como aprovado (os ingressos vêm na conferência por pedido, logo abaixo).
+    const pendentesConferidos: { id: string; status_atual: string | null }[] = [];
+    for (const id of pendingToCheck(todosOsStatus, new Set(ordersById.keys())).slice(0, MAX_ORDER_CHECKS)) {
+      const atual = await orderDetail(api, eventId, id, apiToken);
+      pendentesConferidos.push({ id, status_atual: atual ? String(atual.order_status ?? atual.status ?? "") || null : null });
+      if (atual && isApprovedOrder({ order_status: atual.order_status ?? atual.status })) {
+        const listado = todosOsStatus.find((o: any) => String(o.id) === id) ?? {};
+        const semNulos = Object.fromEntries(Object.entries(atual).filter(([, v]) => v != null));
+        ordersById.set(id, { ...listado, ...semNulos, id, order_status: "A" });
+      }
+      await new Promise((r) => setTimeout(r, 250));
+    }
 
     // Linhas já gravadas do evento: a chave de cada ingresso (para a 1.6.0 atualizar a mesma linha, sem duplicar)
     // e a base da regra de cancelamento.
@@ -224,6 +239,7 @@ Deno.serve(async (req) => {
       ingressos_recuperados_por_pedido: doPedido.length,
       consultas_por_pedido_com_falha: consultasComFalha,
       pedidos_todos_status: pedidosTodosStatus,
+      pendentes_conferidos_por_pedido: pendentesConferidos,
       participantes_1_5_1: legado.length,
       participantes_1_6_0: atual.length,
       erro_1_6_0: erro160,
@@ -431,9 +447,11 @@ async function diagnosticoPedidos(base151: string, base160: string, token: strin
     ["v1_6_0", () => fetchCursorPages(`${base160}/orders?cancelled_filter=include`, token, 200)],
   ];
   const out: Record<string, unknown> = {};
+  const todos: any[] = [];
   for (const [nome, ler] of fontes) {
     try {
       const lista = await ler();
+      todos.push(...lista);
       const porStatus: Record<string, number> = {};
       lista.forEach((o: any) => {
         const s = String(o.order_status ?? o.status ?? "?");
@@ -457,7 +475,21 @@ async function diagnosticoPedidos(base151: string, base160: string, token: strin
       out[nome] = { erro: String(err.message ?? err).slice(0, 200) };
     }
   }
-  return out;
+  return { resumo: out, lista: todos };
+}
+
+// Pedido específico com o status atual: 1.6.0 primeiro, depois 1.5.1. Devolve null quando as duas falham.
+async function orderDetail(api: string, eventId: string, orderId: string, token: string): Promise<any | null> {
+  for (const versao of ["v1.6.0", "v1.5.1"]) {
+    try {
+      const data = await fetchWithRetry(`${api}/${versao}/events/${eventId}/orders/${encodeURIComponent(orderId)}`, token);
+      const pedido = data?.data ?? data;
+      if (pedido && typeof pedido === "object") return pedido;
+    } catch (err: any) {
+      console.error(`sync-sympla - pedido ${orderId} (${versao}):`, err.message);
+    }
+  }
+  return null;
 }
 
 // Participantes de um pedido: 1.6.0 primeiro, depois 1.5.1. Devolve null quando as duas falham.

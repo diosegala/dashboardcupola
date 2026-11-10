@@ -84,6 +84,17 @@ export function mergeOrders(legacy: Row[], current: Row[]) {
   return { orders: out, stats: { pedidos_1_6_0: current.length, reconhecidos, novos: descartada ? 0 : comId.length - reconhecidos, descartada } };
 }
 
+// Pedidos que a lista de todos os status dá como pendentes e que não estão entre os aprovados. A lista não atualiza o
+// status depois da compra: em 10/11/2026 um boleto de 07/11 já pago seguia PENDING na API e confirmado na tela.
+// Cada um é consultado pelo próprio pedido. Ids repetidos (1.5.1 e 1.6.0) entram uma vez.
+export function pendingToCheck(allStatuses: Row[], approvedIds: Set<string>): string[] {
+  const ids = allStatuses
+    .filter((o) => ["P", "PENDING"].includes(String(o.order_status ?? o.status ?? "").toUpperCase()))
+    .map((o) => String(o.id))
+    .filter((id) => id && !approvedIds.has(id));
+  return [...new Set(ids)];
+}
+
 // Aviso da tela Integrações quando, depois de todas as buscas, pedidos aprovados seguem sem os ingressos no painel.
 export function partialSyncMessage(orderIds: string[]): string | null {
   if (!orderIds.length) return null;
