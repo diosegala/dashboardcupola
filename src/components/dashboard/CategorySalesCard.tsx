@@ -5,6 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { InfoTip } from "@/components/InfoTip";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { salesByCategory, type CategoryRow } from "@/lib/salesCategories";
+import { COLUNAS_CATEGORIA } from "@/lib/metricInfo";
 
 // Texto do mouse: Grupo e Combo mostram a divisão Padrão/VIP; Visita avulsa, as compradas junto com o evento.
 function detalhe(l: CategoryRow): string | undefined {

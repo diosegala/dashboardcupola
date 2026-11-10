@@ -2,6 +2,17 @@
 export const VALOR_LIQUIDO_SYMPLA = "Os valores da Sympla são líquidos: já estão sem a taxa da Sympla (cerca de 6,3% do preço do ingresso). Faturados internos entram pelo valor do produto no negócio.";
 const LOTE_DO_FATURADO = "Faturado interno entra no lote vigente na data de criação do negócio, mesmo que o ganho aconteça depois da virada, porque o preço combinado é o daquele lote.";
 
+// O que cada coluna do card "Padrão, VIP, combo ou grupo" quer dizer.
+export const COLUNAS_CATEGORIA: Record<string, string> = {
+  Categoria:
+    "Cada ingresso pagante entra em uma só categoria, pelo nome do tipo na Sympla. Padrão: ingresso avulso do evento (inclui nomes antigos como \"Ingresso Summit\"). VIP: ingresso VIP avulso. Combo: ingresso com visita. Grupo: ingressos com desconto por quantidade; nos faturados, 2 ou mais Padrão no mesmo negócio. Visita avulsa: só a visita presencial. Passe o mouse numa linha para ver a divisão Padrão/VIP de Grupo e Combo.",
+  Ingressos: "Ingressos pagantes dessa categoria no período: pagos na Sympla e faturados internamente. Cortesias, expositores e patrocinadores não entram.",
+  "%": "Quanto essa categoria representa do total de ingressos pagantes do período. As categorias somam 100%.",
+  Pedidos: "Quantos pedidos da Sympla e negócios do Pipedrive trouxeram ingressos dessa categoria. Um pedido com vários ingressos conta uma vez só.",
+  Valor: "O que foi pago por essa categoria no período. " + VALOR_LIQUIDO_SYMPLA,
+  "Valor médio": "Valor dividido pelos ingressos da categoria: o preço médio de cada ingresso. Fica em branco quando a categoria não tem ingressos.",
+};
+
 // Definições em linguagem de negócio usadas no botão "i" de cada indicador e gráfico.
 export const METRIC_INFO: Record<string, string> = {
   // Página Cupons
