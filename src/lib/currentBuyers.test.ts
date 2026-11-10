@@ -35,4 +35,9 @@ describe("currentBuyers", () => {
     const l = currentBuyers([], inv, { D1: 1 });
     expect(l).toEqual([expect.objectContaining({ nome: "Acme", ingressos: 4, origem: "Faturado" })]);
   });
+
+  it("faturado mostra no cupom o primeiro nome de quem vendeu", () => {
+    const l = currentBuyers([], [{ deal_id: "D1", company: "Gt Building", quantity: 10, status: "approved", seller_name: "Isabelle" }]);
+    expect(l[0].cupom).toBe("Isabelle");
+  });
 });
