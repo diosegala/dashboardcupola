@@ -6,6 +6,9 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
+const fieldsWithActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,actions,action_values,inline_link_clicks";
+const fieldsWithoutActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,inline_link_clicks";
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -17,6 +20,7 @@ Deno.serve(async (req) => {
 
   // Auth check for manual calls
   const authHeader = req.headers.get("Authorization");
+  let chamadaAdmin = false;
   if (authHeader?.startsWith("Bearer ")) {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const userClient = createClient(supabaseUrl, anonKey, {
@@ -42,7 +46,18 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    chamadaAdmin = true;
   }
+
+  // Recuperação do histórico antigo: só administradores, com { "backfill_desde": "AAAA-MM-DD", "backfill_ate"?: "AAAA-MM-DD" }.
+  let body: Record<string, unknown> = {};
+  try {
+    body = await req.json();
+  } catch (_e) {
+    body = {};
+  }
+  const backfillDesde = typeof body.backfill_desde === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.backfill_desde) ? body.backfill_desde : null;
+  const backfillAte = typeof body.backfill_ate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.backfill_ate) ? body.backfill_ate : null;
 
   try {
     // 1. Get integration record
@@ -76,14 +91,50 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Ensure ad_account_id has act_ prefix
+    const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
+
+    if (backfillDesde && chamadaAdmin) {
+      // Busca o período em janelas de um mês, já dia a dia (time_increment=1), e grava sem apagar nada.
+      const fim = backfillAte ?? new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      const janelas: Array<{ since: string; until: string }> = [];
+      let inicio = new Date(`${backfillDesde}T00:00:00Z`);
+      const limite = new Date(`${fim}T00:00:00Z`);
+      while (inicio <= limite) {
+        const ultimo = new Date(Date.UTC(inicio.getUTCFullYear(), inicio.getUTCMonth() + 1, 0));
+        const ate = ultimo < limite ? ultimo : limite;
+        janelas.push({ since: inicio.toISOString().slice(0, 10), until: ate.toISOString().slice(0, 10) });
+        inicio = new Date(ate.getTime() + 86400000);
+      }
+      let gravadas = 0;
+      const falhas: string[] = [];
+      for (const j of janelas) {
+        try {
+          const rows = await fetchInsights({ accountId, accessToken, fields: fieldsWithActions, since: j.since, until: j.until, daily: true });
+          const mapped = rows.map(mapRow);
+          for (let i = 0; i < mapped.length; i += 500) {
+            const { error } = await supabase
+              .from("ad_metrics")
+              .upsert(mapped.slice(i, i + 500), { onConflict: "source,date,campaign_id,ad_set_id" });
+            if (error) throw error;
+          }
+          gravadas += mapped.length;
+          console.log(`sync-meta backfill ${j.since}..${j.until}: ${mapped.length} rows`);
+        } catch (err) {
+          falhas.push(`${j.since}..${j.until}`);
+          console.error(`sync-meta backfill ${j.since}..${j.until} failed: ${err instanceof Error ? err.message.slice(0, 200) : String(err)}`);
+        }
+      }
+      return new Response(JSON.stringify({ success: falhas.length === 0, rows: gravadas, janelas: janelas.length, falhas }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     // 3. Set status to syncing
     await supabase
       .from("integrations")
       .update({ sync_status: "syncing", error_message: null })
       .eq("id", integration.id);
-
-    // Ensure ad_account_id has act_ prefix
-    const accountId = adAccountId.startsWith("act_") ? adAccountId : `act_${adAccountId}`;
 
     // 4. Generate last 30 days array
     const dates: string[] = [];
@@ -94,8 +145,6 @@ Deno.serve(async (req) => {
       dates.push(d.toISOString().slice(0, 10));
     }
 
-    const fieldsWithActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,actions,action_values,inline_link_clicks";
-    const fieldsWithoutActions = "campaign_id,campaign_name,adset_id,adset_name,impressions,clicks,spend,inline_link_clicks";
 
     // 5. Fetch day by day
     const allRows: any[] = [];
@@ -172,60 +221,17 @@ Deno.serve(async (req) => {
     console.log(`sync-meta - total: ${allRows.length} rows, ${partialDays.length} partial days, action_types: ${JSON.stringify([...allActionTypes].sort())}`);
 
     // 8. Map rows
-    const findAction = (actions: any[], type: string) =>
-      parseInt(actions.find((a: any) => a.action_type === type)?.value || "0") || 0;
+    const mappedRows = allRows.map(mapRow);
 
-    const mappedRows = allRows.map((r: any) => {
-      const actions: any[] = r.actions || [];
-
-      const inlineLinkClicks = parseInt(r.inline_link_clicks ?? "0") || 0;
-      const linkClicksFromActions = findAction(actions, "link_click");
-      const linkClicks = linkClicksFromActions > 0 ? linkClicksFromActions : inlineLinkClicks;
-
-      const purchaseCount = findAction(actions, "purchase");
-      const messagesCount = findAction(actions, "onsite_conversion.messaging_conversation_started_7d");
-      const addToCartCount = findAction(actions, "add_to_cart");
-      const leadCount = findAction(actions, "lead");
-      const remarketingCount = findAction(actions, "offsite_conversion.fb_pixel_custom");
-      const postEngagement = findAction(actions, "post_engagement");
-
-      const impressions = parseInt(r.impressions ?? "0") || 0;
-      const totalClicks = parseInt(r.clicks ?? "0") || 0;
-      const spendVal = parseFloat(r.spend ?? "0") || 0;
-      const cpmVal = impressions > 0 ? (spendVal / impressions) * 1000 : 0;
-      const ctrVal = impressions > 0 ? (linkClicks / impressions) * 100 : 0;
-      const cpcVal = linkClicks > 0 ? spendVal / linkClicks : 0;
-
-      return {
-        source: "meta",
-        date: r.date_start,
-        campaign_id: r.campaign_id ?? "",
-        campaign_name: r.campaign_name ?? null,
-        ad_set_id: r.adset_id || "",
-        ad_set_name: r.adset_name ?? null,
-        impressions,
-        clicks: totalClicks,
-        link_clicks: linkClicks,
-        purchases: purchaseCount,
-        messages: messagesCount,
-        add_to_cart: addToCartCount,
-        remarketing_qualified: remarketingCount,
-        post_engagement: postEngagement,
-        spend: spendVal,
-        ctr: ctrVal,
-        cpc: cpcVal,
-        cpm: cpmVal,
-        conversions: purchaseCount + leadCount,
-        synced_at: new Date().toISOString(),
-      };
-    });
-
-    // 9. Delete old meta data and insert fresh
-    const { error: delError } = await supabase
-      .from("ad_metrics")
-      .delete()
-      .eq("source", "meta");
-    if (delError) throw delError;
+    // 9. Substitui só os dias buscados agora; o histórico mais antigo fica guardado.
+    if (fetchedDates.length) {
+      const { error: delError } = await supabase
+        .from("ad_metrics")
+        .delete()
+        .eq("source", "meta")
+        .in("date", fetchedDates);
+      if (delError) throw delError;
+    }
 
     for (let i = 0; i < mappedRows.length; i += 500) {
       const chunk = mappedRows.slice(i, i + 500);
