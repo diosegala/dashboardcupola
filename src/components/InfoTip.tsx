@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { METRIC_INFO } from "@/lib/metricInfo";
 import { cn } from "@/lib/utils";
@@ -35,13 +36,17 @@ export function InfoTip({ title, text, className }: InfoTipProps) {
           i
         </button>
       </TooltipTrigger>
-      <TooltipContent
-        side="top"
-        className="max-w-[280px] rounded-xl border-0 bg-foreground px-3.5 py-3 text-[13px] font-normal leading-[1.45] text-background shadow-[0_12px_32px_-8px_rgba(0,0,0,0.35)]"
-      >
-        <b className="mb-1 block font-semibold">{title}</b>
-        {definicao}
-      </TooltipContent>
+      {/* Portal: a dica sai de tabelas e cards com rolagem, sem ser cortada nem herdar estilos da célula. */}
+      <TooltipPrimitive.Portal>
+        <TooltipContent
+          side="top"
+          collisionPadding={12}
+          className="max-w-[260px] whitespace-normal break-words rounded-xl border-0 bg-foreground px-3.5 py-3 text-left text-[13px] font-normal normal-case leading-[1.45] tracking-normal text-background shadow-[0_12px_32px_-8px_rgba(0,0,0,0.35)]"
+        >
+          <b className="mb-1 block font-semibold">{title}</b>
+          {definicao}
+        </TooltipContent>
+      </TooltipPrimitive.Portal>
     </Tooltip>
   );
 }
