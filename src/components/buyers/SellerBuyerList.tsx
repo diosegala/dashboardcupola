@@ -105,7 +105,7 @@ export function SellerBuyerList() {
                       ) : (
                         <span className="inline-flex items-center gap-2">
                           <span className="font-semibold tabular-nums">{l.ingressos}</span>
-                          <span className="rounded-full bg-warn-bg px-2.5 py-0.5 text-xs font-semibold text-warn">aguardando nomes</span>
+                          <span className="whitespace-nowrap rounded-full bg-warn-bg px-2.5 py-0.5 text-xs font-semibold text-warn">aguardando nomes</span>
                         </span>
                       )}
                     </td>
