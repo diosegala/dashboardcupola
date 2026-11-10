@@ -101,6 +101,7 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
     return (
       p.name.toLowerCase().includes(termo) ||
       p.companies.some((c) => c.toLowerCase().includes(termo)) ||
+      (p.invoiced?.seller ?? "").toLowerCase().includes(termo) ||
       (!restrito && (p.emails.some((e) => e.includes(termo)) || (digitos.length >= 4 && p.phones.some((t) => t.includes(digitos)))))
     );
   };
@@ -247,7 +248,10 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
                 {lista.slice(0, limite).map(({ p, eventosDaPessoa, cupons, pendencias }) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">
-                      {p.name}
+                      <span className="flex items-center gap-1.5">
+                        <span className="block max-w-[170px] truncate">{p.name}</span>
+                        {p.invoiced && <Chip variant="blue" className="shrink-0">Faturado</Chip>}
+                      </span>
                       {restrito && pareceContato && contatoConfere(p) && (
                         <Chip variant="blue" className="ml-2">Contato confere</Chip>
                       )}
@@ -281,7 +285,10 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
                     </TableCell>
                     <TableCell className="whitespace-nowrap">
                       {/* Um cupom só: o deste evento (ou o mais recente); os demais aparecem ao passar o mouse. */}
-                      {cupons.length === 0 ? (
+                      {/* Faturado: não tem cupom — mostra quem vendeu. Sympla: um cupom só, os demais no hover. */}
+                      {p.invoiced ? (
+                        <span className="font-medium text-foreground/80">{p.invoiced.seller ?? "—"}</span>
+                      ) : cupons.length === 0 ? (
                         <span className="text-muted-foreground">—</span>
                       ) : (
                         <span

@@ -12,6 +12,8 @@ import { PeopleTable } from "@/components/buyers/PeopleTable";
 import { SellerBuyerList } from "@/components/buyers/SellerBuyerList";
 import { useAllTimeTicketSales, useFormAnswerCounts } from "@/hooks/useDashboardData";
 import { useBuyersData } from "@/hooks/useBuyersData";
+import { eventRef } from "@/lib/buyers";
+import { faturadosDasVendas, invoicedPeople } from "@/lib/currentBuyers";
 
 const int = (n: number) => n.toLocaleString("pt-BR");
 
@@ -41,6 +43,13 @@ function FullBuyers() {
   const perfilRespostas = useFormAnswerCounts(event.sympla_event_id ?? "");
 
   const { dados, people, companies, eventos } = useBuyersData();
+
+  // Faturados internos (Pipedrive) entram na lista como uma linha por empresa, com quem vendeu no lugar do cupom.
+  const faturados = useMemo(() => {
+    const { faturados: inv, resgatados } = faturadosDasVendas((perfilTickets.data ?? []) as any[]);
+    return invoicedPeople(inv, resgatados, eventRef(event));
+  }, [perfilTickets.data, event]);
+  const pessoasDaLista = useMemo(() => [...people, ...faturados], [people, faturados]);
 
   // Números do evento selecionado; "já vieram" é quem também aparece em algum evento anterior.
   const kpis = useMemo(() => {
@@ -106,7 +115,7 @@ function FullBuyers() {
             {dados.isLoading ? (
               <Skeleton className="h-96" />
             ) : (
-              <PeopleTable people={people} eventos={eventos} eventSlug={event.slug} />
+              <PeopleTable people={pessoasDaLista} eventos={eventos} eventSlug={event.slug} />
             )}
           </TabsContent>
         )}

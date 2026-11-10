@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { currentBuyers } from "./currentBuyers";
+import { currentBuyers, faturadosDasVendas, invoicedPeople } from "./currentBuyers";
+
+const evento = { slug: "summit-2027", name: "CUPOLA Summit 2027", year: "2027", label: "Summit 2027", endDate: "2027-05-21" };
 
 const row = (id: string, pedido: string, first: string, last: string, buyer = ["Viviane", "Mondardo Pinheiro"], status = "A") => ({
   sympla_order_id: id,
@@ -39,5 +41,32 @@ describe("currentBuyers", () => {
   it("faturado mostra no cupom o primeiro nome de quem vendeu", () => {
     const l = currentBuyers([], [{ deal_id: "D1", company: "Gt Building", quantity: 10, status: "approved", seller_name: "Isabelle" }]);
     expect(l[0].cupom).toBe("Isabelle");
+  });
+
+  it("faturado vira uma linha de empresa na lista de pessoas, com quem vendeu", () => {
+    const inv = [
+      { deal_id: "D1", company: "Gt Building", quantity: 6, status: "approved", seller_name: "Suellen" },
+      { deal_id: "D1", company: "Gt Building", quantity: 4, status: "approved", seller_name: "Suellen" },
+      { deal_id: "D2", company: "Aberto", quantity: 4, status: "crm_open" },
+    ];
+    const p = invoicedPeople(inv, { D1: 2 }, evento);
+    expect(p).toHaveLength(1);
+    expect(p[0]).toMatchObject({ name: "Gt Building", companies: ["Gt Building"], invoiced: { seller: "Suellen", tickets: 8 } });
+    expect(p[0].events["summit-2027"].tickets).toBe(8);
+  });
+
+  it("faturado resgatado por inteiro na Sympla não entra na lista de pessoas", () => {
+    expect(invoicedPeople([{ deal_id: "D1", company: "Acme", quantity: 3, status: "approved" }], { D1: 3 }, evento)).toHaveLength(0);
+  });
+
+  it("faturadosDasVendas separa os faturados, mantém quem vendeu e conta os resgatados", () => {
+    const { faturados, resgatados } = faturadosDasVendas([
+      { source: "pipedrive", deal_id: "D1", quantity: 10, status: "approved", seller: "Venda interna - Suelen", seller_name: "Suelen" },
+      { source: "sympla", quantity: 1, status: "approved", redeems: "D1" },
+      { source: "sympla", quantity: 1, status: "approved" },
+    ]);
+    expect(faturados).toHaveLength(1);
+    expect(faturados[0].seller_name).toBe("Suelen");
+    expect(resgatados).toEqual({ D1: 1 });
   });
 });
