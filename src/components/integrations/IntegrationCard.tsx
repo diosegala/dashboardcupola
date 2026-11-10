@@ -58,7 +58,7 @@ export function IntegrationRow({ integration, isAdmin, onToggle, onSync, onSaveC
         <div
           className={cn(
             "grid h-11 w-11 shrink-0 place-items-center rounded-xl",
-            integration.is_active ? "bg-accent/15 text-accent-text" : "bg-secondary text-muted-foreground",
+            integration.is_active ? "bg-primary/25 text-accent-text" : "bg-secondary text-muted-foreground",
           )}
         >
           <Icon className="h-5 w-5" />
