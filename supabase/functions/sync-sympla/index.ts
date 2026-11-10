@@ -160,6 +160,9 @@ Deno.serve(async (req) => {
     }
     const juncaoPedidos = mergeOrders(pedidos151, pedidos160);
     const ordersById = juncaoPedidos.orders;
+    // Diagnóstico (só no resumo, nada é gravado): pedidos em qualquer status, para achar os que aparecem confirmados na
+    // tela da Sympla e faltam na lista padrão. Em 10/11/2026 a tela tinha 91 confirmados e as listas, 88.
+    const pedidosTodosStatus = await diagnosticoPedidos(base, `${api}/v1.6.0/events/${eventId}`, apiToken, ordersById);
 
     // Linhas já gravadas do evento: a chave de cada ingresso (para a 1.6.0 atualizar a mesma linha, sem duplicar)
     // e a base da regra de cancelamento.
@@ -220,6 +223,7 @@ Deno.serve(async (req) => {
       pedidos_conferidos_um_a_um: Math.min(faltando.length, MAX_ORDER_CHECKS),
       ingressos_recuperados_por_pedido: doPedido.length,
       consultas_por_pedido_com_falha: consultasComFalha,
+      pedidos_todos_status: pedidosTodosStatus,
       participantes_1_5_1: legado.length,
       participantes_1_6_0: atual.length,
       erro_1_6_0: erro160,
@@ -417,6 +421,43 @@ function mapStatus(status: string | null): string {
   if (!status) return "unknown";
   const map: Record<string, string> = { A: "approved", P: "pending", R: "refunded" };
   return map[status] ?? status;
+}
+
+// Pedidos em qualquer status nas duas versões (1.5.1 com status=true, 1.6.0 com cancelled_filter=include): contagem
+// por status e os pedidos que não estão na lista padrão, só com id, status e datas (sem dado do comprador).
+async function diagnosticoPedidos(base151: string, base160: string, token: string, padrao: Map<string, any>) {
+  const fontes: [string, () => Promise<any[]>][] = [
+    ["v1_5_1", () => fetchAllPages(`${base151}/orders?status=true`, token)],
+    ["v1_6_0", () => fetchCursorPages(`${base160}/orders?cancelled_filter=include`, token, 200)],
+  ];
+  const out: Record<string, unknown> = {};
+  for (const [nome, ler] of fontes) {
+    try {
+      const lista = await ler();
+      const porStatus: Record<string, number> = {};
+      lista.forEach((o: any) => {
+        const s = String(o.order_status ?? o.status ?? "?");
+        porStatus[s] = (porStatus[s] ?? 0) + 1;
+      });
+      out[nome] = {
+        total: lista.length,
+        por_status: porStatus,
+        fora_da_lista_padrao: lista
+          .filter((o: any) => !padrao.has(String(o.id)))
+          .slice(0, 30)
+          .map((o: any) => ({
+            id: String(o.id),
+            status: o.order_status ?? o.status ?? null,
+            criado: o.order_date ?? o.created_at ?? null,
+            aprovado: o.approved_date ?? o.order_approved_date ?? null,
+            atualizado: o.updated_date ?? o.order_updated_date ?? null,
+          })),
+      };
+    } catch (err: any) {
+      out[nome] = { erro: String(err.message ?? err).slice(0, 200) };
+    }
+  }
+  return out;
 }
 
 // Participantes de um pedido: 1.6.0 primeiro, depois 1.5.1. Devolve null quando as duas falham.
