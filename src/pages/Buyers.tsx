@@ -47,9 +47,7 @@ function FullBuyers() {
   // Faturados internos (Pipedrive) entram na lista como uma linha por empresa, com quem vendeu no lugar do cupom.
   const faturados = useMemo(() => {
     const { faturados: inv, resgatados } = faturadosDasVendas((perfilTickets.data ?? []) as any[]);
-    const r = invoicedPeople(inv, resgatados, eventRef(event));
-    console.log("FATDEBUG", (perfilTickets.data ?? []).length, inv.length, resgatados, r.length);
-    return r;
+    return invoicedPeople(inv, resgatados, eventRef(event));
   }, [perfilTickets.data, event]);
   const pessoasDaLista = useMemo(() => [...people, ...faturados], [people, faturados]);
 
