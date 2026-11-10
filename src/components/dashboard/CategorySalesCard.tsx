@@ -3,12 +3,22 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { InfoTip } from "@/components/InfoTip";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
-import { salesByCategory } from "@/lib/salesCategories";
+import { salesByCategory, type CategoryRow } from "@/lib/salesCategories";
+
+// Texto do mouse: Grupo e Combo mostram a divisão Padrão/VIP; Visita avulsa, as compradas junto com o evento.
+function detalhe(l: CategoryRow): string | undefined {
+  if (l.categoria === "Grupo" || l.categoria === "Combo") {
+    const { padrao, vip } = l.porNivel;
+    return `Padrão: ${int(padrao.ingressos)} ingressos · ${brl(padrao.valor)}\nVIP: ${int(vip.ingressos)} ingressos · ${brl(vip.valor)}`;
+  }
+  if (l.categoria === "Visita avulsa" && l.juntoComEvento > 0) return `${int(l.juntoComEvento)} compradas junto com ingresso do evento (mesmo participante)`;
+  return undefined;
+}
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const CORES = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
-const TITULO = "Individual, grupo, VIP ou combo";
+const TITULO = "Padrão, VIP, combo ou grupo";
 
 // Barra de 100% com a tabela servindo de legenda: uma linha por categoria.
 export function CategorySalesCard({ paying, className }: { paying: Ticket[]; className?: string }) {
@@ -27,7 +37,7 @@ export function CategorySalesCard({ paying, className }: { paying: Ticket[]; cla
       <CardContent className="space-y-3">
         <div className="flex h-4 w-full overflow-hidden rounded-full bg-secondary">
           {linhas.map((l, n) => (
-            <i key={l.categoria} title={`${l.categoria}: ${int(l.ingressos)} (${pct(l.ingressos)})`} className="block h-full" style={{ width: `${(l.ingressos / total) * 100}%`, background: CORES[n] }} />
+            <i key={l.categoria} title={[`${l.categoria}: ${int(l.ingressos)} (${pct(l.ingressos)})`, detalhe(l)].filter(Boolean).join("\n")} className="block h-full" style={{ width: `${(l.ingressos / total) * 100}%`, background: CORES[n] }} />
           ))}
         </div>
         <div className="overflow-x-auto">
@@ -44,7 +54,7 @@ export function CategorySalesCard({ paying, className }: { paying: Ticket[]; cla
             </TableHeader>
             <TableBody>
               {linhas.map((l, n) => (
-                <TableRow key={l.categoria}>
+                <TableRow key={l.categoria} title={detalhe(l)} className={detalhe(l) ? "cursor-help" : undefined}>
                   <TableCell className="font-medium">
                     <span className="flex items-center gap-2">
                       <i className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: CORES[n] }} />
