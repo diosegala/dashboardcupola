@@ -64,6 +64,33 @@ export function mergeParticipants(legacy: Row[], current: Row[], savedKeyByTicke
   return { participants: Array.from(out.values()), stats };
 }
 
+// Junta os pedidos das duas versões da API pelo id. Em 10/11/2026 a lista da 1.5.1 não trazia um pedido aprovado de
+// 07/11 (2 ingressos), que também faltava nas duas listas de participantes. O dado da 1.6.0 prevalece (mais atual).
+// Trava contra duplicar: se a 1.6.0 não reconhece nenhum pedido que a 1.5.1 já devolve (id em outro formato), ela é
+// descartada e o resumo mostra o motivo.
+export function mergeOrders(legacy: Row[], current: Row[]) {
+  const out = new Map<string, Row>();
+  legacy.forEach((o) => out.set(String(o.id), o));
+  const comId = current.filter((o) => String(o.id ?? "").trim());
+  const reconhecidos = comId.filter((o) => out.has(String(o.id))).length;
+  const descartada = comId.length > 0 && legacy.length > 0 && reconhecidos === 0;
+  if (!descartada) {
+    comId.forEach((o) => {
+      const id = String(o.id);
+      const atual = Object.fromEntries(Object.entries(o).filter(([, v]) => v != null));
+      out.set(id, { ...(out.get(id) ?? {}), ...atual, id });
+    });
+  }
+  return { orders: out, stats: { pedidos_1_6_0: current.length, reconhecidos, novos: descartada ? 0 : comId.length - reconhecidos, descartada } };
+}
+
+// Aviso da tela Integrações quando, depois de todas as buscas, pedidos aprovados seguem sem os ingressos no painel.
+export function partialSyncMessage(orderIds: string[]): string | null {
+  if (!orderIds.length) return null;
+  const lista = orderIds.slice(0, 5).join(", ") + (orderIds.length > 5 ? "…" : "");
+  return `Sync parcial: ${orderIds.length} pedido(s) aprovado(s) na Sympla sem todos os ingressos no painel (${lista}). A próxima atualização tenta de novo.`;
+}
+
 // Pedidos aprovados cujos participantes não fecham o valor líquido do pedido (order_total_net_value). Serve para o
 // resumo da sincronização mostrar se ainda falta ingresso de algum pedido.
 export function incompleteOrders(orders: Row[], participants: Row[]): Row[] {

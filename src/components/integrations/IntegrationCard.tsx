@@ -48,7 +48,9 @@ export function IntegrationRow({ integration, isAdmin, onToggle, onSync, onSaveC
             ? "Faz tempo que não atualiza. Use o botão de atualizar ou confira as credenciais."
             : saude.estado === "desligada" && integration.error_message
               ? `Desligada até resolver: ${explicarErro(integration.name, integration.error_message)}`
-              : null;
+              : /^sync parcial/i.test(integration.error_message ?? "")
+                ? integration.error_message
+                : null;
 
   const ultima = integration.last_synced_at
     ? `Atualizada ${formatDistanceToNow(new Date(integration.last_synced_at), { addSuffix: true, locale: ptBR })}`

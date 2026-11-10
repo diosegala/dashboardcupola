@@ -3,7 +3,9 @@ import {
   incompleteOrders,
   isApprovedOrder,
   keepsTicket,
+  mergeOrders,
   mergeParticipants,
+  partialSyncMessage,
   participantPrice,
   participantsToCancel,
   PENDING_PREFIX,
@@ -11,6 +13,9 @@ import {
 } from "../_shared/sympla-rules.ts";
 
 const isApproved = (status: string) => status.toLowerCase() === "approved";
+
+// Pedidos conferidos um a um por sincronização (o que passar disso fica para a próxima e aparece no aviso).
+const MAX_ORDER_CHECKS = 60;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -130,18 +135,31 @@ Deno.serve(async (req) => {
 
     let totalParticipants = 0;
     const resumo: any[] = [];
+    // Pedidos aprovados que seguem sem todos os ingressos depois de todas as buscas (aviso na tela Integrações).
+    const avisos: string[] = [];
     for (const { eventId, token: apiToken } of targets) {
     const api = "https://api.sympla.com.br/public";
     const base = `${api}/v1.5.1/events/${eventId}`;
 
-    // 4. Pedidos aprovados do evento (1.5.1): trazem cupom, UTM, forma de pagamento e o valor líquido do pedido.
-    // Se falhar, a sincronização segue sem cupom e ninguém é cancelado (ver participantsToCancel).
-    const ordersById = new Map<string, any>();
+    // 4. Pedidos aprovados do evento: trazem cupom, UTM, forma de pagamento e o valor líquido do pedido. Lidos nas duas
+    // versões da API, porque a 1.5.1 deixa pedidos de fora (ver mergeOrders). Se as duas falharem, a sincronização
+    // segue sem cupom e ninguém é cancelado (ver participantsToCancel).
+    let pedidos151: any[] = [];
+    let pedidos160: any[] = [];
+    let erroPedidos160: string | null = null;
     try {
-      (await fetchAllPages(`${base}/orders`, apiToken)).forEach((o: any) => ordersById.set(String(o.id), o));
+      pedidos151 = await fetchAllPages(`${base}/orders`, apiToken);
     } catch (err: any) {
-      console.error("sync-sympla - pedidos indisponíveis:", err.message);
+      console.error("sync-sympla - pedidos 1.5.1 indisponíveis:", err.message);
     }
+    try {
+      pedidos160 = await fetchCursorPages(`${api}/v1.6.0/events/${eventId}/orders`, apiToken, 200);
+    } catch (err: any) {
+      erroPedidos160 = String(err.message ?? err).slice(0, 300);
+      console.error("sync-sympla - pedidos 1.6.0 indisponíveis:", erroPedidos160);
+    }
+    const juncaoPedidos = mergeOrders(pedidos151, pedidos160);
+    const ordersById = juncaoPedidos.orders;
 
     // Linhas já gravadas do evento: a chave de cada ingresso (para a 1.6.0 atualizar a mesma linha, sem duplicar)
     // e a base da regra de cancelamento.
@@ -172,13 +190,36 @@ Deno.serve(async (req) => {
       erro160 = String(err.message ?? err).slice(0, 300);
       console.error("sync-sympla - participantes 1.6.0 indisponíveis:", erro160);
     }
-    const juncao = mergeParticipants(legado, atual, savedKeyByTicket, new Set(ordersById.keys()));
+    let juncao = mergeParticipants(legado, atual, savedKeyByTicket, new Set(ordersById.keys()));
+
+    // 5a. Pedido aprovado cujos ingressos não vieram nas listas gerais: busca os participantes do próprio pedido.
+    // Dado exato da Sympla, nada estimado. Falha num pedido não interrompe a sincronização; o que faltar vira aviso.
+    const faltando = incompleteOrders(Array.from(ordersById.values()), juncao.participants.map((m) => m.p));
+    const doPedido: any[] = [];
+    let consultasComFalha = 0;
+    for (const o of faltando.slice(0, MAX_ORDER_CHECKS)) {
+      const lista = await participantsOfOrder(api, eventId, String(o.id), apiToken);
+      if (lista === null) consultasComFalha++;
+      (lista ?? []).forEach((p: any) => doPedido.push({ ...p, order_id: p.order_id ?? o.id }));
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    if (doPedido.length) juncao = mergeParticipants(legado, [...atual, ...doPedido], savedKeyByTicket, new Set(ordersById.keys()));
     const statusDe = (p: any) => ordersById.get(String(p.order_id ?? ""))?.order_status ?? p.order_status;
     const merged = juncao.participants.filter((m) => keepsTicket(statusDe(m.p)));
     const allParticipants = merged.map((m) => m.p);
     const aprovadosNaLista = merged.filter((m) => isApproved(mapStatus(statusDe(m.p))));
+    const aindaIncompletos = incompleteOrders(Array.from(ordersById.values()), allParticipants).map((o: any) => String(o.id));
+    avisos.push(...aindaIncompletos);
     const resumoEvento = {
       evento: eventId,
+      pedidos_1_5_1: pedidos151.length,
+      pedidos_1_6_0: juncaoPedidos.stats.pedidos_1_6_0,
+      pedidos_novos_1_6_0: juncaoPedidos.stats.novos,
+      descartada_pedidos_1_6_0: juncaoPedidos.stats.descartada,
+      erro_pedidos_1_6_0: erroPedidos160,
+      pedidos_conferidos_um_a_um: Math.min(faltando.length, MAX_ORDER_CHECKS),
+      ingressos_recuperados_por_pedido: doPedido.length,
+      consultas_por_pedido_com_falha: consultasComFalha,
       participantes_1_5_1: legado.length,
       participantes_1_6_0: atual.length,
       erro_1_6_0: erro160,
@@ -191,7 +232,7 @@ Deno.serve(async (req) => {
       ingressos_aprovados: aprovadosNaLista.length,
       sem_pedido_na_lista: aprovadosNaLista.filter((m) => !ordersById.has(String(m.p.order_id ?? ""))).length,
       pedidos_aprovados: ordersById.size,
-      pedidos_incompletos: incompleteOrders(Array.from(ordersById.values()), allParticipants).length,
+      pedidos_incompletos: aindaIncompletos.length,
     };
     resumo.push(resumoEvento);
     console.log("sync-sympla - resumo:", JSON.stringify(resumoEvento));
@@ -313,7 +354,7 @@ Deno.serve(async (req) => {
     // 6. Success
     await supabase
       .from("integrations")
-      .update({ sync_status: "idle", last_synced_at: new Date().toISOString(), error_message: null })
+      .update({ sync_status: "idle", last_synced_at: new Date().toISOString(), error_message: partialSyncMessage(avisos) })
       .eq("id", integration.id);
 
     return new Response(
@@ -378,12 +419,30 @@ function mapStatus(status: string | null): string {
   return map[status] ?? status;
 }
 
-// Todas as páginas de uma lista da API 1.6.0, paginada por cursor (pagination.next_cursor).
-async function fetchCursorPages(url: string, token: string): Promise<any[]> {
+// Participantes de um pedido: 1.6.0 primeiro, depois 1.5.1. Devolve null quando as duas falham.
+async function participantsOfOrder(api: string, eventId: string, orderId: string, token: string): Promise<any[] | null> {
+  const caminho = `events/${eventId}/orders/${encodeURIComponent(orderId)}/participants?timezone=America/Sao_Paulo`;
+  try {
+    return await fetchCursorPages(`${api}/v1.6.0/${caminho}`, token);
+  } catch (err: any) {
+    console.error(`sync-sympla - participantes 1.6.0 do pedido ${orderId}:`, err.message);
+  }
+  try {
+    return await fetchAllPages(`${api}/v1.5.1/${caminho}`, token);
+  } catch (err: any) {
+    console.error(`sync-sympla - participantes 1.5.1 do pedido ${orderId}:`, err.message);
+    return null;
+  }
+}
+
+// Todas as páginas de uma lista da API 1.6.0, paginada por cursor (pagination.next_cursor). Pedidos aceitam até 200
+// por página; participantes, até 500.
+async function fetchCursorPages(url: string, token: string, pageSize = 500): Promise<any[]> {
   const all: any[] = [];
   let cursor: string | null = null;
+  const sep = url.includes("?") ? "&" : "?";
   for (let i = 0; i < 500; i++) {
-    const data = await fetchWithRetry(`${url}?page_size=500${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, token);
+    const data = await fetchWithRetry(`${url}${sep}page_size=${pageSize}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ""}`, token);
     all.push(...(data?.data ?? []));
     const next = data?.pagination?.next_cursor ?? null;
     if (!next || next === cursor) break;
