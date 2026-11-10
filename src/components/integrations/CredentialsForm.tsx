@@ -6,42 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Eye, EyeOff } from "lucide-react";
 import type { Integration } from "@/hooks/useIntegrations";
-
-interface FieldDef {
-  key: string;
-  label: string;
-  type: "text" | "textarea";
-}
-
-const FIELDS: Record<string, FieldDef[]> = {
-  sympla: [
-    { key: "api_token", label: "API Token (s_token)", type: "text" },
-  ],
-  pipedrive: [
-    { key: "api_token", label: "API Token", type: "text" },
-    { key: "domain", label: "Domínio (ex: company)", type: "text" },
-  ],
-  meta: [
-    { key: "access_token", label: "Access Token", type: "text" },
-    { key: "ad_account_id", label: "Ad Account ID", type: "text" },
-  ],
-  google_ads: [
-    { key: "client_id", label: "Client ID", type: "text" },
-    { key: "client_secret", label: "Client Secret", type: "text" },
-    { key: "refresh_token", label: "Refresh Token", type: "text" },
-    { key: "developer_token", label: "Developer Token", type: "text" },
-    { key: "customer_id", label: "Customer ID", type: "text" },
-  ],
-  rd_station: [
-    { key: "client_id", label: "Client ID", type: "text" },
-    { key: "client_secret", label: "Client Secret", type: "text" },
-    { key: "refresh_token", label: "Refresh Token", type: "text" },
-  ],
-  google_analytics: [
-    { key: "property_id", label: "Property ID", type: "text" },
-    { key: "service_account_json", label: "Service Account JSON", type: "textarea" },
-  ],
-};
+import { INTEGRATIONS } from "@/lib/integrationHealth";
 
 interface Props {
   open: boolean;
@@ -51,7 +16,7 @@ interface Props {
 }
 
 export function CredentialsForm({ open, onOpenChange, integration, onSave }: Props) {
-  const fields = FIELDS[integration.name] ?? [];
+  const fields = INTEGRATIONS[integration.name]?.campos ?? [];
   const existing = (integration.credentials as Record<string, string> | null) ?? {};
   const [values, setValues] = useState<Record<string, string>>({});
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
@@ -79,7 +44,7 @@ export function CredentialsForm({ open, onOpenChange, integration, onSave }: Pro
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Credenciais — {integration.name}</DialogTitle>
+          <DialogTitle>Credenciais — {INTEGRATIONS[integration.name]?.label ?? integration.name}</DialogTitle>
         </DialogHeader>
         <div className="space-y-4 py-2">
           {fields.map((field) => (
