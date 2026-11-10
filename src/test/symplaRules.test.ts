@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { incompleteOrders, invoiceCompany, keepsTicket, mergeOrders, mergeParticipants, partialSyncMessage, participantPrice, participantsToCancel } from "../../supabase/functions/_shared/sympla-rules";
+import { incompleteOrders, invoiceCompany, keepsTicket, mergeOrders, mergeParticipants, partialSyncMessage, participantPrice, participantsToCancel, pendingToCheck } from "../../supabase/functions/_shared/sympla-rules";
 
 // A sincronização da Sympla só grava participantes reais: não há estimativa de ingressos sem participante.
 describe("regras da Sympla", () => {
@@ -74,6 +74,19 @@ describe("regras da Sympla", () => {
     expect(stats.descartada).toBe(true);
     // Sem a 1.5.1, a 1.6.0 entra inteira.
     expect(mergeOrders([], [{ id: "X" }]).orders.size).toBe(1);
+  });
+
+  // Caso de 10/11/2026: boleto de 07/11 já pago seguia PENDING na lista de todos os status.
+  it("confere pelo próprio pedido só os pendentes que não estão entre os aprovados", () => {
+    const todos = [
+      { id: "35EA3BUMQ1S", order_status: "PENDING" },
+      { id: "35EA3BUMQ1S", status: "PENDING" }, // mesmo pedido na 1.6.0
+      { id: "35EA3BUZNT2", order_status: "APPROVED" },
+      { id: "35EA3BTT4Q7", order_status: "CANCELLED" },
+      { id: "35EA3AV75DZ", order_status: "UNPAID" },
+      { id: "JA_APROVADO", order_status: "P" },
+    ];
+    expect(pendingToCheck(todos, new Set(["35EA3BUZNT2", "JA_APROVADO"]))).toEqual(["35EA3BUMQ1S"]);
   });
 
   it("aviso de sincronização parcial só quando falta ingresso", () => {
