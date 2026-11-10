@@ -17,6 +17,11 @@ export default defineConfig(({ mode }) => ({
     alias: {
       "@": path.resolve(__dirname, "./src"),
     },
+    // Uma única cópia do React: evita tela branca ("reading 'useContext'") quando a prévia reempacota bibliotecas.
+    dedupe: ["react", "react-dom", "react/jsx-runtime"],
+  },
+  optimizeDeps: {
+    include: ["react", "react-dom", "react/jsx-runtime", "next-themes", "@radix-ui/react-collapsible", "@radix-ui/react-select"],
   },
   build: {
     rollupOptions: {
