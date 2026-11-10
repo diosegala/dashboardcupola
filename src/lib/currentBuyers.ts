@@ -2,7 +2,8 @@
 // Pedido com participantes nomeados vira uma linha por pessoa; pedido ainda sem nomes (a Sympla repete o nome
 // de quem comprou em todos os ingressos) vira uma linha só, com a quantidade.
 
-import { titleCase, type DetailRow } from "./buyers";
+import { titleCase, type DetailRow, type EventRef, type Person, type Role } from "./buyers";
+import { personBySeller } from "./coupons";
 
 export interface BuyerLine {
   id: string;

@@ -53,6 +53,8 @@ export interface Person {
   // Por evento: em quais papéis a pessoa apareceu e quantos ingressos resgatou.
   events: Record<string, { event: EventRef; roles: Set<Role>; tickets: number; orders: Set<string>; statuses: Set<string>; coupons: Set<string> }>;
   recurring: boolean;
+  // Venda faturada (Pipedrive): quem vendeu e quantos ingressos ainda não foram resgatados na Sympla.
+  invoiced?: { seller: string | null; tickets: number };
 }
 
 export interface Company {
