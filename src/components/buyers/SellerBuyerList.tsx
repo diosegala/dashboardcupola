@@ -2,94 +2,63 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useEvent } from "@/hooks/useEvent";
+import { useAllTimeTicketSales } from "@/hooks/useDashboardData";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { buildBuyers, eventRef, matchNextEvent, titleCase, type DetailRow } from "@/lib/buyers";
+import { eventRef, type DetailRow } from "@/lib/buyers";
+import { currentBuyers } from "@/lib/currentBuyers";
 import { cn } from "@/lib/utils";
 
-// Lista da equipe: quem participou do evento anterior e se já comprou o evento selecionado.
-// Só nome, empresa e cupom. Compra é reconhecida pelo nome da pessoa (90% igual ou mais), na Sympla ou faturada.
-const limpaCupom = (c: string | null) => (c ? c.replace(/^\s*[\d.,]+%\s*-\s*/, "").trim() : null);
+// Lista da equipe: só quem já comprou o evento selecionado (Sympla + faturados). Atualiza sozinha.
+const CINCO_MIN = 5 * 60 * 1000;
 
 export function SellerBuyerList() {
-  const { event, events } = useEvent();
-  const anterior = useMemo(
-    () => [...events].filter((e) => e.end_date < event.end_date).sort((a, b) => b.end_date.localeCompare(a.end_date))[0],
-    [events, event],
-  );
-  const [filtro, setFiltro] = useState<"todos" | "sim" | "nao">("todos");
+  const { event } = useEvent();
+  const [filtro, setFiltro] = useState<"todos" | "nominal" | "aguardando">("todos");
   const [busca, setBusca] = useState("");
 
-  const dados = useQuery({
-    queryKey: ["equipe-recompra", event.slug, anterior?.slug],
-    enabled: !!anterior,
-    staleTime: 10 * 60 * 1000,
+  const participantes = useQuery({
+    queryKey: ["equipe-compradores", event.slug],
+    staleTime: 60 * 1000,
+    refetchInterval: CINCO_MIN,
     queryFn: async () => {
-      const ler = async (slug: string) => {
-        const { data, error } = await supabase.rpc("get_buyer_rows" as any, { p_slug: slug });
-        return error ? [] : ((data ?? []) as DetailRow[]);
-      };
-      const [antes, agora] = await Promise.all([ler(anterior!.slug), ler(event.slug)]);
-      // Vendas internas ganhas depois do fim do evento anterior: entram pelo nome da pessoa, sem cupom.
-      const { data: deals } = await supabase
-        .from("deals")
-        .select("person_name")
-        .eq("status", "won")
-        .eq("is_deleted", false)
-        .gt("won_at", `${anterior!.end_date}T23:59:59`)
-        .lte("won_at", `${event.end_date}T23:59:59`);
-      return { antes, agora, faturados: (deals ?? []).map((d: any) => d.person_name).filter(Boolean) as string[] };
+      const { data, error } = await supabase.rpc("get_buyer_rows" as any, { p_slug: event.slug });
+      if (error) throw error;
+      return (data ?? []) as DetailRow[];
     },
   });
+  const vendas = useAllTimeTicketSales(event.sympla_event_id ?? "");
 
   const linhas = useMemo(() => {
-    if (!dados.data || !anterior) return [];
-    const evA = eventRef(anterior);
-    const evB = eventRef(event);
-    const passados = buildBuyers([{ event: evA, rows: dados.data.antes }]).people;
-    const atuais = buildBuyers([{ event: evB, rows: dados.data.agora }]).people;
-    const compras = [
-      ...atuais.map((p) => ({ name: p.name, coupon: limpaCupom([...(p.events[evB.slug]?.coupons ?? [])][0] ?? null) })),
-      ...dados.data.faturados.map((n) => ({ name: n, coupon: null })),
-    ];
-    return passados
-      .filter((p) => p.events[evA.slug]?.roles.has("participante"))
-      .map((p) => {
-        const m = matchNextEvent(p.name, compras);
-        return {
-          id: p.id,
-          nome: p.name,
-          empresa: p.companies[0] ?? null,
-          cupomAntes: limpaCupom([...(p.events[evA.slug]?.coupons ?? [])][0] ?? null),
-          ...m,
-        };
-      })
-      .sort((a, b) => a.nome.localeCompare(b.nome, "pt-BR"));
-  }, [dados.data, anterior, event]);
+    const todas = (vendas.data ?? []) as any[];
+    const faturados = todas.filter((t) => t.source === "pipedrive");
+    const resgatados: Record<string, number> = {};
+    todas.forEach((t) => {
+      if (t.redeems && String(t.status).toLowerCase() === "approved") resgatados[t.redeems] = (resgatados[t.redeems] ?? 0) + (Number(t.quantity) || 1);
+    });
+    return currentBuyers(participantes.data ?? [], faturados, resgatados);
+  }, [participantes.data, vendas.data]);
 
   const termo = busca.trim().toLowerCase();
   const visiveis = linhas.filter(
     (l) =>
-      (filtro === "todos" || (filtro === "sim") === l.comprou) &&
+      (filtro === "todos" || (filtro === "nominal") === l.nominal) &&
       (!termo || l.nome.toLowerCase().includes(termo) || (l.empresa ?? "").toLowerCase().includes(termo)),
   );
-  const ja = linhas.filter((l) => l.comprou).length;
-  const anoA = anterior ? eventRef(anterior).year : "";
-  const anoB = eventRef(event).year;
+  const soma = (xs: typeof linhas) => xs.reduce((s, l) => s + l.ingressos, 0);
+  const nominais = linhas.filter((l) => l.nominal);
+  const aguardando = linhas.filter((l) => !l.nominal);
+  const ano = eventRef(event).year;
 
   return (
     <div className="space-y-6">
       <PageHeader
         title="Compradores"
-        description={
-          anterior
-            ? `Quem participou de ${anoA} e se já comprou ${anoB}. A compra é reconhecida automaticamente pelo nome da pessoa, na Sympla ou em venda interna.`
-            : "Não há evento anterior para comparar."
-        }
+        description={`Quem já comprou ${ano}, na Sympla ou em venda faturada. Compras ainda sem os nomes dos participantes aparecem em uma linha só, com a quantidade.`}
       />
-      {!anterior ? null : dados.isLoading ? (
+      {participantes.isLoading || vendas.isLoading ? (
         <Skeleton className="h-96" />
       ) : (
         <>
@@ -97,9 +66,9 @@ export function SellerBuyerList() {
             <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar por nome ou empresa" className="max-w-md rounded-full" />
             {(
               [
-                ["todos", "Todos", linhas.length],
-                ["sim", `Já compraram ${anoB}`, ja],
-                ["nao", "Ainda não compraram", linhas.length - ja],
+                ["todos", "Todos", soma(linhas)],
+                ["nominal", "Com nomes", soma(nominais)],
+                ["aguardando", "Aguardando nomes", soma(aguardando)],
               ] as const
             ).map(([v, l, n]) => (
               <button
@@ -110,17 +79,18 @@ export function SellerBuyerList() {
                   filtro === v ? "bg-foreground text-background" : "bg-card text-foreground/75",
                 )}
               >
-                {l} <span className="opacity-60">{n}</span>
+                {l} <span className="opacity-60">{n} ingressos</span>
               </button>
             ))}
           </div>
-          <Card className="overflow-hidden">
-            <table className="w-full text-sm">
+          <Card className="overflow-x-auto">
+            <table className="w-full min-w-[640px] text-sm">
               <thead className="text-left text-muted-foreground">
                 <tr className="border-b">
                   <th className="px-5 py-3 font-medium">Nome</th>
                   <th className="px-5 py-3 font-medium">Empresa</th>
-                  <th className="px-5 py-3 font-medium">Comprou {anoB}</th>
+                  <th className="px-5 py-3 text-right font-medium">Ingressos</th>
+                  <th className="px-5 py-3 font-medium">Origem</th>
                   <th className="px-5 py-3 font-medium">Cupom</th>
                 </tr>
               </thead>
@@ -128,29 +98,24 @@ export function SellerBuyerList() {
                 {visiveis.map((l) => (
                   <tr key={l.id} className="border-b last:border-0">
                     <td className="px-5 py-3 font-medium">{l.nome}</td>
-                    <td className="max-w-[260px] truncate px-5 py-3 text-muted-foreground">{l.empresa ? titleCase(l.empresa) : "—"}</td>
-                    <td className="px-5 py-3">
-                      {l.comprou ? (
-                        <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">Sim</span>
+                    <td className="max-w-[260px] truncate px-5 py-3 text-muted-foreground">{l.empresa ?? "—"}</td>
+                    <td className="px-5 py-3 text-right">
+                      {l.nominal ? (
+                        <span className="tabular-nums">1</span>
                       ) : (
-                        <span className="rounded-full border px-3 py-1 text-xs text-muted-foreground">Ainda não</span>
+                        <span className="inline-flex items-center gap-2">
+                          <span className="font-semibold tabular-nums">{l.ingressos}</span>
+                          <span className="whitespace-nowrap rounded-full bg-warn-bg px-2.5 py-0.5 text-xs font-semibold text-warn">aguardando nomes</span>
+                        </span>
                       )}
                     </td>
-                    <td className="px-5 py-3 font-mono text-xs">
-                      {l.cupomAntes || l.coupon ? (
-                        <div className="space-y-0.5">
-                          {l.coupon && <div>{anoB}: {l.coupon}</div>}
-                          {l.cupomAntes && <div className="text-muted-foreground">{anoA}: {l.cupomAntes}</div>}
-                        </div>
-                      ) : (
-                        "—"
-                      )}
-                    </td>
+                    <td className="px-5 py-3 text-muted-foreground">{l.origem}</td>
+                    <td className="px-5 py-3 font-mono text-xs">{l.cupom ?? "—"}</td>
                   </tr>
                 ))}
                 {!visiveis.length && (
                   <tr>
-                    <td colSpan={4} className="px-5 py-8 text-center text-muted-foreground">Ninguém encontrado.</td>
+                    <td colSpan={5} className="px-5 py-8 text-center text-muted-foreground">Ninguém encontrado.</td>
                   </tr>
                 )}
               </tbody>
