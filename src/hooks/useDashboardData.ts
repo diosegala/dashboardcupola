@@ -286,6 +286,25 @@ export function useAllTimeTicketSales(eventId: string) {
   });
 }
 
+// Pedidos da Sympla sem ingresso gravado (pendentes, cancelados, não pagos), para o aviso de vendas aguardando
+// pagamento. A tabela é só de administradores: para a equipe volta vazio e o aviso não aparece.
+export function useSymplaOrdersWithoutTickets(eventId: string) {
+  return useQuery({
+    queryKey: ["sympla_orders_without_tickets", eventId],
+    enabled: !!eventId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("ticket_sales_details" as any)
+        .select("order_data")
+        .like("sympla_order_id", "pedido-%")
+        .eq("order_data->>event_id", eventId)
+        .limit(1000);
+      if (error) return [] as { order_data: any }[];
+      return (data ?? []) as unknown as { order_data: any }[];
+    },
+  });
+}
+
 export function useSymplaEventIds() {
   return useQuery({
     queryKey: ["sympla_event_ids"],

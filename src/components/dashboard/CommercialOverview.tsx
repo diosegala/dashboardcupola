@@ -42,7 +42,7 @@ import { RevenueMiniChart, type FonteReceita } from "./RevenueMiniChart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEvent } from "@/hooks/useEvent";
 import { useSponsorshipSales } from "@/hooks/useSponsorshipSales";
-import type { DateRange } from "@/hooks/useDashboardData";
+import { useSymplaOrdersWithoutTickets, type DateRange } from "@/hooks/useDashboardData";
 import { inPeriod, previousYear } from "@/lib/period";
 import { mesBrasilia, monthlyRevenueGoals, sponsorMonthly, ticketMonthly, totalMonthly } from "@/lib/monthlyRevenue";
 import { format } from "date-fns";
@@ -195,6 +195,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
 
   // Visão mês a mês: ingressos e patrocínios do evento do topo, respeitando o período escolhido.
   const { event } = useEvent();
+  const pedidosSemIngresso = useSymplaOrdersWithoutTickets(event.sympla_event_id ?? "");
   const patrocinio = useSponsorshipSales();
   const [fonteReceita, setFonteReceita] = useState<FonteReceita>("total");
   const hojeDia = hojeBrasilia();
@@ -271,6 +272,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         emitidosAnterior={filtrado ? pAnterior?.issuedCount : m.anterior?.issuedCount}
         emitidosAtual={filtrado ? p.issuedCount : m.issuedCount}
         quando={filtrado ? "no mesmo período (aprovados)" : undefined}
+        aguardando={pedidosSemIngresso.data ?? []}
         className="col-span-12 lg:col-span-5"
       />
       <PaceGauge

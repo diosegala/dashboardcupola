@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { isCancelled } from "@/lib/eventConfig";
 import { GoalMeter } from "@/components/GoalMeter";
 import { CompareLine } from "@/components/CompareLine";
+import { DIAS_PARA_CONFERIR, pendingPayments } from "@/lib/pendingPayments";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const pct = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "0%");
@@ -129,6 +130,28 @@ function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
   );
 }
 
+// Vendas da Sympla aguardando pagamento: não contam ainda. Pendente antigo pode já estar pago (a API da Sympla não
+// atualiza o status do boleto ou pix compensado depois), então vai para conferência na Sympla.
+const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+function AguardandoPagamento({ rows }: { rows: { order_data: any }[] }) {
+  const { pedidos, valor, paraConferir } = useMemo(() => pendingPayments(rows), [rows]);
+  if (!pedidos.length) return null;
+  return (
+    <div className="space-y-1.5 rounded-xl border border-dashed px-3 py-2.5 text-xs md:col-span-2">
+      <p className="text-muted-foreground">
+        <b className="font-semibold text-foreground">Aguardando pagamento na Sympla (não conta ainda):</b> {int(pedidos.length)}{" "}
+        {pedidos.length === 1 ? "pedido" : "pedidos"}, {brl(valor)}. Entra quando o pagamento for aprovado e sai se for cancelado.
+      </p>
+      {paraConferir.length > 0 && (
+        <p className="text-warn">
+          Para conferir na Sympla: {paraConferir.map((p) => `${p.id} (há ${p.dias} dias)`).join(" · ")}. Pendente há mais de{" "}
+          {DIAS_PARA_CONFERIR} dias pode já ter sido pago, e a Sympla não avisa o painel.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // Fatia em destaque no hover: engrossa um pouco, como no ds-summit.
 function FatiaAtiva(props: any) {
   return <Sector {...props} outerRadius={props.outerRadius + 6} />;
@@ -144,8 +167,11 @@ export function IssuedTicketsCard({
   emitidosAnterior,
   emitidosAtual,
   quando = "na mesma data (aprovados)",
+  aguardando = [],
   className,
 }: {
+  // Pedidos da Sympla sem ingresso gravado, para o aviso de vendas aguardando pagamento.
+  aguardando?: { order_data: any }[];
   tickets: Ticket[];
   goal?: MetaEmitidos;
   // Ingressos aprovados (pagos, faturados e cortesias) até hoje e no evento anterior na mesma data.
@@ -254,6 +280,7 @@ export function IssuedTicketsCard({
           })}
         </div>
         <FaturadosNoCrm tickets={tickets} />
+        <AguardandoPagamento rows={aguardando} />
         <CompareLine className="md:col-span-2" anterior={emitidosAnterior} atual={emitidosAtual ?? 0} quando={quando} />
         {goal && Number(goal.target_value) > 0 && (
           <GoalMeter
