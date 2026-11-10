@@ -8,8 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { eventRef, type DetailRow } from "@/lib/buyers";
-import { currentBuyers } from "@/lib/currentBuyers";
-import { personBySeller } from "@/lib/coupons";
+import { currentBuyers, faturadosDasVendas } from "@/lib/currentBuyers";
 
 // Lista da equipe: só quem já comprou o evento selecionado (Sympla + faturados). Atualiza sozinha.
 const CINCO_MIN = 5 * 60 * 1000;
@@ -31,15 +30,8 @@ export function SellerBuyerList() {
   const vendas = useAllTimeTicketSales(event.sympla_event_id ?? "");
 
   const linhas = useMemo(() => {
-    const todas = (vendas.data ?? []) as any[];
     // Faturado: na coluna Cupom aparece quem vendeu (nome cadastrado em Cupons, ex. "Leticia B", ou o primeiro nome).
-    const faturados = todas
-      .filter((t) => t.source === "pipedrive")
-      .map((t) => ({ ...t, seller_name: personBySeller(t.seller)?.name.trim() || t.seller_name || null }));
-    const resgatados: Record<string, number> = {};
-    todas.forEach((t) => {
-      if (t.redeems && String(t.status).toLowerCase() === "approved") resgatados[t.redeems] = (resgatados[t.redeems] ?? 0) + (Number(t.quantity) || 1);
-    });
+    const { faturados, resgatados } = faturadosDasVendas((vendas.data ?? []) as any[]);
     return currentBuyers(participantes.data ?? [], faturados, resgatados);
   }, [participantes.data, vendas.data]);
 

@@ -129,15 +129,7 @@ export function currentBuyers(rows: DetailRow[], invoiced: InvoicedTicket[], red
     });
   }
 
-  const negocios = new Map<string, { qtd: number; empresa: string | null; titulo: string; vendedor: string | null }>();
-  for (const t of invoiced) {
-    if (!aprovado(t.status)) continue;
-    const n = negocios.get(t.deal_id) ?? { qtd: 0, empresa: t.company ?? null, titulo: String(t.deal_title ?? ""), vendedor: null };
-    n.qtd += Number(t.quantity) || 1;
-    n.vendedor ??= t.seller_name?.trim() || null;
-    negocios.set(t.deal_id, n);
-  }
-  for (const [id, n] of negocios) {
+  for (const [id, n] of negociosFaturados(invoiced)) {
     const faltam = n.qtd - (redeemed[id] ?? 0);
     if (faltam <= 0) continue;
     const empresa = n.empresa ? titleCase(n.empresa) : null;
