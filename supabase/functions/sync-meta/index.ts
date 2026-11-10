@@ -148,6 +148,7 @@ Deno.serve(async (req) => {
 
     // 5. Fetch day by day
     const allRows: any[] = [];
+    const fetchedDates: string[] = [];
     const failedDays: string[] = [];
     const partialDays: string[] = [];
     const allActionTypes = new Set<string>();
@@ -167,6 +168,7 @@ Deno.serve(async (req) => {
           }
         }
         allRows.push(...rows);
+        fetchedDates.push(date);
         console.log(`sync-meta - day ${date}: ${rows.length} rows with actions ✓`);
       } catch (err) {
         console.warn(`sync-meta - day ${date} failed with actions: ${err instanceof Error ? err.message.slice(0, 150) : String(err)}`);
@@ -194,6 +196,7 @@ Deno.serve(async (req) => {
           }
         }
         allRows.push(...rows);
+        fetchedDates.push(date);
         console.log(`sync-meta - day ${date}: retry succeeded with actions ✓`);
       } catch (_err) {
         stillFailedDays.push(date);
@@ -211,6 +214,7 @@ Deno.serve(async (req) => {
           date,
         });
         allRows.push(...rows);
+        fetchedDates.push(date);
         partialDays.push(date);
         console.log(`sync-meta - day ${date}: ${rows.length} rows WITHOUT actions (partial)`);
       } catch (err) {
@@ -277,6 +281,55 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+const findAction = (actions: any[], type: string) =>
+  parseInt(actions.find((a: any) => a.action_type === type)?.value || "0") || 0;
+
+// Converte uma linha da API (nível conjunto de anúncios, um dia) no formato de ad_metrics.
+function mapRow(r: any) {
+      const actions: any[] = r.actions || [];
+
+      const inlineLinkClicks = parseInt(r.inline_link_clicks ?? "0") || 0;
+      const linkClicksFromActions = findAction(actions, "link_click");
+      const linkClicks = linkClicksFromActions > 0 ? linkClicksFromActions : inlineLinkClicks;
+
+      const purchaseCount = findAction(actions, "purchase");
+      const messagesCount = findAction(actions, "onsite_conversion.messaging_conversation_started_7d");
+      const addToCartCount = findAction(actions, "add_to_cart");
+      const leadCount = findAction(actions, "lead");
+      const remarketingCount = findAction(actions, "offsite_conversion.fb_pixel_custom");
+      const postEngagement = findAction(actions, "post_engagement");
+
+      const impressions = parseInt(r.impressions ?? "0") || 0;
+      const totalClicks = parseInt(r.clicks ?? "0") || 0;
+      const spendVal = parseFloat(r.spend ?? "0") || 0;
+      const cpmVal = impressions > 0 ? (spendVal / impressions) * 1000 : 0;
+      const ctrVal = impressions > 0 ? (linkClicks / impressions) * 100 : 0;
+      const cpcVal = linkClicks > 0 ? spendVal / linkClicks : 0;
+
+      return {
+        source: "meta",
+        date: r.date_start,
+        campaign_id: r.campaign_id ?? "",
+        campaign_name: r.campaign_name ?? null,
+        ad_set_id: r.adset_id || "",
+        ad_set_name: r.adset_name ?? null,
+        impressions,
+        clicks: totalClicks,
+        link_clicks: linkClicks,
+        purchases: purchaseCount,
+        messages: messagesCount,
+        add_to_cart: addToCartCount,
+        remarketing_qualified: remarketingCount,
+        post_engagement: postEngagement,
+        spend: spendVal,
+        ctr: ctrVal,
+        cpc: cpcVal,
+        cpm: cpmVal,
+        conversions: purchaseCount + leadCount,
+        synced_at: new Date().toISOString(),
+      };
+    }
 
 // Fetch insights for a single day
 async function fetchDayInsights({
