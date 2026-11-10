@@ -11,6 +11,8 @@ import { CompareToggle } from "@/components/CompareToggle";
 import { PeriodSelector } from "@/components/dashboard/PeriodSelector";
 import { usePeriod } from "@/hooks/usePeriod";
 import { MarketingTabs } from "@/components/marketing/MarketingTabs";
+import { SalesStatement } from "@/components/buyers/SalesStatement";
+import { useAuth } from "@/hooks/useAuth";
 import {
   getWholeRange,
   useAdMetrics,
@@ -54,6 +56,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
   const [range, setRange] = usePeriod();
 
   const { event, events, isLoading: eventLoading } = useEvent();
+  const { isAdmin } = useAuth();
   // Ano do evento anterior (o que a comparação usa); vazio quando não há evento anterior.
   const anterior = events.find((e) => e.slug === event.previous_event_slug);
   const rotuloAnterior = anterior ? anterior.name.match(/\b(20\d{2})\b/)?.[1] ?? anterior.end_date.slice(0, 4) : "";
@@ -116,6 +119,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
                   eventParams={eventParams}
                 />
                 <CommercialSegments tickets={periodTickets} goals={eventGoals} />
+                {isAdmin && <SalesStatement tickets={periodTickets} />}
               </div>
             )}
           </div>

@@ -10,7 +10,6 @@ import { SlidingTabsList } from "@/components/dashboard/SlidingTabsList";
 import { ProfileCharts } from "@/components/buyers/ProfileCharts";
 import { PeopleTable } from "@/components/buyers/PeopleTable";
 import { SellerBuyerList } from "@/components/buyers/SellerBuyerList";
-import { SalesStatement } from "@/components/buyers/SalesStatement";
 import { useAllTimeTicketSales, useFormAnswerCounts } from "@/hooks/useDashboardData";
 import { useBuyersData } from "@/hooks/useBuyersData";
 
@@ -80,7 +79,6 @@ function FullBuyers() {
             {[
               ["perfil", "Perfil"],
               ["pessoas", "Pessoas"],
-              ["vendas", "Vendas"],
             ].map(([v, l]) => (
               <TabsTrigger key={v} value={v} className="relative z-[1] data-[state=active]:bg-transparent data-[state=active]:text-background">
                 {l}
@@ -113,11 +111,6 @@ function FullBuyers() {
           </TabsContent>
         )}
 
-        {isAdmin && (
-          <TabsContent value="vendas" className="mt-0">
-            {perfilTickets.isLoading ? <Skeleton className="h-96" /> : <SalesStatement tickets={perfilTickets.data ?? []} />}
-          </TabsContent>
-        )}
       </Tabs>
     </div>
   );
