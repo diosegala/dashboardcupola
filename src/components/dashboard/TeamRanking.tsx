@@ -458,10 +458,10 @@ export function TeamStanding({ data, eu }: { data: TeamRankingData; eu: Eu }) {
       <div className="col-span-12 grid gap-[14px] sm:grid-cols-2 lg:col-span-7">
         <Card className="flex flex-col gap-3 p-5">
           <UsersRound className="h-5 w-5 text-data-blue" />
-          <div className="text-[13px] font-semibold">Chame quem já veio</div>
-          <p className="flex-1 text-[13px] text-muted-foreground">Quem participou de edições anteriores e ainda não comprou é o caminho mais curto para a próxima venda.</p>
+          <div className="text-[13px] font-semibold">Quem já comprou</div>
+          <p className="flex-1 text-[13px] text-muted-foreground">A lista de quem já garantiu ingresso para este evento, na Sympla ou em venda faturada. Busque por nome ou empresa antes de chamar alguém.</p>
           <Button asChild variant="outline" size="sm" className="w-fit rounded-full">
-            <Link to="/compradores">Abrir a lista</Link>
+            <Link to="/compradores">Ver compradores</Link>
           </Button>
         </Card>
         <Card className="flex flex-col gap-3 p-5">
