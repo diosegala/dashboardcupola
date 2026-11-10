@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { incompleteOrders, invoiceCompany, keepsTicket, mergeParticipants, participantPrice, participantsToCancel } from "../../supabase/functions/_shared/sympla-rules";
+import { incompleteOrders, invoiceCompany, keepsTicket, mergeOrders, mergeParticipants, partialSyncMessage, participantPrice, participantsToCancel } from "../../supabase/functions/_shared/sympla-rules";
 
 // A sincronização da Sympla só grava participantes reais: não há estimativa de ingressos sem participante.
 describe("regras da Sympla", () => {
@@ -51,6 +51,34 @@ describe("regras da Sympla", () => {
     expect(stats.descartada).toBe(true);
     // Evento novo, sem nada gravado: a 1.6.0 entra inteira.
     expect(mergeParticipants([], atual, new Map(), new Set()).participants).toHaveLength(1);
+  });
+
+  // Caso de 10/11/2026: pedido aprovado de 07/11 com 2 ingressos que a lista de pedidos da 1.5.1 não trazia.
+  it("junta pedidos da 1.5.1 e da 1.6.0, e o pedido que só a 1.6.0 traz é conferido um a um", () => {
+    const legado = [{ id: "35EA3BUZNT2", order_status: "A", order_total_net_value: 2376.69, discount_code: "LETICIAC5" }];
+    const atual = [
+      { id: "35EA3BUZNT2", order_status: "A", discount_code: null },
+      { id: "35EA3BUMQ1S", order_status: "A", order_total_net_value: 1667.86 },
+    ];
+    const { orders, stats } = mergeOrders(legado, atual);
+    expect([...orders.keys()]).toEqual(["35EA3BUZNT2", "35EA3BUMQ1S"]);
+    expect(orders.get("35EA3BUZNT2")!.discount_code).toBe("LETICIAC5"); // nulo da 1.6.0 não apaga o cupom
+    expect(stats).toEqual({ pedidos_1_6_0: 2, reconhecidos: 1, novos: 1, descartada: false });
+    const participantes = [1, 2, 3].map(() => ({ order_id: "35EA3BUZNT2", ticket_sale_price: 792.23 }));
+    expect(incompleteOrders([...orders.values()], participantes).map((o) => o.id)).toEqual(["35EA3BUMQ1S"]);
+  });
+
+  it("descarta os pedidos da 1.6.0 quando nenhum id bate com a 1.5.1", () => {
+    const { orders, stats } = mergeOrders([{ id: "35EA3BUZNT2" }], [{ id: 12345 }]);
+    expect([...orders.keys()]).toEqual(["35EA3BUZNT2"]);
+    expect(stats.descartada).toBe(true);
+    // Sem a 1.5.1, a 1.6.0 entra inteira.
+    expect(mergeOrders([], [{ id: "X" }]).orders.size).toBe(1);
+  });
+
+  it("aviso de sincronização parcial só quando falta ingresso", () => {
+    expect(partialSyncMessage([])).toBeNull();
+    expect(partialSyncMessage(["35EA3BUMQ1S"])).toMatch(/^Sync parcial: 1 pedido\(s\).*35EA3BUMQ1S/);
   });
 
   it("guarda confirmados e pendentes, como a Sympla mostra", () => {
