@@ -331,22 +331,31 @@ function mapRow(r: any) {
       };
     }
 
-// Fetch insights for a single day
-async function fetchDayInsights({
+// Busca um dia só (atualização dos últimos 30 dias).
+function fetchDayInsights({ accountId, accessToken, fields, date }: { accountId: string; accessToken: string; fields: string; date: string }) {
+  return fetchInsights({ accountId, accessToken, fields, since: date, until: date, daily: false });
+}
+
+// Busca um período; com daily=true a API devolve uma linha por dia (time_increment=1).
+async function fetchInsights({
   accountId,
   accessToken,
   fields,
-  date,
+  since,
+  until,
+  daily,
 }: {
   accountId: string;
   accessToken: string;
   fields: string;
-  date: string;
+  since: string;
+  until: string;
+  daily: boolean;
 }): Promise<any[]> {
   const rows: any[] = [];
   let afterCursor: string | null = null;
 
-  const timeRange = JSON.stringify({ since: date, until: date });
+  const timeRange = JSON.stringify({ since, until });
 
   while (true) {
     const params = new URLSearchParams({
@@ -355,6 +364,7 @@ async function fetchDayInsights({
       time_range: timeRange,
       limit: "500",
     });
+    if (daily) params.set("time_increment", "1");
     if (afterCursor) params.set("after", afterCursor);
 
     const url = `https://graph.facebook.com/v22.0/${accountId}/insights?${params}`;
