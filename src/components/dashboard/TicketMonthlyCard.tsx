@@ -1,6 +1,9 @@
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { VALOR_LIQUIDO_SYMPLA } from "@/lib/metricInfo";
 import { Bar, CartesianGrid, Cell, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { InfoTip } from "@/components/InfoTip";
 import { ChartLegend } from "./charts/ChartLegend";
 import { PREVIOUS_YEAR_KEY, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
@@ -17,6 +20,7 @@ const int = (n: number) => n.toLocaleString("pt-BR");
 
 // Faturamento de ingressos mês a mês: Sympla e faturados empilhados, acumulado, quantidade e ano anterior.
 export function TicketMonthlyCard({ className, meses, filtrado }: { className?: string; meses: TicketMonth[]; filtrado?: boolean }) {
+  const [tabelaAberta, setTabelaAberta] = useState(false);
   const { ativo: comparar, rotulo } = useCompare();
   const series = useSeriesVisibility();
   const temAnterior = meses.some((m) => m.anoAnterior !== null);
