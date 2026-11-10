@@ -37,7 +37,7 @@ export function SellerHome() {
         </div>
       ) : (
         <>
-          <TeamStanding data={ranking} eu={eu} eventName={event.name} />
+          <TeamStanding data={ranking} eu={eu} />
           {ranking.lotes.some((l) => l.ranking.length > 0) ? (
             <TeamRanking data={ranking} eu={eu} metaPorPessoa={metaEquipe ? Number(metaEquipe.target_value) : null} />
           ) : (

@@ -1,15 +1,14 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { subDays } from "date-fns";
-import { toast } from "sonner";
-import { ChevronDown, ChevronUp, Copy, Flame, Trophy, UsersRound } from "lucide-react";
+import { ChevronDown, ChevronUp, Flame, Trophy, UsersRound } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Chip } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
-import { TEAM_DISCOUNT, isOutsideRanking, getCouponPeople, outsideTeamBySeller, parseCoupon, personBySeller, teamMemberName } from "@/lib/coupons";
+import { isOutsideRanking, getCouponPeople, outsideTeamBySeller, parseCoupon, personBySeller, teamMemberName } from "@/lib/coupons";
 import { couponForSeller } from "@/lib/invoicedTickets";
 import { PRE_VENDA, batchOf, batchOrder } from "@/lib/batches";
 import { batchCalendar, loteVigente, type BatchDates } from "@/lib/batchCalendar";
@@ -407,14 +406,13 @@ export function TeamRanking({ data, eu: euProp, metaPorPessoa, className, gerenc
 const plural = (n: number, um: string, varios: string) => `${int(n)} ${n === 1 ? um : varios}`;
 
 // Painel da pessoa da equipe: onde ela está no lote atual, quanto falta para subir e o que fazer agora.
-export function TeamStanding({ data, eu, eventName }: { data: TeamRankingData; eu: Eu; eventName: string }) {
+export function TeamStanding({ data, eu }: { data: TeamRankingData; eu: Eu }) {
   const lote = data.lotes.find((l) => l.lote === data.loteAtual);
   const ranking = lote?.ranking ?? [];
   const minha = eu ? ranking.find((v) => v.nome === eu.nome) : undefined;
   const pos = minha ? posicaoDe(ranking, minha) : null;
   const lider = ranking[0];
   const vitorias = eu ? data.campeoes.find((c) => c.nome === eu.nome)?.lotes.length ?? 0 : 0;
-  const cupom = eu?.cupons.find((c) => c !== FATURADO_LABEL);
 
   // Quanto falta para passar a pessoa logo acima (ou o líder, se já estiver perto).
   const acima = minha ? [...ranking].reverse().find((v) => v.vendas > minha.vendas) : undefined;
@@ -430,17 +428,6 @@ export function TeamStanding({ data, eu, eventName }: { data: TeamRankingData; e
     const faltam = acima.vendas - minha.vendas + 1;
     mensagem = `Faltam ${plural(faltam, "venda", "vendas")} para passar ${acima.nome}${lider && lider.nome !== acima.nome ? ` e ${plural(lider.vendas - minha.vendas + 1, "venda", "vendas")} para a liderança` : ""}.`;
   } else mensagem = "Continue: cada venda conta.";
-
-  const copiarConvite = async () => {
-    if (!cupom) return;
-    const texto = `Garanta seu ingresso para o ${eventName} com ${TEAM_DISCOUNT}% de desconto usando o meu cupom ${cupom}.`;
-    try {
-      await navigator.clipboard.writeText(texto);
-      toast.success("Convite copiado", { description: "Cole no WhatsApp, no e-mail ou onde preferir." });
-    } catch {
-      toast.error("Não deu para copiar", { description: texto });
-    }
-  };
 
   const ritmo = minha && lider && lider.nome !== minha.nome
     ? `Nos últimos 7 dias, ${lider.nome} vendeu ${int(lider.recentes)} e você ${int(minha.recentes)}.`
@@ -468,23 +455,13 @@ export function TeamStanding({ data, eu, eventName }: { data: TeamRankingData; e
         )}
       </Card>
 
-      <div className="col-span-12 grid gap-[14px] sm:grid-cols-3 lg:col-span-7">
+      <div className="col-span-12 grid gap-[14px] sm:grid-cols-2 lg:col-span-7">
         <Card className="flex flex-col gap-3 p-5">
           <UsersRound className="h-5 w-5 text-data-blue" />
           <div className="text-[13px] font-semibold">Chame quem já veio</div>
           <p className="flex-1 text-[13px] text-muted-foreground">Quem participou de edições anteriores e ainda não comprou é o caminho mais curto para a próxima venda.</p>
           <Button asChild variant="outline" size="sm" className="w-fit rounded-full">
             <Link to="/compradores">Abrir a lista</Link>
-          </Button>
-        </Card>
-        <Card className="flex flex-col gap-3 p-5">
-          <Copy className="h-5 w-5 text-data-blue" />
-          <div className="text-[13px] font-semibold">Seu cupom {cupom && <span className="font-mono">{cupom}</span>}</div>
-          <p className="flex-1 text-[13px] text-muted-foreground">
-            {cupom ? `Dá ${TEAM_DISCOUNT}% de desconto. Toda venda com ele conta para você.` : "Seu cupom ainda não foi cadastrado."}
-          </p>
-          <Button variant="outline" size="sm" className="w-fit rounded-full" disabled={!cupom} onClick={copiarConvite}>
-            Copiar convite
           </Button>
         </Card>
         <Card className="flex flex-col gap-3 p-5">
