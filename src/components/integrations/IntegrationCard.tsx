@@ -46,7 +46,9 @@ export function IntegrationRow({ integration, isAdmin, onToggle, onSync, onSaveC
           ? "A última atualização parou no meio. O próximo agendamento tenta de novo sozinho."
           : saude.estado === "atrasada"
             ? "Faz tempo que não atualiza. Use o botão de atualizar ou confira as credenciais."
-            : null;
+            : saude.estado === "desligada" && integration.error_message
+              ? `Desligada até resolver: ${explicarErro(integration.name, integration.error_message)}`
+              : null;
 
   const ultima = integration.last_synced_at
     ? `Atualizada ${formatDistanceToNow(new Date(integration.last_synced_at), { addSuffix: true, locale: ptBR })}`
@@ -69,9 +71,10 @@ export function IntegrationRow({ integration, isAdmin, onToggle, onSync, onSaveC
             <b className="text-[15px] font-semibold">{label}</b>
             <Chip variant={saude.variant}>{saude.label}</Chip>
           </div>
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">{info?.traz}</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">{info?.traz}</p>
         </div>
 
+        <div className="flex w-full items-center justify-between gap-4 sm:w-auto">
         <div className="min-w-0 text-sm text-muted-foreground sm:text-right">
           <div className="text-foreground/80">{ultima}</div>
           <div className="text-xs">
@@ -79,7 +82,7 @@ export function IntegrationRow({ integration, isAdmin, onToggle, onSync, onSaveC
           </div>
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="flex shrink-0 items-center gap-1.5">
           {isAdmin && integration.is_active && (
             <Button
               size="icon"
@@ -112,13 +115,18 @@ export function IntegrationRow({ integration, isAdmin, onToggle, onSync, onSaveC
             className="ml-1.5"
           />
         </div>
+        </div>
       </div>
 
       {aviso && (
         <div
           className={cn(
             "flex items-start gap-2 rounded-xl px-3.5 py-2.5 text-sm sm:ml-[60px]",
-            saude.estado === "erro" ? "bg-bad-bg text-bad" : "bg-warn-bg text-warn",
+            saude.estado === "erro"
+              ? "bg-bad-bg text-bad"
+              : saude.estado === "desligada"
+                ? "bg-secondary text-foreground/75"
+                : "bg-warn-bg text-warn",
           )}
           title={integration.error_message ?? undefined}
         >
