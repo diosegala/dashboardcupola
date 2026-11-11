@@ -1,13 +1,14 @@
-import { Fragment, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { format } from "date-fns";
 import { ChevronDown, ExternalLink, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { lotesParaLista } from "@/lib/batches";
-import { agruparVendas, type Venda } from "@/lib/salesStatement";
+import { vendasDoExtrato, type Venda } from "@/lib/salesStatement";
 import { VALOR_LIQUIDO_SYMPLA } from "@/lib/metricInfo";
 import { cn } from "@/lib/utils";
 
@@ -19,6 +20,17 @@ const ORIGENS = [
   { key: "faturado", label: "Faturados" },
 ] as const;
 const TODOS = "__todos";
+const POR_PAGINA = 25;
+// Mesmas colunas no cabeçalho e nas linhas: venda, ingressos, (lote a partir de sm) e valor. Ocupa a largura toda.
+const GRADE = "grid grid-cols-[minmax(0,1fr)_96px_92px] sm:grid-cols-[minmax(0,1fr)_120px_72px_104px] items-center gap-x-3";
+
+// Etiqueta só para venda com problema: aprovada segue sem nada.
+const COR_STATUS: Record<string, string> = {
+  Pendente: "bg-warn-bg text-warn",
+  "Não pago": "bg-secondary text-muted-foreground",
+  Cancelado: "bg-bad-bg text-bad",
+  Estornado: "bg-bad-bg text-bad",
+};
 
 // Detalhe da venda, aberto ao clicar na linha: o que identifica a venda e de onde ela veio.
 function Detalhe({ v }: { v: Venda }) {
@@ -42,7 +54,12 @@ function Detalhe({ v }: { v: Venda }) {
     ["Pagamento", v.pagamento ?? "—"],
   ];
   return (
-    <dl className="grid gap-x-6 gap-y-2 px-3 pb-3 pt-1 text-xs sm:grid-cols-2 lg:grid-cols-3">
+    <dl className="grid gap-x-6 gap-y-2 border-t border-dashed px-3 pb-3 pt-2.5 text-xs sm:grid-cols-2 lg:grid-cols-3">
+      {v.status && (
+        <p className="text-muted-foreground sm:col-span-2 lg:col-span-3">
+          {v.status === "Pendente" ? "Aguardando pagamento: não conta nas vendas até ser aprovado." : `${v.status}: não conta nas vendas.`}
+        </p>
+      )}
       {itens.map(([rotulo, valor]) => (
         <div key={rotulo} className="min-w-0">
           <dt className="text-[11px] text-muted-foreground">{rotulo}</dt>
@@ -53,16 +70,17 @@ function Detalhe({ v }: { v: Venda }) {
   );
 }
 
-// Extrato: uma linha por venda paga (pedido da Sympla ou negócio faturado), da mais recente para a mais antiga.
-// Fica fechado até alguém abrir; o detalhe de cada venda abre ao clicar na linha.
-export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
+// Extrato: uma linha por venda (pedido da Sympla ou negócio faturado), da mais recente para a mais antiga.
+// Vendas canceladas, estornadas ou aguardando pagamento aparecem com etiqueta e ficam fora dos totais.
+export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: Ticket[]; pedidosSemIngresso?: { order_data: any }[] }) {
   const [aberto, setAberto] = useState(false);
   const [origem, setOrigem] = useState<(typeof ORIGENS)[number]["key"]>("todas");
   const [lote, setLote] = useState(TODOS);
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<string | null>(null);
+  const [limite, setLimite] = useState(POR_PAGINA);
 
-  const vendas = useMemo(() => agruparVendas(splitTickets(tickets).paying), [tickets]);
+  const vendas = useMemo(() => vendasDoExtrato(splitTickets(tickets).paying, tickets, pedidosSemIngresso), [tickets, pedidosSemIngresso]);
   const lotes = useMemo(() => lotesParaLista(vendas.map((v) => v.lote).filter((l) => l !== "—")), [vendas]);
 
   const termo = busca.trim().toLowerCase();
@@ -72,8 +90,11 @@ export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
       (lote === TODOS || v.lote === lote) &&
       (!termo || v.texto.includes(termo)),
   );
-  const ingressos = visiveis.reduce((s, v) => s + v.quantidade, 0);
-  const receita = visiveis.reduce((s, v) => s + v.valor, 0);
+  const pagas = visiveis.filter((v) => !v.status);
+  const ingressos = pagas.reduce((s, v) => s + v.quantidade, 0);
+  const receita = pagas.reduce((s, v) => s + v.valor, 0);
+  const comProblema = visiveis.length - pagas.length;
+  const filtrar = <T,>(set: (x: T) => void) => (x: T) => { set(x); setLimite(POR_PAGINA); setAberta(null); };
 
   return (
     <Collapsible open={aberto} onOpenChange={setAberto}>
@@ -82,7 +103,8 @@ export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
           <div>
             <p className="text-sm font-semibold">Extrato de vendas</p>
             <p className="text-xs tabular-nums text-muted-foreground">
-              {int(visiveis.length)} vendas · {int(ingressos)} ingressos · {brl(receita)}
+              {int(pagas.length)} vendas · {int(ingressos)} ingressos · {brl(receita)}
+              {comProblema > 0 && ` · ${int(comProblema)} com pendência`}
             </p>
           </div>
           <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", aberto && "rotate-180")} />
@@ -92,21 +114,21 @@ export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <div className="relative w-full sm:w-64">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-              <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar venda" className="h-9 rounded-full bg-card pl-8 text-xs" />
+              <Input value={busca} onChange={(e) => filtrar(setBusca)(e.target.value)} placeholder="Buscar venda" className="h-9 rounded-full bg-card pl-8 text-xs" />
             </div>
             <div className="inline-flex items-center gap-0.5 rounded-full border bg-secondary p-1">
               {ORIGENS.map((o) => (
                 <button
                   key={o.key}
                   type="button"
-                  onClick={() => setOrigem(o.key)}
+                  onClick={() => filtrar(setOrigem)(o.key)}
                   className={cn("rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150", origem === o.key ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
                 >
                   {o.label}
                 </button>
               ))}
             </div>
-            <Select value={lote} onValueChange={setLote}>
+            <Select value={lote} onValueChange={filtrar(setLote)}>
               <SelectTrigger className={cn("h-9 w-[150px] rounded-full bg-card text-xs", lote !== TODOS && "border-foreground")}><SelectValue /></SelectTrigger>
               <SelectContent>
                 {lotes.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
@@ -115,65 +137,56 @@ export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
             </Select>
           </div>
 
-          <div className="mt-4 max-h-[560px] overflow-auto rounded-xl border">
-            <table className="w-full table-fixed text-[13px] tabular-nums">
-              <colgroup>
-                <col />
-                <col className="w-[104px]" />
-                <col className="hidden w-[72px] sm:table-column" />
-                <col className="w-[100px]" />
-              </colgroup>
-              <thead className="sticky top-0 z-[1] bg-secondary text-[11px] uppercase tracking-wide text-muted-foreground">
-                <tr>
-                  <th className="px-3 py-2 text-left font-medium">Venda</th>
-                  <th className="px-3 py-2 text-left font-medium">Ingressos</th>
-                  <th className="hidden px-3 py-2 text-left font-medium sm:table-cell">Lote</th>
-                  <th className="px-3 py-2 text-right font-medium">Valor</th>
-                </tr>
-              </thead>
-              <tbody>
-                {visiveis.length === 0 ? (
-                  <tr><td colSpan={4} className="py-8 text-center text-sm text-muted-foreground">Nenhuma venda encontrada.</td></tr>
-                ) : (
-                  visiveis.map((v) => {
-                    const estaAberta = aberta === v.chave;
-                    return (
-                      <Fragment key={v.chave}>
-                        <tr
-                          onClick={() => setAberta(estaAberta ? null : v.chave)}
-                          className={cn("cursor-pointer border-t transition-colors duration-150 hover:bg-secondary/60", estaAberta && "bg-secondary/60")}
-                        >
-                          <td className="min-w-0 px-3 py-2" title={v.cliente}>
-                            <span className="block truncate font-medium">{v.cliente}</span>
-                            <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                              <span className={cn("rounded-full px-1.5 text-[10px] font-semibold", v.faturado ? "bg-primary/25 text-accent-text" : "bg-secondary")}>
-                                {v.faturado ? "Faturado" : "Sympla"}
-                              </span>
-                              {v.data ? format(new Date(v.data), "dd/MM/yyyy") : "—"}
-                            </span>
-                          </td>
-                          <td className="truncate px-3 py-2.5" title={v.ingressos}>{v.ingressos}</td>
-                          <td className="hidden whitespace-nowrap px-3 py-2.5 sm:table-cell">{v.lote}</td>
-                          <td className="whitespace-nowrap px-3 py-2.5 text-right">
-                            <span className="inline-flex items-center gap-1.5">
-                              {brl(v.valor)}
-                              <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", estaAberta && "rotate-180")} />
-                            </span>
-                          </td>
-                        </tr>
-                        {estaAberta && (
-                          <tr className="bg-secondary/60">
-                            <td colSpan={4}><Detalhe v={v} /></td>
-                          </tr>
-                        )}
-                      </Fragment>
-                    );
-                  })
-                )}
-              </tbody>
-            </table>
+          <div className="mt-4 overflow-hidden rounded-xl border text-[13px] tabular-nums">
+            <div className={cn(GRADE, "bg-secondary px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground")}>
+              <span>Venda</span>
+              <span>Ingressos</span>
+              <span className="hidden sm:block">Lote</span>
+              <span className="text-right">Valor</span>
+            </div>
+            {visiveis.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma venda encontrada.</p>
+            ) : (
+              visiveis.slice(0, limite).map((v) => {
+                const estaAberta = aberta === v.chave;
+                return (
+                  <div key={v.chave} className={cn("border-t", estaAberta && "bg-secondary/60")}>
+                    <button
+                      type="button"
+                      onClick={() => setAberta(estaAberta ? null : v.chave)}
+                      className={cn(GRADE, "w-full px-3 py-2 text-left transition-colors duration-150 hover:bg-secondary/60", v.status && "text-muted-foreground")}
+                    >
+                      <span className="min-w-0" title={v.cliente}>
+                        <span className={cn("block truncate font-medium", !v.status && "text-foreground")}>{v.cliente}</span>
+                        <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <span className={cn("rounded-full px-1.5 text-[10px] font-semibold", v.faturado ? "bg-primary/25 text-accent-text" : "bg-secondary")}>
+                            {v.faturado ? "Faturado" : "Sympla"}
+                          </span>
+                          {v.status && <span className={cn("rounded-full px-1.5 text-[10px] font-semibold", COR_STATUS[v.status] ?? "bg-secondary")}>{v.status}</span>}
+                          {v.data ? format(new Date(v.data), "dd/MM/yyyy") : "—"}
+                        </span>
+                      </span>
+                      <span className="truncate" title={v.ingressos}>{v.ingressos}</span>
+                      <span className="hidden whitespace-nowrap sm:block">{v.lote}</span>
+                      <span className={cn("flex items-center justify-end gap-1.5 whitespace-nowrap", v.status && "line-through decoration-muted-foreground/50")}>
+                        {brl(v.valor)}
+                        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", estaAberta && "rotate-180")} />
+                      </span>
+                    </button>
+                    {estaAberta && <Detalhe v={v} />}
+                  </div>
+                );
+              })
+            )}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Só vendas pagas do período escolhido, sem cortesias nem cancelamentos. Clique numa venda para ver pedido, canal, cupom e vendedor. {VALOR_LIQUIDO_SYMPLA}</p>
+          {visiveis.length > limite && (
+            <Button variant="ghost" size="sm" onClick={() => setLimite((n) => n + POR_PAGINA)} className="mt-2 w-full rounded-full text-xs">
+              Ver mais {int(Math.min(POR_PAGINA, visiveis.length - limite))} de {int(visiveis.length - limite)} restantes
+            </Button>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Vendas pagas do período escolhido, sem cortesias. Cancelada, estornada ou aguardando pagamento aparece com etiqueta e não entra nos totais. Clique numa venda para ver pedido, canal, cupom e vendedor. {VALOR_LIQUIDO_SYMPLA}
+          </p>
         </CollapsibleContent>
       </Card>
     </Collapsible>
