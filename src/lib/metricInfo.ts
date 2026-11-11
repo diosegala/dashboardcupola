@@ -2,7 +2,7 @@
 export const VALOR_LIQUIDO_SYMPLA = "Os valores da Sympla são líquidos: já estão sem a taxa da Sympla (cerca de 6,3% do preço do ingresso). Faturados internos entram pelo valor do produto no negócio.";
 const LOTE_DO_FATURADO = "Faturado interno entra no lote vigente na data de criação do negócio, mesmo que o ganho aconteça depois da virada, porque o preço combinado é o daquele lote.";
 
-// O que cada coluna do card "Padrão, VIP, combo ou grupo" quer dizer.
+// O que cada coluna do card "Vendas por tipo de ingresso" quer dizer.
 export const COLUNAS_CATEGORIA: Record<string, string> = {
   Categoria: "O tipo de ingresso que a pessoa comprou.",
   Ingressos: "Quantos ingressos pagos foram vendidos. Cortesias não contam.",
@@ -45,7 +45,7 @@ export const METRIC_INFO: Record<string, string> = {
   "Pagantes acumulados x meta":
     "Linha cheia: total de pagantes semana a semana. Linha tracejada: trajetória até a meta no dia do evento, distribuída por dias úteis.",
   "Ingressos emitidos":
-    "Todos os ingressos do evento em duas visões. Por categoria: contam na meta os pagos na Sympla (com ou sem cupom de desconto) e os faturados internamente; não contam as cortesias (cupom de 100% na Sympla) e os bonificados dos faturados, as credenciais (equipe, expositores, imprensa, mesmo que tenham valor), os gratuitos sem cupom e os pendentes. Por tipo: Padrão, VIP, combos, Grupo, Visita presencial e Credenciais, pelo nome na Sympla. A visão por lote está no card Lote vigente.",
+    "Quantos ingressos saíram e quantos contam na meta. Contam os pagos na Sympla (com ou sem cupom de desconto) e os faturados internamente; não contam as cortesias (cupom de 100% na Sympla) e os bonificados dos faturados, as credenciais (equipe, expositores, imprensa, mesmo que tenham valor), os gratuitos sem cupom e os pendentes. O filtro de lote vale também para o card Vendas por tipo de ingresso, que mostra o que foi vendido (Padrão, VIP, Combo, Grupo) e quanto rendeu.",
   "Composição":
     "Divide os ingressos emitidos entre os que contam na meta (pagos e faturados) e os bonificados (cortesias, credenciais e gratuitos).",
   "Vendas por dia útil":
@@ -98,8 +98,8 @@ export const METRIC_INFO: Record<string, string> = {
     "Lote à venda agora: começa na primeira venda com o nome dele na Sympla e vale até a primeira venda do lote seguinte. Contam ingressos pagantes do lote; a meta vem de 'Ingressos do lote' na aba Metas. Na aba Por lote: preço, vendidos, saldo, % vendido e receita de cada lote, do mais novo para o mais antigo, 3 por página, com o vigente em destaque. " + LOTE_DO_FATURADO + " " + VALOR_LIQUIDO_SYMPLA,
   "Vendas por lote":
     "Pagantes e receita de cada lote (Pré-venda, Lote 0, Lote 1…). Com meta do lote, aparece a marca da meta. Com a chave de comparação ligada, a linha tracejada mostra o mesmo lote do evento anterior, inteiro. " + LOTE_DO_FATURADO,
-  "Padrão, VIP, combo ou grupo":
-    "Ingressos pagantes do período em uma categoria só, pelo nome do tipo na Sympla. Padrão: ingresso avulso do evento (inclui nomes antigos como \"Ingresso Summit\"). VIP: ingresso VIP avulso. Combo: ingresso com visita. Grupo: ingressos com desconto por quantidade; nos faturados, 2 ou mais Padrão no mesmo negócio. Em Grupo e Combo, passe o mouse para ver quantos são Padrão e quantos VIP (VIP quando o nome tem \"VIP\"). Visita avulsa: só a visita presencial; se veio no mesmo pedido de um ingresso do evento, é o mesmo participante. Pedidos: pedidos da Sympla e negócios do Pipedrive. Valor médio: valor dividido pelos ingressos. " + VALOR_LIQUIDO_SYMPLA,
+  "Vendas por tipo de ingresso":
+    "Só ingressos pagos (sem cortesias), cada um em uma categoria, pelo nome do tipo na Sympla. Complementa o card Ingressos emitidos, que mostra quantos contam na meta. Segue o filtro de lote de Ingressos emitidos. Padrão: ingresso avulso do evento (inclui nomes antigos como \"Ingresso Summit\"). VIP: ingresso VIP avulso. Combo: ingresso com visita. Grupo: ingressos com desconto por quantidade; nos faturados, 2 ou mais Padrão no mesmo negócio. Em Grupo e Combo, passe o mouse para ver quantos são Padrão e quantos VIP (VIP quando o nome tem \"VIP\"). Visita avulsa: só a visita presencial; se veio no mesmo pedido de um ingresso do evento, é o mesmo participante. Pedidos: pedidos da Sympla e negócios do Pipedrive. Valor médio: valor dividido pelos ingressos. " + VALOR_LIQUIDO_SYMPLA,
   "Funil de KPIs":
     "Resultado de cada etapa do funil, do engajamento até a venda, semana a semana e comparado à meta de cada semana.",
   "Funil de Deals por Estágio": "Negócios do CRM em cada estágio do funil comercial.",

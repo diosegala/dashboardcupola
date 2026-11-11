@@ -20,7 +20,7 @@ function detalhe(l: CategoryRow): string | undefined {
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 const CORES = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-3))", "hsl(var(--chart-4))", "hsl(var(--chart-5))"];
-const TITULO = "Padrão, VIP, combo ou grupo";
+const TITULO = "Vendas por tipo de ingresso";
 
 // Cabeçalho da coluna com o "i" que explica o que ela mostra.
 function Th({ children, right = false }: { children: string; right?: boolean }) {
@@ -35,7 +35,8 @@ function Th({ children, right = false }: { children: string; right?: boolean }) 
 }
 
 // Barra de 100% com a tabela servindo de legenda: uma linha por categoria.
-export function CategorySalesCard({ paying, className }: { paying: Ticket[]; className?: string }) {
+// Complementa Ingressos emitidos: lá, quantos saíram e quantos contam na meta; aqui, só os pagos, por tipo, com valor.
+export function CategorySalesCard({ paying, lote, className }: { paying: Ticket[]; lote?: string | null; className?: string }) {
   const linhas = useMemo(() => salesByCategory(paying), [paying]);
   const [hover, setHover] = useState<string | null>(null);
   const total = linhas.reduce((s, l) => s + l.ingressos, 0);
@@ -48,6 +49,9 @@ export function CategorySalesCard({ paying, className }: { paying: Ticket[]; cla
         <CardTitle className="flex items-center gap-2">
           {TITULO} <InfoTip title={TITULO} />
         </CardTitle>
+        <p className="mt-1 text-xs text-muted-foreground">
+          Só ingressos pagos{lote ? ` ${lote === "Pré-venda" ? "da" : "do"} ${lote}` : ""}: Padrão, VIP, Combo e Grupo, com valor e ticket médio
+        </p>
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex h-4 w-full overflow-hidden rounded-full bg-secondary">

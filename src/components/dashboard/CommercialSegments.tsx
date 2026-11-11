@@ -10,7 +10,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMyTeamCoupons } from "@/hooks/useTeam";
 import { eventGoal } from "@/lib/goalMetrics";
 import { cn } from "@/lib/utils";
-import { CategorySalesCard } from "./CategorySalesCard";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 
@@ -278,7 +277,6 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
   // Descontos concedidos agora fica ao lado da Receita acumulada (CommercialOverview).
   return (
     <div className="grid grid-cols-12 gap-[14px]">
-      <CategorySalesCard paying={paying} className="col-span-12" />
       {segmentos.map((s) => (
         <SegmentCard key={s.title} title={s.title} items={s.items} share={"share" in s && s.share} className="col-span-12" />
       ))}
