@@ -10,7 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useTicketTypes } from "@/hooks/useTicketTypes";
 import { useSponsorshipConfig } from "@/hooks/useSponsorship";
 import { CANAIS_DE_VENDA, type GoalDef } from "@/lib/goalMetrics";
-import { batchOf, batchOrder, PRE_VENDA } from "@/lib/batches";
+import { batchOf, batchOrder, lotesParaLista, PRE_VENDA } from "@/lib/batches";
 import { cn } from "@/lib/utils";
 
 export interface GoalEditorValues {
@@ -71,7 +71,7 @@ export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose
   const calendario = [PRE_VENDA, ...(cadastrados.length ? cadastrados : Array.from({ length: 9 }, (_, i) => `Lote ${i}`))];
   const lotesDoCalendario = [...new Set([...calendario, ...(lotes.map(batchOf).filter(Boolean) as string[])])].sort((a, b) => batchOrder(a) - batchOrder(b));
   // Metas por lote (ingressos, receita, canal) usam o lote inteiro, igual aos cards do painel.
-  const opcoesLote = lotesDoCalendario;
+  const opcoesLote = lotesParaLista(lotesDoCalendario);
 
   useEffect(() => {
     if (!open) return;

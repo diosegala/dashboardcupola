@@ -1,4 +1,4 @@
-import { diaBrasilia, loteNaData, type BatchDates } from "@/lib/batchCalendar";
+import { batchCalendar, diaBrasilia, loteNaData, loteVigente, type BatchDates } from "@/lib/batchCalendar";
 // Lote do ingresso a partir do nome da Sympla: "Lote 7 | Ingresso VIP" → "Lote 7"; "Pré-Venda 2027 | ..." → "Pré-venda".
 // A pré-venda vem antes do Lote 0: a ordem de venda é Pré-venda, Lote 0, Lote 1, Lote 2…
 
@@ -64,4 +64,16 @@ export function withBatchByDate<T extends { sold_at?: string | null; batch_at?: 
     const resto = (t.ticket_type ?? "").split("|").slice(1).join("|").trim();
     return { ...t, ticket_type: resto ? `${lote} | ${resto}` : lote };
   });
+}
+
+// Ordem das listas suspensas de lotes: o vigente primeiro, depois os anteriores do mais recente para o mais antigo e,
+// por último, os próximos em ordem. Sem vigente (calendário sem datas), do mais recente para o mais antigo.
+export function lotesParaLista(lotes: string[], vigente: string | null = loteVigente(batchCalendar()).lote): string[] {
+  const unicos = [...new Set(lotes.filter(Boolean))];
+  const ordem = (l: string) => batchOrder(l);
+  if (!vigente || !unicos.includes(vigente)) return unicos.sort((a, b) => ordem(b) - ordem(a));
+  const v = ordem(vigente);
+  const anteriores = unicos.filter((l) => ordem(l) < v).sort((a, b) => ordem(b) - ordem(a));
+  const proximos = unicos.filter((l) => l !== vigente && ordem(l) >= v).sort((a, b) => ordem(a) - ordem(b));
+  return [vigente, ...anteriores, ...proximos];
 }

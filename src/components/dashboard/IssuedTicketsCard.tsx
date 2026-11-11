@@ -11,6 +11,11 @@ import { cn } from "@/lib/utils";
 import { isCancelled } from "@/lib/eventConfig";
 import { GoalMeter } from "@/components/GoalMeter";
 import { CompareLine } from "@/components/CompareLine";
+import { DIAS_PARA_CONFERIR, pendingPayments } from "@/lib/pendingPayments";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { batchOf, lotesParaLista } from "@/lib/batches";
+
+const EVENTO = "__evento";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const pct = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "0%");
@@ -129,6 +134,28 @@ function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
   );
 }
 
+// Vendas da Sympla aguardando pagamento: não contam ainda. Pendente antigo pode já estar pago (a API da Sympla não
+// atualiza o status do boleto ou pix compensado depois), então vai para conferência na Sympla.
+const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+function AguardandoPagamento({ rows }: { rows: { order_data: any }[] }) {
+  const { pedidos, valor, paraConferir } = useMemo(() => pendingPayments(rows), [rows]);
+  if (!pedidos.length) return null;
+  return (
+    <div className="space-y-1.5 rounded-xl border border-dashed px-3 py-2.5 text-xs md:col-span-2">
+      <p className="text-muted-foreground">
+        <b className="font-semibold text-foreground">Aguardando pagamento na Sympla (não conta ainda):</b> {int(pedidos.length)}{" "}
+        {pedidos.length === 1 ? "pedido" : "pedidos"}, {brl(valor)}. Entra quando o pagamento for aprovado e sai se for cancelado.
+      </p>
+      {paraConferir.length > 0 && (
+        <p className="text-warn">
+          Para conferir na Sympla: {paraConferir.map((p) => `${p.id} (há ${p.dias} dias)`).join(" · ")}. Pendente há mais de{" "}
+          {DIAS_PARA_CONFERIR} dias pode já ter sido pago, e a Sympla não avisa o painel.
+        </p>
+      )}
+    </div>
+  );
+}
+
 // Fatia em destaque no hover: engrossa um pouco, como no ds-summit.
 function FatiaAtiva(props: any) {
   return <Sector {...props} outerRadius={props.outerRadius + 6} />;
@@ -144,8 +171,11 @@ export function IssuedTicketsCard({
   emitidosAnterior,
   emitidosAtual,
   quando = "na mesma data (aprovados)",
+  aguardando = [],
   className,
 }: {
+  // Pedidos da Sympla sem ingresso gravado, para o aviso de vendas aguardando pagamento.
+  aguardando?: { order_data: any }[];
   tickets: Ticket[];
   goal?: MetaEmitidos;
   // Ingressos aprovados (pagos, faturados e cortesias) até hoje e no evento anterior na mesma data.
@@ -157,8 +187,17 @@ export function IssuedTicketsCard({
 }) {
   const [visao, setVisao] = useState<"categoria" | "tipo">("categoria");
   const [ativa, setAtiva] = useState<number | null>(null);
+  // Recorte por lote (Pré-venda, Lote 0…). Comparação, meta de emitidos e pendentes são do evento todo: só sem recorte.
+  const [recorte, setRecorte] = useState(EVENTO);
+  const lotes = useMemo(() => {
+    const s = new Set<string>();
+    tickets.forEach((t) => { const b = batchOf(t.ticket_type); if (b) s.add(b); });
+    return lotesParaLista(Array.from(s));
+  }, [tickets]);
+  const lote = recorte === EVENTO || !lotes.includes(recorte) ? null : recorte;
+  const doLote = useMemo(() => (lote ? tickets.filter((t) => batchOf(t.ticket_type) === lote) : tickets), [tickets, lote]);
 
-  const fatias = useMemo(() => (visao === "categoria" ? porCategoria(tickets) : porTipo(tickets)), [tickets, visao]);
+  const fatias = useMemo(() => (visao === "categoria" ? porCategoria(doLote) : porTipo(doLote)), [doLote, visao]);
   const total = fatias.reduce((s, f) => s + f.value, 0);
   const destaque = ativa != null ? fatias[ativa] : null;
 
@@ -171,6 +210,16 @@ export function IssuedTicketsCard({
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">Todos os ingressos do evento e quanto cada parte representa</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {lotes.length > 1 && (
+          <Select value={lote ?? EVENTO} onValueChange={(v) => { setRecorte(v); setAtiva(null); }}>
+            <SelectTrigger className="h-9 w-[140px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {lotes.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+              <SelectItem value={EVENTO}>Evento todo</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <Tabs value={visao} onValueChange={(v) => { setVisao(v as "categoria" | "tipo"); setAtiva(null); }}>
           <SlidingTabsList value={visao} className="h-9">
             <TabsTrigger value="categoria" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
@@ -181,6 +230,7 @@ export function IssuedTicketsCard({
             </TabsTrigger>
           </SlidingTabsList>
         </Tabs>
+        </div>
       </CardHeader>
       <CardContent className="grid items-center gap-4 md:grid-cols-[180px_minmax(0,1fr)]">
         <div className="relative mx-auto h-[180px] w-[180px]">
@@ -253,9 +303,10 @@ export function IssuedTicketsCard({
             );
           })}
         </div>
-        <FaturadosNoCrm tickets={tickets} />
-        <CompareLine className="md:col-span-2" anterior={emitidosAnterior} atual={emitidosAtual ?? 0} quando={quando} />
-        {goal && Number(goal.target_value) > 0 && (
+        <FaturadosNoCrm tickets={doLote} />
+        {!lote && <AguardandoPagamento rows={aguardando} />}
+        {!lote && <CompareLine className="md:col-span-2" anterior={emitidosAnterior} atual={emitidosAtual ?? 0} quando={quando} />}
+        {!lote && goal && Number(goal.target_value) > 0 && (
           <GoalMeter
             className="md:col-span-2"
             actual={fatias.reduce((s, f) => s + f.value, 0)}

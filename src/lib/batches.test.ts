@@ -27,3 +27,11 @@ describe("faturado na virada de lote", () => {
     expect(t.ticket_type).toBe("Lote 0 | Ingresso VIP");
   });
 });
+
+describe("ordem das listas de lotes", () => {
+  it("vigente primeiro, anteriores do mais recente ao mais antigo, próximos em ordem", async () => {
+    const { lotesParaLista } = await import("./batches");
+    expect(lotesParaLista(["Pré-venda", "Lote 0", "Lote 1", "Lote 2", "Lote 3"], "Lote 1")).toEqual(["Lote 1", "Lote 0", "Pré-venda", "Lote 2", "Lote 3"]);
+    expect(lotesParaLista(["Lote 0", "Pré-venda", "Lote 0"], null)).toEqual(["Lote 0", "Pré-venda"]);
+  });
+});

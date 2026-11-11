@@ -346,14 +346,19 @@ Deno.serve(async (req) => {
         .upsert(details.slice(i, i + 500), { onConflict: "sympla_order_id" });
       if (error) throw error;
     }
-    // 5c. Pedidos sem participante (cancelados, recusados, pendentes antigos), para a lista de pedidos a acompanhar.
+    // 5c. Pedidos sem participante (pendentes, cancelados, não pagos), em qualquer status: o painel mostra os que
+    // aguardam pagamento. A cada sincronização o status é regravado, então cancelado ou não pago sai do aviso sozinho.
     const linkedOrders = new Set(allParticipants.map((p: any) => String(p.order_id ?? "")));
-    const orphanOrders = Array.from(ordersById.values())
+    const pedidosDoEvento = new Map<string, any>();
+    todosOsStatus.forEach((o: any) => o?.id != null && pedidosDoEvento.set(String(o.id), o));
+    ordersById.forEach((o: any, id: string) => pedidosDoEvento.set(id, o));
+    const orphanOrders = Array.from(pedidosDoEvento.values())
       .filter((o: any) => !linkedOrders.has(String(o.id)))
       .map((o: any) => ({
         sympla_order_id: `pedido-${o.id}`,
         participant_data: null,
-        order_data: sanitize(o),
+        // event_id permite ao painel achar o pedido do evento (como nos participantes).
+        order_data: sanitize({ ...o, event_id: o.event_id ?? eventId }),
         synced_at: new Date().toISOString(),
       }));
     for (let i = 0; i < orphanOrders.length; i += 500) {

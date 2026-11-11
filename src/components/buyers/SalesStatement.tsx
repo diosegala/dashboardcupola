@@ -1,106 +1,100 @@
 import { useMemo, useState } from "react";
 import { format } from "date-fns";
-import { ChevronDown, ExternalLink, X } from "lucide-react";
+import { ChevronDown, ExternalLink, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
-import { utmTexto } from "@/components/dashboard/CommercialSegments";
-import { batchCalendar, loteNaData } from "@/lib/batchCalendar";
-import { couponCodes, couponLabel, canonicalCoupon, parseCoupon } from "@/lib/coupons";
-import { canalDe } from "@/lib/salesChannel";
-import { saleCode } from "@/lib/salesCategories";
+import { lotesParaLista } from "@/lib/batches";
+import { vendasDoExtrato, type Venda } from "@/lib/salesStatement";
 import { VALOR_LIQUIDO_SYMPLA } from "@/lib/metricInfo";
 import { cn } from "@/lib/utils";
 
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+const int = (n: number) => n.toLocaleString("pt-BR");
 const ORIGENS = [
   { key: "todas", label: "Todas" },
   { key: "sympla", label: "Sympla" },
-  { key: "pipedrive", label: "Faturados" },
+  { key: "faturado", label: "Faturados" },
 ] as const;
 const TODOS = "__todos";
+const POR_PAGINA = 25;
+// Mesmas colunas no cabeçalho e nas linhas: venda, ingressos, (lote a partir de sm) e valor. Ocupa a largura toda.
+const GRADE = "grid grid-cols-[minmax(0,1fr)_96px_92px] sm:grid-cols-[minmax(0,1fr)_120px_72px_104px] items-center gap-x-3";
 
-const linkDe = (t: Ticket) => {
-  const partes = [t.utm_source, t.utm_medium, t.utm_campaign, t.utm_content].map(utmTexto);
-  return t.source === "pipedrive" || !partes[0] ? "—" : partes.map((p) => p || "—").join(" / ");
+// Etiqueta só para venda com problema: aprovada segue sem nada.
+const COR_STATUS: Record<string, string> = {
+  Pendente: "bg-warn-bg text-warn",
+  "Não pago": "bg-secondary text-muted-foreground",
+  Cancelado: "bg-bad-bg text-bad",
+  Estornado: "bg-bad-bg text-bad",
 };
 
-function Filtro({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: string[] }) {
+// Detalhe da venda, aberto ao clicar na linha: o que identifica a venda e de onde ela veio.
+function Detalhe({ v }: { v: Venda }) {
+  const itens: [string, React.ReactNode][] = [
+    [
+      v.faturado ? "Negócio" : "Pedido na Sympla",
+      v.linkNegocio ? (
+        <a href={v.linkNegocio} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4 hover:text-accent-text">
+          #{v.codigo} no Pipedrive <ExternalLink className="h-3 w-3" />
+        </a>
+      ) : (
+        v.codigo ?? "—"
+      ),
+    ],
+    ["Ingresso", v.tiposCompletos.join(" · ") || "—"],
+    ["Lote", v.lote],
+    ["Canal", v.canal],
+    ["Cupom", v.cupom ?? "—"],
+    ...(v.faturado ? [] : ([["Link de divulgação", v.link ?? "Sem link parametrizado"]] as [string, React.ReactNode][])),
+    ["Vendedor", v.vendedor ?? "—"],
+    ["Pagamento", v.pagamento ?? "—"],
+  ];
   return (
-    <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className={cn("h-8 w-auto min-w-[120px] max-w-[200px] rounded-full bg-card text-xs", value !== TODOS && "border-foreground")}>
-        <SelectValue placeholder={label} />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value={TODOS}>{label}: todos</SelectItem>
-        {options.map((o) => <SelectItem key={o} value={o}>{o}</SelectItem>)}
-      </SelectContent>
-    </Select>
+    <dl className="grid gap-x-6 gap-y-2 border-t border-dashed px-3 pb-3 pt-2.5 text-xs sm:grid-cols-2 lg:grid-cols-3">
+      {v.status && (
+        <p className="text-muted-foreground sm:col-span-2 lg:col-span-3">
+          {v.status === "Pendente" ? "Aguardando pagamento: não conta nas vendas até ser aprovado." : `${v.status}: não conta nas vendas.`}
+        </p>
+      )}
+      {itens.map(([rotulo, valor]) => (
+        <div key={rotulo} className="min-w-0">
+          <dt className="text-[11px] text-muted-foreground">{rotulo}</dt>
+          <dd className="break-words">{valor}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
-const unicos = (xs: string[]) => [...new Set(xs.filter((x) => x && x !== "—"))].sort((a, b) => a.localeCompare(b, "pt-BR"));
-
-// Extrato: uma linha por venda paga, da mais recente para a mais antiga, com filtros. Fica fechado até alguém abrir.
-export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
+// Extrato: uma linha por venda (pedido da Sympla ou negócio faturado), da mais recente para a mais antiga.
+// Vendas canceladas, estornadas ou aguardando pagamento aparecem com etiqueta e ficam fora dos totais.
+export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: Ticket[]; pedidosSemIngresso?: { order_data: any }[] }) {
   const [aberto, setAberto] = useState(false);
   const [origem, setOrigem] = useState<(typeof ORIGENS)[number]["key"]>("todas");
-  const [busca, setBusca] = useState("");
-  const [tipo, setTipo] = useState(TODOS);
   const [lote, setLote] = useState(TODOS);
-  const [pessoa, setPessoa] = useState(TODOS);
-  const [canal, setCanal] = useState(TODOS);
+  const [busca, setBusca] = useState("");
+  const [aberta, setAberta] = useState<string | null>(null);
+  const [limite, setLimite] = useState(POR_PAGINA);
 
-  const linhas = useMemo(() => {
-    const lotes = batchCalendar();
-    return splitTickets(tickets).paying
-      .map((t) => {
-        const faturado = t.source === "pipedrive";
-        const codigoCupom = parseCoupon(t.coupon_code)?.code ?? null;
-        const cupom = codigoCupom ? couponLabel(canonicalCoupon(codigoCupom)) : "—";
-        const cupomHover = codigoCupom ? couponCodes(canonicalCoupon(codigoCupom)) : "";
-        const tipoIngresso = faturado ? "Faturado" : t.ticket_type || "—";
-        const descricao = faturado ? t.company || t.deal_title || "Negócio sem nome" : t.ticket_type || "—";
-        const dataLote = (faturado ? (t as any).created_at_source : null) ?? t.sold_at;
-        const loteVenda = dataLote ? loteNaData(String(dataLote), lotes) ?? "—" : "—";
-        const codigo = saleCode(t) ?? "—";
-        const link = linkDe(t);
-        const vendedor = t.seller_name ?? t.seller ?? "—";
-        const canalVenda = canalDe(t);
-        const texto = [descricao, t.company, (t as any).buyer_name, cupom, codigoCupom, codigo, link, vendedor].filter(Boolean).join(" ").toLowerCase();
-        return { t, faturado, cupom, cupomHover, tipoIngresso, descricao, lote: loteVenda, codigo, link, vendedor, canal: canalVenda, texto };
-      })
-      .sort((a, b) => String(b.t.sold_at ?? "").localeCompare(String(a.t.sold_at ?? "")));
-  }, [tickets]);
-
-  const opcoes = useMemo(() => {
-    const ordemLotes = batchCalendar().map((l) => l.name);
-    return {
-      tipos: unicos(linhas.map((l) => l.tipoIngresso)),
-      lotes: unicos(linhas.map((l) => l.lote)).sort((a, b) => ordemLotes.indexOf(b) - ordemLotes.indexOf(a)),
-      pessoas: unicos(linhas.flatMap((l) => [l.cupom, l.vendedor])),
-      canais: unicos(linhas.map((l) => l.canal)),
-    };
-  }, [linhas]);
+  const vendas = useMemo(() => vendasDoExtrato(splitTickets(tickets).paying, tickets, pedidosSemIngresso), [tickets, pedidosSemIngresso]);
+  const lotes = useMemo(() => lotesParaLista(vendas.map((v) => v.lote).filter((l) => l !== "—")), [vendas]);
 
   const termo = busca.trim().toLowerCase();
-  const visiveis = linhas.filter(
-    (l) =>
-      (origem === "todas" || (origem === "pipedrive") === l.faturado) &&
-      (tipo === TODOS || l.tipoIngresso === tipo) &&
-      (lote === TODOS || l.lote === lote) &&
-      (pessoa === TODOS || l.cupom === pessoa || l.vendedor === pessoa) &&
-      (canal === TODOS || l.canal === canal) &&
-      (!termo || l.texto.includes(termo)),
+  const visiveis = vendas.filter(
+    (v) =>
+      (origem === "todas" || (origem === "faturado") === v.faturado) &&
+      (lote === TODOS || v.lote === lote) &&
+      (!termo || v.texto.includes(termo)),
   );
-  const ingressos = visiveis.reduce((s, l) => s + (l.t.quantity ?? 0), 0);
-  const receita = visiveis.reduce((s, l) => s + Number(l.t.total_price || 0), 0);
-  const temFiltro = origem !== "todas" || tipo !== TODOS || lote !== TODOS || pessoa !== TODOS || canal !== TODOS || !!termo;
-  const limpar = () => { setOrigem("todas"); setTipo(TODOS); setLote(TODOS); setPessoa(TODOS); setCanal(TODOS); setBusca(""); };
+  const pagas = visiveis.filter((v) => !v.status);
+  const ingressos = pagas.reduce((s, v) => s + v.quantidade, 0);
+  const receita = pagas.reduce((s, v) => s + v.valor, 0);
+  const comProblema = visiveis.length - pagas.length;
+  const filtrar = <T,>(set: (x: T) => void) => (x: T) => { set(x); setLimite(POR_PAGINA); setAberta(null); };
 
   return (
     <Collapsible open={aberto} onOpenChange={setAberto}>
@@ -108,8 +102,9 @@ export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
         <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 text-left">
           <div>
             <p className="text-sm font-semibold">Extrato de vendas</p>
-            <p className="text-xs text-muted-foreground tabular-nums">
-              {visiveis.length.toLocaleString("pt-BR")} vendas · {ingressos.toLocaleString("pt-BR")} ingressos · {brl(receita)}
+            <p className="text-xs tabular-nums text-muted-foreground">
+              {int(pagas.length)} vendas · {int(ingressos)} ingressos · {brl(receita)}
+              {comProblema > 0 && ` · ${int(comProblema)} com pendência`}
             </p>
           </div>
           <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", aberto && "rotate-180")} />
@@ -117,77 +112,81 @@ export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
 
         <CollapsibleContent>
           <div className="mt-4 flex flex-wrap items-center gap-2">
-            <div className="inline-flex w-fit items-center gap-0.5 rounded-[18px] border bg-secondary p-1">
+            <div className="relative w-full sm:w-64">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Input value={busca} onChange={(e) => filtrar(setBusca)(e.target.value)} placeholder="Buscar venda" className="h-9 rounded-full bg-card pl-8 text-xs" />
+            </div>
+            <div className="inline-flex items-center gap-0.5 rounded-full border bg-secondary p-1">
               {ORIGENS.map((o) => (
                 <button
                   key={o.key}
                   type="button"
-                  onClick={() => setOrigem(o.key)}
-                  className={cn("rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150", origem === o.key ? "bg-foreground text-background" : "text-muted-foreground hover:bg-card hover:text-foreground")}
+                  onClick={() => filtrar(setOrigem)(o.key)}
+                  className={cn("rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150", origem === o.key ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}
                 >
                   {o.label}
                 </button>
               ))}
             </div>
-            <Filtro label="Tipo" value={tipo} onChange={setTipo} options={opcoes.tipos} />
-            <Filtro label="Lote" value={lote} onChange={setLote} options={opcoes.lotes} />
-            <Filtro label="Vendedor / cupom" value={pessoa} onChange={setPessoa} options={opcoes.pessoas} />
-            <Filtro label="Canal" value={canal} onChange={setCanal} options={opcoes.canais} />
-            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar empresa, comprador, pedido ou link" className="h-8 w-full max-w-[280px] rounded-full bg-card text-xs" />
-            {temFiltro && (
-              <Button variant="ghost" size="sm" onClick={limpar} className="h-8 rounded-full text-xs">
-                <X className="mr-1 h-3 w-3" /> Limpar filtros
-              </Button>
-            )}
+            <Select value={lote} onValueChange={filtrar(setLote)}>
+              <SelectTrigger className={cn("h-9 w-[150px] rounded-full bg-card text-xs", lote !== TODOS && "border-foreground")}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {lotes.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+                <SelectItem value={TODOS}>Todos os lotes</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="mt-4 max-h-[560px] overflow-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Data</TableHead>
-                  <TableHead>Origem</TableHead>
-                  <TableHead>Lote</TableHead>
-                  <TableHead>Tipo ou negócio</TableHead>
-                  <TableHead className="text-right">Qtd.</TableHead>
-                  <TableHead className="text-right">Valor</TableHead>
-                  <TableHead>Cupom</TableHead>
-                  <TableHead>Canal</TableHead>
-                  <TableHead>Link</TableHead>
-                  <TableHead>Vendedor</TableHead>
-                  <TableHead>Pedido ou negócio</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visiveis.length === 0 ? (
-                  <TableRow><TableCell colSpan={11} className="py-8 text-center text-sm text-muted-foreground">Nenhuma venda encontrada.</TableCell></TableRow>
-                ) : visiveis.map((l, i) => (
-                  <TableRow key={`${l.codigo}-${i}`}>
-                    <TableCell className="whitespace-nowrap tabular-nums">{l.t.sold_at ? format(new Date(l.t.sold_at), "dd/MM/yyyy") : "—"}</TableCell>
-                    <TableCell>{l.faturado ? "Faturado" : "Sympla"}</TableCell>
-                    <TableCell className="whitespace-nowrap">{l.lote}</TableCell>
-                    <TableCell className="min-w-[200px]">{l.descricao}</TableCell>
-                    <TableCell className="text-right tabular-nums">{l.t.quantity ?? 0}</TableCell>
-                    <TableCell className="whitespace-nowrap text-right tabular-nums">{brl(Number(l.t.total_price || 0))}</TableCell>
-                    <TableCell title={l.cupomHover || undefined}>{l.cupom}</TableCell>
-                    <TableCell className="whitespace-nowrap text-xs">{l.canal}</TableCell>
-                    <TableCell className="min-w-[180px] text-xs text-muted-foreground">{l.link}</TableCell>
-                    <TableCell>{l.vendedor}</TableCell>
-                    <TableCell className="whitespace-nowrap tabular-nums">
-                      {l.faturado && l.t.crm_account ? (
-                        <a href={`https://${l.t.crm_account}.pipedrive.com/deal/${l.codigo}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4">
-                          #{l.codigo} <ExternalLink className="h-3 w-3" />
-                        </a>
-                      ) : (
-                        l.codigo
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className="mt-4 overflow-hidden rounded-xl border text-[13px] tabular-nums">
+            <div className={cn(GRADE, "bg-secondary px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground")}>
+              <span>Venda</span>
+              <span>Ingressos</span>
+              <span className="hidden sm:block">Lote</span>
+              <span className="text-right">Valor</span>
+            </div>
+            {visiveis.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma venda encontrada.</p>
+            ) : (
+              visiveis.slice(0, limite).map((v) => {
+                const estaAberta = aberta === v.chave;
+                return (
+                  <div key={v.chave} className={cn("border-t", estaAberta && "bg-secondary/60")}>
+                    <button
+                      type="button"
+                      onClick={() => setAberta(estaAberta ? null : v.chave)}
+                      className={cn(GRADE, "w-full px-3 py-2 text-left transition-colors duration-150 hover:bg-secondary/60", v.status && "text-muted-foreground")}
+                    >
+                      <span className="min-w-0" title={v.cliente}>
+                        <span className={cn("block truncate font-medium", !v.status && "text-foreground")}>{v.cliente}</span>
+                        <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                          <span className={cn("rounded-full px-1.5 text-[10px] font-semibold", v.faturado ? "bg-primary/25 text-accent-text" : "bg-secondary")}>
+                            {v.faturado ? "Faturado" : "Sympla"}
+                          </span>
+                          {v.status && <span className={cn("rounded-full px-1.5 text-[10px] font-semibold", COR_STATUS[v.status] ?? "bg-secondary")}>{v.status}</span>}
+                          {v.data ? format(new Date(v.data), "dd/MM/yyyy") : "—"}
+                        </span>
+                      </span>
+                      <span className="truncate" title={v.ingressos}>{v.ingressos}</span>
+                      <span className="hidden whitespace-nowrap sm:block">{v.lote}</span>
+                      <span className={cn("flex items-center justify-end gap-1.5 whitespace-nowrap", v.status && "line-through decoration-muted-foreground/50")}>
+                        {brl(v.valor)}
+                        <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", estaAberta && "rotate-180")} />
+                      </span>
+                    </button>
+                    {estaAberta && <Detalhe v={v} />}
+                  </div>
+                );
+              })
+            )}
           </div>
-          <p className="mt-3 text-xs text-muted-foreground">Só vendas pagas do período escolhido, sem cortesias nem cancelamentos. O lote segue as datas de Configurações › Lotes. {VALOR_LIQUIDO_SYMPLA}</p>
+          {visiveis.length > limite && (
+            <Button variant="ghost" size="sm" onClick={() => setLimite((n) => n + POR_PAGINA)} className="mt-2 w-full rounded-full text-xs">
+              Ver mais {int(Math.min(POR_PAGINA, visiveis.length - limite))} de {int(visiveis.length - limite)} restantes
+            </Button>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Vendas pagas do período escolhido, sem cortesias. Cancelada, estornada ou aguardando pagamento aparece com etiqueta e não entra nos totais. Clique numa venda para ver pedido, canal, cupom e vendedor. {VALOR_LIQUIDO_SYMPLA}
+          </p>
         </CollapsibleContent>
       </Card>
     </Collapsible>

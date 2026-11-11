@@ -20,7 +20,7 @@ import {
   useSiteAnalytics,
   useGa4Events,
   useGoals,
-  useAllTimeTicketSales,
+  useAllTimeTicketSales, useSymplaOrdersWithoutTickets,
   usePreviousEventTickets,
   usePreviousEventRows,
   type DateRange,
@@ -67,6 +67,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
   const ga4Events = useGa4Events(range);
   const goals = useGoals();
   const allTimeTickets = useAllTimeTicketSales(currentEventId);
+  const pedidosSemIngresso = useSymplaOrdersWithoutTickets(currentEventId);
   const previousTickets = usePreviousEventTickets(currentEventId, event.previous_event_slug ?? "");
   const previousAdMetrics = usePreviousEventRows(event.previous_event_slug ?? "", "ad_metrics", range);
   const previousSiteAnalytics = usePreviousEventRows(event.previous_event_slug ?? "", "site_analytics", range);
@@ -119,7 +120,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
                   eventParams={eventParams}
                 />
                 <CommercialSegments tickets={periodTickets} goals={eventGoals} />
-                {isAdmin && <SalesStatement tickets={periodTickets} />}
+                {isAdmin && <SalesStatement tickets={periodTickets} pedidosSemIngresso={pedidosSemIngresso.data ?? []} />}
               </div>
             )}
           </div>

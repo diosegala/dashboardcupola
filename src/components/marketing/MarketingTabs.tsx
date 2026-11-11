@@ -25,7 +25,7 @@ import { SourceBreakdownDataTable } from "@/components/dashboard/SourceBreakdown
 import { SegmentCard, utmLabel, utmTexto } from "@/components/dashboard/CommercialSegments";
 import { findGoal, type DateRange } from "@/hooks/useDashboardData";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
-import { batchOf, batchOrder } from "@/lib/batches";
+import { batchOf, lotesParaLista } from "@/lib/batches";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine } from "recharts";
 import { ChartLegend } from "@/components/dashboard/charts/ChartLegend";
 import { useSeriesVisibility } from "@/components/dashboard/charts/chartSeries";
@@ -421,7 +421,7 @@ function EmailList({ data, isLoading, tickets, allTickets }: { data: any[]; isLo
   const lotes = useMemo(() => {
     const s = new Set<string>();
     allTickets.forEach((t) => { const l = batchOf(t.ticket_type); if (l) s.add(l); });
-    return Array.from(s).sort((x, y) => batchOrder(x) - batchOrder(y));
+    return lotesParaLista(Array.from(s));
   }, [allTickets]);
   // Mesmo recorte da meta por canal: período do painel, evento todo ou um lote.
   const base = recorte === PERIODO ? tickets : recorte === EVENTO ? allTickets : allTickets.filter((t) => batchOf(t.ticket_type) === recorte);
@@ -442,9 +442,9 @@ function EmailList({ data, isLoading, tickets, allTickets }: { data: any[]; isLo
           <Select value={recorte} onValueChange={setRecorte}>
             <SelectTrigger className="h-8 w-auto min-w-[150px] text-xs"><SelectValue /></SelectTrigger>
             <SelectContent>
+              {lotes.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
               <SelectItem value={PERIODO}>Vendas do período</SelectItem>
               <SelectItem value={EVENTO}>Evento todo</SelectItem>
-              {lotes.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
             </SelectContent>
           </Select>
           <button
@@ -720,7 +720,7 @@ function LinksTab({ tickets, allTickets, goals }: MarketingTabsProps) {
       const l = batchOf(t.ticket_type);
       if (l) s.add(l);
     });
-    return Array.from(s).sort((x, y) => batchOrder(x) - batchOrder(y));
+    return lotesParaLista(Array.from(s));
   }, [allTickets]);
   const [recorte, setRecorte] = useState(PERIODO);
 
@@ -776,8 +776,8 @@ function LinksTab({ tickets, allTickets, goals }: MarketingTabsProps) {
     <Select value={recorte} onValueChange={setRecorte}>
       <SelectTrigger className="h-9 w-[190px]"><SelectValue /></SelectTrigger>
       <SelectContent>
-        <SelectItem value={PERIODO}>Período escolhido</SelectItem>
         {lotes.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+        <SelectItem value={PERIODO}>Período escolhido</SelectItem>
         <SelectItem value={EVENTO}>Evento todo</SelectItem>
       </SelectContent>
     </Select>
