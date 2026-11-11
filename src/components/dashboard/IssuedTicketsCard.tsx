@@ -1,11 +1,8 @@
 import { useMemo, useState } from "react";
 import { Cell, Pie, PieChart, ResponsiveContainer, Sector } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsTrigger } from "@/components/ui/tabs";
 import { InfoTip } from "@/components/InfoTip";
-import { SlidingTabsList } from "./SlidingTabsList";
 import { COUNTS_ON_GOAL, ticketCategory, type TicketCategory } from "@/lib/ticketCategory";
-import { TICKET_KINDS, ticketKind, type TicketKind } from "@/lib/ticketKinds";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { cn } from "@/lib/utils";
 import { isCancelled } from "@/lib/eventConfig";
@@ -15,7 +12,9 @@ import { DIAS_PARA_CONFERIR, pendingPayments } from "@/lib/pendingPayments";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { batchOf, lotesParaLista } from "@/lib/batches";
 
-const EVENTO = "__evento";
+// Recorte "evento todo" do filtro de lote (compartilhado com o card Vendas por tipo de ingresso).
+export const LOTE_EVENTO = "__evento";
+const EVENTO = LOTE_EVENTO;
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const pct = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "0%");
@@ -29,17 +28,6 @@ const CATEGORIAS: { key: TicketCategory; label: string; color: string }[] = [
   { key: "gratuitos", label: "Gratuitos sem cupom", color: "hsl(var(--chart-3))" },
   { key: "pendentes", label: "Pendentes", color: "hsl(var(--warn))" },
 ];
-
-// Cores fixas por tipo: azul e lima para os principais, tons neutros para o resto.
-const COR_TIPO: Record<TicketKind, string> = {
-  Padrão: "hsl(var(--chart-1))",
-  VIP: "hsl(var(--chart-2))",
-  "Padrão Combo": "hsl(var(--chart-4))",
-  "VIP Combo": "hsl(var(--accent-text))",
-  Grupo: "hsl(var(--chart-3))",
-  "Visita presencial": "hsl(var(--chart-5))",
-  Credenciais: "hsl(var(--muted-foreground))",
-};
 
 const qty = (t: Ticket) => t.quantity || 0;
 
@@ -61,17 +49,6 @@ function porCategoria(todos: Ticket[]): Fatia[] {
   return CATEGORIAS.map((c) => ({ key: c.key, label: c.label, value: soma[c.key] || 0, color: c.color, meta: COUNTS_ON_GOAL.includes(c.key) })).filter((f) => f.value > 0);
 }
 
-// Agrupa pelo tipo (Padrão, VIP, combos, grupo...), não pelo nome de cada lote.
-function porTipo(todos: Ticket[]): Fatia[] {
-  // Negócio aberto no CRM e resgate de faturado não são ingressos emitidos a mais.
-  const tickets = todos.filter((t) => !isCancelled(t.status) && !["negociacao", "resgates"].includes(ticketCategory(t)));
-  const soma = new Map<TicketKind, number>();
-  tickets.forEach((t) => {
-    const tipo = ticketKind(t.ticket_type);
-    soma.set(tipo, (soma.get(tipo) || 0) + qty(t));
-  });
-  return TICKET_KINDS.filter((k) => soma.get(k)).map((k) => ({ key: k, label: k, value: soma.get(k) as number, color: COR_TIPO[k] }));
-}
 
 // Faturados internos: quanto já foi resgatado na Sympla e o que ainda está aberto no CRM, por etapa do funil.
 // Os abertos não contam na meta: só aparecem para acompanhar o que está para entrar.
@@ -161,7 +138,8 @@ function FatiaAtiva(props: any) {
   return <Sector {...props} outerRadius={props.outerRadius + 6} />;
 }
 
-// Todos os ingressos emitidos do evento, numa pizza só: por categoria (o que conta na meta) ou por tipo de ingresso da Sympla.
+// Todos os ingressos emitidos do evento numa pizza: pagos, faturados, cortesias, credenciais e pendentes (o que conta na
+// meta). O tipo de ingresso vendido (Padrão, VIP, Combo, Grupo) fica no card Vendas por tipo de ingresso, logo depois.
 // Meta de ingressos emitidos (opcional, da tela Metas): aparece embaixo da pizza.
 type MetaEmitidos = { target_value: number | string; period_start: string; period_end: string } | null;
 
@@ -172,8 +150,13 @@ export function IssuedTicketsCard({
   emitidosAtual,
   quando = "na mesma data (aprovados)",
   aguardando = [],
+  recorte: recorteControlado,
+  onRecorte,
   className,
 }: {
+  // Filtro de lote controlado de fora, para valer também no card Vendas por tipo de ingresso.
+  recorte?: string;
+  onRecorte?: (v: string) => void;
   // Pedidos da Sympla sem ingresso gravado, para o aviso de vendas aguardando pagamento.
   aguardando?: { order_data: any }[];
   tickets: Ticket[];
@@ -185,10 +168,11 @@ export function IssuedTicketsCard({
   quando?: string;
   className?: string;
 }) {
-  const [visao, setVisao] = useState<"categoria" | "tipo">("categoria");
   const [ativa, setAtiva] = useState<number | null>(null);
   // Recorte por lote (Pré-venda, Lote 0…). Comparação, meta de emitidos e pendentes são do evento todo: só sem recorte.
-  const [recorte, setRecorte] = useState(EVENTO);
+  const [recorteLocal, setRecorteLocal] = useState(EVENTO);
+  const recorte = recorteControlado ?? recorteLocal;
+  const setRecorte = onRecorte ?? setRecorteLocal;
   const lotes = useMemo(() => {
     const s = new Set<string>();
     tickets.forEach((t) => { const b = batchOf(t.ticket_type); if (b) s.add(b); });
@@ -197,7 +181,7 @@ export function IssuedTicketsCard({
   const lote = recorte === EVENTO || !lotes.includes(recorte) ? null : recorte;
   const doLote = useMemo(() => (lote ? tickets.filter((t) => batchOf(t.ticket_type) === lote) : tickets), [tickets, lote]);
 
-  const fatias = useMemo(() => (visao === "categoria" ? porCategoria(doLote) : porTipo(doLote)), [doLote, visao]);
+  const fatias = useMemo(() => porCategoria(doLote), [doLote]);
   const total = fatias.reduce((s, f) => s + f.value, 0);
   const destaque = ativa != null ? fatias[ativa] : null;
 
@@ -208,7 +192,7 @@ export function IssuedTicketsCard({
           <CardTitle className="flex items-center gap-2">
             Ingressos emitidos <InfoTip title="Ingressos emitidos" />
           </CardTitle>
-          <p className="mt-1 text-xs text-muted-foreground">Todos os ingressos do evento e quanto cada parte representa</p>
+          <p className="mt-1 text-xs text-muted-foreground">Pagos, faturados e cortesias: o que conta na meta</p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
         {lotes.length > 1 && (
@@ -220,16 +204,6 @@ export function IssuedTicketsCard({
             </SelectContent>
           </Select>
         )}
-        <Tabs value={visao} onValueChange={(v) => { setVisao(v as "categoria" | "tipo"); setAtiva(null); }}>
-          <SlidingTabsList value={visao} className="h-9">
-            <TabsTrigger value="categoria" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
-              Por categoria
-            </TabsTrigger>
-            <TabsTrigger value="tipo" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
-              Por tipo
-            </TabsTrigger>
-          </SlidingTabsList>
-        </Tabs>
         </div>
       </CardHeader>
       <CardContent className="grid items-center gap-4 md:grid-cols-[180px_minmax(0,1fr)]">
@@ -266,12 +240,12 @@ export function IssuedTicketsCard({
 
         <div className="min-w-0 space-y-3">
           {[true, false].map((contaMeta) => {
-            const grupo = fatias.map((f, i) => ({ f, i })).filter(({ f }) => (visao === "categoria" ? !!f.meta === contaMeta : contaMeta));
+            const grupo = fatias.map((f, i) => ({ f, i })).filter(({ f }) => !!f.meta === contaMeta);
             if (grupo.length === 0) return null;
             const subtotal = grupo.reduce((s, { f }) => s + f.value, 0);
             return (
               <div key={String(contaMeta)}>
-                {visao === "categoria" && (
+                {(
                   <div className="mb-1 flex justify-between px-2.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     <span>{contaMeta ? "Contam na meta" : "Não contam na meta"}</span>
                     <span className="tabular-nums">{int(subtotal)}</span>

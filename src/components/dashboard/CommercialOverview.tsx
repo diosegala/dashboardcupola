@@ -18,7 +18,9 @@ import { CRM_DISCOUNT_HINT, crmDiscountCoverage } from "@/lib/invoicedTickets";
 import { commercialDiscounts } from "@/lib/lotPrice";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/CountUp";
-import { IssuedTicketsCard } from "./IssuedTicketsCard";
+import { IssuedTicketsCard, LOTE_EVENTO } from "./IssuedTicketsCard";
+import { CategorySalesCard } from "./CategorySalesCard";
+import { batchOf } from "@/lib/batches";
 import { PaceGauge } from "./PaceGauge";
 import { SlidingTabsList } from "./SlidingTabsList";
 import { WeekdayView } from "./charts/WeekdayView";
@@ -196,6 +198,13 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   // Visão mês a mês: ingressos e patrocínios do evento do topo, respeitando o período escolhido.
   const { event } = useEvent();
   const pedidosSemIngresso = useSymplaOrdersWithoutTickets(event.sympla_event_id ?? "");
+  // Filtro de lote de Ingressos emitidos, que vale também para Vendas por tipo de ingresso.
+  const [loteEmitidos, setLoteEmitidos] = useState(LOTE_EVENTO);
+  const lotePorTipo = loteEmitidos === LOTE_EVENTO ? null : loteEmitidos;
+  const pagosPorTipo = useMemo(() => {
+    const pagos = splitTickets(doPeriodo).paying;
+    return lotePorTipo ? pagos.filter((t) => batchOf(t.ticket_type) === lotePorTipo) : pagos;
+  }, [doPeriodo, lotePorTipo]);
   const patrocinio = useSponsorshipSales();
   const [fonteReceita, setFonteReceita] = useState<FonteReceita>("total");
   const hojeDia = hojeBrasilia();
@@ -273,6 +282,8 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         emitidosAtual={filtrado ? p.issuedCount : m.issuedCount}
         quando={filtrado ? "no mesmo período (aprovados)" : undefined}
         aguardando={pedidosSemIngresso.data ?? []}
+        recorte={loteEmitidos}
+        onRecorte={setLoteEmitidos}
         className="col-span-12 lg:col-span-5"
       />
       <PaceGauge
@@ -370,6 +381,9 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
           </div>
         )}
       </Card>
+
+      {/* Complementa Ingressos emitidos: o que foi vendido, por tipo, com o mesmo filtro de lote. */}
+      <CategorySalesCard paying={pagosPorTipo} lote={lotePorTipo} className="col-span-12" />
 
       {/* Vendas por canal (veio da aba Marketing): segue o período escolhido. */}
       <ChannelGoalsCard tickets={doPeriodo} allTickets={tickets} goals={goals} />
