@@ -12,6 +12,10 @@ import { isCancelled } from "@/lib/eventConfig";
 import { GoalMeter } from "@/components/GoalMeter";
 import { CompareLine } from "@/components/CompareLine";
 import { DIAS_PARA_CONFERIR, pendingPayments } from "@/lib/pendingPayments";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { batchOf, lotesParaLista } from "@/lib/batches";
+
+const EVENTO = "__evento";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const pct = (v: number, total: number) => (total > 0 ? `${((v / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%` : "0%");
@@ -183,8 +187,17 @@ export function IssuedTicketsCard({
 }) {
   const [visao, setVisao] = useState<"categoria" | "tipo">("categoria");
   const [ativa, setAtiva] = useState<number | null>(null);
+  // Recorte por lote (Pré-venda, Lote 0…). Comparação, meta de emitidos e pendentes são do evento todo: só sem recorte.
+  const [recorte, setRecorte] = useState(EVENTO);
+  const lotes = useMemo(() => {
+    const s = new Set<string>();
+    tickets.forEach((t) => { const b = batchOf(t.ticket_type); if (b) s.add(b); });
+    return lotesParaLista(Array.from(s));
+  }, [tickets]);
+  const lote = recorte === EVENTO || !lotes.includes(recorte) ? null : recorte;
+  const doLote = useMemo(() => (lote ? tickets.filter((t) => batchOf(t.ticket_type) === lote) : tickets), [tickets, lote]);
 
-  const fatias = useMemo(() => (visao === "categoria" ? porCategoria(tickets) : porTipo(tickets)), [tickets, visao]);
+  const fatias = useMemo(() => (visao === "categoria" ? porCategoria(doLote) : porTipo(doLote)), [doLote, visao]);
   const total = fatias.reduce((s, f) => s + f.value, 0);
   const destaque = ativa != null ? fatias[ativa] : null;
 
@@ -197,6 +210,16 @@ export function IssuedTicketsCard({
           </CardTitle>
           <p className="mt-1 text-xs text-muted-foreground">Todos os ingressos do evento e quanto cada parte representa</p>
         </div>
+        <div className="flex flex-wrap items-center gap-2">
+        {lotes.length > 1 && (
+          <Select value={lote ?? EVENTO} onValueChange={(v) => { setRecorte(v); setAtiva(null); }}>
+            <SelectTrigger className="h-9 w-[140px] text-xs"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {lotes.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
+              <SelectItem value={EVENTO}>Evento todo</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
         <Tabs value={visao} onValueChange={(v) => { setVisao(v as "categoria" | "tipo"); setAtiva(null); }}>
           <SlidingTabsList value={visao} className="h-9">
             <TabsTrigger value="categoria" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
@@ -207,6 +230,7 @@ export function IssuedTicketsCard({
             </TabsTrigger>
           </SlidingTabsList>
         </Tabs>
+        </div>
       </CardHeader>
       <CardContent className="grid items-center gap-4 md:grid-cols-[180px_minmax(0,1fr)]">
         <div className="relative mx-auto h-[180px] w-[180px]">
@@ -279,10 +303,10 @@ export function IssuedTicketsCard({
             );
           })}
         </div>
-        <FaturadosNoCrm tickets={tickets} />
-        <AguardandoPagamento rows={aguardando} />
-        <CompareLine className="md:col-span-2" anterior={emitidosAnterior} atual={emitidosAtual ?? 0} quando={quando} />
-        {goal && Number(goal.target_value) > 0 && (
+        <FaturadosNoCrm tickets={doLote} />
+        {!lote && <AguardandoPagamento rows={aguardando} />}
+        {!lote && <CompareLine className="md:col-span-2" anterior={emitidosAnterior} atual={emitidosAtual ?? 0} quando={quando} />}
+        {!lote && goal && Number(goal.target_value) > 0 && (
           <GoalMeter
             className="md:col-span-2"
             actual={fatias.reduce((s, f) => s + f.value, 0)}

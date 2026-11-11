@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { utmTexto } from "@/components/dashboard/CommercialSegments";
 import { batchCalendar, loteNaData } from "@/lib/batchCalendar";
+import { batchOf, lotesParaLista } from "@/lib/batches";
 import { couponCodes, couponLabel, canonicalCoupon, parseCoupon } from "@/lib/coupons";
 import { canalDe } from "@/lib/salesChannel";
 import { saleCode } from "@/lib/salesCategories";
@@ -65,23 +66,25 @@ export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
         const cupomHover = codigoCupom ? couponCodes(canonicalCoupon(codigoCupom)) : "";
         const tipoIngresso = faturado ? "Faturado" : t.ticket_type || "—";
         const descricao = faturado ? t.company || t.deal_title || "Negócio sem nome" : t.ticket_type || "—";
-        const dataLote = (faturado ? (t as any).created_at_source : null) ?? t.sold_at;
-        const loteVenda = dataLote ? loteNaData(String(dataLote), lotes) ?? "—" : "—";
-        const codigo = saleCode(t) ?? "—";
+        // Mesmo lote do resto do painel: o do nome do ingresso, já trocado pelo lote da data (faturado pela criação
+        // do negócio, ver withBatchByDate). Sem lote no nome, pela data da venda.
+        const loteVenda = batchOf(t.ticket_type) ?? (t.sold_at ? loteNaData(String(t.sold_at), lotes) ?? "—" : "—");
+        // Sympla: o número do pedido (35EA3…), o mesmo da tela e da busca de participantes da Sympla.
+        const codigo = (faturado ? saleCode(t) : t.order_id ?? saleCode(t)) ?? "—";
+        const linkNegocio = faturado && t.crm_account && t.deal_id ? `https://${t.crm_account}.pipedrive.com/deal/${t.deal_id}` : null;
         const link = linkDe(t);
         const vendedor = t.seller_name ?? t.seller ?? "—";
         const canalVenda = canalDe(t);
         const texto = [descricao, t.company, (t as any).buyer_name, cupom, codigoCupom, codigo, link, vendedor].filter(Boolean).join(" ").toLowerCase();
-        return { t, faturado, cupom, cupomHover, tipoIngresso, descricao, lote: loteVenda, codigo, link, vendedor, canal: canalVenda, texto };
+        return { t, faturado, cupom, cupomHover, tipoIngresso, descricao, lote: loteVenda, codigo, linkNegocio, link, vendedor, canal: canalVenda, texto };
       })
       .sort((a, b) => String(b.t.sold_at ?? "").localeCompare(String(a.t.sold_at ?? "")));
   }, [tickets]);
 
   const opcoes = useMemo(() => {
-    const ordemLotes = batchCalendar().map((l) => l.name);
     return {
       tipos: unicos(linhas.map((l) => l.tipoIngresso)),
-      lotes: unicos(linhas.map((l) => l.lote)).sort((a, b) => ordemLotes.indexOf(b) - ordemLotes.indexOf(a)),
+      lotes: lotesParaLista(unicos(linhas.map((l) => l.lote))),
       pessoas: unicos(linhas.flatMap((l) => [l.cupom, l.vendedor])),
       canais: unicos(linhas.map((l) => l.canal)),
     };
@@ -166,7 +169,16 @@ export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
                     <TableCell className="whitespace-nowrap tabular-nums">{l.t.sold_at ? format(new Date(l.t.sold_at), "dd/MM/yyyy") : "—"}</TableCell>
                     <TableCell>{l.faturado ? "Faturado" : "Sympla"}</TableCell>
                     <TableCell className="whitespace-nowrap">{l.lote}</TableCell>
-                    <TableCell className="min-w-[200px]">{l.descricao}</TableCell>
+                    <TableCell className="min-w-[200px]">
+                      {l.linkNegocio ? (
+                        <a href={l.linkNegocio} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline decoration-dotted underline-offset-4 hover:text-accent-text">
+                          {l.descricao} <ExternalLink className="h-3 w-3 shrink-0" />
+                        </a>
+                      ) : (
+                        l.descricao
+                      )}
+                      {!l.faturado && l.codigo !== "—" && <div className="text-[11px] tabular-nums text-muted-foreground">Pedido {l.codigo}</div>}
+                    </TableCell>
                     <TableCell className="text-right tabular-nums">{l.t.quantity ?? 0}</TableCell>
                     <TableCell className="whitespace-nowrap text-right tabular-nums">{brl(Number(l.t.total_price || 0))}</TableCell>
                     <TableCell title={l.cupomHover || undefined}>{l.cupom}</TableCell>
@@ -174,8 +186,8 @@ export function SalesStatement({ tickets }: { tickets: Ticket[] }) {
                     <TableCell className="min-w-[180px] text-xs text-muted-foreground">{l.link}</TableCell>
                     <TableCell>{l.vendedor}</TableCell>
                     <TableCell className="whitespace-nowrap tabular-nums">
-                      {l.faturado && l.t.crm_account ? (
-                        <a href={`https://${l.t.crm_account}.pipedrive.com/deal/${l.codigo}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4">
+                      {l.linkNegocio ? (
+                        <a href={l.linkNegocio} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 underline underline-offset-4">
                           #{l.codigo} <ExternalLink className="h-3 w-3" />
                         </a>
                       ) : (
