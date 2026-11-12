@@ -36,6 +36,20 @@
       "when": 1794237887363,
       "tag": "0004_email_sale_links",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794497151256,
+      "tag": "0005_viewer_sees_all",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794497172494,
+      "tag": "0006_viewer_buyers_read",
+      "breakpoints": true
     }
   ]
 }
