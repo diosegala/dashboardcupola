@@ -120,7 +120,7 @@ export function EmailSalesSheet({
   vendas: EmailSaleRow[];
   onClose: () => void;
 }) {
-  const { isAdmin } = useAuth();
+  const { isAdmin, canViewAll } = useAuth();
   const { event } = useEvent();
   const { people } = useBuyersData();
   const decide = useDecide();
@@ -178,11 +178,11 @@ export function EmailSalesSheet({
           <ul className="mt-4 divide-y">
             {compras.map((c) => {
               const v = c.vendas[0];
-              const p = isAdmin ? acharPessoa(v.ticket) : null;
+              const p = canViewAll ? acharPessoa(v.ticket) : null;
               return (
                 <li key={c.pedido} className="flex items-start justify-between gap-3 py-2.5 text-sm">
                   <div className="min-w-0">
-                    {isAdmin ? (
+                    {canViewAll ? (
                       <button type="button" className="text-left font-medium hover:underline disabled:no-underline" disabled={!p} onClick={() => p && setPessoa(p)}>
                         {p?.name ?? v.ticket.buyer_name ?? "Comprador sem nome"}
                       </button>

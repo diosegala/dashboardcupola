@@ -56,7 +56,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
   const [range, setRange] = usePeriod();
 
   const { event, events, isLoading: eventLoading } = useEvent();
-  const { isAdmin } = useAuth();
+  const { isAdmin, canViewAll } = useAuth();
   // Ano do evento anterior (o que a comparação usa); vazio quando não há evento anterior.
   const anterior = events.find((e) => e.slug === event.previous_event_slug);
   const rotuloAnterior = anterior ? anterior.name.match(/\b(20\d{2})\b/)?.[1] ?? anterior.end_date.slice(0, 4) : "";
@@ -120,7 +120,7 @@ export default function Dashboard({ pagina }: { pagina: PaginaDoPainel }) {
                   eventParams={eventParams}
                 />
                 <CommercialSegments tickets={periodTickets} goals={eventGoals} />
-                {isAdmin && <SalesStatement tickets={periodTickets} pedidosSemIngresso={pedidosSemIngresso.data ?? []} />}
+                {canViewAll && <SalesStatement tickets={periodTickets} pedidosSemIngresso={pedidosSemIngresso.data ?? []} />}
               </div>
             )}
           </div>

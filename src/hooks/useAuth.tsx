@@ -8,6 +8,8 @@ interface AuthContextType {
   session: Session | null;
   loading: boolean;
   isAdmin: boolean;
+  // Admin ou visualizador: vê todos os dados (só admin edita).
+  canViewAll: boolean;
   // Equipe de vendas: vê só o ranking de cupons e a lista de compradores.
   isSeller: boolean;
   // Administrador vendo o painel como a equipe vê.
@@ -24,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isViewer, setIsViewer] = useState(false);
   const [isRealSeller, setIsRealSeller] = useState(false);
   const [viewingAsSeller, setViewing] = useState(() => {
     try {
@@ -49,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!session?.user) {
         // Saiu ou o login expirou: o período escolhido volta para o evento inteiro.
         clearPeriod();
-        setIsAdmin(false);
+        setIsAdmin(false);        setIsViewer(false);
         setIsRealSeller(false);
         setProfile(null);
         setLoading(false);
@@ -78,10 +81,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const roles = (roleRes.data ?? []).map((r) => String(r.role));
         setProfile(profileRes.data);
         setIsAdmin(roles.includes("admin"));
+        setIsViewer(roles.includes("viewer"));
         setIsRealSeller(roles.includes("seller") && !roles.includes("admin"));
       } catch (err) {
         console.error("[useAuth] Error fetching user data:", err);
-        setIsAdmin(false);
+        setIsAdmin(false);        setIsViewer(false);
         setIsRealSeller(false);
       } finally {
         setLoading(false);
@@ -96,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, isSeller: isRealSeller || (isAdmin && viewingAsSeller), viewingAsSeller: isAdmin && viewingAsSeller, setViewingAsSeller, profile, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, canViewAll: isAdmin || isViewer, isSeller: isRealSeller || (isAdmin && viewingAsSeller), viewingAsSeller: isAdmin && viewingAsSeller, setViewingAsSeller, profile, signOut }}>
       {children}
     </AuthContext.Provider>
   );

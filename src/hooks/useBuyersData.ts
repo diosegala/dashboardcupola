@@ -71,7 +71,7 @@ async function loadEventRows(e: EventRow): Promise<DetailRow[]> {
 // Pessoas e empresas da tela Compradores (só administradores), com o evento selecionado e os anteriores.
 // Usado também pelo detalhe do comprador na aba de e-mails, com a mesma consulta e as mesmas permissões.
 export function useBuyersData() {
-  const { isAdmin } = useAuth();
+  const { canViewAll: isAdmin } = useAuth();
   const { events, event } = useEvent();
   // Referência é o evento selecionado: entram ele e os eventos anteriores (para saber quem já veio antes).
   const relevantes = useMemo(() => events.filter((e) => e.slug === event.slug || e.end_date < event.end_date), [events, event]);

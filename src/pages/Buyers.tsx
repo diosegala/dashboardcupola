@@ -36,7 +36,7 @@ export default function Buyers() {
 
 // Perfil de quem vem ao evento (todos) e a lista de pessoas com filtros (só administradores).
 function FullBuyers() {
-  const { isAdmin } = useAuth();
+  const { canViewAll: isAdmin } = useAuth();
   const { event } = useEvent();
   const [aba, setAba] = useState("perfil");
   const perfilTickets = useAllTimeTicketSales(event.sympla_event_id ?? "");
