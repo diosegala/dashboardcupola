@@ -50,6 +50,13 @@
       "when": 1794497172494,
       "tag": "0006_viewer_buyers_read",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794497369050,
+      "tag": "0007_restrict_tautology_read_policies",
+      "breakpoints": true
     }
   ]
 }
