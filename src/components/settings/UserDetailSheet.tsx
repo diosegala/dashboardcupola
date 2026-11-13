@@ -5,14 +5,14 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useCouponPeople, COUPON_PEOPLE_KEY } from "@/hooks/useCouponPeople";
 import { formatPersonName } from "@/lib/personName";
 import { traduzirErro } from "@/lib/mensagensErro";
-import { matchCouponPerson, uniqueCodes } from "@/lib/couponLink";
-import { setCouponPersonForUser } from "./couponLinking";
+import { parseCodes } from "@/lib/couponLink";
+import { applyCouponChoice } from "./couponLinking";
+import { CouponPicker, typedCodesOk } from "./CouponPicker";
 import { Loader2, Mail } from "lucide-react";
 
 export interface SheetUser {
@@ -38,7 +38,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
   const [enviando, setEnviando] = useState(false);
 
   const atual = pessoas.find((p) => p.userId === user?.id);
-  const sugestao = !atual && user ? pessoas.find((p) => p.id === matchCouponPerson({ name: user.name, email: user.email }, pessoas)) : undefined;
+  const [typed, setTyped] = useState("");
 
   useEffect(() => {
     if (!user) return;
@@ -46,10 +46,10 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
     setEmail(user.email ?? "");
     setRole(user.role);
     setSenha("");
+    setTyped("");
   }, [user?.id]);
   useEffect(() => setPessoa(atual?.id ?? SEM), [atual?.id, user?.id]);
 
-  const escolhida = pessoas.find((p) => p.id === pessoa);
   const emailValido = /^[^@\s]+@cupola\.com\.br$/.test(email.trim().toLowerCase());
 
   const invocar = async (body: Record<string, unknown>) => {
@@ -74,7 +74,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
         password: senha || undefined,
       });
       if (!isSelf && role !== user.role) await invocar({ action: "update_role", user_id: user.id, role });
-      if (pessoa !== (atual?.id ?? SEM)) await setCouponPersonForUser(user.id, pessoa === SEM ? null : pessoa);
+      await applyCouponChoice(user.id, formatPersonName(nome), { personId: pessoa === SEM ? null : pessoa, typed: parseCodes(typed) }, atual?.id ?? null);
       toast({ title: "Dados atualizados" });
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
       queryClient.invalidateQueries({ queryKey: COUPON_PEOPLE_KEY });
@@ -128,35 +128,14 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1">
-            <Label htmlFor="ud-cupom">Cupom</Label>
-            <Select value={pessoa} onValueChange={setPessoa}>
-              <SelectTrigger id="ud-cupom"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value={SEM}>Sem cupom</SelectItem>
-                {pessoas.filter((p) => !p.userId || p.userId === user?.id).map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {escolhida && (
-              <div className="flex flex-wrap gap-1 pt-1">
-                {uniqueCodes(escolhida.codes).map((c) => <Badge key={c} variant="secondary" className="font-mono text-xs">{c}</Badge>)}
-              </div>
-            )}
-            {!atual && sugestao && pessoa === SEM && (
-              <button type="button" className="text-xs text-primary underline-offset-2 hover:underline" onClick={() => setPessoa(sugestao.id)}>
-                Sugestão: {sugestao.name}
-              </button>
-            )}
-            <p className="text-xs text-muted-foreground">O vínculo é automático pelo nome ou e-mail. Escolha aqui só se não bater.</p>
-          </div>
+          <CouponPicker id="ud-cupom" account={{ name: nome, email }} people={pessoas} userId={user?.id} personId={pessoa === SEM ? null : pessoa} typed={typed}
+            onPerson={(v) => setPessoa(v ?? SEM)} onTyped={setTyped} />
           <div className="space-y-1">
             <Label htmlFor="ud-senha">Nova senha (opcional)</Label>
             <Input id="ud-senha" type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo de 8 caracteres" />
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button type="submit" disabled={salvando || !emailValido}>{salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}</Button>
+            <Button type="submit" disabled={salvando || !emailValido || !typedCodesOk(typed, pessoas, atual?.id)}>{salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}</Button>
             <Button type="button" variant="outline" onClick={enviarLink} disabled={enviando} className="gap-1">
               <Mail className="h-4 w-4" />
               {user?.email_confirmed_at ? "Enviar link de troca de senha" : "Reenviar convite"}

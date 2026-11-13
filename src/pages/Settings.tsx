@@ -22,8 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 import { EventsManager } from "@/components/settings/EventsManager";
 import { UserPlus, Shield, Eye, Loader2, Mail, Trash2, CheckCircle2, Clock, Trophy } from "lucide-react";
 import { UserDetailSheet } from "@/components/settings/UserDetailSheet";
-import { setCouponPersonForUser } from "@/components/settings/couponLinking";
-import { useCouponPeople, COUPON_PEOPLE_KEY } from "@/hooks/useCouponPeople";
+import { InviteUserDialog } from "@/components/settings/InviteUserDialog";
 
 interface UserWithAuth {
   id: string;
@@ -106,56 +105,18 @@ export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: users, isLoading: usersLoading } = useUsers();
-  const { data: pessoas = [] } = useCouponPeople();
   const [aberto, setAberto] = useState<UserWithAuth | null>(null);
-  const [cupomNovo, setCupomNovo] = useState("__sem__");
+  const [convidando, setConvidando] = useState(false);
   const manageMutation = useManageUser();
 
-  const [email, setEmail] = useState("");
-  const [nome, setNome] = useState("");
-  const [role, setRole] = useState<string>("viewer");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filteredUsers = users?.filter((u) =>
     statusFilter === "all" ? true : statusFilter === "active" ? !!u.email_confirmed_at : !u.email_confirmed_at
   );
 
-  const inviteMutation = useMutation({
-    mutationFn: async ({ email, role, name }: { email: string; role: string; name: string }) => {
-      const { data, error } = await supabase.functions.invoke("invite-user", {
-        body: { email, role, name },
-      });
-      if (error) throw new Error(error.message);
-      if (data?.error) throw new Error(data.error);
-      return data;
-    },
-    onSuccess: async (data: any) => {
-      if (cupomNovo !== "__sem__" && data?.user_id) {
-        try { await setCouponPersonForUser(data.user_id, cupomNovo); } catch { /* admin liga depois */ }
-        queryClient.invalidateQueries({ queryKey: COUPON_PEOPLE_KEY });
-      }
-      setCupomNovo("__sem__");
-      toast({ title: "Convite enviado", description: `Convite enviado para ${email}` });
-      setEmail("");
-      setNome("");
-      setRole("viewer");
-      queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
-    },
-    onError: (err: Error) => {
-      toast({ variant: "destructive", title: "Erro ao convidar", description: traduzirErro(err) });
-    },
-  });
-
   if (authLoading) return null;
   if (!isAdmin) return <Navigate to="/" replace />;
-
-  const isValidEmail = email.trim().toLowerCase().endsWith("@cupola.com.br");
-
-  const handleInvite = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!isValidEmail) return;
-    inviteMutation.mutate({ email: email.trim().toLowerCase(), role, name: formatPersonName(nome) });
-  };
 
   const isSelf = (userId: string) => currentUser?.id === userId;
 
@@ -167,61 +128,15 @@ export default function Settings() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Usuários</CardTitle>
-          <CardDescription>Convide pessoas (só e-mails <strong>@cupola.com.br</strong>) e clique no nome para editar os dados e o cupom.</CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="space-y-1.5">
+              <CardTitle>Usuários</CardTitle>
+              <CardDescription>Clique no nome para editar os dados e os cupons da pessoa.</CardDescription>
+            </div>
+            <Button onClick={() => setConvidando(true)} className="gap-1"><UserPlus className="h-4 w-4" /> Convidar usuário</Button>
+          </div>
         </CardHeader>
         <CardContent>
-          <div className="mb-6 rounded-lg border bg-muted/30 p-4">
-            <p className="mb-3 flex items-center gap-2 text-sm font-medium"><UserPlus className="h-4 w-4" /> Convidar usuário</p>
-            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
-              <div className="flex-1 space-y-1">
-                <Label htmlFor="invite-name" className="sr-only">Nome completo</Label>
-                <Input id="invite-name" placeholder="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} required />
-              </div>
-              <div className="flex-1 space-y-1">
-                <Label htmlFor="invite-email" className="sr-only">E-mail</Label>
-                <Input
-                  id="invite-email"
-                  type="email"
-                  placeholder="nome@cupola.com.br"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                {email.length > 0 && !isValidEmail && (
-                  <p className="text-xs text-destructive">O e-mail deve terminar com @cupola.com.br</p>
-                )}
-              </div>
-              <div className="w-full sm:w-44">
-                <Label htmlFor="invite-role" className="sr-only">Função</Label>
-                <Select value={role} onValueChange={setRole}>
-                  <SelectTrigger id="invite-role">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="viewer">Visualizador</SelectItem>
-                    <SelectItem value="seller">Equipe de venda</SelectItem>
-                    <SelectItem value="admin">Admin</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="w-full sm:w-44">
-                <Label htmlFor="invite-cupom" className="sr-only">Cupom (opcional)</Label>
-                <Select value={cupomNovo} onValueChange={setCupomNovo}>
-                  <SelectTrigger id="invite-cupom"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="__sem__">Cupom: automático</SelectItem>
-                    {pessoas.filter((p) => !p.userId).map((p) => (
-                      <SelectItem key={p.id} value={p.id}>Cupom: {p.name}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <Button type="submit" disabled={!isValidEmail || inviteMutation.isPending}>
-                {inviteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Convidar"}
-              </Button>
-            </form>
-          </div>
           <div className="flex items-center gap-2 mb-4">
             <Label htmlFor="status-filter" className="text-sm text-muted-foreground whitespace-nowrap">Filtrar por status:</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -255,7 +170,7 @@ export default function Settings() {
                 {filteredUsers?.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">
-                      <button type="button" className="text-left hover:text-primary hover:underline underline-offset-2" onClick={() => setAberto(u)}>
+                      <button type="button" className="text-left underline-offset-4 hover:underline" onClick={() => setAberto(u)}>
                         {u.name ?? "—"}
                       </button>
                       {isSelf(u.id) && (
@@ -372,6 +287,7 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>
+      <InviteUserDialog open={convidando} onOpenChange={setConvidando} />
       <UserDetailSheet user={aberto} isSelf={!!aberto && isSelf(aberto.id)} onClose={() => setAberto(null)} />
     </div>
   );

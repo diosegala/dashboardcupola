@@ -36,3 +36,25 @@ describe("vínculo automático de cupons", () => {
     expect(uniqueCodes(["SUELLEN5", "suellen5", "SUELLEN10"])).toEqual(["SUELLEN5", "SUELLEN10"]);
   });
 });
+
+import { suggestCouponPeople, cleanCodeInput, parseCodes } from "./couponLink";
+describe("sugestão de cupons no convite", () => {
+  const lista = [
+    { id: "aline-b", name: "Aline B" }, { id: "aline-p", name: "Aline P" },
+    { id: "aline-pavezi", name: "Aline Pavezi" }, { id: "kassia", name: "Kássia", userId: "dona" },
+  ];
+  it("põe o nome completo primeiro e mostra as outras do mesmo primeiro nome", () => {
+    expect(suggestCouponPeople({ name: "Aline Pavezi" }, lista).map((p) => p.id)[0]).toBe("aline-pavezi");
+    expect(suggestCouponPeople({ name: "Aline Pavezi" }, lista)).toHaveLength(3);
+  });
+  it("usa o e-mail quando ainda não há nome", () => {
+    expect(suggestCouponPeople({ email: "aline.borges@cupola.com.br" }, lista)[0].id).toBe("aline-b");
+  });
+  it("não sugere ficha que já tem dono", () => {
+    expect(suggestCouponPeople({ name: "Kassia" }, lista)).toEqual([]);
+  });
+  it("cupom digitado sem espaços, acentos ou símbolos", () => {
+    expect(cleanCodeInput("joão 5-x")).toBe("JOAO5X");
+    expect(parseCodes("ana5,,ana10, ana5")).toEqual(["ANA5", "ANA10"]);
+  });
+});
