@@ -19,7 +19,7 @@ const SITE_NAME = "Painel de Eventos CUPOLA"
 const SENDER_DOMAIN = "notify.cupola.com.br"
 const ROOT_DOMAIN = "cupola.com.br"
 const FROM_DOMAIN = "cupola.com.br"
-const SITE_URL = "https://dashboardcupola.lovable.app"
+const SITE_URL = "https://painel.cupola.com.br"
 
 // Template mapping for preview mode
 const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
@@ -36,7 +36,7 @@ const EMAIL_TEMPLATES: Record<string, React.ComponentType<any>> = {
 // The sample email uses a fixed placeholder (RFC 6761 .test TLD) so the Go backend
 // can always find-and-replace it with the actual recipient when sending test emails,
 // even if the project's domain has changed since the template was scaffolded.
-const SAMPLE_PROJECT_URL = "https://dashboardcupola.lovable.app"
+const SAMPLE_PROJECT_URL = "https://painel.cupola.com.br"
 const SAMPLE_EMAIL = "user@example.test"
 const SAMPLE_DATA: Record<string, object> = {
   signup: {

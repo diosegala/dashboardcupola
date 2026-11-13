@@ -29,7 +29,7 @@ export const brand = {
 }
 
 // Mesma logo horizontal do topo do painel, em PNG porque e-mails não mostram SVG.
-const LOGO_URL = 'https://dashboardcupola.lovable.app/brand/logo-cupola-email.png'
+const LOGO_URL = 'https://painel.cupola.com.br/brand/logo-cupola-email.png'
 
 interface BrandLayoutProps {
   preview: string

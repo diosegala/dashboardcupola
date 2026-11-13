@@ -96,7 +96,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Usuário não encontrado" }, 404);
       }
 
-      const redirectTo = "https://dashboardcupola.lovable.app/set-password";
+      const redirectTo = "https://painel.cupola.com.br/set-password";
       const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
         userData.user.email!,
         { redirectTo }

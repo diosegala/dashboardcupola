@@ -79,7 +79,7 @@ Deno.serve(async (req) => {
 
     // Invite user via Admin API
     const siteUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "").replace("https://", "");
-    const redirectTo = `https://dashboardcupola.lovable.app/set-password`;
+    const redirectTo = `https://painel.cupola.com.br/set-password`;
 
     const { data: inviteData, error: inviteError } =
       await adminClient.auth.admin.inviteUserByEmail(trimmedEmail, {
