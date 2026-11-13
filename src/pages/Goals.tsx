@@ -1,5 +1,6 @@
 import { traduzirErro } from "@/lib/mensagensErro";
 import { useMemo, useState } from "react";
+import { Navigate } from "react-router-dom";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { format, parseISO } from "date-fns";
 import { Pencil, Plus, Trash2 } from "lucide-react";
@@ -43,9 +44,10 @@ type Goal = {
 
 const data = (d: string) => format(parseISO(d), "dd/MM/yy");
 
-// Metas do catálogo: um só lugar para criar, ver e alterar. Só administradores editam; os demais só consultam.
+// Metas do catálogo: um só lugar para criar, ver e alterar. Só administradores abrem esta tela;
+// os demais veem as metas já aplicadas nos gráficos do painel.
 export default function Goals() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, loading } = useAuth();
   const { event } = useEvent();
   const { data: todas, isLoading } = useGoals();
   const goals = useMemo(() => (todas ? (goalsOfEvent(todas, event) as Goal[]) : []), [todas, event]);
@@ -121,6 +123,8 @@ export default function Goals() {
     onError: (err: any) => toast.error(`Não deu para remover a meta: ${traduzirErro(err)}`),
   });
 
+  if (!loading && !isAdmin) return <Navigate to="/" replace />;
+
   const definidas = GOAL_DEFS.filter((d) => (porItem.map.get(d.id) ?? []).length > 0).length;
 
   return (
@@ -130,7 +134,6 @@ export default function Goals() {
         description={
           <>
             Todas as metas do painel ficam aqui. Gráfico sem meta aparece normalmente; com meta, ganha a marca de progresso. Meta é diferente da comparação com o ano anterior.
-            {!isAdmin && " Só administradores alteram as metas."}
           </>
         }
       />

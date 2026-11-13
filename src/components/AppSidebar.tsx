@@ -20,7 +20,7 @@ const publicItems = [
   { title: "Comercial", url: "/comercial", icon: LayoutDashboard },
   { title: "Marketing", url: "/marketing", icon: Megaphone },
   { title: "Patrocínios", url: "/patrocinios", icon: Handshake },
-  { title: "Metas", url: "/goals", icon: Target },
+  { title: "Metas", url: "/goals", icon: Target, adminOnly: true },
   { title: "Compradores", url: "/compradores", icon: UsersRound },
   { title: "Cupons", url: "/cupons", icon: Ticket },
 ];
@@ -49,7 +49,8 @@ export function AppSidebar() {
     setOpenMobile(false);
   }, [pathname, setOpenMobile]);
   const recolhido = state === "collapsed";
-  const items = isSeller ? sellerItems : isAdmin ? [...publicItems, ...adminItems] : publicItems;
+  // A tela Metas é só para administradores; os demais veem as metas aplicadas nos gráficos.
+  const items = isSeller ? sellerItems : isAdmin ? [...publicItems, ...adminItems] : publicItems.filter((i) => !i.adminOnly);
 
   return (
     <Sidebar collapsible="icon">
