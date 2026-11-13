@@ -11,7 +11,7 @@ export function useMyTeamCoupons() {
     enabled: !!user,
     queryFn: async (): Promise<string[]> => {
       await supabase.rpc("link_my_coupon_person" as any);
-      const { data, error } = await supabase.from("coupon_people").select("codes").eq("user_id" as any, user!.id).maybeSingle();
+      const { data, error } = await (supabase as any).from("coupon_people").select("codes").eq("user_id", user!.id).maybeSingle();
       if (error || !data) return [];
       return uniqueCodes((data as any).codes ?? []);
     },
