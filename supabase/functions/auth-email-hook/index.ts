@@ -124,7 +124,7 @@ async function handlePreview(req: Request): Promise<Response> {
 // owns only the email decisions: subjects, templates, and per-type props.
 const handler = createAuthEmailHandler({
   apiKey: Deno.env.get('LOVABLE_API_KEY')!,
-  from: `${SITE_NAME} <noreply@${FROM_DOMAIN}>`,
+  from: `Painel CUPOLA <noreply@${FROM_DOMAIN}>`,
   senderDomain: SENDER_DOMAIN,
   sendUrl: Deno.env.get('LOVABLE_SEND_URL'),
   emails: {
@@ -139,7 +139,7 @@ const handler = createAuthEmailHandler({
         }),
     },
     invite: {
-      subject: 'Você recebeu acesso ao Painel de Eventos CUPOLA: crie sua senha',
+      subject: 'Seu acesso ao Painel CUPOLA está pronto: crie sua senha',
       render: (data) =>
         React.createElement(InviteEmail, {
           siteName: SITE_NAME,

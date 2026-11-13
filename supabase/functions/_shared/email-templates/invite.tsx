@@ -23,10 +23,10 @@ export const InviteEmail = ({ confirmationUrl }: InviteEmailProps) => (
     footerNote="Recebeu este convite por engano? Pode ignorar: sem criar a senha, nenhum acesso é liberado."
   >
     <BrandText>
-      Você recebeu acesso ao painel onde a equipe acompanha{' '}
-      <span style={strong}>vendas, metas e marketing</span> dos eventos da CUPOLA.
+      Agora você acompanha em um só lugar as{' '}
+      <span style={strong}>vendas, metas e resultados</span> dos eventos da CUPOLA, em tempo real.
     </BrandText>
-    <BrandText>Para entrar, crie sua senha no botão abaixo:</BrandText>
+    <BrandText>Para começar, é só criar sua senha:</BrandText>
     <BrandButton href={confirmationUrl}>Criar minha senha</BrandButton>
     <BrandNote>
       Este link vale por 24 horas e funciona uma única vez. Se ele vencer, use

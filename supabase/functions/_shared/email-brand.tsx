@@ -9,6 +9,7 @@ import {
   Head,
   Heading,
   Html,
+  Img,
   Link,
   Preview,
   Section,
@@ -27,6 +28,9 @@ export const brand = {
   radius: '14px',
 }
 
+// Mesma logo horizontal do topo do painel, em PNG porque e-mails não mostram SVG.
+const LOGO_URL = 'https://dashboardcupola.lovable.app/brand/logo-cupola-email.png'
+
 interface BrandLayoutProps {
   preview: string
   title: string
@@ -41,7 +45,7 @@ export const BrandLayout = ({ preview, title, children, footerNote }: BrandLayou
     <Body style={main}>
       <Container style={outer}>
         <Section style={header}>
-          <Text style={wordmark}>CUPOLA</Text>
+          <Img src={LOGO_URL} alt="CUPOLA" width="165" height="30" style={logo} />
           <Text style={tag}>Painel de Eventos</Text>
         </Section>
         <Section style={card}>
@@ -95,6 +99,7 @@ export const strong = { color: brand.ink, fontWeight: 700 as const }
 const main = { backgroundColor: '#ffffff', fontFamily: brand.font, margin: 0, padding: 0 }
 const outer = { maxWidth: '560px', margin: '0 auto', padding: '32px 20px' }
 const header = { padding: '0 4px 18px' }
+const logo = { display: 'block', height: '30px', width: 'auto', border: 0 }
 const wordmark = {
   fontSize: '22px',
   fontWeight: 800 as const,
