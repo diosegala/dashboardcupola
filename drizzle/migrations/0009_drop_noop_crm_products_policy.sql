@@ -1,0 +1,1 @@
+DROP POLICY IF EXISTS "Sellers cannot read crm_products" ON public.crm_products;

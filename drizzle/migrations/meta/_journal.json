@@ -64,6 +64,13 @@
       "when": 1794581858751,
       "tag": "0008_all_events_for_everyone",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794582204584,
+      "tag": "0009_drop_noop_crm_products_policy",
+      "breakpoints": true
     }
   ]
 }
