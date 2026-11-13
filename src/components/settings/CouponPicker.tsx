@@ -5,6 +5,7 @@ import type { CouponPersonRow } from "@/hooks/useCouponPeople";
 import { cleanCodeInput, parseCodes, suggestCouponPeople, uniqueCodes } from "@/lib/couponLink";
 import { cn } from "@/lib/utils";
 import { Check } from "lucide-react";
+import { InfoTip } from "@/components/InfoTip";
 
 interface Props {
   id: string;
@@ -31,7 +32,10 @@ export function CouponPicker({ id, account, people, userId, personId, typed, onP
 
   return (
     <div className="space-y-2">
-      <Label>Cupons</Label>
+      <div className="flex items-center gap-1.5">
+        <Label>Cupons</Label>
+        <InfoTip title="Cupons" text="Estes cupons já existem no cadastro e, pelo nome ou e-mail, podem ser desta pessoa. Cada cupom pertence a uma só pessoa, mas uma pessoa pode ter mais de um cupom. Se escolher Automático, o painel faz a ligação sozinho quando encontrar o cupom dela." />
+      </div>
       <div className="space-y-1.5">
         {!atual && (
           <button type="button" className={chip(!personId && !typed)} onClick={() => { onPerson(null); onTyped(""); }}>
@@ -56,9 +60,12 @@ export function CouponPicker({ id, account, people, userId, personId, typed, onP
         )}
       </div>
       <div className="space-y-1 pt-1">
-        <Label htmlFor={id} className="text-xs font-normal text-muted-foreground">
-          {atual ? "Adicionar outro código a esta pessoa" : "Não está na lista? Escreva o código"}
-        </Label>
+        <div className="flex items-center gap-1.5">
+          <Label htmlFor={id} className="text-xs font-normal text-muted-foreground">
+            {atual ? "Adicionar outro código a esta pessoa" : "Não está na lista? Escreva o código"}
+          </Label>
+          <InfoTip title="Código do cupom" text="Escreva o código exatamente igual ao criado na Sympla, porque o desconto e o controle do cupom são feitos lá. O painel usa esse código para saber quem vendeu cada ingresso e liga as vendas à pessoa automaticamente." />
+        </div>
         <Input id={id} value={typed} onChange={(e) => onTyped(cleanCodeInput(e.target.value))} placeholder="ex.: ANA5, ANA10" className="font-mono uppercase" maxLength={80} />
         {repetido && (
           <p className="text-xs text-muted-foreground">
