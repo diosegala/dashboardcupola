@@ -1,3 +1,4 @@
+import { formatPersonName } from "@/lib/personName";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { PageHeader } from "@/components/PageHeader";
 import { useState } from "react";
@@ -141,6 +142,7 @@ export default function Settings() {
   const manageMutation = useManageUser();
 
   const [email, setEmail] = useState("");
+  const [nome, setNome] = useState("");
   const [role, setRole] = useState<string>("viewer");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
@@ -149,9 +151,9 @@ export default function Settings() {
   );
 
   const inviteMutation = useMutation({
-    mutationFn: async ({ email, role }: { email: string; role: string }) => {
+    mutationFn: async ({ email, role, name }: { email: string; role: string; name: string }) => {
       const { data, error } = await supabase.functions.invoke("invite-user", {
-        body: { email, role },
+        body: { email, role, name },
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
@@ -160,6 +162,7 @@ export default function Settings() {
     onSuccess: () => {
       toast({ title: "Convite enviado", description: `Convite enviado para ${email}` });
       setEmail("");
+      setNome("");
       setRole("viewer");
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
     },
@@ -176,7 +179,7 @@ export default function Settings() {
   const handleInvite = (e: React.FormEvent) => {
     e.preventDefault();
     if (!isValidEmail) return;
-    inviteMutation.mutate({ email: email.trim().toLowerCase(), role });
+    inviteMutation.mutate({ email: email.trim().toLowerCase(), role, name: formatPersonName(nome) });
   };
 
   const isSelf = (userId: string) => currentUser?.id === userId;
@@ -197,6 +200,10 @@ export default function Settings() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1 space-y-1">
+              <Label htmlFor="invite-name" className="sr-only">Nome completo</Label>
+              <Input id="invite-name" placeholder="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} required />
+            </div>
             <div className="flex-1 space-y-1">
               <Label htmlFor="invite-email" className="sr-only">E-mail</Label>
               <Input

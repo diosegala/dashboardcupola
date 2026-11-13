@@ -18,6 +18,9 @@ interface AuthContextType {
   setViewingAsSeller: (v: boolean) => void;
   profile: { name: string | null } | null;
   signOut: () => Promise<void>;
+  // Relê o nome depois que a pessoa salva o perfil.
+  refreshProfile: () => Promise<void>;
+  role: "admin" | "viewer" | "seller" | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -118,12 +121,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [user]);
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    const { data } = await supabase.from("profiles").select("name").eq("id", user.id).single();
+    if (data) setProfile(data);
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, canViewAll: isAdmin || isViewer, isSeller: isRealSeller || (isAdmin && viewingAsSeller), viewingAsSeller: isAdmin && viewingAsSeller, setViewingAsSeller, profile, signOut }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, canViewAll: isAdmin || isViewer, isSeller: isRealSeller || (isAdmin && viewingAsSeller), viewingAsSeller: isAdmin && viewingAsSeller, setViewingAsSeller, profile, signOut, refreshProfile, role: isAdmin ? "admin" : isViewer ? "viewer" : isRealSeller ? "seller" : null }}>
       {children}
     </AuthContext.Provider>
   );

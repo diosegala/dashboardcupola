@@ -71,6 +71,13 @@
       "when": 1794582204584,
       "tag": "0009_drop_noop_crm_products_policy",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794582536967,
+      "tag": "0010_profile_names",
+      "breakpoints": true
     }
   ]
 }

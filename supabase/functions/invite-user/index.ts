@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     }
 
     // Parse and validate body
-    const { email, role } = await req.json();
+    const { email, role, name } = await req.json();
 
     if (!email || typeof email !== "string") {
       return new Response(JSON.stringify({ error: "E-mail é obrigatório" }), {
@@ -82,7 +82,10 @@ Deno.serve(async (req) => {
     const redirectTo = `https://dashboardcupola.lovable.app/set-password`;
 
     const { data: inviteData, error: inviteError } =
-      await adminClient.auth.admin.inviteUserByEmail(trimmedEmail, { redirectTo });
+      await adminClient.auth.admin.inviteUserByEmail(trimmedEmail, {
+        redirectTo,
+        data: typeof name === "string" && name.trim() ? { name: name.trim().slice(0, 120) } : undefined,
+      });
 
     if (inviteError) {
       console.error("Invite error:", inviteError);

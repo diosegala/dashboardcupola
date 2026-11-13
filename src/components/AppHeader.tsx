@@ -3,6 +3,7 @@ import { LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { firstName } from "@/lib/personName";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { EventSelector } from "@/components/EventSelector";
 
@@ -30,9 +31,9 @@ export function AppHeader() {
       )}
       <div className="ml-auto flex items-center gap-2">
         <ThemeToggle />
-        <span className="hidden max-w-[160px] truncate text-[13px] text-muted-foreground sm:inline">
-          {profile?.name || user?.email}
-        </span>
+        <Link to="/perfil" title="Meu perfil" className="hidden max-w-[160px] truncate text-[13px] text-muted-foreground transition-colors hover:text-foreground sm:inline">
+          {firstName(profile?.name, user?.email)}
+        </Link>
         <Button variant="ghost" size="icon" onClick={signOut} title="Sair" className="h-9 w-9">
           <LogOut className="h-4 w-4" />
         </Button>

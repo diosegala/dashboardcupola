@@ -10,7 +10,7 @@ import { CouponPeopleProvider } from "@/hooks/useCouponPeople";
 import { BatchCalendarProvider } from "@/hooks/useEventBatches";
 
 // Telas que a equipe de vendas pode abrir; as outras voltam para o ranking.
-const TELAS_EQUIPE = ["/", "/compradores"];
+const TELAS_EQUIPE = ["/", "/compradores", "/perfil"];
 
 export function AppLayout() {
   const { isSeller, isAdmin } = useAuth();

@@ -1,3 +1,4 @@
+import { firstName } from "@/lib/personName";
 import { useMemo } from "react";
 import { PageHeader } from "@/components/PageHeader";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,7 +14,7 @@ import { TeamRanking, TeamStanding, buildTeamRanking, findMe } from "@/component
 
 // Início da equipe de vendas: a própria posição, dicas para subir e o ranking geral do lote.
 export function SellerHome() {
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
   const { event } = useEvent();
   const vendas = useAllTimeTicketSales(event.sympla_event_id ?? "");
   const meusCupons = useMyTeamCoupons();
@@ -22,12 +23,12 @@ export function SellerHome() {
 
   const ranking = useMemo(() => buildTeamRanking(splitTickets(vendas.data ?? []).paying), [vendas.data]);
   const eu = useMemo(() => findMe(ranking, meusCupons.data ?? [], profile?.name), [ranking, meusCupons.data, profile?.name]);
-  const primeiroNome = (profile?.name ?? "").trim().split(/\s+/)[0];
+  const primeiroNome = firstName(profile?.name, user?.email);
 
   return (
     <div className="space-y-6">
       <PageHeader
-        title={primeiroNome ? `Bora vender, ${primeiroNome}` : "Ranking da equipe"}
+        title={primeiroNome ? `Bora vender, ${primeiroNome}!` : "Ranking da equipe"}
         description="Sua colocação no lote atual, o que falta para subir e o ranking de toda a equipe. A cada lote o ranking recomeça."
       />
       {vendas.isLoading || meusCupons.isLoading ? (
