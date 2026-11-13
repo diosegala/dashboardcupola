@@ -420,8 +420,7 @@ export function TeamStanding({ data, eu }: { data: TeamRankingData; eu: Eu }) {
   const empatados = minha ? ranking.filter((v) => v.nome !== minha.nome && v.vendas === minha.vendas) : [];
 
   let mensagem: string;
-  if (!eu) mensagem = "Ainda não encontramos seu cupom. Peça para cadastrarem seu cupom em Configurações.";
-  else if (!minha) mensagem = lider ? `Uma venda já coloca você no ranking. Quem lidera tem ${plural(lider.vendas, "venda", "vendas")}.` : "Ninguém vendeu neste lote ainda: a primeira venda já coloca você na liderança.";
+  if (!minha) mensagem = lider ? `Uma venda já coloca você no ranking. Quem lidera tem ${plural(lider.vendas, "venda", "vendas")}.` : "Ninguém vendeu neste lote ainda: a primeira venda já coloca você na liderança.";
   else if (pos === 1 && empatados.length > 0) mensagem = `Empate na liderança com ${empatados.map((v) => v.nome).join(", ")}. Uma venda desempata.`;
   else if (pos === 1) mensagem = segundo ? `Você lidera com ${plural(minha.vendas - segundo.vendas, "venda", "vendas")} de vantagem sobre ${segundo.nome}.` : "Você lidera este lote.";
   else if (acima) {
