@@ -118,7 +118,11 @@ function useManageUser() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: (_, variables) => {
+    onSuccess: (data, variables) => {
+      if (variables.action === "resend_invite" && (data as any)?.sent === "reset") {
+        toast({ title: "Link de redefinição de senha enviado" });
+        return;
+      }
       const messages: Record<string, string> = {
         update_role: "Função atualizada com sucesso",
         resend_invite: "Convite reenviado com sucesso",
@@ -349,7 +353,7 @@ export default function Settings() {
                               <Mail className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>Reenviar convite</TooltipContent>
+                          <TooltipContent>{u.email_confirmed_at ? "Enviar link para redefinir senha" : "Reenviar convite"}</TooltipContent>
                         </Tooltip>
 
                         <AlertDialog>

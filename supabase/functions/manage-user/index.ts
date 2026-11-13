@@ -96,6 +96,19 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Usuário não encontrado" }, 404);
       }
 
+      if (userData.user.email_confirmed_at) {
+        // Conta já ativa: envia link de redefinição de senha em vez de convite.
+        const { error: resetError } = await userClient.auth.resetPasswordForEmail(
+          userData.user.email!,
+          { redirectTo: "https://painel.cupola.com.br/set-password" }
+        );
+        if (resetError) {
+          console.error("resend_invite reset error:", resetError);
+          return jsonResponse({ error: resetError.message }, 400);
+        }
+        return jsonResponse({ success: true, sent: "reset" });
+      }
+
       const redirectTo = "https://painel.cupola.com.br/set-password";
       const { error: inviteError } = await adminClient.auth.admin.inviteUserByEmail(
         userData.user.email!,
@@ -105,7 +118,7 @@ Deno.serve(async (req) => {
         console.error("resend_invite error:", inviteError);
         return jsonResponse({ error: inviteError.message }, 400);
       }
-      return jsonResponse({ success: true });
+      return jsonResponse({ success: true, sent: "invite" });
     }
 
     // === DELETE USER ===
