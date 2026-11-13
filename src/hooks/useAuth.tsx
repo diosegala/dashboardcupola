@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useQueryClient } from "@tanstack/react-query";
 import { clearPeriod } from "@/hooks/usePeriod";
 import type { User, Session } from "@supabase/supabase-js";
 
@@ -22,6 +23,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
+  const [, setRolesKey] = useState<string | null>(null);
+  const [recheck, setRecheck] = useState(0);
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,7 +50,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<{ name: string | null } | null>(null);
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "TOKEN_REFRESHED") setRecheck((n) => n + 1);
       setSession(session);
       setUser(session?.user ?? null);
       if (!session?.user) {
@@ -78,21 +83,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           supabase.from("profiles").select("name").eq("id", user.id).single(),
           supabase.from("user_roles").select("role").eq("user_id", user.id),
         ]);
+        if (roleRes.error) throw roleRes.error;
         const roles = (roleRes.data ?? []).map((r) => String(r.role));
+        // Papel mudou enquanto a pessoa estava no painel: descarta os dados do papel antigo.
+        const key = `${user.id}:${[...roles].sort().join(",")}`;
+        setRolesKey((antes) => {
+          if (antes && antes !== key) queryClient.invalidateQueries();
+          return key;
+        });
         setProfile(profileRes.data);
         setIsAdmin(roles.includes("admin"));
         setIsViewer(roles.includes("viewer"));
         setIsRealSeller(roles.includes("seller") && !roles.includes("admin"));
       } catch (err) {
+        // Falha momentânea: mantém o papel já lido em vez de zerar a tela.
         console.error("[useAuth] Error fetching user data:", err);
-        setIsAdmin(false);        setIsViewer(false);
-        setIsRealSeller(false);
       } finally {
         setLoading(false);
       }
     };
 
     fetchUserData();
+  }, [user, recheck, queryClient]);
+
+  // Relê o papel ao voltar para a aba e a cada 2 minutos, para trocas de papel valerem sem sair.
+  useEffect(() => {
+    if (!user) return;
+    const reler = () => document.visibilityState === "visible" && setRecheck((n) => n + 1);
+    document.addEventListener("visibilitychange", reler);
+    const id = window.setInterval(reler, 120_000);
+    return () => {
+      document.removeEventListener("visibilitychange", reler);
+      window.clearInterval(id);
+    };
   }, [user]);
 
   const signOut = async () => {

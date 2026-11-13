@@ -218,8 +218,8 @@ export default function Settings() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="viewer">Viewer</SelectItem>
-                  <SelectItem value="seller">Equipe de vendas</SelectItem>
+                  <SelectItem value="viewer">Visualizador</SelectItem>
+                  <SelectItem value="seller">Equipe de venda</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                 </SelectContent>
               </Select>
@@ -290,10 +290,10 @@ export default function Settings() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="viewer">
-                            <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> Viewer</span>
+                            <span className="flex items-center gap-1"><Eye className="h-3 w-3" /> Visualizador</span>
                           </SelectItem>
                           <SelectItem value="seller">
-                            <span className="flex items-center gap-1"><Trophy className="h-3 w-3" /> Equipe de vendas</span>
+                            <span className="flex items-center gap-1"><Trophy className="h-3 w-3" /> Equipe de venda</span>
                           </SelectItem>
                           <SelectItem value="admin">
                             <span className="flex items-center gap-1"><Shield className="h-3 w-3" /> Admin</span>

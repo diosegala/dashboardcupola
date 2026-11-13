@@ -57,6 +57,13 @@
       "when": 1794497369050,
       "tag": "0007_restrict_tautology_read_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794581858751,
+      "tag": "0008_all_events_for_everyone",
+      "breakpoints": true
     }
   ]
 }

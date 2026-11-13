@@ -150,3 +150,13 @@ export function couponDiscountValue(t: { coupon_code?: string | null; total_pric
   const fixo = Number(c.discount.replace(/[^\d.]/g, ""));
   return Math.round(fixo * (t.quantity || 1) * 100) / 100;
 }
+
+// Separa um cupom da equipe em nome + letra diferenciadora + desconto, a partir do primeiro nome da pessoa.
+// LETICIAA5 com "Leticia" → { letra: "A", desconto: 5 }; ALINEPAVEZI5 com "Aline" → letra null, resto "PAVEZI".
+export function splitTeamCoupon(code: string, firstName: string): { letra: string | null; sufixo: string; desconto: number | null } | null {
+  const base = firstName.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/[^A-Z]/g, "");
+  const m = code.trim().toUpperCase().match(/^([A-Z]+)(\d+)?$/);
+  if (!m || !base || !m[1].startsWith(base)) return null;
+  const sufixo = m[1].slice(base.length);
+  return { letra: sufixo.length === 1 ? sufixo : null, sufixo, desconto: m[2] ? Number(m[2]) : null };
+}
