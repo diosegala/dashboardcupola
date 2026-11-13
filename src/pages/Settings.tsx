@@ -1,7 +1,6 @@
 import { formatPersonName } from "@/lib/personName";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { PageHeader } from "@/components/PageHeader";
-import { InfoTip } from "@/components/InfoTip";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -22,11 +21,14 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { useToast } from "@/hooks/use-toast";
 import { EventsManager } from "@/components/settings/EventsManager";
 import { UserPlus, Shield, Eye, Loader2, Mail, Trash2, CheckCircle2, Clock, Trophy } from "lucide-react";
-import { useTeamCoupons } from "@/hooks/useTeam";
+import { UserDetailSheet } from "@/components/settings/UserDetailSheet";
+import { setCouponPersonForUser } from "@/components/settings/couponLinking";
+import { useCouponPeople, COUPON_PEOPLE_KEY } from "@/hooks/useCouponPeople";
 
 interface UserWithAuth {
   id: string;
   name: string | null;
+  email: string | null;
   created_at: string;
   role: string;
   email_confirmed_at: string | null;
@@ -52,13 +54,14 @@ function useUsers() {
         rolesMap.set(r.user_id, r.role);
       }
 
-      const authUsers: Array<{ id: string; email_confirmed_at: string | null; last_sign_in_at: string | null }> =
+      const authUsers: Array<{ id: string; email: string | null; email_confirmed_at: string | null; last_sign_in_at: string | null }> =
         authRes.data?.users ?? [];
       const authMap = new Map(authUsers.map((u) => [u.id, u]));
 
       return profilesRes.data.map((p) => ({
         id: p.id,
         name: p.name,
+        email: authMap.get(p.id)?.email ?? null,
         created_at: p.created_at,
         role: rolesMap.get(p.id) ?? "viewer",
         email_confirmed_at: authMap.get(p.id)?.email_confirmed_at ?? null,
@@ -66,55 +69,6 @@ function useUsers() {
       }));
     },
   });
-}
-
-// Cupons da pessoa da equipe, separados por vírgula. Salva ao sair do campo.
-function TeamCouponInput({ userId, codes }: { userId: string; codes: string[] }) {
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const atual = codes.join(", ");
-  const [valor, setValor] = useState(atual);
-  const [salvando, setSalvando] = useState(false);
-
-  const salvar = async () => {
-    const novos = Array.from(new Set(valor.split(/[,\s]+/).map((c) => c.trim().toUpperCase()).filter(Boolean)));
-    if (novos.join(", ") === atual) return;
-    setSalvando(true);
-    const tabela = supabase.from("team_coupons" as any);
-    const apagar = await tabela.delete().eq("user_id", userId);
-    const inserir = apagar.error || novos.length === 0 ? apagar : await supabase.from("team_coupons" as any).insert(novos.map((coupon_code) => ({ user_id: userId, coupon_code })));
-    setSalvando(false);
-    if (inserir.error) {
-      toast({ variant: "destructive", title: "Não deu para salvar o cupom", description: traduzirErro(inserir.error) });
-      setValor(atual);
-      return;
-    }
-    setValor(novos.join(", "));
-    toast({ title: novos.length ? "Cupom salvo" : "Cupom removido" });
-    queryClient.invalidateQueries({ queryKey: ["team_coupons"] });
-  };
-
-  return (
-    <div className="mt-2 w-full max-w-[13rem]">
-      <div className="mb-1 flex items-center gap-1.5">
-        <Label htmlFor={`cupons-${userId}`} className="text-[11px] font-medium leading-none text-muted-foreground">
-          Cupons dela
-        </Label>
-        <InfoTip title="Cupons dela" />
-      </div>
-      <Input
-        id={`cupons-${userId}`}
-        value={valor}
-        onChange={(e) => setValor(e.target.value)}
-        onBlur={salvar}
-        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-        disabled={salvando}
-        placeholder="ex.: LETICIA15, LETICIA10"
-        className="h-8 font-mono text-xs uppercase"
-        title="Cupons desta pessoa da equipe. Mais de um? Separe por vírgula."
-      />
-    </div>
-  );
 }
 
 function useManageUser() {
@@ -152,7 +106,9 @@ export default function Settings() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: users, isLoading: usersLoading } = useUsers();
-  const teamCoupons = useTeamCoupons(isAdmin);
+  const { data: pessoas = [] } = useCouponPeople();
+  const [aberto, setAberto] = useState<UserWithAuth | null>(null);
+  const [cupomNovo, setCupomNovo] = useState("__sem__");
   const manageMutation = useManageUser();
 
   const [email, setEmail] = useState("");
@@ -173,7 +129,12 @@ export default function Settings() {
       if (data?.error) throw new Error(data.error);
       return data;
     },
-    onSuccess: () => {
+    onSuccess: async (data: any) => {
+      if (cupomNovo !== "__sem__" && data?.user_id) {
+        try { await setCouponPersonForUser(data.user_id, cupomNovo); } catch { /* admin liga depois */ }
+        queryClient.invalidateQueries({ queryKey: COUPON_PEOPLE_KEY });
+      }
+      setCupomNovo("__sem__");
       toast({ title: "Convite enviado", description: `Convite enviado para ${email}` });
       setEmail("");
       setNome("");
@@ -202,64 +163,65 @@ export default function Settings() {
     <div className="space-y-6">
       <PageHeader title="Configurações" description="Gerenciar usuários e permissões" />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserPlus className="h-5 w-5" />
-            Convidar usuário
-          </CardTitle>
-          <CardDescription>
-            Apenas e-mails com domínio <strong>@cupola.com.br</strong> são aceitos.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 space-y-1">
-              <Label htmlFor="invite-name" className="sr-only">Nome completo</Label>
-              <Input id="invite-name" placeholder="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} required />
-            </div>
-            <div className="flex-1 space-y-1">
-              <Label htmlFor="invite-email" className="sr-only">E-mail</Label>
-              <Input
-                id="invite-email"
-                type="email"
-                placeholder="nome@cupola.com.br"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-              />
-              {email.length > 0 && !isValidEmail && (
-                <p className="text-xs text-destructive">O e-mail deve terminar com @cupola.com.br</p>
-              )}
-            </div>
-            <div className="w-full sm:w-44">
-              <Label htmlFor="invite-role" className="sr-only">Função</Label>
-              <Select value={role} onValueChange={setRole}>
-                <SelectTrigger id="invite-role">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="viewer">Visualizador</SelectItem>
-                  <SelectItem value="seller">Equipe de venda</SelectItem>
-                  <SelectItem value="admin">Admin</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <Button type="submit" disabled={!isValidEmail || inviteMutation.isPending}>
-              {inviteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Convidar"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-
       <EventsManager users={users ?? []} />
 
       <Card>
         <CardHeader>
           <CardTitle>Usuários</CardTitle>
-          <CardDescription>Lista de usuários cadastrados no sistema</CardDescription>
+          <CardDescription>Convide pessoas (só e-mails <strong>@cupola.com.br</strong>) e clique no nome para editar os dados e o cupom.</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="mb-6 rounded-lg border bg-muted/30 p-4">
+            <p className="mb-3 flex items-center gap-2 text-sm font-medium"><UserPlus className="h-4 w-4" /> Convidar usuário</p>
+            <form onSubmit={handleInvite} className="flex flex-col sm:flex-row gap-3">
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="invite-name" className="sr-only">Nome completo</Label>
+                <Input id="invite-name" placeholder="Nome completo" value={nome} onChange={(e) => setNome(e.target.value)} required />
+              </div>
+              <div className="flex-1 space-y-1">
+                <Label htmlFor="invite-email" className="sr-only">E-mail</Label>
+                <Input
+                  id="invite-email"
+                  type="email"
+                  placeholder="nome@cupola.com.br"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                />
+                {email.length > 0 && !isValidEmail && (
+                  <p className="text-xs text-destructive">O e-mail deve terminar com @cupola.com.br</p>
+                )}
+              </div>
+              <div className="w-full sm:w-44">
+                <Label htmlFor="invite-role" className="sr-only">Função</Label>
+                <Select value={role} onValueChange={setRole}>
+                  <SelectTrigger id="invite-role">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="viewer">Visualizador</SelectItem>
+                    <SelectItem value="seller">Equipe de venda</SelectItem>
+                    <SelectItem value="admin">Admin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="w-full sm:w-44">
+                <Label htmlFor="invite-cupom" className="sr-only">Cupom (opcional)</Label>
+                <Select value={cupomNovo} onValueChange={setCupomNovo}>
+                  <SelectTrigger id="invite-cupom"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__sem__">Cupom: automático</SelectItem>
+                    {pessoas.filter((p) => !p.userId).map((p) => (
+                      <SelectItem key={p.id} value={p.id}>Cupom: {p.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Button type="submit" disabled={!isValidEmail || inviteMutation.isPending}>
+                {inviteMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : "Convidar"}
+              </Button>
+            </form>
+          </div>
           <div className="flex items-center gap-2 mb-4">
             <Label htmlFor="status-filter" className="text-sm text-muted-foreground whitespace-nowrap">Filtrar por status:</Label>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -293,7 +255,9 @@ export default function Settings() {
                 {filteredUsers?.map((u) => (
                   <TableRow key={u.id}>
                     <TableCell className="font-medium">
-                      {u.name ?? "—"}
+                      <button type="button" className="text-left hover:text-primary hover:underline underline-offset-2" onClick={() => setAberto(u)}>
+                        {u.name ?? "—"}
+                      </button>
                       {isSelf(u.id) && (
                         <Badge variant="outline" className="ml-2 text-xs">você</Badge>
                       )}
@@ -321,9 +285,6 @@ export default function Settings() {
                           </SelectItem>
                         </SelectContent>
                       </Select>
-                      {u.role === "seller" && (
-                        <TeamCouponInput key={(teamCoupons.data?.[u.id] ?? []).join(",")} userId={u.id} codes={teamCoupons.data?.[u.id] ?? []} />
-                      )}
                     </TableCell>
                     <TableCell>
                       {u.email_confirmed_at ? (
@@ -411,6 +372,7 @@ export default function Settings() {
           )}
         </CardContent>
       </Card>
+      <UserDetailSheet user={aberto} isSelf={!!aberto && isSelf(aberto.id)} onClose={() => setAberto(null)} />
     </div>
   );
 }

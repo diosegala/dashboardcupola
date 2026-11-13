@@ -65,6 +65,7 @@ Deno.serve(async (req) => {
       const users = (listData?.users ?? []).map((u) => ({
         id: u.id,
         email: u.email,
+        name: (u.user_metadata as any)?.name ?? null,
         email_confirmed_at: u.email_confirmed_at ?? null,
         last_sign_in_at: u.last_sign_in_at ?? null,
       }));
@@ -85,6 +86,34 @@ Deno.serve(async (req) => {
       if (error) {
         console.error("update_role error:", error);
         return jsonResponse({ error: error.message }, 400);
+      }
+      return jsonResponse({ success: true });
+    }
+
+    // === UPDATE USER (nome, e-mail, senha) ===
+    if (action === "update_user") {
+      const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ").slice(0, 120) : undefined;
+      const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : undefined;
+      const password = typeof body.password === "string" && body.password ? body.password : undefined;
+      if (email !== undefined && !/^[^@\s]+@cupola\.com\.br$/.test(email)) {
+        return jsonResponse({ error: "O e-mail deve terminar com @cupola.com.br" }, 400);
+      }
+      if (password !== undefined && password.length < 8) {
+        return jsonResponse({ error: "A senha precisa ter pelo menos 8 caracteres" }, 400);
+      }
+      const changes: Record<string, unknown> = {};
+      if (email) { changes.email = email; changes.email_confirm = true; }
+      if (password) changes.password = password;
+      if (Object.keys(changes).length) {
+        const { error } = await adminClient.auth.admin.updateUserById(user_id, changes);
+        if (error) {
+          console.error("update_user auth error:", error);
+          return jsonResponse({ error: error.message }, 400);
+        }
+      }
+      if (name) {
+        const { error } = await adminClient.from("profiles").update({ name }).eq("id", user_id);
+        if (error) return jsonResponse({ error: error.message }, 400);
       }
       return jsonResponse({ success: true });
     }

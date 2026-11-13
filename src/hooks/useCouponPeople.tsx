@@ -6,6 +6,9 @@ import { setCouponPeople, type CouponPerson } from "@/lib/coupons";
 
 export interface CouponPersonRow extends CouponPerson {
   id: string;
+  userId?: string | null;
+  email?: string | null;
+  linkManual?: boolean;
 }
 
 const CACHE = "cupola-pessoas-cupons";
@@ -31,7 +34,7 @@ export function useCouponPeople() {
     queryFn: async (): Promise<CouponPersonRow[]> => {
       const { data, error } = await supabase
         .from("coupon_people")
-        .select("id, name, codes, seller_names, outside_ranking")
+        .select("id, name, codes, seller_names, outside_ranking, user_id, email, link_manual")
         .order("name");
       if (error) throw error;
       const lista = (data ?? []).map((r) => ({
@@ -40,6 +43,9 @@ export function useCouponPeople() {
         codes: r.codes ?? [],
         sellerNames: r.seller_names ?? [],
         outsideRanking: r.outside_ranking,
+        userId: (r as any).user_id ?? null,
+        email: (r as any).email ?? null,
+        linkManual: !!(r as any).link_manual,
       }));
       try {
         localStorage.setItem(CACHE, JSON.stringify(lista));

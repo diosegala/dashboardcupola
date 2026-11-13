@@ -105,29 +105,38 @@ export type Database = {
         Row: {
           codes: string[]
           created_at: string
+          email: string | null
           id: string
+          link_manual: boolean
           name: string
           outside_ranking: boolean
           seller_names: string[]
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           codes?: string[]
           created_at?: string
+          email?: string | null
           id?: string
+          link_manual?: boolean
           name: string
           outside_ranking?: boolean
           seller_names?: string[]
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           codes?: string[]
           created_at?: string
+          email?: string | null
           id?: string
+          link_manual?: boolean
           name?: string
           outside_ranking?: boolean
           seller_names?: string[]
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1382,6 +1391,7 @@ export type Database = {
           phone_key: string
         }[]
       }
+      coupon_match_key: { Args: { v: string }; Returns: string }
       get_buyer_events: {
         Args: { p_slug: string }
         Returns: {
@@ -1424,6 +1434,8 @@ export type Database = {
         Returns: boolean
       }
       is_seller: { Args: never; Returns: boolean }
+      link_coupon_person: { Args: { p_user: string }; Returns: string }
+      link_my_coupon_person: { Args: never; Returns: string }
     }
     Enums: {
       app_role: "admin" | "viewer" | "seller"

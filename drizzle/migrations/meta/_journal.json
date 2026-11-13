@@ -78,6 +78,13 @@
       "when": 1794582536967,
       "tag": "0010_profile_names",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794586756596,
+      "tag": "0011_coupon_people_user_link",
+      "breakpoints": true
     }
   ]
 }

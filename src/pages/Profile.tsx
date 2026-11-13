@@ -10,12 +10,15 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { formatPersonName, nameFromEmail } from "@/lib/personName";
 import { traduzirErro } from "@/lib/mensagensErro";
+import { useMyTeamCoupons } from "@/hooks/useTeam";
+import { Badge } from "@/components/ui/badge";
 
 const PAPEL: Record<string, string> = { admin: "Admin", viewer: "Visualizador", seller: "Equipe de venda" };
 
 export default function Profile() {
   const { user, profile, role, refreshProfile } = useAuth();
   const queryClient = useQueryClient();
+  const meusCupons = useMyTeamCoupons();
   const [nome, setNome] = useState("");
   const [senha, setSenha] = useState("");
   const [confirma, setConfirma] = useState("");
@@ -69,6 +72,21 @@ export default function Profile() {
             </div>
             <Button type="submit" disabled={salvandoNome}>{salvandoNome ? "Salvando…" : "Salvar"}</Button>
           </form>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Seus cupons</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {meusCupons.data?.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {meusCupons.data.map((c) => <Badge key={c} variant="secondary" className="font-mono">{c}</Badge>)}
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">{meusCupons.isLoading ? "Carregando…" : "Nenhum cupom ligado à sua conta ainda."}</p>
+          )}
+          <p className="text-xs text-muted-foreground">Algo não bate? Fale com o administrador.</p>
         </CardContent>
       </Card>
       <Card>
