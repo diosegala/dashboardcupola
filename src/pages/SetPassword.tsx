@@ -1,7 +1,8 @@
 import { traduzirErro } from "@/lib/mensagensErro";
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Loader2, Check } from "lucide-react";
+import { Loader2, Check, X } from "lucide-react";
+import { criteriosSenha } from "@/lib/passwordRules";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +13,6 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { CupolaLogo } from "@/components/CupolaLogo";
 import { firstName } from "@/lib/personName";
 
-const MIN = 8;
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -56,22 +56,29 @@ export default function SetPassword() {
     return () => { subscription.unsubscribe(); window.clearTimeout(t); };
   }, []);
 
-  const longa = password.length >= MIN;
-  const iguais = password.length > 0 && password === confirmPassword;
+  const criterios = criteriosSenha(password, confirmPassword);
+  const valida = criterios.every((c) => c.ok);
+  const [erro, setErro] = useState("");
+
+  const sair = async () => {
+    await supabase.auth.signOut();
+    navigate("/login", { replace: true });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!longa) return toast({ variant: "destructive", title: `A senha precisa ter pelo menos ${MIN} caracteres` });
-    if (!iguais) return toast({ variant: "destructive", title: "As senhas não são iguais" });
+    if (!valida) return;
+    setErro("");
     setLoading(true);
-    const { error } = await supabase.auth.updateUser({ password });
+    // Senha e marca "senha criada" vão juntas: se a senha falhar, nada é marcado.
+    const { error } = await supabase.auth.updateUser({ password, data: { password_set_at: new Date().toISOString() } });
     if (error) {
-      toast({ variant: "destructive", title: "Não foi possível salvar a senha", description: traduzirErro(error) });
+      setErro(traduzirErro(error));
       setLoading(false);
       return;
     }
     toast({ title: "Senha criada", description: "Tudo pronto. Bem-vindo(a) ao painel!" });
-    navigate("/");
+    navigate("/", { replace: true });
   };
 
   if (status === "checking") {
@@ -124,19 +131,21 @@ export default function SetPassword() {
             <Input id="confirmPassword" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
           </div>
           <ul className="space-y-1 text-sm">
-            {[
-              [longa, `Pelo menos ${MIN} caracteres`],
-              [iguais, "As duas senhas são iguais"],
-            ].map(([ok, txt]) => (
-              <li key={txt as string} className={`flex items-center gap-2 ${ok ? "text-foreground" : "text-muted-foreground"}`}>
-                <Check className={`h-4 w-4 ${ok ? "text-primary" : "opacity-30"}`} />
-                {txt}
+            {criterios.map((c) => (
+              <li key={c.id} className={`flex items-center gap-2 ${c.ok ? "text-ok" : "text-destructive"}`}>
+                {c.ok ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
+                {c.texto}
               </li>
             ))}
+            <li className="pt-1 text-xs text-muted-foreground">Senhas que já vazaram na internet também são recusadas.</li>
           </ul>
-          <Button type="submit" className="w-full" disabled={loading || !longa || !iguais}>
+          {erro && (
+            <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{erro}</p>
+          )}
+          <Button type="submit" className="w-full" disabled={loading || !valida}>
             {loading ? "Salvando…" : "Criar senha e entrar"}
           </Button>
+          <Button type="button" variant="ghost" className="w-full" onClick={sair}>Sair sem criar senha</Button>
         </form>
       </CardContent>
     </Shell>

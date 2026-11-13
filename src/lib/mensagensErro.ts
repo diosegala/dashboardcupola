@@ -10,6 +10,7 @@ const TRADUCOES: Array<[RegExp, string]> = [
   [/user not found/i, "Não encontramos uma conta com este e-mail."],
   [/new password should be different/i, "A nova senha precisa ser diferente da senha atual."],
   [/password should be at least (\d+)/i, "A senha precisa ter pelo menos 6 caracteres."],
+  [/known to be weak|pwned|leaked/i, "Essa senha já apareceu em vazamentos na internet. Escolha outra, de preferência uma frase com números."],
   [/password is too weak|weak password/i, "Essa senha é fraca demais. Use uma senha mais forte."],
   [/unable to validate email|invalid email|email address .* is invalid/i, "Digite um e-mail válido."],
   [/rate limit|too many requests|for security purposes/i, "Muitas tentativas seguidas. Aguarde um instante e tente de novo."],

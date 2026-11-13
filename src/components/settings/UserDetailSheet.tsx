@@ -21,6 +21,7 @@ export interface SheetUser {
   email: string | null;
   role: string;
   email_confirmed_at: string | null;
+  active?: boolean;
 }
 
 const SEM = "__sem__";
@@ -138,7 +139,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
             <Button type="submit" disabled={salvando || !emailValido || !typedCodesOk(typed, pessoas, atual?.id)}>{salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}</Button>
             <Button type="button" variant="outline" onClick={enviarLink} disabled={enviando} className="gap-1">
               <Mail className="h-4 w-4" />
-              {user?.email_confirmed_at ? "Enviar link de troca de senha" : "Reenviar convite"}
+              {user?.active ? "Enviar link de troca de senha" : "Reenviar convite"}
             </Button>
           </div>
         </form>

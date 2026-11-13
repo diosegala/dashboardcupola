@@ -31,6 +31,7 @@ interface UserWithAuth {
   created_at: string;
   role: string;
   email_confirmed_at: string | null;
+  active: boolean;
   last_sign_in_at: string | null;
 }
 
@@ -53,7 +54,7 @@ function useUsers() {
         rolesMap.set(r.user_id, r.role);
       }
 
-      const authUsers: Array<{ id: string; email: string | null; email_confirmed_at: string | null; last_sign_in_at: string | null }> =
+      const authUsers: Array<{ id: string; email: string | null; email_confirmed_at: string | null; active?: boolean; last_sign_in_at: string | null }> =
         authRes.data?.users ?? [];
       const authMap = new Map(authUsers.map((u) => [u.id, u]));
 
@@ -64,6 +65,7 @@ function useUsers() {
         created_at: p.created_at,
         role: rolesMap.get(p.id) ?? "viewer",
         email_confirmed_at: authMap.get(p.id)?.email_confirmed_at ?? null,
+        active: !!authMap.get(p.id)?.active,
         last_sign_in_at: authMap.get(p.id)?.last_sign_in_at ?? null,
       }));
     },
@@ -112,7 +114,7 @@ export default function Settings() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const filteredUsers = users?.filter((u) =>
-    statusFilter === "all" ? true : statusFilter === "active" ? !!u.email_confirmed_at : !u.email_confirmed_at
+    statusFilter === "all" ? true : statusFilter === "active" ? u.active : !u.active
   );
 
   if (authLoading) return null;
@@ -202,7 +204,7 @@ export default function Settings() {
                       </Select>
                     </TableCell>
                     <TableCell>
-                      {u.email_confirmed_at ? (
+                      {u.active ? (
                         <Badge variant="secondary" className="gap-1 bg-ok-bg text-xs text-ok hover:bg-ok-bg">
                           <CheckCircle2 className="h-3 w-3" /> Ativo
                         </Badge>
@@ -239,7 +241,7 @@ export default function Settings() {
                               <Mail className="h-4 w-4" />
                             </Button>
                           </TooltipTrigger>
-                          <TooltipContent>{u.email_confirmed_at ? "Enviar link para redefinir senha" : "Reenviar convite"}</TooltipContent>
+                          <TooltipContent>{u.active ? "Enviar link para redefinir senha" : "Reenviar convite"}</TooltipContent>
                         </Tooltip>
 
                         <AlertDialog>

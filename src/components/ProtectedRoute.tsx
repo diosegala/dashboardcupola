@@ -1,4 +1,5 @@
 import { Navigate } from "react-router-dom";
+import { precisaCriarSenha } from "@/lib/passwordRules";
 import { useAuth } from "@/hooks/useAuth";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -18,6 +19,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (!user) return <Navigate to="/login" replace />;
+
+  if (precisaCriarSenha(user)) return <Navigate to="/set-password" replace />;
 
   return <>{children}</>;
 }

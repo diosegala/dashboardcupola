@@ -67,6 +67,7 @@ Deno.serve(async (req) => {
         email: u.email,
         name: (u.user_metadata as any)?.name ?? null,
         email_confirmed_at: u.email_confirmed_at ?? null,
+        active: !!(u.user_metadata as any)?.password_set_at,
         last_sign_in_at: u.last_sign_in_at ?? null,
       }));
       return jsonResponse({ users });
@@ -103,7 +104,7 @@ Deno.serve(async (req) => {
       }
       const changes: Record<string, unknown> = {};
       if (email) { changes.email = email; changes.email_confirm = true; }
-      if (password) changes.password = password;
+      if (password) { changes.password = password; changes.user_metadata = { password_set_at: new Date().toISOString() }; }
       if (Object.keys(changes).length) {
         const { error } = await adminClient.auth.admin.updateUserById(user_id, changes);
         if (error) {
@@ -125,7 +126,7 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Usuário não encontrado" }, 404);
       }
 
-      if (userData.user.email_confirmed_at) {
+      if ((userData.user.user_metadata as any)?.password_set_at) {
         // Conta já ativa: envia link de redefinição de senha em vez de convite.
         const { error: resetError } = await userClient.auth.resetPasswordForEmail(
           userData.user.email!,
