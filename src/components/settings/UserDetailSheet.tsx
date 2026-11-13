@@ -1,3 +1,4 @@
+import { PasswordInput } from "@/components/ui/password-input";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -133,7 +134,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
             onPerson={(v) => setPessoa(v ?? SEM)} onTyped={setTyped} />
           <div className="space-y-1">
             <Label htmlFor="ud-senha">Nova senha (opcional)</Label>
-            <Input id="ud-senha" type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo de 8 caracteres" />
+            <PasswordInput id="ud-senha" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo de 8 caracteres" />
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
             <Button type="submit" disabled={salvando || !emailValido || !typedCodesOk(typed, pessoas, atual?.id)}>{salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}</Button>

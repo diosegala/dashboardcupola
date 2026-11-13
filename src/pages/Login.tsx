@@ -1,3 +1,4 @@
+import { PasswordInput } from "@/components/ui/password-input";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { useState } from "react";
 import { useNavigate, Navigate, Link } from "react-router-dom";
@@ -60,7 +61,7 @@ Entre para acessar o dashboard</CardDescription>
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength={6} />
+              <PasswordInput id="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength={6} />
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Carregando..." : "Entrar"}

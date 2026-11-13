@@ -1,3 +1,4 @@
+import { PasswordInput } from "@/components/ui/password-input";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
@@ -124,11 +125,11 @@ export default function SetPassword() {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="password">Nova senha</Label>
-            <Input id="password" type="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />
+            <PasswordInput id="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />
           </div>
           <div className="space-y-2">
             <Label htmlFor="confirmPassword">Confirme a senha</Label>
-            <Input id="confirmPassword" type="password" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
+            <PasswordInput id="confirmPassword" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
           </div>
           <ul className="space-y-1 text-sm">
             {criterios.map((c) => (

@@ -1,3 +1,4 @@
+import { PasswordInput } from "@/components/ui/password-input";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -98,11 +99,11 @@ export default function Profile() {
           <form onSubmit={salvarSenha} className="space-y-3">
             <div className="space-y-1">
               <Label htmlFor="perfil-senha">Nova senha</Label>
-              <Input id="perfil-senha" type="password" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
+              <PasswordInput id="perfil-senha" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
             </div>
             <div className="space-y-1">
               <Label htmlFor="perfil-confirma">Confirme a nova senha</Label>
-              <Input id="perfil-confirma" type="password" autoComplete="new-password" value={confirma} onChange={(e) => setConfirma(e.target.value)} required />
+              <PasswordInput id="perfil-confirma" autoComplete="new-password" value={confirma} onChange={(e) => setConfirma(e.target.value)} required />
             </div>
             <Button type="submit" disabled={salvandoSenha}>{salvandoSenha ? "Salvando…" : "Trocar senha"}</Button>
           </form>
