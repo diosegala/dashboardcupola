@@ -62,6 +62,10 @@ export const METRIC_INFO: Record<string, string> = {
   "Ranking da equipe":
     "Pagantes vendidos com o cupom de cada pessoa da equipe CUPOLA, lote a lote. Na linha do tempo, o lote atual (o da venda mais recente) abre sozinho; os lotes anteriores podem ser consultados e os próximos aparecem esmaecidos. Os 3 primeiros ficam em destaque e Ver mais abre os demais. Passe o mouse no nome para ver o cupom. Quem está marcado como fora do ranking não entra, mesmo vendendo.",
 
+  // Página Configurações
+  "Cupons dela":
+    "Os códigos de cupom que essa pessoa usa para vender. É por eles que o painel sabe quem vendeu cada ingresso e monta o ranking. Se ela usar mais de um código, separe por vírgula. O campo só aparece para quem é da equipe de venda, e salva sozinho ao sair do campo.",
+
   "Pessoas no evento": "Pessoas que compraram ou vão participar do evento selecionado, juntando comprador e participante quando têm o mesmo e-mail, CPF, telefone ou nome completo.",
   "Já vieram antes": "Pessoas do evento selecionado que também compraram ou participaram de algum evento anterior.",
   "Empresas no evento": "Empresas com compradores ou participantes no evento selecionado, juntando pelo CNPJ ou pelo nome da empresa.",

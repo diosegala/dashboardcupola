@@ -1,6 +1,7 @@
 import { formatPersonName } from "@/lib/personName";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { PageHeader } from "@/components/PageHeader";
+import { InfoTip } from "@/components/InfoTip";
 import { useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
@@ -94,16 +95,25 @@ function TeamCouponInput({ userId, codes }: { userId: string; codes: string[] })
   };
 
   return (
-    <Input
-      value={valor}
-      onChange={(e) => setValor(e.target.value)}
-      onBlur={salvar}
-      onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-      disabled={salvando}
-      placeholder="Cupom (ex.: NOME5)"
-      className="mt-1.5 h-8 w-40 font-mono text-xs uppercase"
-      title="Cupom desta pessoa da equipe. Mais de um? Separe por vírgula."
-    />
+    <div className="mt-2 w-full max-w-[13rem]">
+      <div className="mb-1 flex items-center gap-1.5">
+        <Label htmlFor={`cupons-${userId}`} className="text-[11px] font-medium leading-none text-muted-foreground">
+          Cupons dela
+        </Label>
+        <InfoTip title="Cupons dela" />
+      </div>
+      <Input
+        id={`cupons-${userId}`}
+        value={valor}
+        onChange={(e) => setValor(e.target.value)}
+        onBlur={salvar}
+        onKeyDown={(e) => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
+        disabled={salvando}
+        placeholder="ex.: LETICIA15, LETICIA10"
+        className="h-8 font-mono text-xs uppercase"
+        title="Cupons desta pessoa da equipe. Mais de um? Separe por vírgula."
+      />
+    </div>
   );
 }
 
@@ -272,7 +282,7 @@ export default function Settings() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nome</TableHead>
-                  <TableHead>Função</TableHead>
+                  <TableHead className="min-w-[13rem]">Função</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Último login</TableHead>
                   <TableHead>Desde</TableHead>
@@ -296,7 +306,7 @@ export default function Settings() {
                           manageMutation.mutate({ action: "update_role", user_id: u.id, role: newRole })
                         }
                       >
-                        <SelectTrigger className="w-40 h-8">
+                        <SelectTrigger className="h-8 w-full whitespace-nowrap">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
