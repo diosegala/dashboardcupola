@@ -57,7 +57,8 @@ export const BrandLayout = ({ preview, title, children, footerNote }: BrandLayou
           {footerNote ?? 'Se você não esperava este e-mail, pode ignorá-lo com segurança.'}
         </Text>
         <Text style={footerSmall}>
-          Painel de Eventos CUPOLA · uso interno da equipe
+          Painel de Eventos CUPOLA · uso interno da equipe ·{' '}
+          <Link href="https://painel.cupola.com.br" style={footerLink}>painel.cupola.com.br</Link>
         </Text>
       </Container>
     </Body>
@@ -178,3 +179,4 @@ const codeStyle = {
 }
 const footer = { fontSize: '12px', color: brand.muted, lineHeight: '1.5', margin: '22px 4px 4px' }
 const footerSmall = { fontSize: '11px', color: '#9a9da3', margin: '0 4px' }
+const footerLink = { color: brand.limeText, textDecoration: 'underline' }
