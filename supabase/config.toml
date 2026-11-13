@@ -1,31 +1,25 @@
 project_id = "nrgptrxuvxuqdmehpili"
 
-[functions.sync-sympla]
-verify_jwt = false
-
-[functions.sync-meta]
-verify_jwt = false
-
-[functions.sync-google-ads]
-verify_jwt = false
-
-[functions.sync-rd-station]
-verify_jwt = false
-
-[functions.invite-user]
-verify_jwt = false
-
-[functions.manage-user]
-verify_jwt = false
-
-[functions.list-sympla-events]
-verify_jwt = false
-
-[functions.sync-pipedrive]
-verify_jwt = false
-
-[functions.pipedrive-webhook]
-verify_jwt = false
-
-[functions.list-crm-options]
-verify_jwt = false
+[functions]
+  [functions.auth-email-hook]
+    verify_jwt = false
+  [functions.invite-user]
+    verify_jwt = false
+  [functions.list-crm-options]
+    verify_jwt = false
+  [functions.list-sympla-events]
+    verify_jwt = false
+  [functions.manage-user]
+    verify_jwt = false
+  [functions.pipedrive-webhook]
+    verify_jwt = false
+  [functions.sync-google-ads]
+    verify_jwt = false
+  [functions.sync-meta]
+    verify_jwt = false
+  [functions.sync-pipedrive]
+    verify_jwt = false
+  [functions.sync-rd-station]
+    verify_jwt = false
+  [functions.sync-sympla]
+    verify_jwt = false

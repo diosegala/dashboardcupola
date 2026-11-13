@@ -8,3 +8,4 @@
 - Sale→email attribution lives in `src/lib/emailAttribution.ts` (pure, tested) over `ticket_sales.utm_content`; admin overrides live in `email_sale_links`, so guesses never need code changes and the badge totals stay equal to the E-mail marketing channel.
 - Integration status, catalog (labels, schedule, credential fields) and plain-language error explanations live in `src/lib/integrationHealth.ts` (pure, tested); the Integrações page and credentials dialog read only from it so status rules never diverge.
 - Every dashboard user (any role or event link) sees all events through `can_see_event`; per-event links never limit reads, so nobody sees zeroed data. Logged-person identity for the ranking comes only from `team_coupons` (managed in Settings).
+- Account emails share one look in `supabase/functions/_shared/email-brand.tsx`; each template in `_shared/email-templates` only holds its own copy and subjects live in `auth-email-hook`, so a brand change touches one file.
