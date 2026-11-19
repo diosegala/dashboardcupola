@@ -326,7 +326,7 @@ export function EventsManager({ users }: { users: UserOption[] }) {
           <DialogHeader>
             <DialogTitle>Quem vê {accessEvent?.name}</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Admins e quem tem acesso a todos os eventos já veem este. Marque quem mais pode ver.</p>
+          <p className="text-xs text-muted-foreground">Administradores e quem tem acesso a todos os eventos já veem este. Marque quem mais pode ver.</p>
           <div className="max-h-[360px] space-y-1 overflow-auto">
             {accessEvent?.id &&
               users.filter((u) => u.role !== ADMIN_ROLE).map((u) => {

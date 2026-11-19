@@ -18,7 +18,7 @@ export function EventAccessPicker({ id, role, value, onChange }: {
   const { events } = useEvent();
   const list = events.filter((e) => e.id);
   if (role === ADMIN_ROLE) {
-    return <p className="text-xs text-muted-foreground">Admin vê todos os eventos.</p>;
+    return <p className="text-xs text-muted-foreground">Administrador vê todos os eventos.</p>;
   }
 
   const chosen = list.filter((e) => value.eventIds.includes(e.id as string));
