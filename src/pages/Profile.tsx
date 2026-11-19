@@ -1,4 +1,5 @@
-import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordFields, senhaValida } from "@/components/PasswordFields";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { roleInfo } from "@/lib/roles";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -6,7 +7,6 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { PageHeader } from "@/components/PageHeader";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { joinName, splitName } from "@/lib/personName";
@@ -40,6 +40,7 @@ export default function Profile() {
   const [confirma, setConfirma] = useState("");
   const [salvandoNome, setSalvandoNome] = useState(false);
   const [salvandoSenha, setSalvandoSenha] = useState(false);
+  const [trocandoSenha, setTrocandoSenha] = useState(false);
 
   useEffect(() => {
     const partes = splitName(profile?.name, user?.email);
@@ -62,14 +63,14 @@ export default function Profile() {
 
   const salvarSenha = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (senha.length < 8) return toast({ variant: "destructive", title: "A senha precisa ter pelo menos 8 caracteres" });
-    if (senha !== confirma) return toast({ variant: "destructive", title: "As senhas não são iguais" });
+    if (!senhaValida(senha, confirma)) return;
     setSalvandoSenha(true);
     const { error } = await supabase.auth.updateUser({ password: senha });
     setSalvandoSenha(false);
     if (error) return toast({ variant: "destructive", title: "Não foi possível trocar a senha", description: traduzirErro(error) });
     setSenha("");
     setConfirma("");
+    setTrocandoSenha(false);
     toast({ title: "Senha alterada" });
   };
 
@@ -90,9 +91,11 @@ export default function Profile() {
       </Card>
       <Card>
         <CardHeader>
-          <CardTitle>Seus eventos</CardTitle>
+          <CardTitle>Eventos que você acompanha</CardTitle>
           <CardDescription>
-            {todosEventos ? "Você vê todos os eventos, inclusive os próximos." : "Você vê apenas os eventos abaixo. Precisa de outro? Fale com o administrador."}
+            {todosEventos
+              ? "Seu acesso vale para todos os eventos do painel, inclusive os que ainda vão ser criados."
+              : "São os eventos que aparecem para você no painel. Se precisar acompanhar outro, é só pedir acesso ao administrador."}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -107,13 +110,14 @@ export default function Profile() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">Nenhum evento liberado ainda. Fale com o administrador.</p>
+            <p className="text-sm text-muted-foreground">Nenhum evento liberado para você ainda. Peça acesso ao administrador.</p>
           )}
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
           <CardTitle>Seus cupons</CardTitle>
+          <CardDescription>Códigos ligados a você. As vendas feitas com eles contam para você no ranking, em qualquer evento.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {meusCupons.data?.length ? (
@@ -121,30 +125,34 @@ export default function Profile() {
               {meusCupons.data.map((c) => <Badge key={c} variant="secondary" className="font-mono">{c}</Badge>)}
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">{meusCupons.isLoading ? "Carregando…" : "Nenhum cupom ligado à sua conta ainda."}</p>
+            <p className="text-sm text-muted-foreground">{meusCupons.isLoading ? "Carregando…" : "Nenhum cupom ligado a você ainda."}</p>
           )}
-          <p className="text-xs text-muted-foreground">Algo não bate? Fale com o administrador.</p>
+          <p className="text-xs text-muted-foreground">Falta algum ou tem um que não é seu? Avise o administrador.</p>
         </CardContent>
       </Card>
       <Card>
-        <CardHeader>
-          <CardTitle>Trocar senha</CardTitle>
-          <CardDescription>Mínimo de 8 caracteres.</CardDescription>
+        <CardHeader className="flex-row items-center justify-between gap-3 space-y-0">
+          <div className="space-y-1.5">
+            <CardTitle>Senha</CardTitle>
+            <CardDescription>A senha que você usa para entrar no painel.</CardDescription>
+          </div>
+          <Button type="button" variant="outline" onClick={() => setTrocandoSenha(true)}>Trocar senha</Button>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={salvarSenha} className="space-y-3">
-            <div className="space-y-1">
-              <Label htmlFor="perfil-senha">Nova senha</Label>
-              <PasswordInput id="perfil-senha" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} required />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="perfil-confirma">Confirme a nova senha</Label>
-              <PasswordInput id="perfil-confirma" autoComplete="new-password" value={confirma} onChange={(e) => setConfirma(e.target.value)} required />
-            </div>
-            <Button type="submit" disabled={salvandoSenha}>{salvandoSenha ? "Salvando…" : "Trocar senha"}</Button>
-          </form>
-        </CardContent>
       </Card>
+      <Dialog open={trocandoSenha} onOpenChange={(o) => { setTrocandoSenha(o); if (!o) { setSenha(""); setConfirma(""); } }}>
+        <DialogContent className="max-w-md rounded-[24px]">
+          <DialogHeader>
+            <DialogTitle>Trocar senha</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={salvarSenha} className="space-y-4">
+            <PasswordFields id="perfil" senha={senha} confirmacao={confirma} onSenha={setSenha} onConfirmacao={setConfirma} />
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setTrocandoSenha(false)}>Cancelar</Button>
+              <Button type="submit" disabled={salvandoSenha || !senhaValida(senha, confirma)}>{salvandoSenha ? "Salvando…" : "Salvar senha"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
