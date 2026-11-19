@@ -26,8 +26,8 @@ import {
 } from "@/lib/userImport";
 import { executarImportacao, type Falha } from "@/lib/userImportRun";
 
-// Modelo no Google Sheets (Arquivo › Fazer uma cópia). Vazio = só o arquivo para baixar.
-export const MODELO_GOOGLE = "";
+// Modelo no Google Sheets: o link abre direto o "Fazer uma cópia" para a pessoa editar a dela.
+export const MODELO_GOOGLE = "https://docs.google.com/spreadsheets/d/1eDwo3rl7vIBGxAPYj9Hgimpc3adIVV_8G1RPkkFV4SM/copy";
 
 const MODELO_CSV = "﻿Nome*;Sobrenome*;E-mail*;Função*;Cupons\nMaria;Exemplo;maria@exemplo.com;Visualizador;MARIA5\nJoão;Exemplo;joao@exemplo.com;Ranking;JOAO5, JOAO10\n";
 
@@ -292,7 +292,11 @@ export function ImportPeopleDialog({ event, onClose }: Props) {
                   ))}
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground">{totais.prontas ? "Tudo certo para importar." : "Nada a mudar: a base já está como a planilha."}</p>
+                <p className="text-sm text-muted-foreground">{totais.prontas
+                    ? "Tudo certo para importar."
+                    : totais.exemplos && !totais.semMudanca && !totais.ignoradas && !totais.repetidas
+                      ? "A planilha só tem as linhas de exemplo do modelo. Preencha com as pessoas e suba de novo."
+                      : "Nada a mudar: a base já está como a planilha."}</p>
               )}
               {decididas.length > 0 && (
                 <div className="space-y-1 rounded-2xl bg-secondary p-3 text-xs">
