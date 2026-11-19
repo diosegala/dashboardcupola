@@ -58,6 +58,14 @@ function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
   const abertos = tickets.filter((t) => ticketCategory(t) === "negociacao");
   const parcelados = new Set(tickets.filter((t) => ticketCategory(t) === "faturados" && t.installments).map((t) => t.deal_id)).size;
   const conferir = new Set(tickets.filter((t) => t.source === "pipedrive" && t.conferir).map((t) => t.deal_id)).size;
+  // Todo faturado ganho precisa de vendedor para contar no ranking; some sozinho quando o Pipedrive for preenchido.
+  const semVendedor = Array.from(
+    new Map(
+      tickets
+        .filter((t) => t.source === "pipedrive" && t.status === "approved" && t.deal_id && !t.seller_name)
+        .map((t) => [t.deal_id!, { id: t.deal_id!, nome: t.company || t.deal_title || `Negócio ${t.deal_id}`, link: t.crm_account ? `https://${t.crm_account}.pipedrive.com/deal/${t.deal_id}` : null }]),
+    ).values(),
+  );
   // Negócios ganhos com a quantidade de ingressos, cada um com o link para o negócio no Pipedrive.
   const negociosGanhos = new Map<string, { nome: string; ingressos: number; link: string | null }>();
   tickets
@@ -107,6 +115,17 @@ function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
         </p>
       )}
       {conferir > 0 && <p className="text-warn">Para investigar no CRM: {conferir} {conferir === 1 ? "negócio" : "negócios"} com quantidade lida pelo título ou corrigida.</p>}
+      {semVendedor.length > 0 && (
+        <p className="text-warn">
+          Para investigar no CRM: {semVendedor.length} {semVendedor.length === 1 ? "negócio faturado está" : "negócios faturados estão"} sem vendedor e não {semVendedor.length === 1 ? "entra" : "entram"} no ranking da equipe. Preencha o vendedor no Pipedrive:{" "}
+          {semVendedor.map((n, i) => (
+            <span key={n.id}>
+              {i > 0 && " · "}
+              {n.link ? <a href={n.link} target="_blank" rel="noreferrer" className="underline underline-offset-2">{n.nome}</a> : n.nome}
+            </span>
+          ))}
+        </p>
+      )}
     </div>
   );
 }
