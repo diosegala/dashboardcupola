@@ -68,6 +68,7 @@ Deno.serve(async (req) => {
         name: (u.user_metadata as any)?.name ?? null,
         email_confirmed_at: u.email_confirmed_at ?? null,
         active: !!(u.user_metadata as any)?.password_set_at,
+        disabled: !!(u as any).banned_until && new Date((u as any).banned_until) > new Date(),
         last_sign_in_at: u.last_sign_in_at ?? null,
       }));
       return jsonResponse({ users });
@@ -79,13 +80,35 @@ Deno.serve(async (req) => {
 
     // === UPDATE ROLE ===
     if (action === "update_role") {
-      const newRole = role === "admin" ? "admin" : role === "seller" ? "seller" : "viewer";
-      await adminClient.from("user_roles").delete().eq("user_id", user_id);
+      // Qualquer papel do enum app_role vale; o banco recusa um papel inexistente.
+      if (typeof role !== "string" || !/^[a-z_]+$/.test(role)) {
+        return jsonResponse({ error: "Função inválida" }, 400);
+      }
+      if (user_id === callerId) {
+        return jsonResponse({ error: "Você não pode alterar a sua própria função" }, 400);
+      }
+      // Grava o novo papel antes de apagar os outros: se falhar, a pessoa mantém o atual.
       const { error } = await adminClient
         .from("user_roles")
-        .insert({ user_id, role: newRole });
+        .upsert({ user_id, role }, { onConflict: "user_id,role" });
       if (error) {
         console.error("update_role error:", error);
+        return jsonResponse({ error: error.message }, 400);
+      }
+      await adminClient.from("user_roles").delete().eq("user_id", user_id).neq("role", role);
+      return jsonResponse({ success: true });
+    }
+
+    // === ATIVAR / INATIVAR (bloqueia o login sem apagar nada) ===
+    if (action === "set_active") {
+      if (user_id === callerId) {
+        return jsonResponse({ error: "Você não pode inativar a si mesmo" }, 400);
+      }
+      const { error } = await adminClient.auth.admin.updateUserById(user_id, {
+        ban_duration: body.active === false ? "876000h" : "none",
+      });
+      if (error) {
+        console.error("set_active error:", error);
         return jsonResponse({ error: error.message }, 400);
       }
       return jsonResponse({ success: true });

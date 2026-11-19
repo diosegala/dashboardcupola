@@ -14,6 +14,11 @@ import { parseCodes } from "@/lib/couponLink";
 import { CouponPicker, typedCodesOk } from "./CouponPicker";
 import { applyCouponChoice } from "./couponLinking";
 import { Loader2 } from "lucide-react";
+import { ROLES, DEFAULT_ROLE, ADMIN_ROLE } from "@/lib/roles";
+import { eventAccessActions, refreshEventAccess, type EventAccess } from "@/lib/eventAccess";
+import { EventAccessPicker } from "./EventAccessPicker";
+
+const SEM_ACESSO: EventAccess = { allEvents: false, eventIds: [] };
 
 export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (o: boolean) => void }) {
   const { toast } = useToast();
@@ -21,7 +26,8 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
   const { data: pessoas = [] } = useCouponPeople();
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("viewer");
+  const [role, setRole] = useState(DEFAULT_ROLE);
+  const [acesso, setAcesso] = useState<EventAccess>(SEM_ACESSO);
   const [personId, setPersonId] = useState<string | null>(null);
   const [typed, setTyped] = useState("");
   const [enviando, setEnviando] = useState(false);
@@ -30,7 +36,7 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
   const emailValido = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailLimpo);
   const codigosOk = typedCodesOk(typed, pessoas);
 
-  const limpar = () => { setNome(""); setEmail(""); setRole("viewer"); setPersonId(null); setTyped(""); };
+  const limpar = () => { setNome(""); setEmail(""); setRole(DEFAULT_ROLE); setAcesso(SEM_ACESSO); setPersonId(null); setTyped(""); };
 
   const convidar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -41,6 +47,11 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
       const { data, error } = await supabase.functions.invoke("invite-user", { body: { email: emailLimpo, role, name: nomeFmt } });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
+      if (data?.user_id && role !== ADMIN_ROLE) {
+        try { await eventAccessActions.save(data.user_id, acesso); }
+        catch (err) { toast({ variant: "destructive", title: "Convite enviado, mas o acesso aos eventos não foi salvo", description: traduzirErro(err as Error) }); }
+        refreshEventAccess(queryClient);
+      }
       if (data?.user_id && (personId || typed)) {
         try { await applyCouponChoice(data.user_id, nomeFmt, { personId, typed: parseCodes(typed) }); }
         catch (err) { toast({ variant: "destructive", title: "Convite enviado, mas o cupom não foi ligado", description: traduzirErro(err as Error) }); }
@@ -79,12 +90,11 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger id="iv-role"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="viewer">Visualizador</SelectItem>
-                <SelectItem value="seller">Equipe de venda</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
+                {ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
+          <EventAccessPicker id="iv-eventos" role={role} value={acesso} onChange={setAcesso} />
           <CouponPicker id="iv-cupom" account={{ name: nome, email: emailLimpo }} people={pessoas} personId={personId} typed={typed} onPerson={setPersonId} onTyped={setTyped} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
