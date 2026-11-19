@@ -18,6 +18,7 @@ import { SponsorshipConfig } from "@/components/settings/SponsorshipConfig";
 import { InvoicedPipelineConfig } from "@/components/settings/InvoicedPipelineConfig";
 import { BatchesManager } from "@/components/settings/BatchesManager";
 import { ADMIN_ROLE } from "@/lib/roles";
+import { ImportHistory, ImportPeopleDialog } from "@/components/settings/ImportPeople";
 import { accessOf, eventAccessActions, refreshEventAccess, useEventAccessMap } from "@/lib/eventAccess";
 import { isEventClosed, previousEventOf, useEvent, type EventRow } from "@/hooks/useEvent";
 
@@ -65,6 +66,7 @@ export function EventsManager({ users }: { users: UserOption[] }) {
   const [sponsorEvent, setSponsorEvent] = useState<EventRow | null>(null);
   const [invoicedEvent, setInvoicedEvent] = useState<EventRow | null>(null);
   const [batchesEvent, setBatchesEvent] = useState<EventRow | null>(null);
+  const [importEvent, setImportEvent] = useState<{ id: string; name: string; sympla_event_id: string | null } | null>(null);
 
 
   // Eventos da conta Sympla, buscados no servidor (o token não vem para o navegador).
@@ -107,9 +109,12 @@ export function EventsManager({ users }: { users: UserOption[] }) {
           await supabase.from("event_integrations" as any).insert(names.map((n: string) => ({ event_id: eventId, integration_name: n })));
         }
       }
+      return { id: eventId as string, name: row.name, sympla_event_id: row.sympla_event_id, novo: !f.id };
     },
-    onSuccess: () => {
-      toast.success("Evento salvo");
+    onSuccess: (salvo) => {
+      // Evento novo: oferece importar as pessoas logo em seguida.
+      if (salvo.novo) toast.success("Evento criado", { action: { label: "Importar pessoas", onClick: () => setImportEvent(salvo) }, duration: 10000 });
+      else toast.success("Evento salvo");
       setForm(null);
       queryClient.invalidateQueries({ queryKey: ["events"] });
     },
@@ -317,6 +322,7 @@ export function EventsManager({ users }: { users: UserOption[] }) {
         </DialogContent>
       </Dialog>
 
+      <ImportPeopleDialog event={importEvent} onClose={() => setImportEvent(null)} />
       <BatchesManager event={batchesEvent} open={!!batchesEvent} onClose={() => setBatchesEvent(null)} />
       <InvoicedPipelineConfig event={invoicedEvent} open={!!invoicedEvent} onClose={() => setInvoicedEvent(null)} />
       <SponsorshipConfig event={sponsorEvent} open={!!sponsorEvent} onClose={() => setSponsorEvent(null)} />
@@ -326,7 +332,12 @@ export function EventsManager({ users }: { users: UserOption[] }) {
           <DialogHeader>
             <DialogTitle>Quem vê {accessEvent?.name}</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Administradores e quem tem acesso a todos os eventos já veem este. Marque quem mais pode ver.</p>
+          <div className="flex items-start gap-3">
+            <p className="flex-1 text-xs text-muted-foreground">Administradores e quem tem acesso a todos os eventos já veem este. Marque quem mais pode ver ou importe uma planilha.</p>
+            <Button size="sm" variant="outline" className="shrink-0" onClick={() => { const ev = accessEvent; setAccessEvent(null); if (ev?.id) setImportEvent({ id: ev.id, name: ev.name, sympla_event_id: ev.sympla_event_id }); }}>
+              Importar planilha
+            </Button>
+          </div>
           <div className="max-h-[360px] space-y-1 overflow-auto">
             {accessEvent?.id &&
               users.filter((u) => u.role !== ADMIN_ROLE).map((u) => {
@@ -345,6 +356,7 @@ export function EventsManager({ users }: { users: UserOption[] }) {
                 );
               })}
           </div>
+          {accessEvent?.id && <ImportHistory eventId={accessEvent.id} nomes={new Map(users.map((u) => [u.id, u.name]))} />}
         </DialogContent>
       </Dialog>
     </Card>
