@@ -20,14 +20,14 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { EventsManager } from "@/components/settings/EventsManager";
-import { UserPlus, Loader2, Mail, Trash2, CheckCircle2, Clock, Ban, ChevronDown } from "lucide-react";
+import { UserPlus, Loader2, ArrowUp, ArrowDown, Mail, Trash2, CheckCircle2, Clock, Ban, ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEvent } from "@/hooks/useEvent";
-import { ROLES, ADMIN_ROLE, DEFAULT_ROLE, roleInfo } from "@/lib/roles";
+import { ROLES, ADMIN_ROLE, DEFAULT_ROLE, roleInfo, roleRank } from "@/lib/roles";
 import { accessOf, eventAccessActions, refreshEventAccess, useEventAccessMap } from "@/lib/eventAccess";
 import { UserDetailSheet } from "@/components/settings/UserDetailSheet";
 import { InviteUserDialog } from "@/components/settings/InviteUserDialog";
@@ -115,6 +115,19 @@ function useManageUser() {
 
 
 type Status = "active" | "pending" | "disabled";
+const STATUS_RANK: Record<Status, number> = { active: 0, pending: 1, disabled: 2 };
+
+// Ordenação pelos títulos das colunas. Padrão: função (admin primeiro) e, dentro dela, nome.
+type SortKey = "name" | "role" | "status" | "last_sign_in_at" | "created_at";
+const porNome = (a: UserWithAuth, b: UserWithAuth) => (a.name ?? a.email ?? "").localeCompare(b.name ?? b.email ?? "", "pt-BR", { sensitivity: "base" });
+const ORDENS: Record<SortKey, (a: UserWithAuth, b: UserWithAuth) => number> = {
+  name: porNome,
+  role: (a, b) => roleRank(a.role) - roleRank(b.role),
+  status: (a, b) => STATUS_RANK[statusOf(a)] - STATUS_RANK[statusOf(b)],
+  // Mais recente primeiro; quem nunca entrou vai para o fim.
+  last_sign_in_at: (a, b) => (b.last_sign_in_at ?? "").localeCompare(a.last_sign_in_at ?? ""),
+  created_at: (a, b) => b.created_at.localeCompare(a.created_at),
+};
 const statusOf = (u: UserWithAuth): Status => (u.disabled ? "disabled" : u.active ? "active" : "pending");
 
 // Ações em lote. As de evento só valem para quem não é admin (admin vê todos pelo papel).
@@ -163,12 +176,18 @@ export default function Settings() {
     u.role === ADMIN_ROLE || access(u).allEvents || access(u).eventIds.includes(eventId);
 
   const termo = busca.trim().toLowerCase();
+  const [ordem, setOrdem] = useState<{ key: SortKey; desc: boolean }>({ key: "role", desc: false });
+  const ordenar = (key: SortKey) => setOrdem((o) => (o.key === key ? { key, desc: !o.desc } : { key, desc: false }));
   const filteredUsers = (users ?? []).filter((u) =>
     (!termo || (u.name ?? "").toLowerCase().includes(termo) || (u.email ?? "").toLowerCase().includes(termo)) &&
     (statusFilter === "all" || statusOf(u) === statusFilter) &&
     (roleFilter === "all" || u.role === roleFilter) &&
     (eventFilter === "all" || seesEvent(u, eventFilter))
   );
+  filteredUsers.sort((a, b) => {
+    const c = ORDENS[ordem.key](a, b) * (ordem.desc ? -1 : 1);
+    return c || porNome(a, b);
+  });
   const visiveisSelecionados = filteredUsers.filter((u) => selecionados.has(u.id));
   const todosMarcados = filteredUsers.length > 0 && visiveisSelecionados.length === filteredUsers.length;
 
@@ -244,6 +263,20 @@ export default function Settings() {
   };
 
   const resumo = pendente ? alcance(pendente) : null;
+
+  // Título de coluna que ordena ao clicar; a seta só aparece na coluna em uso.
+  const cabecalho = (key: SortKey, rotulo: string, className?: string) => {
+    const ativa = ordem.key === key;
+    const Seta = ordem.desc ? ArrowDown : ArrowUp;
+    return (
+      <TableHead className={className} aria-sort={ativa ? (ordem.desc ? "descending" : "ascending") : "none"}>
+        <button type="button" onClick={() => ordenar(key)} className="inline-flex items-center gap-1 hover:text-foreground">
+          {rotulo}
+          {ativa && <Seta className="h-3 w-3" />}
+        </button>
+      </TableHead>
+    );
+  };
 
   return (
     <div className="space-y-6">
@@ -332,12 +365,12 @@ export default function Settings() {
                   <TableHead className="w-8">
                     <Checkbox checked={todosMarcados} onCheckedChange={(v) => alternarTodos(!!v)} aria-label="Selecionar todos" />
                   </TableHead>
-                  <TableHead>Nome</TableHead>
-                  <TableHead className="min-w-[13rem]">Função</TableHead>
+                  {cabecalho("name", "Nome")}
+                  {cabecalho("role", "Função", "min-w-[13rem]")}
                   <TableHead>Eventos</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Último login</TableHead>
-                  <TableHead>Desde</TableHead>
+                  {cabecalho("status", "Status")}
+                  {cabecalho("last_sign_in_at", "Último login")}
+                  {cabecalho("created_at", "Desde")}
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>

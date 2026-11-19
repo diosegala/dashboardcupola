@@ -1,9 +1,10 @@
+import { EmailInput } from "@/components/EmailInput";
+import { erroEmail, limparEmail } from "@/lib/email";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
@@ -21,7 +22,7 @@ export default function ForgotPassword() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    const { error } = await supabase.auth.resetPasswordForEmail(limparEmail(email), {
       redirectTo: `${window.location.origin}/set-password`,
     });
 
@@ -69,16 +70,9 @@ export default function ForgotPassword() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">E-mail</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="seu@email.com"
-                />
+                <EmailInput id="email" value={email} onChange={setEmail} placeholder="seu@email.com" />
               </div>
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full" disabled={loading || !!erroEmail(email)}>
                 {loading ? "Enviando..." : "Enviar link de recuperação"}
               </Button>
               <div className="text-center">

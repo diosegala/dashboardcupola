@@ -1,4 +1,6 @@
 import { PasswordInput } from "@/components/ui/password-input";
+import { EmailInput } from "@/components/EmailInput";
+import { erroEmail, limparEmail } from "@/lib/email";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -59,7 +61,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
   }, [user?.id]);
   useEffect(() => setPessoa(atual?.id ?? SEM), [atual?.id, user?.id]);
 
-  const emailValido = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim().toLowerCase());
+  const emailValido = !erroEmail(email);
 
   const invocar = async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke("manage-user", { body });
@@ -74,7 +76,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
     if (senha && senha.length < 8) return toast({ variant: "destructive", title: "A senha precisa ter pelo menos 8 caracteres" });
     setSalvando(true);
     try {
-      const novoEmail = email.trim().toLowerCase();
+      const novoEmail = limparEmail(email);
       await invocar({
         action: "update_user",
         user_id: user.id,
@@ -127,8 +129,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
           </div>
           <div className="space-y-1">
             <Label htmlFor="ud-email">E-mail</Label>
-            <Input id="ud-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            {!emailValido && <p className="text-xs text-destructive">Informe um e-mail válido</p>}
+            <EmailInput id="ud-email" value={email} onChange={setEmail} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="ud-role">Função</Label>

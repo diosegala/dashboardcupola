@@ -1,3 +1,5 @@
+import { EmailInput } from "@/components/EmailInput";
+import { erroEmail, limparEmail } from "@/lib/email";
 import { PasswordInput } from "@/components/ui/password-input";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { useState } from "react";
@@ -27,7 +29,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { error } = await supabase.auth.signInWithPassword({ email: limparEmail(email), password });
 
     if (error) {
       toast({ variant: "destructive", title: "Não foi possível entrar", description: traduzirErro(error) });
@@ -57,13 +59,13 @@ Entre para acessar o dashboard</CardDescription>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required placeholder="seu@email.com" />
+              <EmailInput id="email" value={email} onChange={setEmail} placeholder="seu@email.com" autoComplete="username" />
             </div>
             <div className="space-y-2">
               <Label htmlFor="password">Senha</Label>
               <PasswordInput id="password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" minLength={6} />
             </div>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || !!erroEmail(email)}>
               {loading ? "Carregando..." : "Entrar"}
             </Button>
             <div className="text-center">
