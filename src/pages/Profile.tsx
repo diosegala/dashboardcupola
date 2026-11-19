@@ -1,4 +1,5 @@
 import { PasswordInput } from "@/components/ui/password-input";
+import { roleInfo } from "@/lib/roles";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +15,6 @@ import { traduzirErro } from "@/lib/mensagensErro";
 import { useMyTeamCoupons } from "@/hooks/useTeam";
 import { Badge } from "@/components/ui/badge";
 
-const PAPEL: Record<string, string> = { admin: "Admin", viewer: "Visualizador", seller: "Equipe de venda" };
 
 export default function Profile() {
   const { user, profile, role, refreshProfile } = useAuth();
@@ -63,7 +63,7 @@ export default function Profile() {
       <Card>
         <CardHeader>
           <CardTitle>Seus dados</CardTitle>
-          <CardDescription>Papel de acesso: <b className="text-foreground">{role ? PAPEL[role] : "—"}</b></CardDescription>
+          <CardDescription>Papel de acesso: <b className="text-foreground">{role ? roleInfo(role).label : "—"}</b></CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={salvarNome} className="space-y-3">

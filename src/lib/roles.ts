@@ -5,7 +5,7 @@ import { Eye, Shield, Trophy, UserRound, type LucideIcon } from "lucide-react";
 // Só o admin vê todos os eventos sempre; qualquer outro papel segue o acesso escolhido.
 export const ROLES: { value: string; label: string; icon: LucideIcon }[] = [
   { value: "admin", label: "Admin", icon: Shield },
-  { value: "seller", label: "Equipe de venda", icon: Trophy },
+  { value: "seller", label: "Só ranking", icon: Trophy },
   { value: "viewer", label: "Visualizador", icon: Eye },
 ];
 
