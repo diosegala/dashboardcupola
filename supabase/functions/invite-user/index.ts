@@ -68,9 +68,9 @@ Deno.serve(async (req) => {
 
     const trimmedEmail = email.trim().toLowerCase();
 
-    if (!trimmedEmail.endsWith("@cupola.com.br")) {
+    if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(trimmedEmail)) {
       return new Response(
-        JSON.stringify({ error: "Apenas e-mails @cupola.com.br são permitidos" }),
+        JSON.stringify({ error: "Informe um e-mail válido" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }

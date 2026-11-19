@@ -52,7 +52,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
   }, [user?.id]);
   useEffect(() => setPessoa(atual?.id ?? SEM), [atual?.id, user?.id]);
 
-  const emailValido = /^[^@\s]+@cupola\.com\.br$/.test(email.trim().toLowerCase());
+  const emailValido = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email.trim().toLowerCase());
 
   const invocar = async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke("manage-user", { body });
@@ -117,7 +117,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
           <div className="space-y-1">
             <Label htmlFor="ud-email">E-mail</Label>
             <Input id="ud-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            {!emailValido && <p className="text-xs text-destructive">O e-mail deve terminar com @cupola.com.br</p>}
+            {!emailValido && <p className="text-xs text-destructive">Informe um e-mail válido</p>}
           </div>
           <div className="space-y-1">
             <Label htmlFor="ud-role">Função</Label>

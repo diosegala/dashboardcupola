@@ -27,7 +27,7 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
   const [enviando, setEnviando] = useState(false);
 
   const emailLimpo = email.trim().toLowerCase();
-  const emailValido = /^[^@\s]+@cupola\.com\.br$/.test(emailLimpo);
+  const emailValido = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailLimpo);
   const codigosOk = typedCodesOk(typed, pessoas);
 
   const limpar = () => { setNome(""); setEmail(""); setRole("viewer"); setPersonId(null); setTyped(""); };
@@ -62,7 +62,7 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
       <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto rounded-[24px]">
         <DialogHeader>
           <DialogTitle>Convidar usuário</DialogTitle>
-          <DialogDescription>Só e-mails @cupola.com.br. A pessoa recebe um link para criar a senha.</DialogDescription>
+          <DialogDescription>Pode ser de qualquer domínio. A pessoa recebe um link por e-mail para criar a senha.</DialogDescription>
         </DialogHeader>
         <form onSubmit={convidar} className="space-y-4">
           <div className="space-y-1">
@@ -71,8 +71,8 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
           </div>
           <div className="space-y-1">
             <Label htmlFor="iv-email">E-mail</Label>
-            <Input id="iv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@cupola.com.br" maxLength={255} required />
-            {email.length > 0 && !emailValido && <p className="text-xs text-destructive">O e-mail deve terminar com @cupola.com.br</p>}
+            <Input id="iv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.com.br" maxLength={255} required />
+            {email.length > 0 && !emailValido && <p className="text-xs text-destructive">Informe um e-mail válido</p>}
           </div>
           <div className="space-y-1">
             <Label htmlFor="iv-role">Função</Label>

@@ -96,8 +96,8 @@ Deno.serve(async (req) => {
       const name = typeof body.name === "string" ? body.name.trim().replace(/\s+/g, " ").slice(0, 120) : undefined;
       const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : undefined;
       const password = typeof body.password === "string" && body.password ? body.password : undefined;
-      if (email !== undefined && !/^[^@\s]+@cupola\.com\.br$/.test(email)) {
-        return jsonResponse({ error: "O e-mail deve terminar com @cupola.com.br" }, 400);
+      if (email !== undefined && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+        return jsonResponse({ error: "Informe um e-mail válido" }, 400);
       }
       if (password !== undefined && password.length < 8) {
         return jsonResponse({ error: "A senha precisa ter pelo menos 8 caracteres" }, 400);
