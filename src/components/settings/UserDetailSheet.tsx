@@ -1,6 +1,6 @@
 import { PasswordInput } from "@/components/ui/password-input";
 import { EmailInput } from "@/components/EmailInput";
-import { erroEmail, limparEmail } from "@/lib/email";
+import { emailJaUsado, erroEmail, limparEmail } from "@/lib/email";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -71,7 +71,9 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
   }, [user?.id]);
   useEffect(() => setPessoaIds(atuaisKey ? atuaisKey.split(",") : []), [atuaisKey, user?.id]);
 
-  const emailValido = !erroEmail(email);
+  const contas = queryClient.getQueryData<{ id: string; email: string | null }[]>(["users-with-roles"]);
+  const jaUsado = emailJaUsado(email, contas, user?.id);
+  const emailValido = !erroEmail(email) && !jaUsado;
 
   const invocar = async (body: Record<string, unknown>) => {
     const { data, error } = await supabase.functions.invoke("manage-user", { body });
@@ -139,7 +141,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
           </div>
           <div className="space-y-1">
             <Label htmlFor="ud-email">E-mail</Label>
-            <EmailInput id="ud-email" value={email} onChange={setEmail} />
+            <EmailInput id="ud-email" value={email} onChange={setEmail} extraError={jaUsado} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="ud-role">Função</Label>

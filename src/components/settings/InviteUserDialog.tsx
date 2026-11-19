@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EmailInput } from "@/components/EmailInput";
-import { erroEmail, limparEmail } from "@/lib/email";
+import { emailJaUsado, erroEmail, limparEmail } from "@/lib/email";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -39,7 +39,9 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
   const [enviando, setEnviando] = useState(false);
 
   const emailLimpo = limparEmail(email);
-  const emailValido = !erroEmail(email);
+  const contas = queryClient.getQueryData<{ id: string; email: string | null }[]>(["users-with-roles"]);
+  const jaUsado = emailJaUsado(email, contas);
+  const emailValido = !erroEmail(email) && !jaUsado;
   const codigosOk = typedCodesOk(typed, pessoas);
 
   const limpar = () => { setPrimeiro(""); setSobrenome(""); setEmail(""); setRole(DEFAULT_ROLE); setAcesso(SEM_ACESSO); setPersonIds([]); setTyped(""); };
@@ -87,7 +89,7 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
           </div>
           <div className="space-y-1">
             <Label htmlFor="iv-email">E-mail</Label>
-            <EmailInput id="iv-email" value={email} onChange={setEmail} />
+            <EmailInput id="iv-email" value={email} onChange={setEmail} extraError={jaUsado} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="iv-role">Função</Label>
