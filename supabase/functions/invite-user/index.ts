@@ -96,6 +96,11 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Registra quem convidou (app_metadata: só o servidor altera)
+    if (inviteData.user) {
+      await adminClient.auth.admin.updateUserById(inviteData.user.id, { app_metadata: { invited_by: callerId } });
+    }
+
     // Assign role
     if (inviteData.user) {
       await adminClient.from("user_roles").upsert(

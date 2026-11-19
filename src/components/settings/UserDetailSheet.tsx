@@ -11,7 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useCouponPeople, COUPON_PEOPLE_KEY } from "@/hooks/useCouponPeople";
-import { formatPersonName } from "@/lib/personName";
+import { joinName, splitName } from "@/lib/personName";
+import { NameFields } from "./NameFields";
+import { Checkbox } from "@/components/ui/checkbox";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { parseCodes } from "@/lib/couponLink";
 import { applyCouponChoice } from "./couponLinking";
@@ -28,23 +30,28 @@ export interface SheetUser {
   role: string;
   email_confirmed_at: string | null;
   active?: boolean;
+  team_view?: boolean;
 }
 
-const SEM = "__sem__";
 
 export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | null; isSelf: boolean; onClose: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: pessoas = [] } = useCouponPeople();
-  const [nome, setNome] = useState("");
+  const [primeiro, setPrimeiro] = useState("");
+  const [sobrenome, setSobrenome] = useState("");
+  const nome = joinName(primeiro, sobrenome);
+  const nomeOk = !!primeiro.trim() && !!sobrenome.trim();
+  const [visaoEquipe, setVisaoEquipe] = useState(false);
   const [email, setEmail] = useState("");
   const [role, setRole] = useState("viewer");
-  const [pessoa, setPessoa] = useState(SEM);
+  const [pessoaIds, setPessoaIds] = useState<string[]>([]);
   const [senha, setSenha] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
-  const atual = pessoas.find((p) => p.userId === user?.id);
+  const atuaisIds = pessoas.filter((p) => p.userId === user?.id).map((p) => p.id);
+  const atuaisKey = atuaisIds.join(",");
   const [typed, setTyped] = useState("");
   const { data: acessos } = useEventAccessMap();
   const acessoAtual = user ? accessOf(acessos?.map, user.id) : null;
@@ -53,13 +60,16 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
 
   useEffect(() => {
     if (!user) return;
-    setNome(user.name ?? "");
+    const partes = splitName(user.name, user.email);
+    setPrimeiro(partes.first);
+    setSobrenome(partes.last);
+    setVisaoEquipe(!!user.team_view);
     setEmail(user.email ?? "");
     setRole(user.role);
     setSenha("");
     setTyped("");
   }, [user?.id]);
-  useEffect(() => setPessoa(atual?.id ?? SEM), [atual?.id, user?.id]);
+  useEffect(() => setPessoaIds(atuaisKey ? atuaisKey.split(",") : []), [atuaisKey, user?.id]);
 
   const emailValido = !erroEmail(email);
 
@@ -72,7 +82,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
 
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !emailValido) return;
+    if (!user || !emailValido || !nomeOk) return;
     if (senha && senha.length < 8) return toast({ variant: "destructive", title: "A senha precisa ter pelo menos 8 caracteres" });
     setSalvando(true);
     try {
@@ -80,7 +90,8 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
       await invocar({
         action: "update_user",
         user_id: user.id,
-        name: formatPersonName(nome) || undefined,
+        name: nome || undefined,
+        team_view: role === ADMIN_ROLE && visaoEquipe !== !!user.team_view ? visaoEquipe : undefined,
         email: novoEmail !== (user.email ?? "").toLowerCase() ? novoEmail : undefined,
         password: senha || undefined,
       });
@@ -89,7 +100,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
         await eventAccessActions.save(user.id, acesso);
         refreshEventAccess(queryClient);
       }
-      await applyCouponChoice(user.id, formatPersonName(nome), { personId: pessoa === SEM ? null : pessoa, typed: parseCodes(typed) }, atual?.id ?? null);
+      await applyCouponChoice(user.id, nome, { personIds: pessoaIds, typed: parseCodes(typed) }, atuaisIds);
       toast({ title: "Dados atualizados" });
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
       queryClient.invalidateQueries({ queryKey: COUPON_PEOPLE_KEY });
@@ -124,8 +135,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
         </SheetHeader>
         <form onSubmit={salvar} className="mt-6 space-y-4">
           <div className="space-y-1">
-            <Label htmlFor="ud-nome">Nome completo</Label>
-            <Input id="ud-nome" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={120} required />
+            <NameFields id="ud" first={primeiro} last={sobrenome} onFirst={setPrimeiro} onLast={setSobrenome} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="ud-email">E-mail</Label>
@@ -140,15 +150,21 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
               </SelectContent>
             </Select>
           </div>
+          {role === ADMIN_ROLE && (
+            <label className="flex cursor-pointer items-start gap-2 text-sm">
+              <Checkbox checked={visaoEquipe} onCheckedChange={(v) => setVisaoEquipe(!!v)} className="mt-0.5" />
+              <span>Usa "Ver como a equipe" no menu<span className="block text-xs text-muted-foreground">Desmarcado, o menu mostra "Ver meu ranking".</span></span>
+            </label>
+          )}
           <EventAccessPicker id="ud-eventos" role={role} value={acesso} onChange={setAcesso} />
-          <CouponPicker id="ud-cupom" account={{ name: nome, email }} people={pessoas} userId={user?.id} personId={pessoa === SEM ? null : pessoa} typed={typed}
-            onPerson={(v) => setPessoa(v ?? SEM)} onTyped={setTyped} />
+          <CouponPicker id="ud-cupom" account={{ name: nome, email }} people={pessoas} userId={user?.id} personIds={pessoaIds} typed={typed}
+            onPeople={setPessoaIds} onTyped={setTyped} />
           <div className="space-y-1">
             <Label htmlFor="ud-senha">Nova senha (opcional)</Label>
             <PasswordInput id="ud-senha" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo de 8 caracteres" />
           </div>
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button type="submit" disabled={salvando || !emailValido || !typedCodesOk(typed, pessoas, atual?.id)}>{salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}</Button>
+            <Button type="submit" disabled={salvando || !emailValido || !nomeOk || !typedCodesOk(typed, pessoas, atuaisIds)}>{salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}</Button>
             <Button type="button" variant="outline" onClick={enviarLink} disabled={enviando} className="gap-1">
               <Mail className="h-4 w-4" />
               {user?.active ? "Enviar link de troca de senha" : "Reenviar convite"}

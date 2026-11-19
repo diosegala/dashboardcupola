@@ -21,6 +21,8 @@ interface AuthContextType {
   // Relê o nome depois que a pessoa salva o perfil.
   refreshProfile: () => Promise<void>;
   role: "admin" | "viewer" | "seller" | null;
+  // Admin que usa "Ver como a equipe"; os demais admins veem "Ver meu ranking" (mesma tela, com a própria posição).
+  teamView: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -132,7 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, canViewAll: isAdmin || isViewer, isSeller: isRealSeller || (isAdmin && viewingAsSeller), viewingAsSeller: isAdmin && viewingAsSeller, setViewingAsSeller, profile, signOut, refreshProfile, role: isAdmin ? "admin" : isViewer ? "viewer" : isRealSeller ? "seller" : null }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, canViewAll: isAdmin || isViewer, isSeller: isRealSeller || ((isAdmin || isViewer) && viewingAsSeller), viewingAsSeller: (isAdmin || isViewer) && viewingAsSeller, setViewingAsSeller, profile, signOut, refreshProfile, teamView: !!(user?.app_metadata as { team_view?: boolean } | undefined)?.team_view, role: isAdmin ? "admin" : isViewer ? "viewer" : isRealSeller ? "seller" : null }}>
       {children}
     </AuthContext.Provider>
   );

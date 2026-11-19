@@ -1,4 +1,4 @@
-import { formatPersonName } from "@/lib/personName";
+import { formatPersonName, lacksSurname } from "@/lib/personName";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { PageHeader } from "@/components/PageHeader";
 import { useState } from "react";
@@ -41,6 +41,8 @@ interface UserWithAuth {
   email_confirmed_at: string | null;
   active: boolean;
   disabled: boolean;
+  invited_by: string | null;
+  team_view: boolean;
   last_sign_in_at: string | null;
 }
 
@@ -63,7 +65,7 @@ function useUsers() {
         rolesMap.set(r.user_id, r.role);
       }
 
-      const authUsers: Array<{ id: string; email: string | null; email_confirmed_at: string | null; active?: boolean; disabled?: boolean; last_sign_in_at: string | null }> =
+      const authUsers: Array<{ id: string; email: string | null; email_confirmed_at: string | null; active?: boolean; disabled?: boolean; created_at?: string; invited_by?: string | null; team_view?: boolean; last_sign_in_at: string | null }> =
         authRes.data?.users ?? [];
       const authMap = new Map(authUsers.map((u) => [u.id, u]));
 
@@ -71,11 +73,13 @@ function useUsers() {
         id: p.id,
         name: p.name,
         email: authMap.get(p.id)?.email ?? null,
-        created_at: p.created_at,
+        created_at: authMap.get(p.id)?.created_at ?? p.created_at,
         role: rolesMap.get(p.id) ?? DEFAULT_ROLE,
         email_confirmed_at: authMap.get(p.id)?.email_confirmed_at ?? null,
         active: !!authMap.get(p.id)?.active,
         disabled: !!authMap.get(p.id)?.disabled,
+        invited_by: authMap.get(p.id)?.invited_by ?? null,
+        team_view: !!authMap.get(p.id)?.team_view,
         last_sign_in_at: authMap.get(p.id)?.last_sign_in_at ?? null,
       }));
     },
@@ -255,7 +259,22 @@ export default function Settings() {
     );
   };
 
-  const statusBadge = (u: UserWithAuth) => {
+  // Ao passar o mouse no status: quem criou e quando (vale para todos; antigos sem registro dizem isso).
+  const criadoPor = (u: UserWithAuth) => {
+    const quando = new Date(u.created_at).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    const admin = u.invited_by ? users?.find((x) => x.id === u.invited_by) : undefined;
+    const quem = admin ? formatPersonName(admin.name ?? "") || admin.email : u.invited_by ? "um usuário já excluído" : null;
+    return quem ? `Criado por ${quem} em ${quando}` : `Criado em ${quando} · criador não registrado`;
+  };
+
+  const statusBadge = (u: UserWithAuth) => (
+    <Tooltip>
+      <TooltipTrigger asChild><span className="inline-flex cursor-default">{statusSelo(u)}</span></TooltipTrigger>
+      <TooltipContent>{criadoPor(u)}</TooltipContent>
+    </Tooltip>
+  );
+
+  const statusSelo = (u: UserWithAuth) => {
     const st = statusOf(u);
     if (st === "disabled") return <Badge variant="secondary" className="gap-1 text-xs text-muted-foreground"><Ban className="h-3 w-3" /> Inativo</Badge>;
     if (st === "active") return <Badge variant="secondary" className="gap-1 bg-ok-bg text-xs text-ok hover:bg-ok-bg"><CheckCircle2 className="h-3 w-3" /> Ativo</Badge>;
@@ -263,6 +282,23 @@ export default function Settings() {
   };
 
   const resumo = pendente ? alcance(pendente) : null;
+
+  // Status ordena por status ou por data de criação (a data aparece ao passar o mouse no status).
+  const statusAtivo = ordem.key === "status" || ordem.key === "created_at";
+  const SetaStatus = ordem.desc ? ArrowDown : ArrowUp;
+  const cabecalhoStatus = (
+    <TableHead aria-sort={statusAtivo ? (ordem.desc ? "descending" : "ascending") : "none"}>
+      <DropdownMenu>
+        <DropdownMenuTrigger className="inline-flex items-center gap-1 hover:text-foreground">
+          Status{statusAtivo && <SetaStatus className="h-3 w-3" />}
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuItem onSelect={() => ordenar("status")}>Ordenar por status</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => ordenar("created_at")}>Ordenar por data de criação</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </TableHead>
+  );
 
   // Título de coluna que ordena ao clicar; a seta só aparece na coluna em uso.
   const cabecalho = (key: SortKey, rotulo: string, className?: string) => {
@@ -368,9 +404,8 @@ export default function Settings() {
                   {cabecalho("name", "Nome")}
                   {cabecalho("role", "Função", "min-w-[13rem]")}
                   <TableHead>Eventos</TableHead>
-                  {cabecalho("status", "Status")}
+                  {cabecalhoStatus}
                   {cabecalho("last_sign_in_at", "Último login")}
-                  {cabecalho("created_at", "Desde")}
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -386,6 +421,9 @@ export default function Settings() {
                       </button>
                       {isSelf(u.id) && (
                         <Badge variant="outline" className="ml-2 text-xs">você</Badge>
+                      )}
+                      {lacksSurname(u.name) && (
+                        <Badge variant="secondary" className="ml-2 bg-warn-bg text-xs text-warn hover:bg-warn-bg">falta sobrenome</Badge>
                       )}
                     </TableCell>
                     <TableCell>
@@ -417,9 +455,6 @@ export default function Settings() {
                             hour: "2-digit", minute: "2-digit",
                           })
                         : "—"}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground text-sm">
-                      {new Date(u.created_at).toLocaleDateString("pt-BR")}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">

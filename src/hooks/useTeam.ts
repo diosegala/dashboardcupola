@@ -11,9 +11,10 @@ export function useMyTeamCoupons() {
     enabled: !!user,
     queryFn: async (): Promise<string[]> => {
       await supabase.rpc("link_my_coupon_person" as any);
-      const { data, error } = await (supabase as any).from("coupon_people").select("codes").eq("user_id", user!.id).maybeSingle();
+      // Uma pessoa pode ter várias fichas de cupom: junta os códigos de todas.
+      const { data, error } = await (supabase as any).from("coupon_people").select("codes").eq("user_id", user!.id);
       if (error || !data) return [];
-      return uniqueCodes((data as any).codes ?? []);
+      return uniqueCodes((data as any[]).flatMap((r) => r.codes ?? []));
     },
   });
 }
