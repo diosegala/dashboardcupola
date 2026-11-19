@@ -250,7 +250,7 @@ export default function Settings() {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <span className="cursor-default text-sm text-muted-foreground underline decoration-dotted underline-offset-4">
+          <span className="cursor-default text-sm text-muted-foreground">
             {nomes.length === 1 ? nomes[0] : `${nomes.length} eventos`}
           </span>
         </TooltipTrigger>
