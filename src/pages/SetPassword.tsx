@@ -1,8 +1,8 @@
-import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordFields } from "@/components/PasswordFields";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { Loader2, Check, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { criteriosSenha } from "@/lib/passwordRules";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -123,23 +123,7 @@ export default function SetPassword() {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="password">Nova senha</Label>
-            <PasswordInput id="password" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required placeholder="••••••••" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="confirmPassword">Confirme a senha</Label>
-            <PasswordInput id="confirmPassword" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required placeholder="••••••••" />
-          </div>
-          <ul className="space-y-1 text-sm">
-            {criterios.map((c) => (
-              <li key={c.id} className={`flex items-center gap-2 ${c.ok ? "text-ok" : "text-destructive"}`}>
-                {c.ok ? <Check className="h-4 w-4" /> : <X className="h-4 w-4" />}
-                {c.texto}
-              </li>
-            ))}
-            <li className="pt-1 text-xs text-muted-foreground">Senhas que já vazaram na internet também são recusadas.</li>
-          </ul>
+          <PasswordFields id="criar" senha={password} confirmacao={confirmPassword} onSenha={setPassword} onConfirmacao={setConfirmPassword} />
           {erro && (
             <p role="alert" className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">{erro}</p>
           )}

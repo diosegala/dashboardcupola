@@ -1,4 +1,4 @@
-import { PasswordInput } from "@/components/ui/password-input";
+import { PasswordFields, senhaValida } from "@/components/PasswordFields";
 import { EmailInput } from "@/components/EmailInput";
 import { emailJaUsado, erroEmail, limparEmail } from "@/lib/email";
 import { useEffect, useState } from "react";
@@ -47,6 +47,8 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
   const [role, setRole] = useState("viewer");
   const [pessoaIds, setPessoaIds] = useState<string[]>([]);
   const [senha, setSenha] = useState("");
+  const [confirmaSenha, setConfirmaSenha] = useState("");
+  const senhaOk = !senha && !confirmaSenha ? true : senhaValida(senha, confirmaSenha);
   const [salvando, setSalvando] = useState(false);
   const [enviando, setEnviando] = useState(false);
 
@@ -67,6 +69,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
     setEmail(user.email ?? "");
     setRole(user.role);
     setSenha("");
+    setConfirmaSenha("");
     setTyped("");
   }, [user?.id]);
   useEffect(() => setPessoaIds(atuaisKey ? atuaisKey.split(",") : []), [atuaisKey, user?.id]);
@@ -85,7 +88,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
   const salvar = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !emailValido || !nomeOk) return;
-    if (senha && senha.length < 8) return toast({ variant: "destructive", title: "A senha precisa ter pelo menos 8 caracteres" });
+    if (!senhaOk) return;
     setSalvando(true);
     try {
       const novoEmail = limparEmail(email);
@@ -161,12 +164,9 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
           <EventAccessPicker id="ud-eventos" role={role} value={acesso} onChange={setAcesso} />
           <CouponPicker id="ud-cupom" account={{ name: nome, email }} people={pessoas} userId={user?.id} personIds={pessoaIds} typed={typed}
             onPeople={setPessoaIds} onTyped={setTyped} />
-          <div className="space-y-1">
-            <Label htmlFor="ud-senha">Nova senha (opcional)</Label>
-            <PasswordInput id="ud-senha" autoComplete="new-password" value={senha} onChange={(e) => setSenha(e.target.value)} placeholder="Mínimo de 8 caracteres" />
-          </div>
+          <PasswordFields id="ud" rotulo="Nova senha (opcional)" senha={senha} confirmacao={confirmaSenha} onSenha={setSenha} onConfirmacao={setConfirmaSenha} />
           <div className="flex flex-wrap gap-2 pt-2">
-            <Button type="submit" disabled={salvando || !emailValido || !nomeOk || !typedCodesOk(typed, pessoas, atuaisIds)}>{salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}</Button>
+            <Button type="submit" disabled={salvando || !emailValido || !nomeOk || !senhaOk || !typedCodesOk(typed, pessoas, atuaisIds)}>{salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}</Button>
             <Button type="button" variant="outline" onClick={enviarLink} disabled={enviando} className="gap-1">
               <Mail className="h-4 w-4" />
               {user?.active ? "Enviar link de troca de senha" : "Reenviar convite"}
