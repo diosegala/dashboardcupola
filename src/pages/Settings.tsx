@@ -208,7 +208,7 @@ export default function Settings() {
     const admins = alvo.filter((u) => u.role === ADMIN_ROLE);
     return {
       aplica: alvo.filter((u) => u.role !== ADMIN_ROLE),
-      ignorados: admins.length ? `${admins.length} ${admins.length === 1 ? "é admin e já vê" : "são admin e já veem"} todos os eventos.` : "",
+      ignorados: admins.length ? `${admins.length} ${admins.length === 1 ? "é administrador e já vê" : "são administradores e já veem"} todos os eventos.` : "",
     };
   };
 

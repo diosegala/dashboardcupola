@@ -68,7 +68,7 @@ function SemEventoAviso({ isAdmin, pathname, children }: { isAdmin: boolean; pat
   return (
     <div className="mx-auto max-w-md rounded-[24px] border bg-card p-8 text-center">
       <p className="font-medium">Você ainda não tem acesso a nenhum evento.</p>
-      <p className="mt-2 text-sm text-muted-foreground">Fale com um admin para liberar o evento que você precisa ver.</p>
+      <p className="mt-2 text-sm text-muted-foreground">Fale com um administrador para liberar o evento que você precisa ver.</p>
     </div>
   );
 }
