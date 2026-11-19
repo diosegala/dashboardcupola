@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { EmailInput } from "@/components/EmailInput";
-import { erroEmail, limparEmail } from "@/lib/email";
+import { emailJaUsado, erroEmail, limparEmail } from "@/lib/email";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useCouponPeople, COUPON_PEOPLE_KEY } from "@/hooks/useCouponPeople";
-import { formatPersonName } from "@/lib/personName";
+import { joinName } from "@/lib/personName";
+import { NameFields } from "./NameFields";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { parseCodes } from "@/lib/couponLink";
 import { CouponPicker, typedCodesOk } from "./CouponPicker";
@@ -26,26 +27,31 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: pessoas = [] } = useCouponPeople();
-  const [nome, setNome] = useState("");
+  const [primeiro, setPrimeiro] = useState("");
+  const [sobrenome, setSobrenome] = useState("");
+  const nome = joinName(primeiro, sobrenome);
+  const nomeOk = !!primeiro.trim() && !!sobrenome.trim();
   const [email, setEmail] = useState("");
   const [role, setRole] = useState(DEFAULT_ROLE);
   const [acesso, setAcesso] = useState<EventAccess>(SEM_ACESSO);
-  const [personId, setPersonId] = useState<string | null>(null);
+  const [personIds, setPersonIds] = useState<string[]>([]);
   const [typed, setTyped] = useState("");
   const [enviando, setEnviando] = useState(false);
 
   const emailLimpo = limparEmail(email);
-  const emailValido = !erroEmail(email);
+  const contas = queryClient.getQueryData<{ id: string; email: string | null }[]>(["users-with-roles"]);
+  const jaUsado = emailJaUsado(email, contas);
+  const emailValido = !erroEmail(email) && !jaUsado;
   const codigosOk = typedCodesOk(typed, pessoas);
 
-  const limpar = () => { setNome(""); setEmail(""); setRole(DEFAULT_ROLE); setAcesso(SEM_ACESSO); setPersonId(null); setTyped(""); };
+  const limpar = () => { setPrimeiro(""); setSobrenome(""); setEmail(""); setRole(DEFAULT_ROLE); setAcesso(SEM_ACESSO); setPersonIds([]); setTyped(""); };
 
   const convidar = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!emailValido || !nome.trim() || !codigosOk) return;
+    if (!emailValido || !nomeOk || !codigosOk) return;
     setEnviando(true);
     try {
-      const nomeFmt = formatPersonName(nome);
+      const nomeFmt = nome;
       const { data, error } = await supabase.functions.invoke("invite-user", { body: { email: emailLimpo, role, name: nomeFmt } });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
@@ -54,8 +60,8 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
         catch (err) { toast({ variant: "destructive", title: "Convite enviado, mas o acesso aos eventos não foi salvo", description: traduzirErro(err as Error) }); }
         refreshEventAccess(queryClient);
       }
-      if (data?.user_id && (personId || typed)) {
-        try { await applyCouponChoice(data.user_id, nomeFmt, { personId, typed: parseCodes(typed) }); }
+      if (data?.user_id && (personIds.length || typed)) {
+        try { await applyCouponChoice(data.user_id, nomeFmt, { personIds, typed: parseCodes(typed) }); }
         catch (err) { toast({ variant: "destructive", title: "Convite enviado, mas o cupom não foi ligado", description: traduzirErro(err as Error) }); }
       }
       toast({ title: "Convite enviado", description: `Convite enviado para ${emailLimpo}` });
@@ -79,12 +85,11 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
         </DialogHeader>
         <form onSubmit={convidar} className="space-y-4">
           <div className="space-y-1">
-            <Label htmlFor="iv-nome">Nome completo</Label>
-            <Input id="iv-nome" value={nome} onChange={(e) => setNome(e.target.value)} maxLength={120} required />
+            <NameFields id="iv" first={primeiro} last={sobrenome} onFirst={setPrimeiro} onLast={setSobrenome} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="iv-email">E-mail</Label>
-            <EmailInput id="iv-email" value={email} onChange={setEmail} />
+            <EmailInput id="iv-email" value={email} onChange={setEmail} extraError={jaUsado} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="iv-role">Função</Label>
@@ -96,10 +101,10 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
             </Select>
           </div>
           <EventAccessPicker id="iv-eventos" role={role} value={acesso} onChange={setAcesso} />
-          <CouponPicker id="iv-cupom" account={{ name: nome, email: emailLimpo }} people={pessoas} personId={personId} typed={typed} onPerson={setPersonId} onTyped={setTyped} />
+          <CouponPicker id="iv-cupom" account={{ name: nome, email: emailLimpo }} people={pessoas} personIds={personIds} typed={typed} onPeople={setPersonIds} onTyped={setTyped} />
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={enviando || !emailValido || !nome.trim() || !codigosOk}>
+            <Button type="submit" disabled={enviando || !emailValido || !nomeOk || !codigosOk}>
               {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Convidar"}
             </Button>
           </DialogFooter>

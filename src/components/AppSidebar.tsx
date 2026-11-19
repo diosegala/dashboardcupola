@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useMyTeamCoupons } from "@/hooks/useTeam";
 import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Target, Plug, Settings, UsersRound, PanelLeftClose, PanelLeftOpen, Megaphone, Trophy, Eye, EyeOff, Ticket, Handshake } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,7 +41,11 @@ const itemClass =
   "h-10 rounded-full px-3 text-[13px] font-medium text-muted-foreground transition-colors duration-150 hover:bg-secondary hover:text-foreground data-[active=true]:bg-foreground data-[active=true]:text-background data-[active=true]:hover:bg-foreground data-[active=true]:hover:text-background";
 
 export function AppSidebar() {
-  const { isAdmin, isSeller, viewingAsSeller, setViewingAsSeller } = useAuth();
+  const { isAdmin, canViewAll, isSeller, viewingAsSeller, setViewingAsSeller, teamView } = useAuth();
+  // Vender independe do papel: quem tem cupom ligado (admin ou visualizador) pode ver o próprio ranking.
+  const meusCupons = useMyTeamCoupons();
+  const vende = (meusCupons.data?.length ?? 0) > 0;
+  const visaoEquipe = isAdmin && teamView;
   const { pathname } = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
 
@@ -99,15 +104,15 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-2">
         <SidebarMenu className="gap-1">
-          {isAdmin && (
+          {(isAdmin || (canViewAll && vende) || viewingAsSeller) && (
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => setViewingAsSeller(!viewingAsSeller)}
-                tooltip={viewingAsSeller ? "Voltar ao painel completo" : "Ver como a equipe de vendas"}
+                tooltip={viewingAsSeller ? "Voltar ao painel completo" : visaoEquipe ? "Ver como a equipe de vendas" : "Ver a sua posição no ranking"}
                 className={itemClass}
               >
                 {viewingAsSeller ? <EyeOff /> : <Eye />}
-                <span>{viewingAsSeller ? "Voltar ao painel" : "Ver como a equipe"}</span>
+                <span>{viewingAsSeller ? "Voltar ao painel" : visaoEquipe ? "Ver como a equipe" : "Ver meu ranking"}</span>
               </SidebarMenuButton>
             </SidebarMenuItem>
           )}

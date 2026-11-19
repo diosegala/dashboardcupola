@@ -32,3 +32,12 @@ export function erroEmail(valor: string): string | null {
   if (!/^[a-z]{2,}$/.test(partes[partes.length - 1])) return "O final do domínio está incompleto (ex.: .com, .br)";
   return null;
 }
+
+// E-mail é único: nomes podem repetir, e-mails nunca. Confere na lista de usuários já carregada.
+export function emailJaUsado(valor: string, contas: { id: string; email: string | null }[] | undefined, excetoId?: string): string | null {
+  const email = limparEmail(valor);
+  if (!email || !contas) return null;
+  return contas.some((u) => u.id !== excetoId && limparEmail(u.email ?? "") === email)
+    ? "Já existe um usuário com este e-mail"
+    : null;
+}

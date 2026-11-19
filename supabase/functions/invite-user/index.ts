@@ -6,6 +6,18 @@ const corsHeaders = {
     "authorization, x-client-info, apikey, content-type",
 };
 
+// E-mail é único no app: procura conta com o mesmo e-mail (sem diferenciar maiúsculas), inclusive pendentes.
+async function emailEmUso(adminClient: any, email: string, exceto?: string): Promise<boolean> {
+  for (let page = 1; page < 50; page++) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    const users = data?.users ?? [];
+    if (users.some((u: any) => u.id !== exceto && (u.email ?? "").trim().toLowerCase() === email)) return true;
+    if (users.length < 1000) return false;
+  }
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -78,6 +90,14 @@ Deno.serve(async (req) => {
     // Qualquer papel do enum app_role vale; o banco recusa um papel inexistente.
     const assignedRole = typeof role === "string" && /^[a-z_]+$/.test(role) ? role : "viewer";
 
+    // Convidar de novo um e-mail existente (até pendente) reenviaria o convite como se fosse conta nova.
+    if (await emailEmUso(adminClient, trimmedEmail)) {
+      return new Response(
+        JSON.stringify({ error: "Já existe um usuário com este e-mail. Para reenviar o convite, use o envelope na lista de usuários." }),
+        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     // Invite user via Admin API
     const siteUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "").replace("https://", "");
     const redirectTo = `https://painel.cupola.com.br/set-password`;
@@ -94,6 +114,11 @@ Deno.serve(async (req) => {
         JSON.stringify({ error: inviteError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
+    }
+
+    // Registra quem convidou (app_metadata: só o servidor altera)
+    if (inviteData.user) {
+      await adminClient.auth.admin.updateUserById(inviteData.user.id, { app_metadata: { invited_by: callerId } });
     }
 
     // Assign role

@@ -13,6 +13,18 @@ function jsonResponse(body: object, status = 200) {
   });
 }
 
+// E-mail é único no app: procura conta com o mesmo e-mail (sem diferenciar maiúsculas), inclusive pendentes.
+async function emailEmUso(adminClient: any, email: string, exceto?: string): Promise<boolean> {
+  for (let page = 1; page < 50; page++) {
+    const { data, error } = await adminClient.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw error;
+    const users = data?.users ?? [];
+    if (users.some((u: any) => u.id !== exceto && (u.email ?? "").trim().toLowerCase() === email)) return true;
+    if (users.length < 1000) return false;
+  }
+  return false;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -69,6 +81,9 @@ Deno.serve(async (req) => {
         email_confirmed_at: u.email_confirmed_at ?? null,
         active: !!(u.user_metadata as any)?.password_set_at,
         disabled: !!(u as any).banned_until && new Date((u as any).banned_until) > new Date(),
+        created_at: u.created_at,
+        invited_by: (u.app_metadata as any)?.invited_by ?? null,
+        team_view: !!(u.app_metadata as any)?.team_view,
         last_sign_in_at: u.last_sign_in_at ?? null,
       }));
       return jsonResponse({ users });
@@ -125,7 +140,12 @@ Deno.serve(async (req) => {
       if (password !== undefined && password.length < 8) {
         return jsonResponse({ error: "A senha precisa ter pelo menos 8 caracteres" }, 400);
       }
+      if (email && (await emailEmUso(adminClient, email, user_id))) {
+        return jsonResponse({ error: "Já existe outro usuário com este e-mail" }, 409);
+      }
       const changes: Record<string, unknown> = {};
+      // Admin que usa a visão da equipe em vez do próprio ranking (só o servidor altera).
+      if (typeof body.team_view === "boolean") changes.app_metadata = { team_view: body.team_view };
       if (email) { changes.email = email; changes.email_confirm = true; }
       if (password) { changes.password = password; changes.user_metadata = { password_set_at: new Date().toISOString() }; }
       if (Object.keys(changes).length) {

@@ -8,7 +8,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { EventSelector } from "@/components/EventSelector";
 
 export function AppHeader() {
-  const { profile, signOut, user, viewingAsSeller, setViewingAsSeller } = useAuth();
+  const { profile, signOut, user, viewingAsSeller, setViewingAsSeller, teamView, isAdmin } = useAuth();
 
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center gap-2 border-b bg-background/70 px-3 sm:gap-3 sm:px-4 backdrop-blur-[14px] backdrop-saturate-[1.2]">
@@ -26,7 +26,7 @@ export function AppHeader() {
           className="hidden rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-opacity hover:opacity-85 sm:inline-flex"
           title="Voltar ao painel completo"
         >
-          Vendo como a equipe · voltar
+          {isAdmin && teamView ? "Vendo como a equipe" : "Vendo meu ranking"} · voltar
         </button>
       )}
       <div className="ml-auto flex items-center gap-2">
