@@ -75,7 +75,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    const assignedRole = role === "admin" ? "admin" : role === "seller" ? "seller" : "viewer";
+    // Qualquer papel do enum app_role vale; o banco recusa um papel inexistente.
+    const assignedRole = typeof role === "string" && /^[a-z_]+$/.test(role) ? role : "viewer";
 
     // Invite user via Admin API
     const siteUrl = Deno.env.get("SUPABASE_URL")?.replace(".supabase.co", "").replace("https://", "");

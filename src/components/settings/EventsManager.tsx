@@ -17,11 +17,14 @@ import { InfoTip } from "@/components/InfoTip";
 import { SponsorshipConfig } from "@/components/settings/SponsorshipConfig";
 import { InvoicedPipelineConfig } from "@/components/settings/InvoicedPipelineConfig";
 import { BatchesManager } from "@/components/settings/BatchesManager";
+import { ADMIN_ROLE } from "@/lib/roles";
+import { accessOf, eventAccessActions, refreshEventAccess, useEventAccessMap } from "@/lib/eventAccess";
 import { isEventClosed, previousEventOf, useEvent, type EventRow } from "@/hooks/useEvent";
 
 interface UserOption {
   id: string;
   name: string | null;
+  role: string;
 }
 
 interface EventForm {
@@ -76,15 +79,7 @@ export function EventsManager({ users }: { users: UserOption[] }) {
     },
   });
 
-  const access = useQuery({
-    queryKey: ["event_users"],
-    enabled: hasEventsTable,
-    queryFn: async () => {
-      const { data, error } = await supabase.from("event_users" as any).select("event_id, user_id");
-      if (error) throw error;
-      return (data ?? []) as unknown as { event_id: string; user_id: string }[];
-    },
-  });
+  const { data: acessos } = useEventAccessMap();
 
   const saveEvent = useMutation({
     mutationFn: async (f: EventForm) => {
@@ -122,14 +117,9 @@ export function EventsManager({ users }: { users: UserOption[] }) {
   });
 
   const toggleAccess = useMutation({
-    mutationFn: async ({ eventId, userId, allow }: { eventId: string; userId: string; allow: boolean }) => {
-      const table = supabase.from("event_users" as any);
-      const { error } = allow
-        ? await table.insert({ event_id: eventId, user_id: userId })
-        : await table.delete().eq("event_id", eventId).eq("user_id", userId);
-      if (error) throw error;
-    },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["event_users"] }),
+    mutationFn: ({ eventId, userId, allow }: { eventId: string; userId: string; allow: boolean }) =>
+      allow ? eventAccessActions.grant([userId], eventId) : eventAccessActions.revoke([userId], eventId),
+    onSuccess: () => refreshEventAccess(queryClient),
     onError: (err: any) => toast.error("Erro ao alterar acesso: " + traduzirErro(err)),
   });
 
@@ -144,7 +134,9 @@ export function EventsManager({ users }: { users: UserOption[] }) {
     );
   }
 
-  const allowed = (eventId: string) => new Set((access.data ?? []).filter((a) => a.event_id === eventId).map((a) => a.user_id));
+  // Quem vê o evento: admin, quem tem "todos os eventos" e quem foi liberado nele.
+  const seesAll = (u: UserOption) => u.role === ADMIN_ROLE || accessOf(acessos?.map, u.id).allEvents;
+  const sees = (u: UserOption, eventId: string) => seesAll(u) || accessOf(acessos?.map, u.id).eventIds.includes(eventId);
   const set = (patch: Partial<EventForm>) => setForm((f) => (f ? { ...f, ...patch } : f));
 
   return (
@@ -200,7 +192,7 @@ export function EventsManager({ users }: { users: UserOption[] }) {
                 <TableCell className="text-right">
                   <Button variant="outline" size="sm" onClick={() => setAccessEvent(e)}>
                     <Users className="h-4 w-4" />
-                    {e.id ? allowed(e.id).size : 0}
+                    {e.id ? users.filter((u) => sees(u, e.id as string)).length : 0}
                   </Button>
                 </TableCell>
                 <TableCell className="text-right">
@@ -334,18 +326,21 @@ export function EventsManager({ users }: { users: UserOption[] }) {
           <DialogHeader>
             <DialogTitle>Quem vê {accessEvent?.name}</DialogTitle>
           </DialogHeader>
-          <p className="text-xs text-muted-foreground">Administradores veem todos os eventos. Marque quem mais pode ver este.</p>
+          <p className="text-xs text-muted-foreground">Admins e quem tem acesso a todos os eventos já veem este. Marque quem mais pode ver.</p>
           <div className="max-h-[360px] space-y-1 overflow-auto">
             {accessEvent?.id &&
-              users.map((u) => {
-                const checked = allowed(accessEvent.id as string).has(u.id);
+              users.filter((u) => u.role !== ADMIN_ROLE).map((u) => {
+                const todos = seesAll(u);
+                const checked = sees(u, accessEvent.id as string);
                 return (
                   <label key={u.id} className="flex cursor-pointer items-center gap-3 rounded-xl px-2 py-2 text-sm hover:bg-secondary">
                     <Checkbox
                       checked={checked}
+                      disabled={todos}
                       onCheckedChange={(v) => toggleAccess.mutate({ eventId: accessEvent.id as string, userId: u.id, allow: !!v })}
                     />
                     {u.name || "Sem nome"}
+                    {todos && <span className="ml-auto text-xs text-muted-foreground">vê todos</span>}
                   </label>
                 );
               })}

@@ -1,10 +1,10 @@
-import { Suspense, useEffect, useRef, type CSSProperties } from "react";
+import { Suspense, useEffect, useRef, type CSSProperties, type ReactNode } from "react";
 import { Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
-import { EventProvider } from "@/hooks/useEvent";
+import { EventProvider, useEvent } from "@/hooks/useEvent";
 import { usePipedriveAutoSync } from "@/hooks/useSponsorship";
 import { CouponPeopleProvider } from "@/hooks/useCouponPeople";
 import { BatchCalendarProvider } from "@/hooks/useEventBatches";
@@ -49,7 +49,7 @@ export function AppLayout() {
             <Suspense fallback={null}>
               <BatchCalendarProvider>
                 <CouponPeopleProvider>
-                  <Outlet />
+                  <SemEventoAviso isAdmin={isAdmin} pathname={pathname}><Outlet /></SemEventoAviso>
                 </CouponPeopleProvider>
               </BatchCalendarProvider>
             </Suspense>
@@ -58,5 +58,17 @@ export function AppLayout() {
       </div>
     </SidebarProvider>
     </EventProvider>
+  );
+}
+
+// Quem não é admin e não tem nenhum evento liberado vê um aviso em vez de um painel zerado.
+function SemEventoAviso({ isAdmin, pathname, children }: { isAdmin: boolean; pathname: string; children: ReactNode }) {
+  const { events, hasEventsTable, isLoading } = useEvent();
+  if (isAdmin || isLoading || !hasEventsTable || events.length > 0 || pathname === "/perfil") return <>{children}</>;
+  return (
+    <div className="mx-auto max-w-md rounded-[24px] border bg-card p-8 text-center">
+      <p className="font-medium">Você ainda não tem acesso a nenhum evento.</p>
+      <p className="mt-2 text-sm text-muted-foreground">Fale com um admin para liberar o evento que você precisa ver.</p>
+    </div>
   );
 }

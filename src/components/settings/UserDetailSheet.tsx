@@ -15,6 +15,9 @@ import { parseCodes } from "@/lib/couponLink";
 import { applyCouponChoice } from "./couponLinking";
 import { CouponPicker, typedCodesOk } from "./CouponPicker";
 import { Loader2, Mail } from "lucide-react";
+import { ROLES, ADMIN_ROLE } from "@/lib/roles";
+import { accessOf, eventAccessActions, refreshEventAccess, useEventAccessMap, type EventAccess } from "@/lib/eventAccess";
+import { EventAccessPicker } from "./EventAccessPicker";
 
 export interface SheetUser {
   id: string;
@@ -41,6 +44,10 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
 
   const atual = pessoas.find((p) => p.userId === user?.id);
   const [typed, setTyped] = useState("");
+  const { data: acessos } = useEventAccessMap();
+  const acessoAtual = user ? accessOf(acessos?.map, user.id) : null;
+  const [acesso, setAcesso] = useState<EventAccess>({ allEvents: false, eventIds: [] });
+  useEffect(() => { if (acessoAtual) setAcesso(acessoAtual); }, [user?.id, !!acessos]);
 
   useEffect(() => {
     if (!user) return;
@@ -76,6 +83,10 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
         password: senha || undefined,
       });
       if (!isSelf && role !== user.role) await invocar({ action: "update_role", user_id: user.id, role });
+      if (role !== ADMIN_ROLE && JSON.stringify(acesso) !== JSON.stringify(acessoAtual)) {
+        await eventAccessActions.save(user.id, acesso);
+        refreshEventAccess(queryClient);
+      }
       await applyCouponChoice(user.id, formatPersonName(nome), { personId: pessoa === SEM ? null : pessoa, typed: parseCodes(typed) }, atual?.id ?? null);
       toast({ title: "Dados atualizados" });
       queryClient.invalidateQueries({ queryKey: ["users-with-roles"] });
@@ -107,7 +118,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
       <SheetContent className="w-full overflow-y-auto sm:max-w-md">
         <SheetHeader>
           <SheetTitle>{user?.name ?? "Pessoa"}</SheetTitle>
-          <SheetDescription>Altere os dados, a função e o cupom desta pessoa.</SheetDescription>
+          <SheetDescription>Altere os dados, a função, os eventos e o cupom desta pessoa.</SheetDescription>
         </SheetHeader>
         <form onSubmit={salvar} className="mt-6 space-y-4">
           <div className="space-y-1">
@@ -124,12 +135,11 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
             <Select value={role} onValueChange={setRole} disabled={isSelf}>
               <SelectTrigger id="ud-role"><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="viewer">Visualizador</SelectItem>
-                <SelectItem value="seller">Equipe de venda</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
+                {ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
+          <EventAccessPicker id="ud-eventos" role={role} value={acesso} onChange={setAcesso} />
           <CouponPicker id="ud-cupom" account={{ name: nome, email }} people={pessoas} userId={user?.id} personId={pessoa === SEM ? null : pessoa} typed={typed}
             onPerson={(v) => setPessoa(v ?? SEM)} onTyped={setTyped} />
           <div className="space-y-1">
