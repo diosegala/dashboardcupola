@@ -1358,6 +1358,24 @@ export type Database = {
         }
         Relationships: []
       }
+      user_event_scope: {
+        Row: {
+          all_events: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          all_events?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          all_events?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           id: string
