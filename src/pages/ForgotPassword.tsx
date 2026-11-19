@@ -75,7 +75,7 @@ export default function ForgotPassword() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  placeholder="seu@cupola.com.br"
+                  placeholder="seu@email.com"
                 />
               </div>
               <Button type="submit" className="w-full" disabled={loading}>
