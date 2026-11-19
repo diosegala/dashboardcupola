@@ -441,9 +441,9 @@ export function TeamStanding({ data, eu }: { data: TeamRankingData; eu: Eu }) {
           Sua posição · {data.loteAtual ?? "lote atual"}
         </div>
         <div className="flex items-end gap-4">
-          <span className="text-[clamp(56px,7vw,84px)] font-semibold leading-none tracking-[-0.05em] text-primary">{pos ? `${pos}º` : "—"}</span>
+          <span className="text-[clamp(56px,7vw,84px)] font-semibold leading-none tracking-[-0.05em] text-primary">{pos ? `${pos}º` : "0"}</span>
           <span className="pb-2 text-sm text-background/70">
-            {minha ? <>de {int(ranking.length)} na equipe<br /><b className="text-background">{plural(minha.vendas, "venda", "vendas")}</b> neste lote</> : "sem vendas neste lote"}
+            {minha ? <>de {int(ranking.length)} na equipe<br /><b className="text-background">{plural(minha.vendas, "venda", "vendas")}</b> neste lote</> : <>vendas neste lote<br /><b className="text-background">ainda fora do ranking</b></>}
           </span>
         </div>
         <p className="text-[15px] leading-snug">{mensagem}</p>

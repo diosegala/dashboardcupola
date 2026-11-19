@@ -1,10 +1,9 @@
-import { useMemo } from "react";
-import { Input } from "@/components/ui/input";
+import { useMemo, useState } from "react";
 import { Label } from "@/components/ui/label";
 import type { CouponPersonRow } from "@/hooks/useCouponPeople";
 import { cleanCodeInput, parseCodes, suggestCouponPeople, uniqueCodes } from "@/lib/couponLink";
 import { cn } from "@/lib/utils";
-import { Check } from "lucide-react";
+import { Check, X } from "lucide-react";
 import { InfoTip } from "@/components/InfoTip";
 
 interface Props {
@@ -25,7 +24,20 @@ export function CouponPicker({ id, account, people, userId, personIds, typed, on
   const sugestoes = useMemo(() => suggestCouponPeople(account, people), [account.name, account.email, people]);
   const opcoes = [...atuais, ...sugestoes.filter((s) => !atualIds.includes(s.id))];
   const novos = parseCodes(typed);
-  const repetido = novos.map((c) => people.find((p) => !atualIds.includes(p.id) && p.codes.some((x) => x.toUpperCase() === c))).find(Boolean);
+  const [rascunho, setRascunho] = useState("");
+  const [aviso, setAviso] = useState<{ texto: string; ficha?: CouponPersonRow } | null>(null);
+  // Enter transforma o texto em etiqueta. Código é único: não entra repetido nem se já for de outra pessoa.
+  const adicionar = () => {
+    const c = rascunho.trim().toUpperCase();
+    if (!c) return;
+    if (novos.includes(c)) return setAviso({ texto: "Esse código já foi adicionado." });
+    const dono = people.find((p) => p.codes.some((x) => x.toUpperCase() === c));
+    if (dono && atualIds.includes(dono.id)) return setAviso({ texto: "Esse código já é desta pessoa." });
+    if (dono) return setAviso({ texto: `Esse código já é de ${dono.name}.`, ficha: dono });
+    onTyped([...novos, c].join(","));
+    setRascunho("");
+    setAviso(null);
+  };
   const nenhum = personIds.length === 0;
   const todos = opcoes.length > 0 && opcoes.every((p) => personIds.includes(p.id));
   const alternar = (pid: string) => onPeople(personIds.includes(pid) ? personIds.filter((x) => x !== pid) : [...personIds, pid]);
@@ -67,18 +79,39 @@ export function CouponPicker({ id, account, people, userId, personIds, typed, on
           <Label htmlFor={id} className="text-xs font-normal text-muted-foreground">
             {atuais.length ? "Adicionar outro código a esta pessoa" : "Não está na lista? Escreva o código"}
           </Label>
-          <InfoTip title="Código do cupom" text="Escreva o código exatamente igual ao criado na Sympla, porque o desconto e o controle do cupom são feitos lá. O painel usa esse código para saber quem vendeu cada ingresso e liga as vendas à pessoa automaticamente." />
+          <InfoTip title="Código do cupom" text="Escreva o código exatamente igual ao criado na Sympla e aperte Enter: ele vira uma etiqueta. Errou? Clique no x da etiqueta e escreva de novo. Cada código pertence a uma só pessoa." />
         </div>
-        <Input id={id} value={typed} onChange={(e) => onTyped(cleanCodeInput(e.target.value))} placeholder="ex.: ANA5, ANA10" className="font-mono uppercase" maxLength={80} />
-        {repetido && (
-          <p className="text-xs text-muted-foreground">
-            Esse código já é de <b className="text-foreground">{repetido.name}</b>.{" "}
-            {!repetido.userId && (
-              <button type="button" className="underline underline-offset-2" onClick={() => { onPeople([...personIds, repetido.id]); onTyped(""); }}>Escolher essa ficha</button>
+        <div className="flex min-h-10 flex-wrap items-center gap-1.5 rounded-xl border bg-background px-2 py-1.5 focus-within:ring-2 focus-within:ring-ring">
+          {novos.map((c) => (
+            <span key={c} className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 font-mono text-xs">
+              {c}
+              <button type="button" aria-label={`Remover ${c}`} className="rounded-full text-muted-foreground hover:text-foreground" onClick={() => onTyped(novos.filter((x) => x !== c).join(","))}>
+                <X className="h-3 w-3" />
+              </button>
+            </span>
+          ))}
+          <input
+            id={id}
+            value={rascunho}
+            onChange={(e) => { setRascunho(cleanCodeInput(e.target.value).replace(/,/g, "")); setAviso(null); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === ",") { e.preventDefault(); adicionar(); }
+              else if (e.key === "Backspace" && !rascunho && novos.length) onTyped(novos.slice(0, -1).join(","));
+            }}
+            placeholder={novos.length ? "" : "ex.: ANA5 e Enter"}
+            className="min-w-[8rem] flex-1 bg-transparent font-mono text-sm uppercase outline-none placeholder:normal-case placeholder:text-muted-foreground"
+            maxLength={30}
+          />
+        </div>
+        {aviso && (
+          <p className="text-xs text-destructive">
+            {aviso.texto}{" "}
+            {aviso.ficha && !aviso.ficha.userId && (
+              <button type="button" className="underline underline-offset-2" onClick={() => { onPeople([...personIds, aviso.ficha!.id]); setRascunho(""); setAviso(null); }}>Escolher essa ficha</button>
             )}
           </p>
         )}
-        {!repetido && novos.length > 0 && <p className="text-xs text-muted-foreground">Só letras e números. Mais de um código? Separe por vírgula.</p>}
+        {!aviso && rascunho && <p className="text-xs text-muted-foreground">Aperte Enter para adicionar.</p>}
       </div>
     </div>
   );
