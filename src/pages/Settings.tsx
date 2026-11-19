@@ -250,11 +250,11 @@ export default function Settings() {
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <Badge variant="secondary" className="bg-warn-bg text-xs text-warn hover:bg-warn-bg">
+          <span className="cursor-default text-sm text-muted-foreground underline decoration-dotted underline-offset-4">
             {nomes.length === 1 ? nomes[0] : `${nomes.length} eventos`}
-          </Badge>
+          </span>
         </TooltipTrigger>
-        <TooltipContent>Só: {nomes.join(", ")}</TooltipContent>
+        <TooltipContent>{nomes.join(", ")}</TooltipContent>
       </Tooltip>
     );
   };
