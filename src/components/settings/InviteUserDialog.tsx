@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { EmailInput } from "@/components/EmailInput";
+import { erroEmail, limparEmail } from "@/lib/email";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -32,8 +34,8 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
   const [typed, setTyped] = useState("");
   const [enviando, setEnviando] = useState(false);
 
-  const emailLimpo = email.trim().toLowerCase();
-  const emailValido = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(emailLimpo);
+  const emailLimpo = limparEmail(email);
+  const emailValido = !erroEmail(email);
   const codigosOk = typedCodesOk(typed, pessoas);
 
   const limpar = () => { setNome(""); setEmail(""); setRole(DEFAULT_ROLE); setAcesso(SEM_ACESSO); setPersonId(null); setTyped(""); };
@@ -82,8 +84,7 @@ export function InviteUserDialog({ open, onOpenChange }: { open: boolean; onOpen
           </div>
           <div className="space-y-1">
             <Label htmlFor="iv-email">E-mail</Label>
-            <Input id="iv-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="nome@empresa.com.br" maxLength={255} required />
-            {email.length > 0 && !emailValido && <p className="text-xs text-destructive">Informe um e-mail válido</p>}
+            <EmailInput id="iv-email" value={email} onChange={setEmail} />
           </div>
           <div className="space-y-1">
             <Label htmlFor="iv-role">Função</Label>
