@@ -25,7 +25,7 @@ export function CouponPicker({ id, account, people, userId, personIds, typed, on
   const opcoes = [...atuais, ...sugestoes.filter((s) => !atualIds.includes(s.id))];
   const novos = parseCodes(typed);
   const [rascunho, setRascunho] = useState("");
-  const [aviso, setAviso] = useState<{ texto: string; ficha?: CouponPersonRow } | null>(null);
+  const [aviso, setAviso] = useState<{ texto: string; info?: boolean } | null>(null);
   // Enter transforma o texto em etiqueta. Código é único: não entra repetido nem se já for de outra pessoa.
   const adicionar = () => {
     const c = rascunho.trim().toUpperCase();
@@ -33,7 +33,12 @@ export function CouponPicker({ id, account, people, userId, personIds, typed, on
     if (novos.includes(c)) return setAviso({ texto: "Esse código já foi adicionado." });
     const dono = people.find((p) => p.codes.some((x) => x.toUpperCase() === c));
     if (dono && atualIds.includes(dono.id)) return setAviso({ texto: "Esse código já é desta pessoa." });
-    if (dono) return setAviso({ texto: `Esse código já é de ${dono.name}.`, ficha: dono });
+    if (dono && !dono.userId) {
+      if (!personIds.includes(dono.id)) onPeople([...personIds, dono.id]);
+      setRascunho("");
+      return setAviso({ texto: `${c} já estava cadastrado na ficha ${dono.name}: a ficha foi ligada a esta pessoa.`, info: true });
+    }
+    if (dono) return setAviso({ texto: `Esse código já é de ${dono.name}.` });
     onTyped([...novos, c].join(","));
     setRascunho("");
     setAviso(null);
@@ -103,14 +108,7 @@ export function CouponPicker({ id, account, people, userId, personIds, typed, on
             maxLength={30}
           />
         </div>
-        {aviso && (
-          <p className="text-xs text-destructive">
-            {aviso.texto}{" "}
-            {aviso.ficha && !aviso.ficha.userId && (
-              <button type="button" className="underline underline-offset-2" onClick={() => { onPeople([...personIds, aviso.ficha!.id]); setRascunho(""); setAviso(null); }}>Escolher essa ficha</button>
-            )}
-          </p>
-        )}
+        {aviso && <p className={aviso.info ? "text-xs text-muted-foreground" : "text-xs text-destructive"}>{aviso.texto}</p>}
         {!aviso && rascunho && <p className="text-xs text-muted-foreground">Aperte Enter para adicionar.</p>}
       </div>
     </div>

@@ -1,5 +1,4 @@
 import { useEffect } from "react";
-import { useMyTeamCoupons } from "@/hooks/useTeam";
 import { Link, useLocation } from "react-router-dom";
 import { LayoutDashboard, Target, Plug, Settings, UsersRound, PanelLeftClose, PanelLeftOpen, Megaphone, Trophy, Eye, EyeOff, Ticket, Handshake } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
@@ -42,9 +41,7 @@ const itemClass =
 
 export function AppSidebar() {
   const { isAdmin, canViewAll, isSeller, viewingAsSeller, setViewingAsSeller, teamView } = useAuth();
-  // Vender independe do papel: quem tem cupom ligado (admin ou visualizador) pode ver o próprio ranking.
-  const meusCupons = useMyTeamCoupons();
-  const vende = (meusCupons.data?.length ?? 0) > 0;
+  // Administradores e visualizadores sempre podem abrir o próprio ranking; cupom é só o vínculo das vendas.
   const visaoEquipe = isAdmin && teamView;
   const { pathname } = useLocation();
   const { state, toggleSidebar, setOpenMobile } = useSidebar();
@@ -104,7 +101,7 @@ export function AppSidebar() {
       </SidebarContent>
       <SidebarFooter className="p-2">
         <SidebarMenu className="gap-1">
-          {(isAdmin || (canViewAll && vende) || viewingAsSeller) && (
+          {(canViewAll || viewingAsSeller) && (
             <SidebarMenuItem>
               <SidebarMenuButton
                 onClick={() => setViewingAsSeller(!viewingAsSeller)}
