@@ -6,7 +6,6 @@ import type { Json } from "@/integrations/supabase/types";
 import { PageHeader } from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -45,7 +44,6 @@ export default function Logs() {
   const filtroBanco = useMemo(() => filtroParaBanco(filtros, new Date()), [chave]); // eslint-disable-line react-hooks/exhaustive-deps
   const queryClient = useQueryClient();
   const [aberto, setAberto] = useState<LogLinha | null>(null);
-  const [novos, setNovos] = useState<Set<number>>(new Set());
   const [agora, setAgora] = useState(Date.now());
   const [busca, setBusca] = useState(filtros.valores.busca ?? "");
   const [exportando, setExportando] = useState(false);
@@ -120,14 +118,12 @@ export default function Logs() {
     queryClient.invalidateQueries({ queryKey: ["logs-saude"] });
   };
 
-  // Ao vivo: cada registro novo avisa a tela, que relê a lista e marca a linha como "novo".
+  // Ao vivo: cada registro novo avisa a tela, que relê a lista.
   const espera = useRef<number>();
   useEffect(() => {
     const canal = supabase
       .channel(`logs-${Math.random().toString(36).slice(2)}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "logs_atividade" }, (payload) => {
-        const id = Number((payload.new as { id?: number }).id);
-        if (id) setNovos((s) => new Set(s).add(id));
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "logs_atividade" }, () => {
         window.clearTimeout(espera.current);
         espera.current = window.setTimeout(atualizar, 1200);
       })
@@ -371,7 +367,6 @@ export default function Logs() {
                           <TooltipTrigger asChild><span className="tabular-nums">{formatarQuando(l.ocorrido_em, true)}</span></TooltipTrigger>
                           <TooltipContent>{relativo(l.ocorrido_em, agora)}</TooltipContent>
                         </Tooltip>
-                        {novos.has(l.id) && <Badge variant="secondary" className="ml-1.5 bg-primary/20 px-1.5 py-0 text-[10px] text-foreground">novo</Badge>}
                       </TableCell>
                       <TableCell className="max-w-0 py-3 align-top">
                         <span className="line-clamp-2 break-words font-medium" title={q.nome}>{q.nome}</span>
