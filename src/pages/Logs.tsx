@@ -391,7 +391,7 @@ export default function Logs() {
                         </span>
                       </TableCell>
                       <TableCell className="max-w-0 py-3 text-right align-top text-muted-foreground">
-                        <span className="line-clamp-2 break-words" title={resumoLinha(l) || undefined}>{resumoLinha(l)}</span>
+                        <span className="line-clamp-3 break-words" title={resumoLinha(l) || undefined}>{resumoLinha(l)}</span>
                       </TableCell>
                     </TableRow>
                   );
