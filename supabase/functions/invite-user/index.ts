@@ -121,12 +121,19 @@ Deno.serve(async (req) => {
       await adminClient.auth.admin.updateUserById(inviteData.user.id, { app_metadata: { invited_by: callerId } });
     }
 
-    // Assign role
+    // Assign role: a conta nunca fica sem função; se não gravar, o painel avisa.
     if (inviteData.user) {
-      await adminClient.from("user_roles").upsert(
+      const { error: roleError } = await adminClient.from("user_roles").upsert(
         { user_id: inviteData.user.id, role: assignedRole },
         { onConflict: "user_id" }
       );
+      if (roleError) {
+        console.error("Role error:", roleError);
+        return new Response(
+          JSON.stringify({ error: "Convite enviado, mas a função não foi salva. Escolha a função da pessoa na lista de usuários." }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
     }
 
     return new Response(

@@ -27,7 +27,7 @@ import {
   DropdownMenuSub, DropdownMenuSubContent, DropdownMenuSubTrigger, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useEvent } from "@/hooks/useEvent";
-import { ROLES, ADMIN_ROLE, DEFAULT_ROLE, roleInfo, roleRank } from "@/lib/roles";
+import { ROLES, ADMIN_ROLE, NO_ROLE, NO_ROLE_LABEL, realRole, roleInfo, roleRank } from "@/lib/roles";
 import { accessOf, eventAccessActions, refreshEventAccess, useEventAccessMap } from "@/lib/eventAccess";
 import { UserDetailSheet } from "@/components/settings/UserDetailSheet";
 import { InviteUserDialog } from "@/components/settings/InviteUserDialog";
@@ -60,28 +60,31 @@ function useUsers() {
       if (authRes.error) throw new Error(authRes.error.message);
       if (authRes.data?.error) throw new Error(authRes.data.error);
 
-      const rolesMap = new Map<string, string>();
+      const rolesMap = new Map<string, string[]>();
       for (const r of rolesRes.data) {
-        rolesMap.set(r.user_id, r.role);
+        rolesMap.set(r.user_id, [...(rolesMap.get(r.user_id) ?? []), String(r.role)]);
       }
+      const perfis = new Map(profilesRes.data.map((p) => [p.id, p]));
 
-      const authUsers: Array<{ id: string; email: string | null; email_confirmed_at: string | null; active?: boolean; disabled?: boolean; created_at?: string; invited_by?: string | null; team_view?: boolean; last_sign_in_at: string | null }> =
+      const authUsers: Array<{ id: string; email: string | null; name?: string | null; email_confirmed_at: string | null; active?: boolean; disabled?: boolean; created_at?: string; invited_by?: string | null; team_view?: boolean; last_sign_in_at: string | null }> =
         authRes.data?.users ?? [];
-      const authMap = new Map(authUsers.map((u) => [u.id, u]));
-
-      return profilesRes.data.map((p) => ({
-        id: p.id,
-        name: p.name,
-        email: authMap.get(p.id)?.email ?? null,
-        created_at: authMap.get(p.id)?.created_at ?? p.created_at,
-        role: rolesMap.get(p.id) ?? DEFAULT_ROLE,
-        email_confirmed_at: authMap.get(p.id)?.email_confirmed_at ?? null,
-        active: !!authMap.get(p.id)?.active,
-        disabled: !!authMap.get(p.id)?.disabled,
-        invited_by: authMap.get(p.id)?.invited_by ?? null,
-        team_view: !!authMap.get(p.id)?.team_view,
-        last_sign_in_at: authMap.get(p.id)?.last_sign_in_at ?? null,
-      }));
+      // Todas as contas que existem aparecem, com a função exatamente como está gravada.
+      return authUsers.map((a) => {
+        const p = perfis.get(a.id);
+        return {
+          id: a.id,
+          name: p?.name ?? a.name ?? null,
+          email: a.email ?? null,
+          created_at: a.created_at ?? p?.created_at ?? "",
+          role: realRole(rolesMap.get(a.id) ?? []),
+          email_confirmed_at: a.email_confirmed_at ?? null,
+          active: !!a.active,
+          disabled: !!a.disabled,
+          invited_by: a.invited_by ?? null,
+          team_view: !!a.team_view,
+          last_sign_in_at: a.last_sign_in_at ?? null,
+        };
+      });
     },
   });
 }
@@ -185,7 +188,7 @@ export default function Settings() {
   const filteredUsers = (users ?? []).filter((u) =>
     (!termo || (u.name ?? "").toLowerCase().includes(termo) || (u.email ?? "").toLowerCase().includes(termo)) &&
     (statusFilter === "all" || statusOf(u) === statusFilter) &&
-    (roleFilter === "all" || u.role === roleFilter) &&
+    (roleFilter === "all" || u.role === (roleFilter === "none" ? NO_ROLE : roleFilter)) &&
     (eventFilter === "all" || seesEvent(u, eventFilter))
   );
   filteredUsers.sort((a, b) => {
@@ -338,6 +341,7 @@ export default function Settings() {
               <SelectContent>
                 <SelectItem value="all">Todas as funções</SelectItem>
                 {ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
+                {(users ?? []).some((u) => u.role === NO_ROLE) && <SelectItem value="none">{NO_ROLE_LABEL}</SelectItem>}
               </SelectContent>
             </Select>
             <Select value={statusFilter} onValueChange={setStatusFilter}>
@@ -434,8 +438,8 @@ export default function Settings() {
                           manageMutation.mutate({ action: "update_role", user_id: u.id, role: newRole })
                         }
                       >
-                        <SelectTrigger className="h-8 w-full whitespace-nowrap">
-                          <SelectValue />
+                        <SelectTrigger className="h-8 w-full whitespace-nowrap" aria-label="Função">
+                          <SelectValue placeholder={NO_ROLE_LABEL} />
                         </SelectTrigger>
                         <SelectContent>
                           {ROLES.map((r) => (

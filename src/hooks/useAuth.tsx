@@ -21,6 +21,8 @@ interface AuthContextType {
   // Relê o nome depois que a pessoa salva o perfil.
   refreshProfile: () => Promise<void>;
   role: "admin" | "viewer" | "seller" | null;
+  // A função já foi lida do banco ao menos uma vez nesta sessão.
+  rolesLoaded: boolean;
   // Admin que usa "Ver como a equipe"; os demais admins veem "Ver meu ranking" (mesma tela, com a própria posição).
   teamView: boolean;
 }
@@ -37,6 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isViewer, setIsViewer] = useState(false);
   const [isRealSeller, setIsRealSeller] = useState(false);
+  const [rolesLoaded, setRolesLoaded] = useState(false);
   const [viewingAsSeller, setViewing] = useState(() => {
     try {
       return sessionStorage.getItem("cupola-ver-como-equipe") === "1";
@@ -100,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAdmin(roles.includes("admin"));
         setIsViewer(roles.includes("viewer"));
         setIsRealSeller(roles.includes("seller") && !roles.includes("admin"));
+        setRolesLoaded(true);
       } catch (err) {
         // Falha momentânea: mantém o papel já lido em vez de zerar a tela.
         console.error("[useAuth] Error fetching user data:", err);
@@ -131,10 +135,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signOut = async () => {
     await supabase.auth.signOut();
+    // A próxima conta que entrar tem a função lida do zero.
+    setRolesLoaded(false);
+    setIsAdmin(false);
+    setIsViewer(false);
+    setIsRealSeller(false);
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, loading, isAdmin, canViewAll: isAdmin || isViewer, isSeller: isRealSeller || ((isAdmin || isViewer) && viewingAsSeller), viewingAsSeller: (isAdmin || isViewer) && viewingAsSeller, setViewingAsSeller, profile, signOut, refreshProfile, teamView: !!(user?.app_metadata as { team_view?: boolean } | undefined)?.team_view, role: isAdmin ? "admin" : isViewer ? "viewer" : isRealSeller ? "seller" : null }}>
+    <AuthContext.Provider value={{ user, session, loading, isAdmin, canViewAll: isAdmin || isViewer, isSeller: isRealSeller || ((isAdmin || isViewer) && viewingAsSeller), viewingAsSeller: (isAdmin || isViewer) && viewingAsSeller, setViewingAsSeller, profile, signOut, refreshProfile, teamView: !!(user?.app_metadata as { team_view?: boolean } | undefined)?.team_view, role: isAdmin ? "admin" : isViewer ? "viewer" : isRealSeller ? "seller" : null, rolesLoaded }}>
       {children}
     </AuthContext.Provider>
   );

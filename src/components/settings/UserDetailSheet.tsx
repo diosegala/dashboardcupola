@@ -19,7 +19,7 @@ import { parseCodes } from "@/lib/couponLink";
 import { applyCouponChoice } from "./couponLinking";
 import { CouponPicker, typedCodesOk } from "./CouponPicker";
 import { Loader2, Mail } from "lucide-react";
-import { ROLES, ADMIN_ROLE } from "@/lib/roles";
+import { ROLES, ADMIN_ROLE, NO_ROLE_LABEL } from "@/lib/roles";
 import { accessOf, eventAccessActions, refreshEventAccess, useEventAccessMap, type EventAccess } from "@/lib/eventAccess";
 import { EventAccessPicker } from "./EventAccessPicker";
 
@@ -149,7 +149,7 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
           <div className="space-y-1">
             <Label htmlFor="ud-role">Função</Label>
             <Select value={role} onValueChange={setRole} disabled={isSelf}>
-              <SelectTrigger id="ud-role"><SelectValue /></SelectTrigger>
+              <SelectTrigger id="ud-role"><SelectValue placeholder={NO_ROLE_LABEL} /></SelectTrigger>
               <SelectContent>
                 {ROLES.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
               </SelectContent>

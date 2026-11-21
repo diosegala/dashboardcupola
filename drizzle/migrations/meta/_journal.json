@@ -85,6 +85,13 @@
       "when": 1794586756596,
       "tag": "0011_coupon_people_user_link",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1795289468197,
+      "tag": "0012_access_requires_role",
+      "breakpoints": true
     }
   ]
 }

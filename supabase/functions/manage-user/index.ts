@@ -74,7 +74,8 @@ Deno.serve(async (req) => {
         console.error("list_users error:", listError);
         return jsonResponse({ error: listError.message }, 400);
       }
-      const users = (listData?.users ?? []).map((u) => ({
+      // Pessoa excluída não aparece mais: a conta só fica guardada, bloqueada, quando o histórico impede apagar.
+      const users = (listData?.users ?? []).filter((u) => !(u.app_metadata as any)?.deleted_at).map((u) => ({
         id: u.id,
         email: u.email,
         name: (u.user_metadata as any)?.name ?? null,
@@ -200,15 +201,24 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Você não pode excluir a si mesmo" }, 400);
       }
 
-      // Clean up related data first
-      await adminClient.from("user_roles").delete().eq("user_id", user_id);
-      await adminClient.from("profiles").delete().eq("id", user_id);
-
-      const { error: deleteError } = await adminClient.auth.admin.deleteUser(user_id);
-      if (deleteError) {
-        console.error("delete_user error:", deleteError);
-        return jsonResponse({ error: deleteError.message }, 400);
+      // Excluir é para sempre. 1) Bloqueia o login antes de tudo: se isso falhar, nada muda e o painel avisa.
+      const { error: banError } = await adminClient.auth.admin.updateUserById(user_id, {
+        ban_duration: "876000h",
+        app_metadata: { deleted_at: new Date().toISOString() },
+      });
+      if (banError) {
+        console.error("delete_user ban error:", banError);
+        return jsonResponse({ error: banError.message }, 400);
       }
+      // 2) Tira função, eventos, cupons e perfil: sem nada disso, nenhuma tela ou dado fica acessível.
+      for (const [tabela, coluna] of [["user_roles", "user_id"], ["event_users", "user_id"], ["user_event_scope", "user_id"], ["team_coupons", "user_id"], ["profiles", "id"]] as const) {
+        const { error } = await adminClient.from(tabela).delete().eq(coluna, user_id);
+        if (error) console.error(`delete_user ${tabela} error:`, error);
+      }
+      await adminClient.from("coupon_people").update({ user_id: null }).eq("user_id", user_id);
+      // 3) Apaga a conta. Se o histórico (ex.: metas que a pessoa criou) impedir, ela segue bloqueada e fora da lista.
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(user_id);
+      if (deleteError) console.error("delete_user delete error (conta fica bloqueada):", deleteError);
       return jsonResponse({ success: true });
     }
 

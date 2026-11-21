@@ -11,6 +11,16 @@ export const ROLES: { value: string; label: string; icon: LucideIcon; importable
 
 export const ADMIN_ROLE = "admin";
 export const DEFAULT_ROLE = "viewer";
+// Conta sem nenhuma função gravada: o painel mostra "Sem função", nunca inventa uma.
+export const NO_ROLE = "";
+export const NO_ROLE_LABEL = "Sem função";
+
+// Função real da pessoa, exatamente como está gravada. Sem registro, fica sem função.
+// O banco aceita só uma por pessoa; se aparecerem várias, vale a mais alta (a que dá mais acesso).
+export function realRole(gravadas: string[]): string {
+  if (!gravadas.length) return NO_ROLE;
+  return [...gravadas].sort((a, b) => roleRank(a) - roleRank(b))[0];
+}
 
 export function roleInfo(value: string) {
   return ROLES.find((r) => r.value === value) ?? { value, label: value, icon: UserRound, importable: false };
