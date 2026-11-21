@@ -196,7 +196,7 @@ export default function Logs() {
             <span className="text-xs text-muted-foreground">
               {lista.dataUpdatedAt ? `Atualizado ${relativo(lista.dataUpdatedAt, agora)}` : ""}
             </span>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => { setNovos(new Set()); atualizar(); }} disabled={lista.isFetching}>
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => atualizar()} disabled={lista.isFetching}>
               <RefreshCw className={cn("h-4 w-4", lista.isFetching && "animate-spin")} /> Atualizar
             </Button>
             <Button size="sm" className="gap-1.5" onClick={exportar} disabled={exportando || !resumo.data?.total}>
