@@ -2,7 +2,7 @@ import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { History, User } from "lucide-react";
-import { comparacao, descreverAcao, rotuloRegistro, formatarQuando, nomeCategoria, ORIGENS, nomeProcesso, quem, relativo, type LogLinha } from "@/lib/activityLog";
+import { comparacao, narrativa, descreverAcao, rotuloRegistro, formatarQuando, nomeCategoria, ORIGENS, nomeProcesso, quem, relativo, type LogLinha } from "@/lib/activityLog";
 import { TomAcao } from "./TomAcao";
 
 export function LogDetailSheet({ log, onClose, onFiltrarRegistro, onFiltrarPessoa }: {
@@ -25,7 +25,7 @@ export function LogDetailSheet({ log, onClose, onFiltrarRegistro, onFiltrarPesso
           <>
             <SheetHeader>
               <SheetTitle className="flex flex-wrap items-center gap-2">
-                <TomAcao acao={log.acao} erro={log.resultado === "erro"} />
+                <TomAcao acao={log.acao} erro={log.resultado === "erro"} texto={narrativa(log).titulo} />
                 {log.resultado === "erro" && <Badge variant="secondary" className="bg-bad-bg text-bad hover:bg-bad-bg">falhou</Badge>}
               </SheetTitle>
               <SheetDescription>{[rotuloRegistro(log), log.tela].filter(Boolean).join(" · ") || descreverAcao(log.acao).texto}</SheetDescription>
@@ -56,7 +56,7 @@ export function LogDetailSheet({ log, onClose, onFiltrarRegistro, onFiltrarPesso
 
             {removidos && (
               <p className="mt-4 text-sm text-muted-foreground">
-                {removidos.removidos} {removidos.removidos === 1 ? "linha removida" : "linhas removidas"}. O conteúdo de {removidos.linhas_guardadas ?? 0} delas ficou guardado no registro.
+                {removidos.removidos} {removidos.removidos === 1 ? "registro saiu" : "registros saíram"}. O conteúdo de {removidos.linhas_guardadas ?? 0} delas ficou guardado no registro.
               </p>
             )}
 

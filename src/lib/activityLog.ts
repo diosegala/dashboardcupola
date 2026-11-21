@@ -371,3 +371,61 @@ const TELAS: [RegExp, string][] = [
 export function telaDaRota(pathname: string): string {
   return TELAS.find(([r]) => r.test(pathname))?.[1] ?? pathname;
 }
+
+// ---------- Narrativa da linha: o que aconteceu, dito na própria lista ----------
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CAMPOS_TECNICOS = new Set(["id", "created_at", "updated_at", "created_by", "updated_by", "synced_at", "linhas", "linhas_guardadas"]);
+
+function valorCurto(c: string, v: unknown): string {
+  if (typeof v === "number") return v.toLocaleString("pt-BR");
+  if (typeof v === "string" && /^-?\d+(\.\d+)?$/.test(v) && c !== "sympla_event_id" && c !== "receipt_year") return Number(v).toLocaleString("pt-BR");
+  if (c === "role" && typeof v === "string") return nomePapel(v);
+  const s = formatarValor(v);
+  return s.length > 60 ? `${s.slice(0, 57)}…` : s;
+}
+
+const plural = (n: number, um: string, varios: string) => `${n.toLocaleString("pt-BR")} ${n === 1 ? um : varios}`;
+
+export function narrativa(l: Pick<LogLinha, "acao" | "entidade" | "entidade_rotulo" | "campos_alterados" | "dados_antes" | "dados_depois" | "qtd_linhas" | "resultado" | "detalhe_erro">): { titulo: string; detalhe: string[] } {
+  const acao = descreverAcao(l.acao).texto;
+  const rot = rotuloRegistro(l);
+  const titulo = rot ? `${acao} · ${rot}` : acao;
+  const antes = obj(l.dados_antes);
+  const depois = obj(l.dados_depois);
+  const detalhe: string[] = [];
+
+  if (l.resultado === "erro" && l.detalhe_erro) {
+    const e = l.detalhe_erro.replace(/\s+/g, " ");
+    detalhe.push(/403|PERMISSION_DENIED|permission/i.test(e) ? "Sem permissão na conta da integração (erro 403)" : e.length > 140 ? `${e.slice(0, 137)}…` : e);
+  }
+
+  // Sincronizações: quantidades e o que mudou.
+  if (typeof depois.novos === "number") detalhe.push(`${plural(depois.novos, "registro novo entrou", "registros novos entraram")}`);
+  if (typeof depois.alterados === "number") {
+    const campos = (l.campos_alterados ?? []).filter((c) => !CAMPOS_TECNICOS.has(c)).map(nomeCampo);
+    detalhe.push(`${plural(depois.alterados, "registro mudou", "registros mudaram")}${campos.length ? `: ${campos.slice(0, 4).join(", ")}${campos.length > 4 ? ` e mais ${campos.length - 4}` : ""}` : ""}`);
+  }
+  if (typeof antes.removidos === "number") detalhe.push(`${plural(antes.removidos, "registro saiu", "registros saíram")}`);
+  if (detalhe.length && (typeof depois.novos === "number" || typeof depois.alterados === "number" || typeof antes.removidos === "number")) return { titulo, detalhe };
+
+  const temAntes = Object.keys(antes).length > 0;
+  const temDepois = Object.keys(depois).length > 0;
+  if (temAntes && temDepois) {
+    const SITUACAO: Record<string, string> = { syncing: "sincronizando", error: "com erro", success: "ok", idle: "parada" };
+    for (const m of comparacao(l).filter((m) => !CAMPOS_TECNICOS.has(m.campo) && !(m.campo === "error_message" && l.resultado === "erro"))) {
+      if (m.campo === "sync_status") { detalhe.push(`Situação: ${SITUACAO[String(antes.sync_status)] ?? "—"} → ${SITUACAO[String(depois.sync_status)] ?? "—"}`); continue; }
+      if (m.oculto) { detalhe.push(`${m.rotulo}: alterado (valor oculto)`); continue; }
+      const a = antes[m.campo], d = depois[m.campo];
+      if (typeof a === "string" && UUID.test(a) || typeof d === "string" && UUID.test(d)) { detalhe.push(`${m.rotulo}: trocado`); continue; }
+      detalhe.push(`${m.rotulo}: ${valorCurto(m.campo, a)} → ${valorCurto(m.campo, d)}`);
+    }
+  } else if (temAntes || temDepois) {
+    const fonte = temDepois ? depois : antes;
+    const partes = Object.entries(fonte)
+      .filter(([k, v]) => !CAMPOS_TECNICOS.has(k) && v !== null && v !== "" && !(typeof v === "string" && UUID.test(v)) && typeof v !== "object")
+      .slice(0, 4)
+      .map(([k, v]) => `${nomeCampo(k)}: ${v === VALOR_OCULTO ? "valor oculto" : valorCurto(k, v)}`);
+    if (partes.length) detalhe.push(`${temDepois ? "Inseriu" : "Tinha"} ${partes.join(" · ")}`);
+  }
+  return { titulo, detalhe };
+}

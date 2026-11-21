@@ -11,12 +11,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { AlertTriangle, Download, Loader2, RefreshCw, Search, X } from "lucide-react";
-import { toast } from "sonner";
+import { AlertTriangle, ArrowLeft, History, Loader2, Search, Workflow, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { traduzirErro } from "@/lib/mensagensErro";
 import {
-  CATEGORIAS, PAPEIS, PERIODOS, filtroParaBanco, filtrosDaUrl, formatarQuando, gerarCsv, nomeCategoria, nomeProcesso,
+  CATEGORIAS, PAPEIS, PERIODOS, filtroParaBanco, filtrosDaUrl, formatarQuando, narrativa, nomeCategoria, nomeProcesso,
   quem, relativo, rotuloRegistro, urlDosFiltros, type ChaveFiltro, type Filtros, type LogLinha, type Periodo,
 } from "@/lib/activityLog";
 import { TomAcao } from "@/components/auditoria/TomAcao";
@@ -27,7 +26,6 @@ const TODOS = "__todos";
 
 interface Pessoa { chave: string; nome: string | null; email: string | null; papel: string | null; processo: string | null; tipo: "ativo" | "removido" | "automacao" | "nao_confirmado" }
 interface Opcoes { pessoas: Pessoa[]; eventos: { id: string; nome: string | null }[]; telas: string[] }
-interface Resumo { total: number; exclusoes: number; permissoes: number; falhas: number }
 interface Saude { sem_auditoria: string[]; erros: number; ultimo_erro: { quando: string; tabela: string; mensagem: string } | null }
 
 const RESULTADOS = [{ value: "sucesso", label: "Sucesso" }, { value: "erro", label: "Erro" }];
@@ -46,7 +44,6 @@ export default function Logs() {
   const [aberto, setAberto] = useState<LogLinha | null>(null);
   const [agora, setAgora] = useState(Date.now());
   const [busca, setBusca] = useState(filtros.valores.busca ?? "");
-  const [exportando, setExportando] = useState(false);
 
   const mudar = (f: Filtros) => setParams(urlDosFiltros(f), { replace: true });
   const definir = (k: ChaveFiltro, v: string | undefined) => {
@@ -81,16 +78,6 @@ export default function Logs() {
     staleTime: 15_000,
   });
 
-  const resumo = useQuery({
-    queryKey: ["logs-resumo", chave],
-    queryFn: async () => {
-      const { data, error } = await supabase.rpc("logs_resumo", { f: filtroBanco as Json });
-      if (error) throw error;
-      return data as unknown as Resumo;
-    },
-    staleTime: 15_000,
-  });
-
   const opcoes = useQuery({
     queryKey: ["logs-opcoes"],
     queryFn: async () => {
@@ -113,7 +100,6 @@ export default function Logs() {
 
   const atualizar = () => {
     queryClient.invalidateQueries({ queryKey: ["logs"] });
-    queryClient.invalidateQueries({ queryKey: ["logs-resumo"] });
     queryClient.invalidateQueries({ queryKey: ["logs-opcoes"] });
     queryClient.invalidateQueries({ queryKey: ["logs-saude"] });
   };
@@ -155,33 +141,12 @@ export default function Logs() {
   if (v.evento) chips.push({ k: "evento", texto: `Evento: ${opcoes.data?.eventos.find((e) => e.id === v.evento)?.nome ?? "selecionado"}` });
   if (v.resultado) chips.push({ k: "resultado", texto: `Resultado: ${v.resultado === "erro" ? "Erro" : "Sucesso"}` });
   if (v.busca) chips.push({ k: "busca", texto: `Busca: ${v.busca}` });
-  if (v.entidade) chips.push({ k: "entidade", texto: `Vida do registro: ${linhas.find((l) => l.entidade === v.entidade && (!v.entidade_id || l.entidade_id === v.entidade_id))?.entidade_rotulo ?? "selecionado"}` });
 
   const tirarChip = (k: ChaveFiltro) => {
     const valores = { ...filtros.valores };
     delete valores[k];
     if (k === "entidade") delete valores.entidade_id;
     mudar({ ...filtros, valores });
-  };
-
-  const exportar = async () => {
-    setExportando(true);
-    try {
-      const { data, error } = await supabase.rpc("exportar_logs", { f: filtroBanco as Json });
-      if (error) throw error;
-      const rows = (data ?? []) as unknown as LogLinha[];
-      const blob = new Blob([gerarCsv(rows)], { type: "text/csv;charset=utf-8" });
-      const a = document.createElement("a");
-      a.href = URL.createObjectURL(blob);
-      a.download = `logs-cupola-${new Date().toISOString().slice(0, 10)}.csv`;
-      a.click();
-      URL.revokeObjectURL(a.href);
-      toast.success(`${rows.length} registros exportados`, { description: "A exportação também ficou registrada no log." });
-    } catch (err) {
-      toast.error("Não foi possível exportar", { description: traduzirErro(err as Error) });
-    } finally {
-      setExportando(false);
-    }
   };
 
   const alertas = saude.data && (saude.data.sem_auditoria.length > 0 || saude.data.erros > 0);
@@ -191,19 +156,6 @@ export default function Logs() {
       <PageHeader
         title="Logs"
         description="Quem fez o quê, onde e quando, em todas as telas do painel. Ninguém edita nem apaga estes registros."
-        actions={
-          <>
-            <span className="text-xs text-muted-foreground">
-              {lista.dataUpdatedAt ? `Atualizado ${relativo(lista.dataUpdatedAt, agora)}` : ""}
-            </span>
-            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => atualizar()} disabled={lista.isFetching}>
-              <RefreshCw className={cn("h-4 w-4", lista.isFetching && "animate-spin")} /> Atualizar
-            </Button>
-            <Button size="sm" className="gap-1.5" onClick={exportar} disabled={exportando || !resumo.data?.total}>
-              {exportando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />} Exportar CSV
-            </Button>
-          </>
-        }
       />
 
       {alertas && (
@@ -220,23 +172,6 @@ export default function Logs() {
           </div>
         </div>
       )}
-
-      {/* Quatro números do período e dos filtros, sem gráfico */}
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        {([
-          ["Registros", resumo.data?.total],
-          ["Exclusões", resumo.data?.exclusoes],
-          ["Mudanças de permissão", resumo.data?.permissoes],
-          ["Falhas", resumo.data?.falhas],
-        ] as const).map(([rotulo, n]) => (
-          <Card key={rotulo} className="px-4 py-3">
-            <p className="text-xs text-muted-foreground">{rotulo}</p>
-            <p className={cn("text-2xl font-[650] tabular-nums", rotulo === "Falhas" && !!n && "text-data-blue")}>
-              {resumo.isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : resumo.isError ? "—" : (n ?? 0).toLocaleString("pt-BR")}
-            </p>
-          </Card>
-        ))}
-      </div>
 
       <Card className="space-y-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
@@ -308,7 +243,7 @@ export default function Logs() {
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
           <span className="text-muted-foreground">
-            {resumo.data ? `${resumo.data.total.toLocaleString("pt-BR")} ${resumo.data.total === 1 ? "resultado" : "resultados"}` : " "}
+            {lista.data ? `${linhas.length.toLocaleString("pt-BR")}${lista.hasNextPage ? "+" : ""} ${linhas.length === 1 ? "registro" : "registros"}` : " "}
           </span>
           {chips.map((c) => (
             <button key={c.k} type="button" onClick={() => tirarChip(c.k)} className="inline-flex items-center gap-1 rounded-full border bg-secondary px-2.5 py-0.5 text-xs hover:bg-secondary/70" aria-label={`Remover filtro ${c.texto}`}>
@@ -322,6 +257,22 @@ export default function Logs() {
           )}
         </div>
       </Card>
+
+      {(v.entidade || v.pessoa) && (
+        <div className="flex flex-wrap items-center gap-3 rounded-2xl border bg-bg-alt/60 px-4 py-3 text-sm">
+          {v.entidade ? <History className="h-4 w-4 text-data-blue" /> : <Workflow className="h-4 w-4 text-data-blue" />}
+          <span>
+            <span className="text-muted-foreground">{v.entidade ? "Vida do registro: " : "Tudo de: "}</span>
+            <b>{v.entidade
+              ? (rotuloRegistro(linhas.find((l) => l.entidade === v.entidade && (!v.entidade_id || l.entidade_id === v.entidade_id)) ?? { entidade: v.entidade, entidade_rotulo: null }) ?? "registro")
+              : (() => { const p = pessoas.find((x) => x.chave === v.pessoa); return p ? rotuloPessoa(p) : "selecionado"; })()}</b>
+            <span className="text-muted-foreground"> · {linhas.length}{lista.hasNextPage ? "+" : ""} {linhas.length === 1 ? "registro" : "registros"}, do mais novo ao mais antigo</span>
+          </span>
+          <Button variant="outline" size="sm" className="ml-auto gap-1.5" onClick={() => { const valores = { ...filtros.valores }; delete valores.entidade; delete valores.entidade_id; delete valores.pessoa; mudar({ ...filtros, valores }); }}>
+            <ArrowLeft className="h-4 w-4" /> Voltar a todos
+          </Button>
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         {lista.isLoading ? (
@@ -345,15 +296,19 @@ export default function Logs() {
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[112px]">Quando</TableHead>
+                  <TableHead className="w-[104px]">Quando</TableHead>
                   <TableHead className="w-[24%]">Quem</TableHead>
-                  <TableHead className="w-[28%]">Ação</TableHead>
-                  <TableHead>Onde</TableHead>
+                  <TableHead>O que aconteceu</TableHead>
+                  <TableHead className="w-[52px]"><span className="sr-only">Histórico</span></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {linhas.map((l) => {
                   const q = quem(l);
+                  const n = narrativa(l);
+                  const onde = [l.tela, l.event_nome].filter(Boolean).join(" · ");
+                  const vida = !!l.entidade_id && !v.entidade;
+                  const automacao = q.automacao && !v.pessoa && !!l.actor_processo;
                   return (
                     <TableRow
                       key={l.id}
@@ -375,14 +330,34 @@ export default function Logs() {
                         </span>
                       </TableCell>
                       <TableCell className="max-w-0 py-3 align-top">
-                        <TomAcao acao={l.acao} erro={l.resultado === "erro"} />
-                        {l.categoria === "permissao" && <span className="mt-0.5 block pl-3 text-xs text-muted-foreground">Permissão</span>}
+                        <TomAcao acao={l.acao} erro={l.resultado === "erro"} texto={n.titulo} />
+                        {n.detalhe.length > 0 && (
+                          <ul className="mt-1 space-y-0.5 pl-3 text-foreground/80">
+                            {n.detalhe.slice(0, 3).map((d, i) => <li key={i} className="break-words">{d}</li>)}
+                            {n.detalhe.length > 3 && <li className="text-xs text-muted-foreground">e mais {n.detalhe.length - 3} — clique para ver tudo</li>}
+                          </ul>
+                        )}
+                        {onde && <span className="mt-1 block truncate pl-3 text-xs text-muted-foreground">{onde}</span>}
                       </TableCell>
-                      <TableCell className="max-w-0 py-3 align-top">
-                        <span className="line-clamp-2 break-words" title={rotuloRegistro(l) ?? undefined}>{rotuloRegistro(l) ?? l.tela ?? "—"}</span>
-                        <span className="block truncate text-xs text-muted-foreground">
-                          {[rotuloRegistro(l) && rotuloRegistro(l) !== l.tela ? l.tela : null, l.event_nome].filter(Boolean).join(" · ")}
-                        </span>
+                      <TableCell className="py-2 align-top">
+                        {(vida || automacao) && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Button
+                                variant="ghost" size="icon" className="h-8 w-8"
+                                aria-label={vida ? "Ver a vida deste registro" : "Ver tudo desta automação"}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (vida) mudar({ periodo: "tudo", valores: { entidade: l.entidade, entidade_id: l.entidade_id! } });
+                                  else mudar({ ...filtros, valores: { pessoa: `proc:${l.actor_processo}` } });
+                                }}
+                              >
+                                {vida ? <History className="h-4 w-4" /> : <Workflow className="h-4 w-4" />}
+                              </Button>
+                            </TooltipTrigger>
+                            <TooltipContent>{vida ? "Ver a vida deste registro" : "Ver tudo desta automação"}</TooltipContent>
+                          </Tooltip>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

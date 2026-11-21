@@ -18,8 +18,9 @@ const PONTOS: Record<Tom, string> = {
 };
 
 // Quando não deu certo, o alerta substitui a bolinha: a falha fica visível sem um selo a mais.
-export function TomAcao({ acao, erro, className }: { acao: string; erro?: boolean; className?: string }) {
-  const { texto, tom } = descreverAcao(acao);
+export function TomAcao({ acao, erro, className, texto: titulo }: { acao: string; erro?: boolean; className?: string; texto?: string }) {
+  const { texto: padrao, tom } = descreverAcao(acao);
+  const texto = titulo ?? padrao;
   return (
     <span className={cn("flex min-w-0 items-start gap-1.5 font-medium", erro ? "text-bad" : CORES[tom], className)}>
       {erro ? (

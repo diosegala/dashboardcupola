@@ -61,3 +61,21 @@ describe("CSV", () => {
     expect(linha).toBe('21/11/2026, 16:00:00;Ana;ana@x.com;Administrador;Painel;;Alterou meta;Operação;Metas;"Meta ""A""; lote 1";;Valor da meta;;Sucesso;;');
   });
 });
+
+import { narrativa } from "./activityLog";
+describe("narrativa na lista", () => {
+  const base = { entidade: "goals", entidade_rotulo: "Receita Lote 1", qtd_linhas: null, resultado: "sucesso", detalhe_erro: null };
+  it("edição de meta mostra antes → depois", () => {
+    const n = narrativa({ ...base, acao: "meta.alterado", campos_alterados: ["target_value"], dados_antes: { target_value: 50000 }, dados_depois: { target_value: 80000 } });
+    expect(n.titulo).toBe("Alterou meta · Receita Lote 1");
+    expect(n.detalhe).toEqual(["Valor da meta: 50.000 → 80.000"]);
+  });
+  it("criação de meta mostra o que foi inserido", () => {
+    const n = narrativa({ ...base, acao: "meta.criado", campos_alterados: [], dados_antes: null, dados_depois: { id: "x", target_value: 150000, label: "Receita" } });
+    expect(n.detalhe[0]).toBe("Inseriu Valor da meta: 150.000 · Nome: Receita");
+  });
+  it("sincronização diz quantos e quais campos mudaram", () => {
+    const n = narrativa({ ...base, entidade: "ad_metrics", entidade_rotulo: "Métricas de anúncios", acao: "anuncios.atualizado", campos_alterados: ["clicks", "synced_at"], dados_antes: null, dados_depois: { alterados: 12 }, qtd_linhas: 12 });
+    expect(n.detalhe).toEqual(["12 registros mudaram: Clicks"]);
+  });
+});
