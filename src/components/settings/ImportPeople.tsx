@@ -365,7 +365,7 @@ export function ImportPeopleDialog({ event, onClose }: Props) {
             <ul className="space-y-2">
               <li><b>Nome*</b> e <b>Sobrenome*</b>: separados, como a pessoa vai aparecer no painel.</li>
               <li><b>E-mail*</b>: é o que identifica a pessoa. Se já existir no painel, ela não é criada de novo.</li>
-              <li><b>Função*</b>: {funcoesAceitas()}. Administrador não entra por planilha. Para quem já tem acesso, a função atual continua.</li>
+              <li><b>Função*</b>: {funcoesAceitas()}. Administrador não entra por planilha. Outra função, ou vazia, aparece na conferência para você escolher a certa. Para quem já tem acesso, a função atual continua.</li>
               <li><b>Cupons</b>: os códigos da Sympla desta pessoa, separados por vírgula (ex.: ANA5, ANA10). Cada código é de uma só pessoa.</li>
             </ul>
             <p>O que acontece: quem é novo recebe convite e acesso a este evento. Quem já existe ganha este evento e os cupons que ainda não tem. Ninguém perde acesso nem muda de função.</p>
