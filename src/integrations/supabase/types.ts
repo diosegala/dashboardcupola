@@ -1376,6 +1376,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_imports: {
+        Row: {
+          created_at: string
+          created_by: string
+          decisions: Json
+          event_id: string
+          id: string
+          issues: Json
+          source: string
+          totals: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          decisions?: Json
+          event_id: string
+          id?: string
+          issues?: Json
+          source: string
+          totals: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          decisions?: Json
+          event_id?: string
+          id?: string
+          issues?: Json
+          source?: string
+          totals?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_imports_event_id_fkey"
+            columns: ["event_id"]
+            isOneToOne: false
+            referencedRelation: "events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
