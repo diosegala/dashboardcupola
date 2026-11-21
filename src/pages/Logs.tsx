@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { traduzirErro } from "@/lib/mensagensErro";
 import {
   CATEGORIAS, PAPEIS, PERIODOS, filtroParaBanco, filtrosDaUrl, formatarQuando, gerarCsv, nomeCategoria, nomeProcesso,
-  quem, relativo, resumoLinha, rotuloRegistro, urlDosFiltros, type ChaveFiltro, type Filtros, type LogLinha, type Periodo,
+  quem, relativo, rotuloRegistro, urlDosFiltros, type ChaveFiltro, type Filtros, type LogLinha, type Periodo,
 } from "@/lib/activityLog";
 import { TomAcao } from "@/components/auditoria/TomAcao";
 import { LogDetailSheet } from "@/components/auditoria/LogDetailSheet";
@@ -350,10 +350,9 @@ export default function Logs() {
               <TableHeader>
                 <TableRow>
                   <TableHead className="w-[112px]">Quando</TableHead>
-                  <TableHead className="w-[19%]">Quem</TableHead>
-                  <TableHead className="w-[21%]">Ação</TableHead>
+                  <TableHead className="w-[24%]">Quem</TableHead>
+                  <TableHead className="w-[28%]">Ação</TableHead>
                   <TableHead>Onde</TableHead>
-                  <TableHead className="w-[17%] text-right">Detalhe</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -389,9 +388,6 @@ export default function Logs() {
                         <span className="block truncate text-xs text-muted-foreground">
                           {[rotuloRegistro(l) && rotuloRegistro(l) !== l.tela ? l.tela : null, l.event_nome].filter(Boolean).join(" · ")}
                         </span>
-                      </TableCell>
-                      <TableCell className="max-w-0 py-3 text-right align-top text-muted-foreground">
-                        <span className="line-clamp-3 break-words" title={resumoLinha(l) || undefined}>{resumoLinha(l)}</span>
                       </TableCell>
                     </TableRow>
                   );
