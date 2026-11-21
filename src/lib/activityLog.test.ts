@@ -45,7 +45,7 @@ describe("ação e quem", () => {
 describe("antes e depois", () => {
   it("na edição mostra só os campos alterados", () => {
     const linhas = comparacao({ acao: "permissao.papel.alterado", campos_alterados: ["role"], dados_antes: { id: "1", role: "viewer", user_id: "u" }, dados_depois: { id: "1", role: "admin", user_id: "u" } });
-    expect(linhas).toEqual([{ campo: "role", rotulo: "Função", antes: "viewer", depois: "admin", oculto: false }]);
+    expect(linhas).toEqual([{ campo: "role", rotulo: "Função", antes: "Visualizador", depois: "Administrador", oculto: false }]);
   });
   it("campo sensível aparece como valor oculto", () => {
     const [l] = comparacao({ acao: "integracao.credencial_trocada", campos_alterados: ["credentials"], dados_antes: { credentials: "••••" }, dados_depois: { credentials: "••••" } });

@@ -8,12 +8,14 @@ import { EventProvider, useEvent } from "@/hooks/useEvent";
 import { usePipedriveAutoSync } from "@/hooks/useSponsorship";
 import { CouponPeopleProvider } from "@/hooks/useCouponPeople";
 import { BatchCalendarProvider } from "@/hooks/useEventBatches";
+import { registrarAtividade } from "@/lib/registrarAtividade";
+import { telaDaRota } from "@/lib/activityLog";
 
 // Telas que a equipe de vendas pode abrir; as outras voltam para o ranking.
 const TELAS_EQUIPE = ["/", "/compradores", "/perfil"];
 
 export function AppLayout() {
-  const { isSeller, isAdmin } = useAuth();
+  const { isSeller, isAdmin, role } = useAuth();
   const { pathname } = useLocation();
   // Pipedrive atualiza sozinho enquanto um administrador está com o painel aberto.
   usePipedriveAutoSync(isAdmin && !isSeller);
@@ -29,6 +31,14 @@ export function AppLayout() {
     entrou.current = true;
     if (pathname !== "/") navigate("/", { replace: true });
   }, [isSeller, pathname, navigate]);
+  // Vendedor que tenta abrir tela fora do ranking: a tentativa fica no log (admin em "Ver como a equipe" não conta).
+  const bloqueada = role === "seller" && !TELAS_EQUIPE.includes(pathname);
+  const avisado = useRef<string | null>(null);
+  useEffect(() => {
+    if (!bloqueada || avisado.current === pathname) return;
+    avisado.current = pathname;
+    void registrarAtividade("acesso.negado", { p_entidade: "tela", p_rotulo: telaDaRota(pathname), p_tela: telaDaRota(pathname), p_detalhe: `Tentou abrir ${pathname} com a função Ranking` });
+  }, [bloqueada, pathname]);
   if (isSeller && !TELAS_EQUIPE.includes(pathname)) return <Navigate to="/" replace />;
 
   return (

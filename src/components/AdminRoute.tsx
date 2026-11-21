@@ -15,7 +15,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!negado || registrado.current) return;
     registrado.current = true;
-    void registrarAtividade("acesso.negado", { p_entidade: "tela", p_rotulo: telaDaRota(pathname), p_detalhe: `Tentou abrir ${pathname} sem ser administrador` });
+    void registrarAtividade("acesso.negado", { p_entidade: "tela", p_rotulo: telaDaRota(pathname), p_tela: telaDaRota(pathname), p_detalhe: `Tentou abrir ${pathname} sem ser administrador` });
   }, [negado, pathname]);
 
   if (!rolesLoaded) return null;

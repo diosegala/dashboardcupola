@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
 import { traduzirErro } from "@/lib/mensagensErro";
 import {
   CATEGORIAS, PAPEIS, PERIODOS, filtroParaBanco, filtrosDaUrl, formatarQuando, gerarCsv, nomeCategoria, nomeProcesso,
-  quem, relativo, resumoLinha, urlDosFiltros, type ChaveFiltro, type Filtros, type LogLinha, type Periodo,
+  quem, relativo, resumoLinha, rotuloRegistro, urlDosFiltros, type ChaveFiltro, type Filtros, type LogLinha, type Periodo,
 } from "@/lib/activityLog";
 import { TomAcao } from "@/components/logs/TomAcao";
 import { LogDetailSheet } from "@/components/logs/LogDetailSheet";
@@ -271,14 +271,14 @@ export default function Logs() {
             </SelectContent>
           </Select>
           <Select value={v.papel ?? TODOS} onValueChange={(x) => definir("papel", x === TODOS ? undefined : x)}>
-            <SelectTrigger className="h-9 w-[150px]" aria-label="Função"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[180px]" aria-label="Função"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value={TODOS}>Todas as funções</SelectItem>
               {PAPEIS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
             </SelectContent>
           </Select>
           <Select value={v.categoria ?? TODOS} onValueChange={(x) => definir("categoria", x === TODOS ? undefined : x)}>
-            <SelectTrigger className="h-9 w-[160px]" aria-label="Categoria"><SelectValue /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[190px]" aria-label="Categoria"><SelectValue /></SelectTrigger>
             <SelectContent>
               <SelectItem value={TODOS}>Todas as categorias</SelectItem>
               {CATEGORIAS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
@@ -386,7 +386,7 @@ export default function Logs() {
                         {l.categoria === "permissao" && <span className="block text-[11px] font-medium text-warn">Permissão</span>}
                       </TableCell>
                       <TableCell className="max-w-[260px] py-2">
-                        <span className="block truncate">{l.entidade_rotulo ?? "—"}</span>
+                        <span className="block truncate">{rotuloRegistro(l) ?? "—"}</span>
                         {l.tela && <span className="block truncate text-[11px] text-muted-foreground">{l.tela}</span>}
                       </TableCell>
                       <TableCell className="py-2 text-muted-foreground">{l.event_nome ?? "—"}</TableCell>

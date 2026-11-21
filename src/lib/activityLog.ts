@@ -292,6 +292,19 @@ export function formatarValor(v: unknown): string {
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
 
 // Só os campos que mudaram (edição) ou os preenchidos (criação e exclusão).
+const INTEGRACOES: Record<string, string> = {
+  sympla: "Sympla", meta: "Meta Ads", google_ads: "Google Ads", google_analytics: "Google Analytics", rd_station: "RD Station", pipedrive: "Pipedrive",
+};
+
+// Nome legível do registro afetado (funções e integrações em português).
+export function rotuloRegistro(l: Pick<LogLinha, "entidade" | "entidade_rotulo">): string | null {
+  const r = l.entidade_rotulo;
+  if (!r) return null;
+  if (l.entidade === "user_roles") return r.replace(/ · (admin|viewer|seller)$/, (_, p) => ` · ${nomePapel(p)}`);
+  if (l.entidade === "integrations" || l.entidade === "event_integrations") return INTEGRACOES[r] ?? r;
+  return r;
+}
+
 export function comparacao(l: Pick<LogLinha, "acao" | "campos_alterados" | "dados_antes" | "dados_depois">) {
   const antes = obj(l.dados_antes);
   const depois = obj(l.dados_depois);
@@ -300,11 +313,12 @@ export function comparacao(l: Pick<LogLinha, "acao" | "campos_alterados" | "dado
   let campos: string[];
   if (temAntes && temDepois) campos = l.campos_alterados?.length ? l.campos_alterados : Object.keys(depois).filter((k) => JSON.stringify(antes[k]) !== JSON.stringify(depois[k]));
   else campos = Object.keys(temDepois ? depois : antes).filter((k) => (temDepois ? depois : antes)[k] !== null && k !== "linhas");
+  const valor = (c: string, v: unknown) => (c === "role" && typeof v === "string" ? nomePapel(v) : formatarValor(v));
   return campos.map((c) => ({
     campo: c,
     rotulo: nomeCampo(c),
-    antes: temAntes ? formatarValor(antes[c]) : null,
-    depois: temDepois ? formatarValor(depois[c]) : null,
+    antes: temAntes ? valor(c, antes[c]) : null,
+    depois: temDepois ? valor(c, depois[c]) : null,
     oculto: antes[c] === VALOR_OCULTO || depois[c] === VALOR_OCULTO,
   }));
 }
@@ -342,7 +356,7 @@ export function gerarCsv(linhas: LogLinha[]): string {
     return [
       formatarQuando(l.ocorrido_em), q.nome, l.actor_email, nomePapel(l.actor_papel), ORIGENS[l.actor_origem] ?? l.actor_origem,
       l.actor_processo ? nomeProcesso(l.actor_processo) : "", descreverAcao(l.acao).texto, nomeCategoria(l.categoria), l.tela,
-      l.entidade_rotulo, l.event_nome, (l.campos_alterados ?? []).map(nomeCampo).join(", "), l.qtd_linhas,
+      rotuloRegistro(l), l.event_nome, (l.campos_alterados ?? []).map(nomeCampo).join(", "), l.qtd_linhas,
       l.resultado === "erro" ? "Erro" : "Sucesso", l.detalhe_erro, l.ip ? String(l.ip) : "",
     ].map(celula).join(";");
   });
