@@ -20,7 +20,7 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useToast } from "@/hooks/use-toast";
 import { EventsManager } from "@/components/settings/EventsManager";
-import { UserPlus, Loader2, ArrowUp, ArrowDown, Mail, Trash2, CheckCircle2, Clock, Ban, ChevronDown } from "lucide-react";
+import { UserPlus, Pencil, Loader2, ArrowUp, ArrowDown, Mail, Trash2, CheckCircle2, Clock, Ban, ChevronDown } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
@@ -328,7 +328,7 @@ export default function Settings() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="space-y-1.5">
               <CardTitle>Usuários</CardTitle>
-              <CardDescription>Clique no nome para editar os dados, os eventos e os cupons da pessoa.</CardDescription>
+              <CardDescription>Clique no lápis ou no nome para editar os dados, a função, os eventos e os cupons da pessoa.</CardDescription>
             </div>
             <Button onClick={() => setConvidando(true)} className="gap-1"><UserPlus className="h-4 w-4" /> Convidar usuário</Button>
           </div>
@@ -406,7 +406,7 @@ export default function Settings() {
                     <Checkbox checked={todosMarcados} onCheckedChange={(v) => alternarTodos(!!v)} aria-label="Selecionar todos" />
                   </TableHead>
                   {cabecalho("name", "Nome")}
-                  {cabecalho("role", "Função", "min-w-[13rem]")}
+                  {cabecalho("role", "Função")}
                   <TableHead>Eventos</TableHead>
                   {cabecalhoStatus}
                   {cabecalho("last_sign_in_at", "Último login")}
@@ -430,25 +430,9 @@ export default function Settings() {
                         <Badge variant="secondary" className="ml-2 bg-warn-bg text-xs text-warn hover:bg-warn-bg">falta sobrenome</Badge>
                       )}
                     </TableCell>
-                    <TableCell>
-                      <Select
-                        value={u.role}
-                        disabled={isSelf(u.id) || manageMutation.isPending}
-                        onValueChange={(newRole) =>
-                          manageMutation.mutate({ action: "update_role", user_id: u.id, role: newRole })
-                        }
-                      >
-                        <SelectTrigger className="h-8 w-full whitespace-nowrap" aria-label="Função">
-                          <SelectValue placeholder={NO_ROLE_LABEL} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {ROLES.map((r) => (
-                            <SelectItem key={r.value} value={r.value}>
-                              <span className="flex items-center gap-1"><r.icon className="h-3 w-3" /> {r.label}</span>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
+                    <TableCell className="whitespace-nowrap">
+                      {u.role ? (() => { const r = roleInfo(u.role); return <span className="flex items-center gap-1.5 text-sm"><r.icon className="h-4 w-4 text-muted-foreground" /> {r.label}</span>; })()
+                        : <span className="text-sm text-muted-foreground">{NO_ROLE_LABEL}</span>}
                     </TableCell>
                     <TableCell>{eventosCell(u)}</TableCell>
                     <TableCell>{statusBadge(u)}</TableCell>
@@ -462,6 +446,14 @@ export default function Settings() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={`Editar ${u.name ?? "usuário"}`} onClick={() => setAberto(u)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>Editar usuário</TooltipContent>
+                        </Tooltip>
                         <Tooltip>
                           <TooltipTrigger asChild>
                             <Button

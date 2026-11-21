@@ -4,7 +4,7 @@ import { emailJaUsado, erroEmail, limparEmail } from "@/lib/email";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -132,13 +132,13 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
   };
 
   return (
-    <Sheet open={!!user} onOpenChange={(o) => !o && onClose()}>
-      <SheetContent className="w-full overflow-y-auto sm:max-w-md">
-        <SheetHeader>
-          <SheetTitle>{user?.name ?? "Pessoa"}</SheetTitle>
-          <SheetDescription>Altere os dados, a função, os eventos e o cupom desta pessoa.</SheetDescription>
-        </SheetHeader>
-        <form onSubmit={salvar} className="mt-6 space-y-4">
+    <Dialog open={!!user} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto rounded-[24px]">
+        <DialogHeader>
+          <DialogTitle>Editar usuário</DialogTitle>
+          <DialogDescription>Altere os dados, a função, os eventos e o cupom de {user?.name ?? "esta pessoa"}.</DialogDescription>
+        </DialogHeader>
+        <form onSubmit={salvar} className="space-y-4">
           <div className="space-y-1">
             <NameFields id="ud" first={primeiro} last={sobrenome} onFirst={setPrimeiro} onLast={setSobrenome} />
           </div>
@@ -165,15 +165,16 @@ export function UserDetailSheet({ user, isSelf, onClose }: { user: SheetUser | n
           <CouponPicker id="ud-cupom" account={{ name: nome, email }} people={pessoas} userId={user?.id} personIds={pessoaIds} typed={typed}
             onPeople={setPessoaIds} onTyped={setTyped} />
           <PasswordFields id="ud" rotulo="Nova senha (opcional)" senha={senha} confirmacao={confirmaSenha} onSenha={setSenha} onConfirmacao={setConfirmaSenha} />
-          <div className="flex flex-wrap gap-2 pt-2">
+          <Button type="button" variant="outline" size="sm" onClick={enviarLink} disabled={enviando} className="gap-1">
+            {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Mail className="h-4 w-4" />}
+            {user?.active ? "Enviar link de troca de senha" : "Reenviar convite"}
+          </Button>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
             <Button type="submit" disabled={salvando || !emailValido || !nomeOk || !senhaOk || !typedCodesOk(typed, pessoas, atuaisIds)}>{salvando ? <Loader2 className="h-4 w-4 animate-spin" /> : "Salvar"}</Button>
-            <Button type="button" variant="outline" onClick={enviarLink} disabled={enviando} className="gap-1">
-              <Mail className="h-4 w-4" />
-              {user?.active ? "Enviar link de troca de senha" : "Reenviar convite"}
-            </Button>
-          </div>
+          </DialogFooter>
         </form>
-      </SheetContent>
-    </Sheet>
+      </DialogContent>
+    </Dialog>
   );
 }
