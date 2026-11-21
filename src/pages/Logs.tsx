@@ -20,8 +20,8 @@ import {
   CATEGORIAS, PAPEIS, PERIODOS, filtroParaBanco, filtrosDaUrl, formatarQuando, gerarCsv, nomeCategoria, nomeProcesso,
   quem, relativo, resumoLinha, rotuloRegistro, urlDosFiltros, type ChaveFiltro, type Filtros, type LogLinha, type Periodo,
 } from "@/lib/activityLog";
-import { TomAcao } from "@/components/logs/TomAcao";
-import { LogDetailSheet } from "@/components/logs/LogDetailSheet";
+import { TomAcao } from "@/components/auditoria/TomAcao";
+import { LogDetailSheet } from "@/components/auditoria/LogDetailSheet";
 
 const POR_PAGINA = 50;
 const TODOS = "__todos";
