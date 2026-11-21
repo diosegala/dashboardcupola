@@ -2,17 +2,18 @@ import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { descreverAcao, type Tom } from "@/lib/activityLog";
 
-// Cor é apoio: criou em verde, alterou em azul, excluiu em vermelho, acessou em cinza. O texto sempre explica.
+// Cor é apoio: criou em verde, alterou em azul, excluiu em grafite, acessou em cinza.
+// Vermelho fica só para o que realmente falhou — excluir é uma ação normal, não um erro.
 const CORES: Record<Tom, string> = {
   criou: "text-ok",
   alterou: "text-data-blue",
-  excluiu: "text-bad",
+  excluiu: "text-foreground/80",
   acessou: "text-muted-foreground",
 };
 const PONTOS: Record<Tom, string> = {
   criou: "bg-ok",
   alterou: "bg-data-blue",
-  excluiu: "bg-bad",
+  excluiu: "bg-foreground/50",
   acessou: "bg-muted-foreground/60",
 };
 

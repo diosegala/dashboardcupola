@@ -235,7 +235,7 @@ export default function Logs() {
         ] as const).map(([rotulo, n]) => (
           <Card key={rotulo} className="px-4 py-3">
             <p className="text-xs text-muted-foreground">{rotulo}</p>
-            <p className={cn("text-2xl font-[650] tabular-nums", rotulo === "Falhas" && !!n && "text-bad")}>
+            <p className={cn("text-2xl font-[650] tabular-nums", rotulo === "Falhas" && !!n && "text-data-blue")}>
               {resumo.isLoading ? <Skeleton className="mt-1 h-7 w-12" /> : resumo.isError ? "—" : (n ?? 0).toLocaleString("pt-BR")}
             </p>
           </Card>
@@ -334,7 +334,7 @@ export default function Logs() {
           </div>
         ) : lista.isError ? (
           <div className="flex flex-col items-center gap-3 p-10 text-center" role="alert">
-            <AlertTriangle className="h-6 w-6 text-bad" />
+            <AlertTriangle className="h-6 w-6 text-data-blue" />
             <p className="font-medium">Não foi possível carregar os logs.</p>
             <p className="max-w-md text-sm text-muted-foreground">{traduzirErro(lista.error as Error)}</p>
             <Button variant="outline" size="sm" onClick={() => lista.refetch()}>Tentar de novo</Button>
