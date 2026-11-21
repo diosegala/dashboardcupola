@@ -125,7 +125,7 @@ Deno.serve(async (req) => {
     if (inviteData.user) {
       await adminClient.from("user_roles").upsert(
         { user_id: inviteData.user.id, role: assignedRole },
-        { onConflict: "user_id,role" }
+        { onConflict: "user_id" }
       );
     }
 

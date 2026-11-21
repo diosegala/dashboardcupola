@@ -102,10 +102,10 @@ Deno.serve(async (req) => {
       if (user_id === callerId) {
         return jsonResponse({ error: "Você não pode alterar a sua própria função" }, 400);
       }
-      // Grava o novo papel antes de apagar os outros: se falhar, a pessoa mantém o atual.
+      // Cada pessoa tem uma única função: a nova substitui a atual numa só gravação. Se falhar, a pessoa mantém a atual.
       const { error } = await adminClient
         .from("user_roles")
-        .upsert({ user_id, role }, { onConflict: "user_id,role" });
+        .upsert({ user_id, role }, { onConflict: "user_id" });
       if (error) {
         console.error("update_role error:", error);
         return jsonResponse({ error: error.message }, 400);
