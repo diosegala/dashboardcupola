@@ -1,7 +1,7 @@
 // Leitor mínimo de .xlsx (primeira aba) só com recursos do navegador: o arquivo é um ZIP com XMLs.
 // Lê o diretório do ZIP, descompacta (DecompressionStream) a aba e os textos compartilhados, e monta a tabela.
 
-async function inflar(dados: Uint8Array): Promise<Uint8Array> {
+async function inflar(dados: Uint8Array<ArrayBuffer>): Promise<Uint8Array> {
   const stream = new Blob([dados]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
   return new Uint8Array(await new Response(stream).arrayBuffer());
 }
