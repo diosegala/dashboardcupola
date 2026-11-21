@@ -1,3 +1,4 @@
+import { registrarAtividade } from "@/lib/registrarAtividade";
 import { EmailInput } from "@/components/EmailInput";
 import { erroEmail, limparEmail } from "@/lib/email";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -32,9 +33,11 @@ export default function Login() {
     const { error } = await supabase.auth.signInWithPassword({ email: limparEmail(email), password });
 
     if (error) {
+      void registrarAtividade("acesso.login_falhou", { p_email: limparEmail(email), p_detalhe: error.message });
       toast({ variant: "destructive", title: "Não foi possível entrar", description: traduzirErro(error) });
       setLoading(false);
     } else {
+      await registrarAtividade("acesso.login");
       navigate("/");
     }
   };

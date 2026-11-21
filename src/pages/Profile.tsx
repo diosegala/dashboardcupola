@@ -1,3 +1,4 @@
+import { registrarAtividade } from "@/lib/registrarAtividade";
 import { PasswordFields, senhaValida } from "@/components/PasswordFields";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { roleInfo } from "@/lib/roles";
@@ -68,6 +69,7 @@ export default function Profile() {
     const { error } = await supabase.auth.updateUser({ password: senha });
     setSalvandoSenha(false);
     if (error) return toast({ variant: "destructive", title: "Não foi possível trocar a senha", description: traduzirErro(error) });
+    void registrarAtividade("acesso.senha_trocada");
     setSenha("");
     setConfirma("");
     setTrocandoSenha(false);

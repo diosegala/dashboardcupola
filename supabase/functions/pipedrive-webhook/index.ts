@@ -13,7 +13,7 @@ Deno.serve(async req=>{
     if(auth.startsWith('Basic ')){try{const decoded=atob(auth.slice(6));const colon=decoded.indexOf(':');if(colon>=0){suppliedUser=decoded.slice(0,colon);suppliedPassword=decoded.slice(colon+1);}}catch{ /* Invalid Basic credentials fail closed. */ }}
     const [validUser,validPassword]=await Promise.all([constantEqual(suppliedUser,user),constantEqual(suppliedPassword,password)]);
     if(!validUser || !validPassword)return json({error:'Não autorizado'},401);
-    db=serverClient();account=accountDomain(new URL(req.url).searchParams.get('conta'));
+    db=serverClient('pipedrive_webhook');account=accountDomain(new URL(req.url).searchParams.get('conta'));
     const configs=await configsFor(db,account,false);if(!configs.length)return json({error:'Conta não cadastrada'},404);
     const raw=await req.json().catch(()=>null);const parsed=envelope.safeParse(raw);
     if(!parsed.success || !entities.has(parsed.data.meta.entity)){

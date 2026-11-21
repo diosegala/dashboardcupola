@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Target, Plug, Settings, UsersRound, PanelLeftClose, PanelLeftOpen, Megaphone, Trophy, Eye, EyeOff, Ticket, Handshake } from "lucide-react";
+import { LayoutDashboard, Target, Plug, Settings, UsersRound, PanelLeftClose, PanelLeftOpen, Megaphone, Trophy, Eye, EyeOff, Ticket, Handshake, ScrollText } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { CupolaLogo } from "@/components/CupolaLogo";
 import {
@@ -34,6 +34,7 @@ const sellerItems = [
 const adminItems = [
   { title: "Integrações", url: "/integrations", icon: Plug },
   { title: "Configurações", url: "/settings", icon: Settings },
+  { title: "Logs", url: "/logs", icon: ScrollText },
 ];
 
 const itemClass =

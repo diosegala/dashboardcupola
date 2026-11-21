@@ -1,15 +1,16 @@
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { accountDomain, customFields, iso, labels, matchesTerm, pipelineIds, scalarId, type Row } from './pipedrive-rules.ts';
+import { atorHeaders } from './ator.ts';
 import { PipedriveClient, PipedriveError, PartialRun } from './pipedrive-client.ts';
 export { PipedriveClient, PipedriveError, PartialRun, accountDomain, pipelineIds, scalarId, matchesTerm };
 export type { Row };
 export const json = (body: Row, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
 export const preflight = (req: Request) => req.method === 'OPTIONS' ? new Response('ok', { headers: corsHeaders }) : null;
-export function serverClient() {
+export function serverClient(processo = 'pipedrive') {
   const url = Deno.env.get('SUPABASE_URL'); const key = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
   if (!url || !key) throw new PipedriveError('Configuração do servidor indisponível', 500);
-  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false } });
+  return createClient(url, key, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: atorHeaders(processo) } });
 }
 export async function checked<T>(query: PromiseLike<{ data: T; error: any }>): Promise<T> {
   const { data, error } = await query;

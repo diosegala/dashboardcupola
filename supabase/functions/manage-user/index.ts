@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { atorHeaders } from "../_shared/ator.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -51,8 +52,20 @@ Deno.serve(async (req) => {
     }
     const callerId = claimsData.claims.sub;
 
-    // Check admin
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    // Check admin. Toda gravação deste cliente entra no log em nome de quem chamou.
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, { global: { headers: atorHeaders("manage_user", callerId) } });
+    // Registro no log do que não nasce de tabela (login, convite, senha) e das tentativas que falharam.
+    const registrar = async (p: Record<string, unknown>) => {
+      const { error } = await adminClient.rpc("registrar_atividade", { p_tela: "Configurações › Usuários", ...p });
+      if (error) console.error("registrar_atividade error:", error);
+    };
+    const rotuloDe = async (id: string) => {
+      const { data } = await adminClient.from("profiles").select("name").eq("id", id).maybeSingle();
+      const { data: u } = await adminClient.auth.admin.getUserById(id);
+      return [data?.name, u?.user?.email].filter(Boolean).join(" · ") || id;
+    };
+    const falhou = async (acao: string, alvo: string | undefined, mensagem: string) =>
+      registrar({ p_acao: acao, p_entidade: "usuario", p_entidade_id: alvo ?? null, p_rotulo: alvo ? await rotuloDe(alvo) : null, p_resultado: "erro", p_detalhe: mensagem });
     const { data: roleData } = await adminClient
       .from("user_roles")
       .select("role")
@@ -61,6 +74,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!roleData) {
+      await registrar({ p_acao: "acesso.negado", p_entidade: "usuario", p_resultado: "erro", p_detalhe: "Tentou gerenciar usuários sem ser administrador" });
       return jsonResponse({ error: "Apenas administradores podem gerenciar usuários" }, 403);
     }
 
@@ -109,6 +123,7 @@ Deno.serve(async (req) => {
         .upsert({ user_id, role }, { onConflict: "user_id" });
       if (error) {
         console.error("update_role error:", error);
+        await falhou("permissao.papel_alterado", user_id, error.message);
         return jsonResponse({ error: error.message }, 400);
       }
       await adminClient.from("user_roles").delete().eq("user_id", user_id).neq("role", role);
@@ -125,8 +140,10 @@ Deno.serve(async (req) => {
       });
       if (error) {
         console.error("set_active error:", error);
+        await falhou(body.active === false ? "permissao.acesso_bloqueado" : "permissao.acesso_liberado", user_id, error.message);
         return jsonResponse({ error: error.message }, 400);
       }
+      await registrar({ p_acao: body.active === false ? "permissao.acesso_bloqueado" : "permissao.acesso_liberado", p_entidade: "usuario", p_entidade_id: user_id, p_rotulo: await rotuloDe(user_id) });
       return jsonResponse({ success: true });
     }
 
@@ -150,15 +167,27 @@ Deno.serve(async (req) => {
       if (email) { changes.email = email; changes.email_confirm = true; }
       if (password) { changes.password = password; changes.user_metadata = { password_set_at: new Date().toISOString() }; }
       if (Object.keys(changes).length) {
+        const { data: antes } = await adminClient.auth.admin.getUserById(user_id);
         const { error } = await adminClient.auth.admin.updateUserById(user_id, changes);
         if (error) {
           console.error("update_user auth error:", error);
+          await falhou("usuario.alterado", user_id, error.message);
           return jsonResponse({ error: error.message }, 400);
         }
+        const rotulo = await rotuloDe(user_id);
+        const base = { p_entidade: "usuario", p_entidade_id: user_id, p_rotulo: rotulo };
+        if (email && email !== (antes?.user?.email ?? "").toLowerCase()) {
+          await registrar({ ...base, p_acao: "usuario.email_alterado", p_dados: { antes: antes?.user?.email ?? null, depois: email } });
+        }
+        if (password) await registrar({ ...base, p_acao: "acesso.senha_trocada", p_detalhe: "Senha trocada pelo administrador" });
+        if (typeof body.team_view === "boolean") await registrar({ ...base, p_acao: "usuario.visao_equipe_alterada", p_dados: { ver_como_equipe: body.team_view } });
       }
       if (name) {
         const { error } = await adminClient.from("profiles").update({ name }).eq("id", user_id);
-        if (error) return jsonResponse({ error: error.message }, 400);
+        if (error) {
+          await falhou("usuario.alterado", user_id, error.message);
+          return jsonResponse({ error: error.message }, 400);
+        }
       }
       return jsonResponse({ success: true });
     }
@@ -178,8 +207,10 @@ Deno.serve(async (req) => {
         );
         if (resetError) {
           console.error("resend_invite reset error:", resetError);
+          await falhou("acesso.link_senha_enviado", user_id, resetError.message);
           return jsonResponse({ error: resetError.message }, 400);
         }
+        await registrar({ p_acao: "acesso.link_senha_enviado", p_entidade: "usuario", p_entidade_id: user_id, p_rotulo: await rotuloDe(user_id) });
         return jsonResponse({ success: true, sent: "reset" });
       }
 
@@ -190,8 +221,10 @@ Deno.serve(async (req) => {
       );
       if (inviteError) {
         console.error("resend_invite error:", inviteError);
+        await falhou("acesso.convite_reenviado", user_id, inviteError.message);
         return jsonResponse({ error: inviteError.message }, 400);
       }
+      await registrar({ p_acao: "acesso.convite_reenviado", p_entidade: "usuario", p_entidade_id: user_id, p_rotulo: await rotuloDe(user_id) });
       return jsonResponse({ success: true, sent: "invite" });
     }
 
@@ -201,24 +234,29 @@ Deno.serve(async (req) => {
         return jsonResponse({ error: "Você não pode excluir a si mesmo" }, 400);
       }
 
-      // Excluir é para sempre. 1) Bloqueia o login antes de tudo: se isso falhar, nada muda e o painel avisa.
+      // Excluir é para sempre e lógico: a pessoa perde o acesso na hora, mas continua no histórico.
+      const rotulo = await rotuloDe(user_id);
+      // 1) Bloqueia o login antes de tudo: se isso falhar, nada muda e o painel avisa.
       const { error: banError } = await adminClient.auth.admin.updateUserById(user_id, {
         ban_duration: "876000h",
         app_metadata: { deleted_at: new Date().toISOString() },
       });
       if (banError) {
         console.error("delete_user ban error:", banError);
+        await falhou("usuario.excluido", user_id, banError.message);
         return jsonResponse({ error: banError.message }, 400);
       }
-      // 2) Tira função, eventos, cupons e perfil: sem nada disso, nenhuma tela ou dado fica acessível.
-      for (const [tabela, coluna] of [["user_roles", "user_id"], ["event_users", "user_id"], ["user_event_scope", "user_id"], ["team_coupons", "user_id"], ["profiles", "id"]] as const) {
-        const { error } = await adminClient.from(tabela).delete().eq(coluna, user_id);
+      // 2) Tira função, eventos e cupons: sem nada disso, nenhuma tela ou dado fica acessível. Cada remoção entra no log.
+      for (const tabela of ["user_roles", "event_users", "user_event_scope", "team_coupons"] as const) {
+        const { error } = await adminClient.from(tabela).delete().eq("user_id", user_id);
         if (error) console.error(`delete_user ${tabela} error:`, error);
       }
       await adminClient.from("coupon_people").update({ user_id: null }).eq("user_id", user_id);
-      // 3) Apaga a conta. Se o histórico (ex.: metas que a pessoa criou) impedir, ela segue bloqueada e fora da lista.
-      const { error: deleteError } = await adminClient.auth.admin.deleteUser(user_id);
-      if (deleteError) console.error("delete_user delete error (conta fica bloqueada):", deleteError);
+      // 3) O perfil fica guardado com a data da exclusão: o log grava "usuario.excluido" com tudo o que existia.
+      const { data: marcado } = await adminClient.from("profiles").update({ deleted_at: new Date().toISOString() }).eq("id", user_id).select("id");
+      if (!marcado?.length) {
+        await registrar({ p_acao: "usuario.excluido", p_entidade: "profiles", p_entidade_id: user_id, p_rotulo: rotulo, p_detalhe: "Conta sem perfil no painel" });
+      }
       return jsonResponse({ success: true });
     }
 

@@ -7,6 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { ThemeProvider } from "@/components/ThemeProvider";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { AppLayout } from "@/components/AppLayout";
+import { AdminRoute } from "@/components/AdminRoute";
 import { lazy, Suspense } from "react";
 
 // Cada tela é baixada só quando é aberta.
@@ -22,6 +23,7 @@ const Coupons = lazy(() => import("./pages/Coupons"));
 const Settings = lazy(() => import("./pages/Settings"));
 const Sponsorship = lazy(() => import("./pages/Sponsorship"));
 const Profile = lazy(() => import("./pages/Profile"));
+const Logs = lazy(() => import("./pages/Logs"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Dados ficam válidos por 5 minutos: trocar de tela ou de aba do navegador não baixa tudo de novo.
@@ -54,12 +56,13 @@ const App = () => (
                 <Route path="/" element={<Index />} />
                 <Route path="/comercial" element={<Dashboard pagina="comercial" />} />
                 <Route path="/marketing" element={<Dashboard pagina="marketing" />} />
-                <Route path="/goals" element={<Goals />} />
-                <Route path="/integrations" element={<Integrations />} />
+                <Route path="/goals" element={<AdminRoute><Goals /></AdminRoute>} />
+                <Route path="/integrations" element={<AdminRoute><Integrations /></AdminRoute>} />
                 <Route path="/compradores" element={<Buyers />} />
                 <Route path="/cupons" element={<Coupons />} />
                 <Route path="/patrocinios" element={<Sponsorship />} />
-                <Route path="/settings" element={<Settings />} />
+                <Route path="/settings" element={<AdminRoute><Settings /></AdminRoute>} />
+                <Route path="/logs" element={<AdminRoute><Logs /></AdminRoute>} />
                 <Route path="/perfil" element={<Profile />} />
               </Route>
               <Route path="*" element={<NotFound />} />

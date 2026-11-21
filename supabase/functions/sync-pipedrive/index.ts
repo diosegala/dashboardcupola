@@ -91,7 +91,7 @@ Deno.serve(async req=>{
   const options=preflight(req);if(options)return options;
   let db;
   try{
-    db=serverClient();await authorize(req,db,true);
+    db=serverClient('sync_pipedrive');await authorize(req,db,true);
     const parsed=schema.safeParse(await req.json().catch(()=>({})));if(!parsed.success)return json({error:'Parâmetros inválidos para sincronizar o CRM'},400);
     const configs=await configsFor(db,parsed.data.crm_account);
     if(!configs.length)return json({error:'Nenhuma conta do Pipedrive vinculada a evento ativo'},400);

@@ -101,6 +101,51 @@ export type Database = {
         }
         Relationships: []
       }
+      auditoria_tabelas: {
+        Row: {
+          categoria: string
+          coluna_evento: string | null
+          coluna_id: string[]
+          coluna_rotulo: string | null
+          coluna_usuario: string | null
+          ignorados: string[]
+          modo: string
+          prefixo: string
+          rotulo_resumo: string | null
+          sensiveis: string[]
+          tabela: string
+          tela: string | null
+        }
+        Insert: {
+          categoria?: string
+          coluna_evento?: string | null
+          coluna_id?: string[]
+          coluna_rotulo?: string | null
+          coluna_usuario?: string | null
+          ignorados?: string[]
+          modo?: string
+          prefixo: string
+          rotulo_resumo?: string | null
+          sensiveis?: string[]
+          tabela: string
+          tela?: string | null
+        }
+        Update: {
+          categoria?: string
+          coluna_evento?: string | null
+          coluna_id?: string[]
+          coluna_rotulo?: string | null
+          coluna_usuario?: string | null
+          ignorados?: string[]
+          modo?: string
+          prefixo?: string
+          rotulo_resumo?: string | null
+          sensiveis?: string[]
+          tabela?: string
+          tela?: string | null
+        }
+        Relationships: []
+      }
       coupon_people: {
         Row: {
           codes: string[]
@@ -1050,19 +1095,130 @@ export type Database = {
         }
         Relationships: []
       }
+      logs_atividade: {
+        Row: {
+          acao: string
+          actor_email: string | null
+          actor_id: string | null
+          actor_nome: string | null
+          actor_origem: string
+          actor_papel: string | null
+          actor_processo: string | null
+          actor_removido: boolean
+          campos_alterados: string[]
+          categoria: string
+          dados_antes: Json | null
+          dados_depois: Json | null
+          detalhe_erro: string | null
+          entidade: string
+          entidade_id: string | null
+          entidade_rotulo: string | null
+          event_id: string | null
+          event_nome: string | null
+          id: number
+          ip: unknown
+          ocorrido_em: string
+          qtd_linhas: number | null
+          resultado: string
+          tela: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          acao: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_nome?: string | null
+          actor_origem?: string
+          actor_papel?: string | null
+          actor_processo?: string | null
+          actor_removido?: boolean
+          campos_alterados?: string[]
+          categoria: string
+          dados_antes?: Json | null
+          dados_depois?: Json | null
+          detalhe_erro?: string | null
+          entidade: string
+          entidade_id?: string | null
+          entidade_rotulo?: string | null
+          event_id?: string | null
+          event_nome?: string | null
+          id?: never
+          ip?: unknown
+          ocorrido_em?: string
+          qtd_linhas?: number | null
+          resultado?: string
+          tela?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          acao?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_nome?: string | null
+          actor_origem?: string
+          actor_papel?: string | null
+          actor_processo?: string | null
+          actor_removido?: boolean
+          campos_alterados?: string[]
+          categoria?: string
+          dados_antes?: Json | null
+          dados_depois?: Json | null
+          detalhe_erro?: string | null
+          entidade?: string
+          entidade_id?: string | null
+          entidade_rotulo?: string | null
+          event_id?: string | null
+          event_nome?: string | null
+          id?: never
+          ip?: unknown
+          ocorrido_em?: string
+          qtd_linhas?: number | null
+          resultado?: string
+          tela?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
+      logs_auditoria_erros: {
+        Row: {
+          id: number
+          mensagem: string
+          ocorrido_em: string
+          operacao: string | null
+          tabela: string | null
+        }
+        Insert: {
+          id?: never
+          mensagem: string
+          ocorrido_em?: string
+          operacao?: string | null
+          tabela?: string | null
+        }
+        Update: {
+          id?: never
+          mensagem?: string
+          ocorrido_em?: string
+          operacao?: string | null
+          tabela?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
+          deleted_at: string | null
           id: string
           name: string | null
         }
         Insert: {
           created_at?: string
+          deleted_at?: string | null
           id: string
           name?: string | null
         }
         Update: {
           created_at?: string
+          deleted_at?: string | null
           id?: string
           name?: string | null
         }
@@ -1440,6 +1596,42 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _log_erro: {
+        Args: { p_mensagem: string; p_operacao: string; p_tabela: string }
+        Returns: undefined
+      }
+      _log_inserir: {
+        Args: {
+          p_acao: string
+          p_antes: Json
+          p_ator?: Json
+          p_campos: string[]
+          p_categoria: string
+          p_depois: Json
+          p_entidade: string
+          p_entidade_id: string
+          p_erro: string
+          p_event_id: string
+          p_qtd: number
+          p_resultado: string
+          p_rotulo: string
+          p_tela: string
+        }
+        Returns: number
+      }
+      _log_mascarar: { Args: { j: Json; sensiveis: string[] }; Returns: Json }
+      _logs_filtro_ok: {
+        Args: {
+          f: Json
+          l: Database["public"]["Tables"]["logs_atividade"]["Row"]
+        }
+        Returns: boolean
+      }
+      _uuid_ou_nulo: { Args: { v: string }; Returns: string }
+      auditoria_ligar: {
+        Args: { p_modo?: string; p_tabela: string }
+        Returns: undefined
+      }
       can_see_crm_account: { Args: { _account: string }; Returns: boolean }
       can_see_event: { Args: { _event_id: string }; Returns: boolean }
       contact_key: { Args: { kind: string; v: string }; Returns: string }
@@ -1451,6 +1643,7 @@ export type Database = {
         }[]
       }
       coupon_match_key: { Args: { v: string }; Returns: string }
+      exportar_logs: { Args: { f?: Json }; Returns: Json }
       get_buyer_events: {
         Args: { p_slug: string }
         Returns: {
@@ -1492,9 +1685,70 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_admin: { Args: never; Returns: boolean }
       is_seller: { Args: never; Returns: boolean }
       link_coupon_person: { Args: { p_user: string }; Returns: string }
       link_my_coupon_person: { Args: never; Returns: string }
+      logs_buscar: {
+        Args: {
+          f?: Json
+          p_antes_em?: string
+          p_antes_id?: number
+          p_limite?: number
+        }
+        Returns: {
+          acao: string
+          actor_email: string | null
+          actor_id: string | null
+          actor_nome: string | null
+          actor_origem: string
+          actor_papel: string | null
+          actor_processo: string | null
+          actor_removido: boolean
+          campos_alterados: string[]
+          categoria: string
+          dados_antes: Json | null
+          dados_depois: Json | null
+          detalhe_erro: string | null
+          entidade: string
+          entidade_id: string | null
+          entidade_rotulo: string | null
+          event_id: string | null
+          event_nome: string | null
+          id: number
+          ip: unknown
+          ocorrido_em: string
+          qtd_linhas: number | null
+          resultado: string
+          tela: string | null
+          user_agent: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "logs_atividade"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
+      logs_opcoes: { Args: never; Returns: Json }
+      logs_resumo: { Args: { f?: Json }; Returns: Json }
+      logs_saude: { Args: never; Returns: Json }
+      registrar_atividade: {
+        Args: {
+          p_acao: string
+          p_dados?: Json
+          p_detalhe?: string
+          p_email?: string
+          p_entidade?: string
+          p_entidade_id?: string
+          p_event_id?: string
+          p_resultado?: string
+          p_rotulo?: string
+          p_tela?: string
+        }
+        Returns: undefined
+      }
+      tabelas_sem_auditoria: { Args: never; Returns: string[] }
     }
     Enums: {
       app_role: "admin" | "viewer" | "seller"

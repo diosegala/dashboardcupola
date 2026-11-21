@@ -6,7 +6,7 @@ Deno.serve(async req=>{
   const options=preflight(req); if(options) return options;
   let api:PipedriveClient|undefined; let account:string|undefined; let db;
   try {
-    db=serverClient(); await authorize(req,db);
+    db=serverClient('list_crm_options'); await authorize(req,db);
     const parsed=schema.safeParse(await req.json().catch(()=>null));
     if(!parsed.success) return json({error:'Informe event_id válido ou crm_account, e product_term opcional'},400);
     account=await resolveAccount(db,parsed.data); api=new PipedriveClient(account,await resolveToken(db,account),Date.now()+110000);

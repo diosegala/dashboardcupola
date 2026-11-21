@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearPeriod } from "@/hooks/usePeriod";
+import { registrarAtividade } from "@/lib/registrarAtividade";
 import type { User, Session } from "@supabase/supabase-js";
 
 interface AuthContextType {
@@ -134,6 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Registra a saída enquanto o login ainda vale.
+    await registrarAtividade("acesso.logout");
     await supabase.auth.signOut();
     // A próxima conta que entrar tem a função lida do zero.
     setRolesLoaded(false);

@@ -1,3 +1,5 @@
+// Primeiro de tudo: o ouvinte de falhas precisa estar ativo antes do cliente do banco ser criado.
+import "./lib/falhasPainel";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";

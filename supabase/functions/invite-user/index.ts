@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { atorHeaders } from "../_shared/ator.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -52,7 +53,11 @@ Deno.serve(async (req) => {
     const callerId = claimsData.claims.sub;
 
     // Check admin role using service role client
-    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, { global: { headers: atorHeaders("invite_user", callerId) } });
+    const registrar = async (p: Record<string, unknown>) => {
+      const { error } = await adminClient.rpc("registrar_atividade", { p_tela: "Configurações › Usuários", p_entidade: "usuario", ...p });
+      if (error) console.error("registrar_atividade error:", error);
+    };
 
     const { data: roleData } = await adminClient
       .from("user_roles")
@@ -62,6 +67,7 @@ Deno.serve(async (req) => {
       .maybeSingle();
 
     if (!roleData) {
+      await registrar({ p_acao: "acesso.negado", p_resultado: "erro", p_detalhe: "Tentou convidar usuário sem ser administrador" });
       return new Response(
         JSON.stringify({ error: "Apenas administradores podem convidar usuários" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -110,6 +116,7 @@ Deno.serve(async (req) => {
 
     if (inviteError) {
       console.error("Invite error:", inviteError);
+      await registrar({ p_acao: "acesso.convite_enviado", p_rotulo: trimmedEmail, p_resultado: "erro", p_detalhe: inviteError.message });
       return new Response(
         JSON.stringify({ error: inviteError.message }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -118,6 +125,7 @@ Deno.serve(async (req) => {
 
     // Registra quem convidou (app_metadata: só o servidor altera)
     if (inviteData.user) {
+      await registrar({ p_acao: "acesso.convite_enviado", p_entidade_id: inviteData.user.id, p_rotulo: [typeof name === "string" ? name.trim() : "", trimmedEmail].filter(Boolean).join(" · "), p_dados: { funcao: assignedRole } });
       await adminClient.auth.admin.updateUserById(inviteData.user.id, { app_metadata: { invited_by: callerId } });
     }
 
@@ -129,6 +137,7 @@ Deno.serve(async (req) => {
       );
       if (roleError) {
         console.error("Role error:", roleError);
+        await registrar({ p_acao: "permissao.papel_definido", p_entidade_id: inviteData.user.id, p_rotulo: trimmedEmail, p_resultado: "erro", p_detalhe: roleError.message });
         return new Response(
           JSON.stringify({ error: "Convite enviado, mas a função não foi salva. Escolha a função da pessoa na lista de usuários." }),
           { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }

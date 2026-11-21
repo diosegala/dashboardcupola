@@ -1,3 +1,4 @@
+import { registrarAtividade } from "@/lib/registrarAtividade";
 import { PasswordFields } from "@/components/PasswordFields";
 import { traduzirErro } from "@/lib/mensagensErro";
 import { useState, useEffect } from "react";
@@ -72,12 +73,15 @@ export default function SetPassword() {
     setErro("");
     setLoading(true);
     // Senha e marca "senha criada" vão juntas: se a senha falhar, nada é marcado.
+    const { data: atual } = await supabase.auth.getUser();
+    const primeiraSenha = !(atual.user?.user_metadata as { password_set_at?: string } | undefined)?.password_set_at;
     const { error } = await supabase.auth.updateUser({ password, data: { password_set_at: new Date().toISOString() } });
     if (error) {
       setErro(traduzirErro(error));
       setLoading(false);
       return;
     }
+    await registrarAtividade(primeiraSenha ? "acesso.convite_aceito" : "acesso.senha_trocada");
     toast({ title: "Senha criada", description: "Tudo pronto. Bem-vindo(a) ao painel!" });
     navigate("/", { replace: true });
   };

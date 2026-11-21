@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { atorHeaders } from "../_shared/ator.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -16,7 +17,7 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const supabase = createClient(supabaseUrl, serviceRoleKey);
+  let supabase = createClient(supabaseUrl, serviceRoleKey, { global: { headers: atorHeaders("sync_meta") } });
 
   // Auth check for manual calls
   const authHeader = req.headers.get("Authorization");
@@ -46,6 +47,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+    // Sincronização manual: o log mostra o admin que pediu.
+    supabase = createClient(supabaseUrl, serviceRoleKey, { global: { headers: atorHeaders("sync_meta", data.user.id) } });
+    await supabase.rpc("registrar_atividade", { p_acao: "integracao.sincronizacao_manual", p_entidade: "integrations", p_entidade_id: "meta", p_rotulo: "Meta Ads", p_tela: "Integrações" });
     chamadaAdmin = true;
   }
 
