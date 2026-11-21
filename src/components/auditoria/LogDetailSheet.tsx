@@ -25,7 +25,7 @@ export function LogDetailSheet({ log, onClose, onFiltrarRegistro, onFiltrarPesso
           <>
             <SheetHeader>
               <SheetTitle className="flex flex-wrap items-center gap-2">
-                <TomAcao acao={log.acao} />
+                <TomAcao acao={log.acao} erro={log.resultado === "erro"} />
                 {log.resultado === "erro" && <Badge variant="secondary" className="bg-bad-bg text-bad hover:bg-bad-bg">falhou</Badge>}
               </SheetTitle>
               <SheetDescription>{[rotuloRegistro(log), log.tela].filter(Boolean).join(" · ") || descreverAcao(log.acao).texto}</SheetDescription>

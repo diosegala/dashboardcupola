@@ -163,11 +163,10 @@ export function quem(l: Pick<LogLinha, "actor_nome" | "actor_email" | "actor_pap
 export function resumoLinha(l: Pick<LogLinha, "acao" | "campos_alterados" | "qtd_linhas" | "resultado" | "detalhe_erro">): string {
   if (l.qtd_linhas != null && !l.acao.startsWith("log.")) return `${l.qtd_linhas} ${l.qtd_linhas === 1 ? "linha" : "linhas"}`;
   const n = l.campos_alterados?.length ?? 0;
-  if (n) return `${n} ${n === 1 ? "campo" : "campos"}`;
-  if (l.acao.endsWith(".criado")) return "registro novo";
-  if (l.acao.endsWith(".excluido")) return "registro apagado";
-  if (l.resultado === "erro" && l.detalhe_erro) return l.detalhe_erro.length > 60 ? `${l.detalhe_erro.slice(0, 57)}…` : l.detalhe_erro;
-  return "—";
+  if (n) return `${n} ${n === 1 ? "campo alterado" : "campos alterados"}`;
+  if (l.resultado === "erro" && l.detalhe_erro) return l.detalhe_erro;
+  // Criou/excluiu já está dito na Ação; repetir aqui só polui a leitura.
+  return "";
 }
 
 // ---------- Período, sempre no horário de Brasília (UTC-3, sem horário de verão) ----------

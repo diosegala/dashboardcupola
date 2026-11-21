@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { descreverAcao, type Tom } from "@/lib/activityLog";
 
@@ -15,12 +16,17 @@ const PONTOS: Record<Tom, string> = {
   acessou: "bg-muted-foreground/60",
 };
 
-export function TomAcao({ acao, className }: { acao: string; className?: string }) {
+// Quando não deu certo, o alerta substitui a bolinha: a falha fica visível sem um selo a mais.
+export function TomAcao({ acao, erro, className }: { acao: string; erro?: boolean; className?: string }) {
   const { texto, tom } = descreverAcao(acao);
   return (
-    <span className={cn("inline-flex items-center gap-1.5 font-medium", CORES[tom], className)}>
-      <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", PONTOS[tom])} aria-hidden />
-      {texto}
+    <span className={cn("flex min-w-0 items-start gap-1.5 font-medium", erro ? "text-bad" : CORES[tom], className)}>
+      {erro ? (
+        <AlertTriangle className="mt-[3px] h-3 w-3 shrink-0" aria-label="Não deu certo" />
+      ) : (
+        <span className={cn("mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full", PONTOS[tom])} aria-hidden />
+      )}
+      <span className="min-w-0 break-words">{texto}</span>
     </span>
   );
 }

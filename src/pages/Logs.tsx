@@ -346,15 +346,14 @@ export default function Logs() {
           </div>
         ) : (
           <>
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[110px]">Quando</TableHead>
-                  <TableHead>Quem</TableHead>
-                  <TableHead>Ação</TableHead>
+                  <TableHead className="w-[112px]">Quando</TableHead>
+                  <TableHead className="w-[19%]">Quem</TableHead>
+                  <TableHead className="w-[21%]">Ação</TableHead>
                   <TableHead>Onde</TableHead>
-                  <TableHead>Evento</TableHead>
-                  <TableHead className="text-right">Resumo</TableHead>
+                  <TableHead className="w-[17%] text-right">Detalhe</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -368,29 +367,32 @@ export default function Logs() {
                       tabIndex={0}
                       onKeyDown={(e) => e.key === "Enter" && setAberto(l)}
                     >
-                      <TableCell className="whitespace-nowrap py-2">
+                      <TableCell className="whitespace-nowrap py-3 align-top">
                         <Tooltip>
                           <TooltipTrigger asChild><span className="tabular-nums">{formatarQuando(l.ocorrido_em, true)}</span></TooltipTrigger>
                           <TooltipContent>{relativo(l.ocorrido_em, agora)}</TooltipContent>
                         </Tooltip>
                         {novos.has(l.id) && <Badge variant="secondary" className="ml-1.5 bg-primary/20 px-1.5 py-0 text-[10px] text-foreground">novo</Badge>}
                       </TableCell>
-                      <TableCell className="py-2">
-                        <span className="font-medium">{q.nome}</span>
-                        {l.actor_removido && <Badge variant="outline" className="ml-1.5 px-1.5 py-0 text-[10px] text-muted-foreground">acesso removido</Badge>}
-                        {q.detalhe && <span className="block text-[11px] text-muted-foreground">{q.detalhe}</span>}
+                      <TableCell className="max-w-0 py-3 align-top">
+                        <span className="line-clamp-2 break-words font-medium" title={q.nome}>{q.nome}</span>
+                        <span className="block break-words text-xs text-muted-foreground">
+                          {[q.detalhe, l.actor_removido ? "acesso removido" : null].filter(Boolean).join(" · ")}
+                        </span>
                       </TableCell>
-                      <TableCell className="py-2">
-                        <TomAcao acao={l.acao} />
-                        {l.resultado === "erro" && <Badge variant="secondary" className="ml-1.5 bg-bad-bg px-1.5 py-0 text-[10px] text-bad hover:bg-bad-bg">erro</Badge>}
-                        {l.categoria === "permissao" && <span className="block text-[11px] font-medium text-warn">Permissão</span>}
+                      <TableCell className="max-w-0 py-3 align-top">
+                        <TomAcao acao={l.acao} erro={l.resultado === "erro"} />
+                        {l.categoria === "permissao" && <span className="mt-0.5 block pl-3 text-xs text-muted-foreground">Permissão</span>}
                       </TableCell>
-                      <TableCell className="max-w-[260px] py-2">
-                        <span className="block truncate">{rotuloRegistro(l) ?? "—"}</span>
-                        {l.tela && <span className="block truncate text-[11px] text-muted-foreground">{l.tela}</span>}
+                      <TableCell className="max-w-0 py-3 align-top">
+                        <span className="line-clamp-2 break-words" title={rotuloRegistro(l) ?? undefined}>{rotuloRegistro(l) ?? l.tela ?? "—"}</span>
+                        <span className="block truncate text-xs text-muted-foreground">
+                          {[rotuloRegistro(l) && rotuloRegistro(l) !== l.tela ? l.tela : null, l.event_nome].filter(Boolean).join(" · ")}
+                        </span>
                       </TableCell>
-                      <TableCell className="py-2 text-muted-foreground">{l.event_nome ?? "—"}</TableCell>
-                      <TableCell className="py-2 text-right text-muted-foreground">{resumoLinha(l)}</TableCell>
+                      <TableCell className="max-w-0 py-3 text-right align-top text-muted-foreground">
+                        <span className="line-clamp-2 break-words" title={resumoLinha(l) || undefined}>{resumoLinha(l)}</span>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
