@@ -8,7 +8,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { lotesParaLista } from "@/lib/batches";
-import { vendasDoExtrato, type Venda } from "@/lib/salesStatement";
+import { vendasDoExtrato, grupoDe, DIAS_PARA_CANCELAR, type Venda } from "@/lib/salesStatement";
 import { VALOR_LIQUIDO_SYMPLA } from "@/lib/metricInfo";
 import { cn } from "@/lib/utils";
 
@@ -18,6 +18,12 @@ const ORIGENS = [
   { key: "todas", label: "Todas" },
   { key: "sympla", label: "Sympla" },
   { key: "faturado", label: "Faturados" },
+] as const;
+const STATUS = [
+  { key: "todos", label: "Todos os status" },
+  { key: "aprovadas", label: "Aprovadas" },
+  { key: "aguardando", label: "Aguardando" },
+  { key: "canceladas", label: "Canceladas" },
 ] as const;
 const TODOS = "__todos";
 const POR_PAGINA = 25;
@@ -57,7 +63,11 @@ function Detalhe({ v }: { v: Venda }) {
     <dl className="grid gap-x-6 gap-y-2 border-t border-dashed px-3 pb-3 pt-2.5 text-xs sm:grid-cols-2 lg:grid-cols-3">
       {v.status && (
         <p className="text-muted-foreground sm:col-span-2 lg:col-span-3">
-          {v.status === "Pendente" ? "Aguardando pagamento: não conta nas vendas até ser aprovado." : `${v.status}: não conta nas vendas.`}
+          {v.status === "Pendente"
+            ? `Aguardando pagamento: não conta nas vendas até ser aprovado. Se passar de ${DIAS_PARA_CANCELAR} dias sem aprovar, vira cancelado.`
+            : v.expirado
+              ? `Cancelado: ficou mais de ${DIAS_PARA_CANCELAR} dias aguardando pagamento sem aprovar. Não conta nas vendas.`
+              : `${v.status}: não conta nas vendas.`}
         </p>
       )}
       {itens.map(([rotulo, valor]) => (
@@ -76,6 +86,7 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
   const [aberto, setAberto] = useState(false);
   const [origem, setOrigem] = useState<(typeof ORIGENS)[number]["key"]>("todas");
   const [lote, setLote] = useState(TODOS);
+  const [situacao, setSituacao] = useState<(typeof STATUS)[number]["key"]>("todos");
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<string | null>(null);
   const [limite, setLimite] = useState(POR_PAGINA);
@@ -88,6 +99,7 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
     (v) =>
       (origem === "todas" || (origem === "faturado") === v.faturado) &&
       (lote === TODOS || v.lote === lote) &&
+      (situacao === "todos" || grupoDe(v) === situacao) &&
       (!termo || v.texto.includes(termo)),
   );
   const pagas = visiveis.filter((v) => !v.status);
@@ -133,6 +145,12 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
               <SelectContent>
                 {lotes.map((l) => <SelectItem key={l} value={l}>{l}</SelectItem>)}
                 <SelectItem value={TODOS}>Todos os lotes</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={situacao} onValueChange={(x) => filtrar(setSituacao)(x as typeof situacao)}>
+              <SelectTrigger className={cn("h-9 w-[160px] rounded-full bg-card text-xs", situacao !== "todos" && "border-foreground")}><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {STATUS.map((o) => <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -185,7 +203,7 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
             </Button>
           )}
           <p className="mt-3 text-xs text-muted-foreground">
-            Vendas pagas do período escolhido, sem cortesias. Cancelada, estornada ou aguardando pagamento aparece com etiqueta e não entra nos totais. Clique numa venda para ver pedido, canal, cupom e vendedor. {VALOR_LIQUIDO_SYMPLA}
+            Vendas pagas do período escolhido, sem cortesias. Cancelada, estornada ou aguardando pagamento aparece com etiqueta e não entra nos totais. Aguardando há mais de 7 dias sem aprovar vira cancelado. Clique numa venda para ver pedido, canal, cupom e vendedor. {VALOR_LIQUIDO_SYMPLA}
           </p>
         </CollapsibleContent>
       </Card>

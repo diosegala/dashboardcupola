@@ -30,6 +30,8 @@ export interface Venda {
   vendedor: string | null;
   pagamento: string | null;
   texto: string;
+  // Aguardando há mais de 7 dias sem aprovar: tratado como cancelado.
+  expirado?: boolean;
 }
 
 const PAGAMENTO: Record<string, string> = { PIX: "Pix", CREDIT_CARD: "Cartão de crédito", BOLETO: "Boleto", DEBIT_CARD: "Cartão de débito" };
@@ -95,9 +97,20 @@ export function statusDaVenda(status: unknown): string | null {
   if (["P", "PENDING"].includes(s)) return "Pendente";
   if (["R", "REFUNDED"].includes(s)) return "Estornado";
   if (["C", "CANCELLED", "CANCELED"].includes(s)) return "Cancelado";
-  if (["NP", "UNPAID"].includes(s)) return "Não pago";
+  if (["NP", "UNPAID", "NOT_APPROVED"].includes(s)) return "Não pago";
   return s ? "Verificar" : null;
 }
+
+// Pedido aguardando pagamento há mais que isso sem aprovar passa a valer como cancelado.
+export const DIAS_PARA_CANCELAR = 7;
+const DIA_MS = 24 * 60 * 60 * 1000;
+export function expirou(data: string | null, agora: number = Date.now()) {
+  const n = data ? new Date(data).getTime() : NaN;
+  return !Number.isNaN(n) && agora - n > DIAS_PARA_CANCELAR * DIA_MS;
+}
+// Grupo do filtro do extrato.
+export type GrupoStatus = "aprovadas" | "aguardando" | "canceladas";
+export const grupoDe = (v: Venda): GrupoStatus => (!v.status ? "aprovadas" : v.status === "Pendente" ? "aguardando" : "canceladas");
 
 // Data da Sympla ("2026-11-07 10:20:24", horário de Brasília) em ISO.
 const isoBrasilia = (s: unknown) => {
@@ -107,7 +120,7 @@ const isoBrasilia = (s: unknown) => {
 
 // Extrato completo: vendas pagas (sem etiqueta), vendas da Sympla canceladas ou estornadas depois da compra e pedidos
 // aguardando pagamento, que ainda não têm ingresso gravado. Só as pagas somam nos totais.
-export function vendasDoExtrato(pagantes: Ticket[], todas: Ticket[], pedidosSemIngresso: { order_data: any }[] = [], calendario = batchCalendar()): Venda[] {
+export function vendasDoExtrato(pagantes: Ticket[], todas: Ticket[], pedidosSemIngresso: { order_data: any }[] = [], calendario = batchCalendar(), agora: number = Date.now()): Venda[] {
   const pagas = agruparVendas(pagantes, calendario);
   const comProblema = agruparVendas(
     todas.filter((t) => t.source !== "pipedrive" && statusDaVenda(t.status) && Number(t.total_price || 0) > 0),
@@ -115,18 +128,19 @@ export function vendasDoExtrato(pagantes: Ticket[], todas: Ticket[], pedidosSemI
   ).map((v, i) => ({ ...v, status: statusDaVenda(todas.find((t) => (t.order_id ?? t.sympla_order_id) === v.codigo)?.status) ?? "Verificar", chave: `${v.chave}-st${i}` }));
   const pendentes: Venda[] = pedidosSemIngresso
     .map((r) => r.order_data)
-    .filter((o) => o && statusDaVenda(o.order_status ?? o.status) === "Pendente")
+    .filter((o) => o && statusDaVenda(o.order_status ?? o.status) && Number(o.order_total_sale_price ?? o.order_total_net_value ?? 0) > 0)
     .map((o) => {
       const data = isoBrasilia(o.order_date ?? o.created_at);
+      const status = statusDaVenda(o.order_status ?? o.status) as string;
       const cliente = [o.buyer_first_name, o.buyer_last_name].filter(Boolean).join(" ") || "Comprador não informado";
       return {
         chave: `pend-${o.id}`,
-        status: "Pendente",
+        status,
         faturado: false,
         data,
         lote: data ? loteNaData(data, calendario) ?? "—" : "—",
         cliente,
-        ingressos: "Aguardando pagamento",
+        ingressos: status === "Pendente" ? "Aguardando pagamento" : "Sem ingresso",
         quantidade: 0,
         valor: Math.round(Number(o.order_total_net_value ?? o.order_total_sale_price ?? 0) * 100) / 100,
         codigo: String(o.id),
@@ -137,8 +151,13 @@ export function vendasDoExtrato(pagantes: Ticket[], todas: Ticket[], pedidosSemI
         link: null,
         vendedor: null,
         pagamento: o.transaction_type ? PAGAMENTO[String(o.transaction_type).toUpperCase()] ?? String(o.transaction_type) : null,
-        texto: [cliente, o.id, "pendente", o.discount_code].filter(Boolean).join(" ").toLowerCase(),
+        texto: [cliente, o.id, status, o.discount_code].filter(Boolean).join(" ").toLowerCase(),
       };
     });
-  return [...pagas, ...comProblema, ...pendentes].sort((a, b) => String(b.data ?? "").localeCompare(String(a.data ?? "")));
+  // Mesmo pedido só uma vez; aguardando há mais de 7 dias vira cancelado.
+  const vistos = new Set<string>();
+  return [...pagas, ...comProblema, ...pendentes]
+    .filter((v) => v.faturado || !v.codigo || !v.status || (vistos.has(v.codigo) ? false : (vistos.add(v.codigo), true)))
+    .map((v) => (v.status === "Pendente" && expirou(v.data, agora) ? { ...v, status: "Cancelado", expirado: true, texto: `${v.texto} cancelado` } : v))
+    .sort((a, b) => String(b.data ?? "").localeCompare(String(a.data ?? "")));
 }

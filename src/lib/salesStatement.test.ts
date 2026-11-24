@@ -35,7 +35,7 @@ describe("etiqueta de status no extrato", () => {
     const cancelada = { source: "sympla", quantity: 2, status: "CANCELLED", order_id: "35EA3BTT4Q7", total_price: 834, ticket_type: "Lote 0 | 10% OFF - 2 a 5 - Padrão", sold_at: "2026-11-03T15:43:05Z" } as never;
     const pendente = { order_data: { id: "35EA3BUVAH5", order_status: "PENDING", order_date: "2026-11-08 22:46:03", order_total_net_value: 1853.38 } };
     const cancelarSemIngresso = { order_data: { id: "X", order_status: "CANCELLED" } };
-    const v = vendasDoExtrato([paga], [paga, cancelada], [pendente, cancelarSemIngresso], []);
+    const v = vendasDoExtrato([paga], [paga, cancelada], [pendente, cancelarSemIngresso], [], new Date("2026-11-10T12:00:00Z").getTime());
     expect(v.map((x) => [x.codigo, x.status])).toEqual([["35EA3BUVAH5", "Pendente"], ["OK", null], ["35EA3BTT4Q7", "Cancelado"]]);
   });
 });

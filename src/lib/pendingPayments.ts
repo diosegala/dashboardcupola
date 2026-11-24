@@ -34,6 +34,8 @@ export function pendingPayments(rows: { order_data: any }[], agora: number = Dat
     if (!id || vistos.has(id)) return;
     vistos.add(id);
     const criado = instante(o.order_date ?? o.created_at);
+    // Mais de 7 dias sem aprovar: passa a valer como cancelado, sai do aviso.
+    if (criado !== null && agora - criado > 7 * DIA_MS) return;
     pedidos.push({
       id,
       criado: o.order_date ?? o.created_at ?? null,
