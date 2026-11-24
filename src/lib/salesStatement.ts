@@ -36,6 +36,20 @@ export interface Venda {
 
 const PAGAMENTO: Record<string, string> = { PIX: "Pix", CREDIT_CARD: "Cartão de crédito", BOLETO: "Boleto", DEBIT_CARD: "Cartão de débito" };
 
+// Nome do pagamento em português: a Sympla manda "boleto_bancario", "pix", "credit_card" e variações.
+export function nomeDoPagamento(bruto: unknown): string | null {
+  const s = String(bruto ?? "").trim();
+  if (!s) return null;
+  const exato = PAGAMENTO[s.toUpperCase()];
+  if (exato) return exato;
+  const k = s.toUpperCase().replace(/[^A-Z]/g, "");
+  if (k.includes("BOLETO")) return "Boleto";
+  if (k.includes("PIX")) return "Pix";
+  if (k.includes("CREDIT")) return "Cartão de crédito";
+  if (k.includes("DEBIT")) return "Cartão de débito";
+  return s;
+}
+
 const linkDe = (t: Ticket) => {
   if (t.source === "pipedrive") return null;
   const partes = [t.utm_source, t.utm_medium, t.utm_campaign, t.utm_content].map(utmTexto);
@@ -64,7 +78,7 @@ export function agruparVendas(pagantes: Ticket[], calendario = batchCalendar()):
       const vendedor = t.seller_name ?? t.seller ?? null;
       const canal = canalDe(t);
       const link = linkDe(t);
-      const pagamento = t.payment_method ? PAGAMENTO[String(t.payment_method).toUpperCase()] ?? t.payment_method : null;
+      const pagamento = nomeDoPagamento(t.payment_method);
       const tiposCompletos = [...new Set(itens.map((x) => (x.ticket_type ?? "").split("|").map((p) => p.trim()).filter((p) => !/^lote\s*\d+$/i.test(p)).join(" · ")).filter(Boolean))];
       return {
         chave,
@@ -108,6 +122,43 @@ export function expirou(data: string | null, agora: number = Date.now()) {
   const n = data ? new Date(data).getTime() : NaN;
   return !Number.isNaN(n) && agora - n > DIAS_PARA_CANCELAR * DIA_MS;
 }
+
+// Quantos dias completos se passaram desde a data do pedido. Sem data, não dá para dizer.
+export function diasAguardando(data: string | null, agora: number = Date.now()): number | null {
+  const n = data ? new Date(data).getTime() : NaN;
+  return Number.isNaN(n) ? null : Math.max(0, Math.floor((agora - n) / DIA_MS));
+}
+
+// Por que a venda está com esse status, em linguagem de negócio.
+// É o mesmo texto no aviso ao passar o mouse na etiqueta e no detalhe da venda, para os dois nunca divergirem.
+export function motivoDoStatus(v: Venda, agora: number = Date.now()): string {
+  if (!v.status) return "";
+  const dias = diasAguardando(v.data, agora);
+  const espera = !dias ? "" : dias === 1 ? " Está aguardando há 1 dia." : ` Está aguardando há ${dias} dias.`;
+  const pag = (v.pagamento ?? "").toLowerCase();
+  switch (v.status) {
+    case "Pendente": {
+      const motivo = pag.includes("boleto")
+        ? "O boleto demora até 3 dias úteis para compensar depois de pago."
+        : pag.includes("pix")
+          ? "O Pix costuma aprovar em minutos: se ainda está pendente, o pagamento provavelmente não foi feito."
+          : pag.includes("cart")
+            ? "A maioria dos cartões aprova na hora; compras retidas podem levar até 72 horas."
+            : "Ainda não temos a confirmação do pagamento na Sympla.";
+      return `Aguardando pagamento${v.pagamento ? ` por ${v.pagamento.toLowerCase()}` : ""}. ${motivo}${espera} Ainda não conta como venda. Se passar de ${DIAS_PARA_CANCELAR} dias sem aprovar, vira cancelado.`;
+    }
+    case "Cancelado":
+      return v.expirado
+        ? `Cancelado aqui no painel: ficou mais de ${DIAS_PARA_CANCELAR} dias aguardando pagamento sem aprovar. Não conta na receita.`
+        : "Cancelado na Sympla: o comprador desistiu ou o pagamento não foi aprovado. Não conta na receita.";
+    case "Estornado":
+      return "Estornado na Sympla: o valor pago foi devolvido ao comprador. Não conta na receita.";
+    case "Não pago":
+      return "Não pago: o pedido foi criado, mas o pagamento não entrou. Não conta na receita.";
+    default:
+      return "Status diferente do esperado na Sympla: confirme o pedido na Sympla. Não conta na receita.";
+  }
+}
 // Grupo do filtro do extrato.
 export type GrupoStatus = "aprovadas" | "aguardando" | "canceladas";
 export const grupoDe = (v: Venda): GrupoStatus => (!v.status ? "aprovadas" : v.status === "Pendente" ? "aguardando" : "canceladas");
@@ -150,7 +201,7 @@ export function vendasDoExtrato(pagantes: Ticket[], todas: Ticket[], pedidosSemI
         canal: "—",
         link: null,
         vendedor: null,
-        pagamento: o.transaction_type ? PAGAMENTO[String(o.transaction_type).toUpperCase()] ?? String(o.transaction_type) : null,
+        pagamento: nomeDoPagamento(o.transaction_type),
         texto: [cliente, o.id, status, o.discount_code].filter(Boolean).join(" ").toLowerCase(),
       };
     });

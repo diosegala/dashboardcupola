@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { lotesParaLista } from "@/lib/batches";
-import { vendasDoExtrato, grupoDe, DIAS_PARA_CANCELAR, type Venda } from "@/lib/salesStatement";
+import { vendasDoExtrato, grupoDe, motivoDoStatus, type Venda } from "@/lib/salesStatement";
 import { VALOR_LIQUIDO_SYMPLA } from "@/lib/metricInfo";
 import { cn } from "@/lib/utils";
 
@@ -61,15 +62,7 @@ function Detalhe({ v }: { v: Venda }) {
   ];
   return (
     <dl className="grid gap-x-6 gap-y-2 border-t border-dashed px-3 pb-3 pt-2.5 text-xs sm:grid-cols-2 lg:grid-cols-3">
-      {v.status && (
-        <p className="text-muted-foreground sm:col-span-2 lg:col-span-3">
-          {v.status === "Pendente"
-            ? `Aguardando pagamento: não conta nas vendas até ser aprovado. Se passar de ${DIAS_PARA_CANCELAR} dias sem aprovar, vira cancelado.`
-            : v.expirado
-              ? `Cancelado: ficou mais de ${DIAS_PARA_CANCELAR} dias aguardando pagamento sem aprovar. Não conta nas vendas.`
-              : `${v.status}: não conta nas vendas.`}
-        </p>
-      )}
+      {v.status && <p className="text-muted-foreground sm:col-span-2 lg:col-span-3">{motivoDoStatus(v)}</p>}
       {itens.map(([rotulo, valor]) => (
         <div key={rotulo} className="min-w-0">
           <dt className="text-[11px] text-muted-foreground">{rotulo}</dt>
@@ -189,13 +182,20 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
                       onClick={() => setAberta(estaAberta ? null : v.chave)}
                       className={cn(GRADE, "w-full px-3 py-2 text-left transition-colors duration-150 hover:bg-secondary/60", v.status && "text-muted-foreground")}
                     >
-                      <span className="min-w-0" title={v.cliente}>
-                        <span className={cn("block truncate font-medium", !v.status && "text-foreground")}>{v.cliente}</span>
+                      <span className="min-w-0">
+                        <span className={cn("block truncate font-medium", !v.status && "text-foreground")} title={v.cliente}>{v.cliente}</span>
                         <span className="flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
                           <span className={cn("rounded-full px-1.5 text-[10px] font-semibold", v.faturado ? "bg-primary/25 text-accent-text" : "bg-secondary")}>
                             {v.faturado ? "Faturado" : "Sympla"}
                           </span>
-                          {v.status && <span className={cn("rounded-full px-1.5 text-[10px] font-semibold", COR_STATUS[v.status] ?? "bg-secondary")}>{v.status}</span>}
+                          {v.status && (
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <span className={cn("cursor-help rounded-full px-1.5 text-[10px] font-semibold", COR_STATUS[v.status] ?? "bg-secondary")}>{v.status}</span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-[280px] text-xs leading-snug">{motivoDoStatus(v)}</TooltipContent>
+                            </Tooltip>
+                          )}
                           {v.data ? format(new Date(v.data), "dd/MM/yyyy") : "—"}
                         </span>
                       </span>
