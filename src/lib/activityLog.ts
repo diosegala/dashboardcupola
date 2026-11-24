@@ -84,6 +84,7 @@ export function nomeCategoria(c: string): string {
 // Verbos claros por ação. A cor é só apoio: o texto sempre explica.
 const ACOES: Record<string, { texto: string; tom: Tom }> = {
   "acesso.login": { texto: "Entrou no painel", tom: "acessou" },
+  "acesso.abriu_painel": { texto: "Abriu o painel", tom: "acessou" },
   "acesso.logout": { texto: "Saiu do painel", tom: "acessou" },
   "acesso.login_falhou": { texto: "Falhou ao entrar", tom: "acessou" },
   "acesso.senha_trocada": { texto: "Trocou a senha", tom: "alterou" },

@@ -82,6 +82,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Quem já estava logado e abre o painel também fica no registro: uma vez por visita (aba do navegador).
+  useEffect(() => {
+    if (!user) return;
+    const chave = `cupola-visita-registrada:${user.id}`;
+    try {
+      if (sessionStorage.getItem(chave)) return;
+      sessionStorage.setItem(chave, "1");
+    } catch {
+      /* sem armazenamento: registra mesmo assim */
+    }
+    void registrarAtividade("acesso.abriu_painel");
+  }, [user?.id]);
+
   // Fetch profile & role when user changes
   useEffect(() => {
     if (!user) return;
