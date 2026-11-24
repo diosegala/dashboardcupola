@@ -30,6 +30,8 @@ interface Saude { sem_auditoria: string[]; erros: number; ultimo_erro: { quando:
 
 const RESULTADOS = [{ value: "sucesso", label: "Sucesso" }, { value: "erro", label: "Erro" }];
 
+const ehTeste = (nome: string | null | undefined) => !!nome && /^agent test/i.test(nome.trim());
+
 function rotuloPessoa(p: Pessoa) {
   if (p.tipo === "automacao") return nomeProcesso(p.processo);
   return p.nome || p.email || "Sem nome";
@@ -131,11 +133,27 @@ export default function Logs() {
     return () => window.clearInterval(t);
   }, []);
 
-  const linhas = useMemo(() => lista.data?.pages.flat() ?? [], [lista.data]);
-  const pessoas = opcoes.data?.pessoas ?? [];
+  // Contas de teste (criadas para conferir o painel) nunca aparecem nos logs.
+  const linhas = useMemo(() => (lista.data?.pages.flat() ?? []).filter((l) => !ehTeste(l.actor_nome) && !ehTeste(l.entidade_rotulo)), [lista.data]);
+  // Pessoas: todo mundo já cadastrado no painel (com função e não excluído), mesmo sem nenhum registro ainda.
+  const equipe = useQuery({
+    queryKey: ["logs-equipe"],
+    queryFn: async () => {
+      const [{ data: perfis, error }, { data: funcoes }] = await Promise.all([
+        supabase.from("profiles").select("id, name, deleted_at").is("deleted_at", null),
+        supabase.from("user_roles").select("user_id, role"),
+      ]);
+      if (error) throw error;
+      const papel = new Map((funcoes ?? []).map((f) => [f.user_id, f.role as string]));
+      return (perfis ?? []).filter((p) => papel.has(p.id) && !ehTeste(p.name))
+        .map((p): Pessoa => ({ chave: p.id, nome: p.name, email: null, papel: papel.get(p.id) ?? null, processo: null, tipo: "ativo" }));
+    },
+    staleTime: 60_000,
+  });
+  const pessoas = [...(equipe.data ?? []), ...(opcoes.data?.pessoas ?? []).filter((p) => p.tipo === "automacao")]
+    .sort((a, b) => rotuloPessoa(a).localeCompare(rotuloPessoa(b), "pt-BR"));
   const grupos: { tipo: Pessoa["tipo"]; titulo: string }[] = [
-    { tipo: "ativo", titulo: "Ativos" }, { tipo: "removido", titulo: "Removidos" },
-    { tipo: "automacao", titulo: "Automações" }, { tipo: "nao_confirmado", titulo: "Não confirmados" },
+    { tipo: "ativo", titulo: "Equipe" }, { tipo: "automacao", titulo: "Automações" },
   ];
 
   const chips: { k: ChaveFiltro; texto: string }[] = [];
