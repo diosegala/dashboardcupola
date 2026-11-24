@@ -19,6 +19,7 @@ import { Kpi, useCouponTotals } from "@/components/dashboard/CouponKpis";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { COUPON_GROUPS, couponCodes, couponDiscountValue, couponLabel, formatDiscount, getCouponPeople, outsideTeamBySeller, parseCoupon, personBySeller, type CouponGroup, type CouponKind, type ParsedCoupon } from "@/lib/coupons";
 import { cn } from "@/lib/utils";
+import { montarPizza } from "@/lib/couponChart";
 import { eventGoal } from "@/lib/goalMetrics";
 import { useGoals } from "@/hooks/useDashboardData";
 import { goalsOfEvent } from "@/hooks/useEvent";
@@ -98,6 +99,8 @@ export default function Coupons() {
   const { gratuitos, descontos, cuponsUsados, comCupom } = totals;
   const cobertura = crmDiscountCoverage(paying);
 
+  // "Todos" conta os usos de cupom da lista — o mesmo somatório do centro da pizza. Sem cupom não entra.
+  const usosDeCupons = cupons.reduce((s, c) => s + c.uses, 0);
   const grupos = COUPON_GROUPS.map((g) => ({ ...g, uses: cupons.filter((c) => c.group === g.key).reduce((s, c) => s + c.uses, 0) })).filter((g) => g.uses > 0);
   const grupoAtivo = grupos.some((g) => g.key === grupo) ? grupo : "todos";
   const termo = busca.trim().toUpperCase();
@@ -105,15 +108,12 @@ export default function Coupons() {
   const rotuloGrupo = (g: CouponGroup) => COUPON_GROUPS.find((x) => x.key === g)?.label ?? g;
 
   // Pizza: os 5 cupons mais usados (do filtro atual) e o resto somado em "Outros".
-  const pizza = useMemo(() => {
-    const top = visiveis.slice(0, 5).map((c) => ({ label: couponLabel(c.code), codes: couponCodes(c.code), value: c.uses }));
-    const resto = visiveis.slice(5).reduce((s, c) => s + c.uses, 0);
-    const base = resto > 0 ? [...top, { label: "Outros", value: resto }] : top;
-    // Em "Todos", a fatia "Sem cupom" mostra as vendas da Sympla sem código. Faturados já estão no cupom de quem vendeu.
-    return grupoAtivo === "todos" && !termo && semCupom.usos > 0 ? [...base, { label: "Sem cupom", value: semCupom.usos, semCupom: true }] : base;
-  }, [visiveis, grupoAtivo, termo, semCupom.usos]);
-  const corFatia = (p: (typeof pizza)[number], i: number) => ("semCupom" in p ? "hsl(var(--border))" : CORES[i % CORES.length]);
-  const totalPizza = pizza.reduce((s, p) => s + p.value, 0);
+  // O centro soma só usos de cupom; "Sem cupom" é fatia à parte e não entra nesse total.
+  const { fatias: pizza, usosEmCupons } = useMemo(
+    () => montarPizza(visiveis, semCupom, { todos: grupoAtivo === "todos", buscando: termo.length > 0 }),
+    [visiveis, semCupom, grupoAtivo, termo],
+  );
+  const corFatia = (p: (typeof pizza)[number], i: number) => (p.semCupom ? "hsl(var(--border))" : CORES[i % CORES.length]);
 
   if (isSeller) return <Navigate to="/" replace />;
 
@@ -157,7 +157,7 @@ export default function Coupons() {
               <p className="text-xs text-muted-foreground">Cada código, o grupo a que pertence e o quanto ele já rendeu.</p>
               <div className="!mt-3 flex flex-wrap items-center gap-3">
                 <div className="inline-flex w-fit flex-wrap items-center gap-0.5 rounded-[18px] border bg-secondary p-1">
-                  {[{ key: "todos" as const, label: "Todos", uses: comCupom }, ...grupos].map((g) => (
+                  {[{ key: "todos" as const, label: "Todos", uses: usosDeCupons }, ...grupos].map((g) => (
                     <button
                       key={g.key}
                       type="button"
@@ -187,8 +187,8 @@ export default function Coupons() {
                     </ResponsiveContainer>
                     <div className="pointer-events-none absolute inset-0 grid place-items-center text-center">
                       <div>
-                        <div className="text-xl font-semibold leading-none">{int(totalPizza)}</div>
-                        <div className="mt-1 text-[10px] leading-tight text-muted-foreground">usos</div>
+                        <div className="text-xl font-semibold leading-none">{int(usosEmCupons)}</div>
+                        <div className="mt-1 text-[10px] leading-tight text-muted-foreground">usos em cupons</div>
                       </div>
                     </div>
                   </div>
@@ -197,7 +197,7 @@ export default function Coupons() {
                       <li key={p.label} className="flex items-center justify-between gap-2">
                         <span className="flex min-w-0 items-center gap-2">
                           <i className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: corFatia(p, i) }} />
-                          <span className="truncate" title={"codes" in p && p.codes ? `Cupom: ${p.codes}` : p.label}>{p.label}</span>
+                          <span className="truncate" title={p.codes ? `Cupom: ${p.codes}` : p.label}>{p.label}</span>
                         </span>
                         <b className="tabular-nums">{int(p.value)}</b>
                       </li>
