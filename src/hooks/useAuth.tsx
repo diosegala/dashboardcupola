@@ -89,6 +89,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       if (sessionStorage.getItem(chave)) return;
       sessionStorage.setItem(chave, "1");
+      // Acabou de digitar a senha (já registrado como "Entrou") ou está criando a senha pelo convite.
+      if (sessionStorage.getItem("cupola-login-digitado")) {
+        sessionStorage.removeItem("cupola-login-digitado");
+        return;
+      }
+      if (window.location.pathname.startsWith("/set-password")) {
+        sessionStorage.removeItem(chave);
+        return;
+      }
     } catch {
       /* sem armazenamento: registra mesmo assim */
     }

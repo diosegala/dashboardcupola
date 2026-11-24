@@ -30,6 +30,8 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
 
+    // Esta entrada já vira "Entrou no painel"; evita repetir como "Abriu o painel".
+    try { sessionStorage.setItem("cupola-login-digitado", "1"); } catch { /* segue */ }
     const { error } = await supabase.auth.signInWithPassword({ email: limparEmail(email), password });
 
     if (error) {
