@@ -15,7 +15,7 @@ import { AlertTriangle, ArrowLeft, History, Loader2, Search, Workflow, X } from 
 import { cn } from "@/lib/utils";
 import { traduzirErro } from "@/lib/mensagensErro";
 import {
-  CATEGORIAS, PAPEIS, PERIODOS, filtroParaBanco, filtrosDaUrl, formatarQuando, narrativa, nomeCategoria, nomeProcesso,
+  PERIODOS, filtroParaBanco, filtrosDaUrl, formatarQuando, narrativa, nomeCategoria, nomeProcesso,
   quem, relativo, rotuloRegistro, urlDosFiltros, type ChaveFiltro, type Filtros, type LogLinha, type Periodo,
 } from "@/lib/activityLog";
 import { TomAcao } from "@/components/auditoria/TomAcao";
@@ -27,8 +27,6 @@ const TODOS = "__todos";
 interface Pessoa { chave: string; nome: string | null; email: string | null; papel: string | null; processo: string | null; tipo: "ativo" | "removido" | "automacao" | "nao_confirmado" }
 interface Opcoes { pessoas: Pessoa[]; eventos: { id: string; nome: string | null }[]; telas: string[] }
 interface Saude { sem_auditoria: string[]; erros: number; ultimo_erro: { quando: string; tabela: string; mensagem: string } | null }
-
-const RESULTADOS = [{ value: "sucesso", label: "Sucesso" }, { value: "erro", label: "Erro" }];
 
 const ehTeste = (nome: string | null | undefined) => !!nome && /^agent test/i.test(nome.trim());
 
@@ -47,7 +45,6 @@ export default function Logs() {
   const [agora, setAgora] = useState(Date.now());
   const [busca, setBusca] = useState(filtros.valores.busca ?? "");
 
-  const aba = filtros.valores.papel === "automacao" ? "automacoes" : "pessoas";
   const mudar = (f: Filtros) => setParams(urlDosFiltros(f), { replace: true });
   const definir = (k: ChaveFiltro, v: string | undefined) => {
     const valores = { ...filtros.valores };
@@ -68,8 +65,8 @@ export default function Logs() {
     queryKey: ["logs", chave],
     initialPageParam: null as null | { em: string; id: number },
     queryFn: async ({ pageParam }) => {
-      // Aba Pessoas: só ações de gente (cada função consultada à parte e juntada pela data).
-      const papeis = aba === "automacoes" || filtroBanco.pessoa ? [filtroBanco.papel] : ["admin", "viewer", "seller"];
+      // Sem filtro de quem: só ações de gente (cada função consultada à parte e juntada pela data).
+      const papeis = filtroBanco.pessoa || filtroBanco.papel ? [filtroBanco.papel] : ["admin", "viewer", "seller"];
       const partes = await Promise.all(papeis.map(async (papel) => {
         const { data, error } = await supabase.rpc("logs_buscar", {
           f: { ...filtroBanco, ...(papel ? { papel } : {}) } as Json,
@@ -158,8 +155,7 @@ export default function Logs() {
 
   const chips: { k: ChaveFiltro; texto: string }[] = [];
   const v = filtros.valores;
-  if (v.pessoa) { const p = pessoas.find((x) => x.chave === v.pessoa); chips.push({ k: "pessoa", texto: `Pessoa: ${p ? rotuloPessoa(p) : "selecionada"}` }); }
-  if (false && v.papel) chips.push({ k: "papel", texto: `Função: ${PAPEIS.find((p) => p.value === v.papel)?.label ?? v.papel}` });
+  if (v.pessoa) { const p = pessoas.find((x) => x.chave === v.pessoa); chips.push({ k: "pessoa", texto: `${p?.tipo === "automacao" ? "Automação" : "Pessoa"}: ${p ? rotuloPessoa(p) : "selecionada"}` }); }
   if (v.categoria) chips.push({ k: "categoria", texto: `Categoria: ${nomeCategoria(v.categoria)}` });
   if (v.tela) chips.push({ k: "tela", texto: `Tela: ${v.tela}` });
   if (v.evento) chips.push({ k: "evento", texto: `Evento: ${opcoes.data?.eventos.find((e) => e.id === v.evento)?.nome ?? "selecionado"}` });
@@ -197,16 +193,6 @@ export default function Logs() {
         </div>
       )}
 
-      <div className="inline-flex w-fit items-center gap-0.5 rounded-[18px] border bg-secondary p-1" role="tablist">
-        {([["pessoas", "O que as pessoas fizeram"], ["automacoes", "Automações"]] as const).map(([k, t]) => (
-          <button key={k} type="button" role="tab" aria-selected={aba === k}
-            onClick={() => { const valores = { ...filtros.valores }; delete valores.pessoa; delete valores.papel; if (k === "automacoes") valores.papel = "automacao"; mudar({ ...filtros, valores }); }}
-            className={cn("rounded-full px-4 py-1.5 text-sm font-semibold transition-colors", aba === k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
-            {t}
-          </button>
-        ))}
-      </div>
-
       <Card className="space-y-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <Select value={filtros.periodo} onValueChange={(p) => mudar({ ...filtros, periodo: p as Periodo })}>
@@ -220,11 +206,10 @@ export default function Logs() {
             </>
           )}
           <Select value={v.pessoa ?? TODOS} onValueChange={(x) => definir("pessoa", x === TODOS ? undefined : x)}>
-            <SelectTrigger className="h-9 w-[190px]" aria-label="Pessoa"><SelectValue placeholder="Pessoa" /></SelectTrigger>
+            <SelectTrigger className="h-9 w-[190px]" aria-label="Quem"><SelectValue placeholder="Quem" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={TODOS}>{aba === "automacoes" ? "Todas as automações" : "Todas as pessoas"}</SelectItem>
+              <SelectItem value={TODOS}>Todos</SelectItem>
               {grupos.map((g) => {
-                if ((aba === "automacoes") !== (g.tipo === "automacao")) return null;
                 const doGrupo = pessoas.filter((p) => p.tipo === g.tipo);
                 if (!doGrupo.length) return null;
                 return (
@@ -236,9 +221,6 @@ export default function Logs() {
               })}
             </SelectContent>
           </Select>
-          <Button type="button" variant={v.resultado === "erro" ? "default" : "outline"} size="sm" className="h-9" onClick={() => definir("resultado", v.resultado === "erro" ? undefined : "erro")}>
-            Só falhas
-          </Button>
           <div className="relative min-w-[200px] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar" aria-label="Buscar" className="h-9 pl-9" />
@@ -254,7 +236,7 @@ export default function Logs() {
             </button>
           ))}
           {chips.length > 0 && (
-            <button type="button" className="text-xs text-muted-foreground underline-offset-4 hover:underline" onClick={() => mudar({ periodo: filtros.periodo, de: filtros.de, ate: filtros.ate, valores: aba === "automacoes" ? { papel: "automacao" } : {} })}>
+            <button type="button" className="text-xs text-muted-foreground underline-offset-4 hover:underline" onClick={() => mudar({ periodo: filtros.periodo, de: filtros.de, ate: filtros.ate, valores: {} })}>
               Limpar filtros
             </button>
           )}
@@ -352,7 +334,7 @@ export default function Logs() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (vida) mudar({ periodo: "tudo", valores: { entidade: l.entidade, entidade_id: l.entidade_id! } });
-                                  else mudar({ ...filtros, valores: { papel: "automacao", pessoa: `proc:${l.actor_processo}` } });
+                                  else mudar({ ...filtros, valores: { pessoa: `proc:${l.actor_processo}` } });
                                 }}
                               >
                                 {vida ? <History className="h-4 w-4" /> : <Workflow className="h-4 w-4" />}
