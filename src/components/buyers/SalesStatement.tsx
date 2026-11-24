@@ -105,7 +105,9 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
   const pagas = visiveis.filter((v) => !v.status);
   const ingressos = pagas.reduce((s, v) => s + v.quantidade, 0);
   const receita = pagas.reduce((s, v) => s + v.valor, 0);
-  const comProblema = visiveis.length - pagas.length;
+  const aguardando = visiveis.filter((v) => grupoDe(v) === "aguardando");
+  const valorAguardando = aguardando.reduce((s, v) => s + v.valor, 0);
+  const canceladas = visiveis.filter((v) => grupoDe(v) === "canceladas").length;
   const filtrar = <T,>(set: (x: T) => void) => (x: T) => { set(x); setLimite(POR_PAGINA); setAberta(null); };
 
   return (
@@ -115,8 +117,21 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
           <div>
             <p className="text-sm font-semibold">Extrato de vendas</p>
             <p className="text-xs tabular-nums text-muted-foreground">
-              {int(pagas.length)} vendas · {int(ingressos)} ingressos · {brl(receita)}
-              {comProblema > 0 && ` · ${int(comProblema)} com pendência`}
+              {situacao === "aguardando" ? (
+                `${int(aguardando.length)} aguardando pagamento · ${brl(valorAguardando)}`
+              ) : situacao === "canceladas" ? (
+                `${int(canceladas)} canceladas · não contam na receita`
+              ) : (
+                <>
+                  Pago: {int(pagas.length)} vendas · {int(ingressos)} participantes · {brl(receita)}
+                  {situacao === "todos" && aguardando.length > 0 && (
+                    <>
+                      {" · "}<span className="font-medium text-accent-text">+{int(aguardando.length)} aguardando pagamento ({brl(valorAguardando)})</span>
+                      {" · "}Potencial: {brl(receita + valorAguardando)}
+                    </>
+                  )}
+                </>
+              )}
             </p>
           </div>
           <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform", aberto && "rotate-180")} />
@@ -158,7 +173,7 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
           <div className="mt-4 overflow-hidden rounded-xl border text-[13px] tabular-nums">
             <div className={cn(GRADE, "bg-secondary px-3 py-2 text-[11px] font-medium uppercase tracking-wide text-muted-foreground")}>
               <span>Venda</span>
-              <span>Ingressos</span>
+              <span>Participantes</span>
               <span className="hidden sm:block">Lote</span>
               <span className="text-right">Valor</span>
             </div>
