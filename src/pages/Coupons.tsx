@@ -32,6 +32,8 @@ const KIND_CHIP: Record<CouponKind, { label: string; variant: "paid" | "neutral"
   desconto: { label: "Desconto", variant: "lavender" },
 };
 
+const SEM_CUPOM_INFO = "Ingressos pagos na Sympla sem nenhum código de cupom. Os faturados internos (Pipedrive) não usam cupom na compra, por isso não entram aqui: eles contam no cupom de quem vendeu, no ranking.";
+
 const CORES = ["hsl(var(--chart-1))", "hsl(var(--chart-2))", "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--chart-3))", "hsl(var(--muted-foreground))"];
 
 interface CupomLinha {
@@ -128,11 +130,12 @@ export default function Coupons() {
         <Skeleton className="h-96" />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-[14px] lg:grid-cols-4">
+          <div className="grid grid-cols-2 gap-[14px] lg:grid-cols-5">
             <Kpi title="Entradas liberadas" value={int(gratuitos)} hint="ingressos sem cobrança, com cupom de 100%" />
             <Kpi title="Descontos concedidos" value={brl(descontos)} hint={cobertura.negocios ? `cupons parciais e faturados · ${cobertura.comDesconto} de ${cobertura.negocios} faturados com desconto no CRM` : "abatido do preço em cupons parciais"} infoKey="Descontos concedidos" />
             <Kpi title="Códigos em circulação" value={int(cuponsUsados)} hint="cupons diferentes já usados" />
-            <Kpi title="Vendas com cupom" value={int(comCupom)} hint="somando todos os tipos de cupom" />
+            <Kpi title="Vendas com cupom" value={int(comCupom)} hint="somando todos os tipos de cupom" infoKey="Vendas com cupom" />
+            <Kpi title="Vendas sem cupom" value={int(semCupom.usos)} hint={`${brl(semCupom.receita)} · só Sympla`} infoKey="Vendas sem cupom" />
           </div>
 
           <div className="grid grid-cols-12 gap-[14px]">
@@ -242,7 +245,7 @@ export default function Coupons() {
                     {grupoAtivo === "todos" && !termo && semCupom.usos > 0 && (
                       <TableRow className="bg-secondary/40">
                         <TableCell className="text-muted-foreground">—</TableCell>
-                        <TableCell className="font-medium">Sem cupom</TableCell>
+                        <TableCell className="font-medium"><span className="inline-flex items-center gap-1.5">Sem cupom <InfoTip title="Sem cupom" text={SEM_CUPOM_INFO} /></span></TableCell>
                         <TableCell className="text-muted-foreground">Só Sympla</TableCell>
                         <TableCell>—</TableCell>
                         <TableCell>—</TableCell>

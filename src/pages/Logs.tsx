@@ -45,6 +45,7 @@ export default function Logs() {
   const [agora, setAgora] = useState(Date.now());
   const [busca, setBusca] = useState(filtros.valores.busca ?? "");
 
+  const aba = filtros.valores.papel === "automacao" ? "automacoes" : "pessoas";
   const mudar = (f: Filtros) => setParams(urlDosFiltros(f), { replace: true });
   const definir = (k: ChaveFiltro, v: string | undefined) => {
     const valores = { ...filtros.valores };
@@ -65,14 +66,19 @@ export default function Logs() {
     queryKey: ["logs", chave],
     initialPageParam: null as null | { em: string; id: number },
     queryFn: async ({ pageParam }) => {
-      const { data, error } = await supabase.rpc("logs_buscar", {
-        f: filtroBanco as Json,
-        p_antes_em: pageParam?.em,
-        p_antes_id: pageParam?.id,
-        p_limite: POR_PAGINA,
-      });
-      if (error) throw error;
-      return (data ?? []) as unknown as LogLinha[];
+      // Aba Pessoas: só ações de gente (cada função consultada à parte e juntada pela data).
+      const papeis = aba === "automacoes" || filtroBanco.pessoa ? [filtroBanco.papel] : ["admin", "viewer", "seller"];
+      const partes = await Promise.all(papeis.map(async (papel) => {
+        const { data, error } = await supabase.rpc("logs_buscar", {
+          f: { ...filtroBanco, ...(papel ? { papel } : {}) } as Json,
+          p_antes_em: pageParam?.em,
+          p_antes_id: pageParam?.id,
+          p_limite: POR_PAGINA,
+        });
+        if (error) throw error;
+        return (data ?? []) as unknown as LogLinha[];
+      }));
+      return partes.flat().sort((x, y) => (y.ocorrido_em.localeCompare(x.ocorrido_em)) || y.id - x.id).slice(0, POR_PAGINA);
     },
     getNextPageParam: (ultima) => (ultima.length === POR_PAGINA ? { em: ultima[ultima.length - 1].ocorrido_em, id: ultima[ultima.length - 1].id } : undefined),
     staleTime: 15_000,
@@ -135,7 +141,7 @@ export default function Logs() {
   const chips: { k: ChaveFiltro; texto: string }[] = [];
   const v = filtros.valores;
   if (v.pessoa) { const p = pessoas.find((x) => x.chave === v.pessoa); chips.push({ k: "pessoa", texto: `Pessoa: ${p ? rotuloPessoa(p) : "selecionada"}` }); }
-  if (v.papel) chips.push({ k: "papel", texto: `Função: ${PAPEIS.find((p) => p.value === v.papel)?.label ?? v.papel}` });
+  if (false && v.papel) chips.push({ k: "papel", texto: `Função: ${PAPEIS.find((p) => p.value === v.papel)?.label ?? v.papel}` });
   if (v.categoria) chips.push({ k: "categoria", texto: `Categoria: ${nomeCategoria(v.categoria)}` });
   if (v.tela) chips.push({ k: "tela", texto: `Tela: ${v.tela}` });
   if (v.evento) chips.push({ k: "evento", texto: `Evento: ${opcoes.data?.eventos.find((e) => e.id === v.evento)?.nome ?? "selecionado"}` });
@@ -173,6 +179,16 @@ export default function Logs() {
         </div>
       )}
 
+      <div className="inline-flex w-fit items-center gap-0.5 rounded-[18px] border bg-secondary p-1" role="tablist">
+        {([["pessoas", "O que as pessoas fizeram"], ["automacoes", "Automações"]] as const).map(([k, t]) => (
+          <button key={k} type="button" role="tab" aria-selected={aba === k}
+            onClick={() => { const valores = { ...filtros.valores }; delete valores.pessoa; delete valores.papel; if (k === "automacoes") valores.papel = "automacao"; mudar({ ...filtros, valores }); }}
+            className={cn("rounded-full px-4 py-1.5 text-sm font-semibold transition-colors", aba === k ? "bg-foreground text-background" : "text-muted-foreground hover:text-foreground")}>
+            {t}
+          </button>
+        ))}
+      </div>
+
       <Card className="space-y-3 p-4">
         <div className="flex flex-wrap items-center gap-2">
           <Select value={filtros.periodo} onValueChange={(p) => mudar({ ...filtros, periodo: p as Periodo })}>
@@ -188,8 +204,9 @@ export default function Logs() {
           <Select value={v.pessoa ?? TODOS} onValueChange={(x) => definir("pessoa", x === TODOS ? undefined : x)}>
             <SelectTrigger className="h-9 w-[190px]" aria-label="Pessoa"><SelectValue placeholder="Pessoa" /></SelectTrigger>
             <SelectContent>
-              <SelectItem value={TODOS}>Todas as pessoas</SelectItem>
+              <SelectItem value={TODOS}>{aba === "automacoes" ? "Todas as automações" : "Todas as pessoas"}</SelectItem>
               {grupos.map((g) => {
+                if ((aba === "automacoes") !== (g.tipo === "automacao")) return null;
                 const doGrupo = pessoas.filter((p) => p.tipo === g.tipo);
                 if (!doGrupo.length) return null;
                 return (
@@ -201,44 +218,12 @@ export default function Logs() {
               })}
             </SelectContent>
           </Select>
-          <Select value={v.papel ?? TODOS} onValueChange={(x) => definir("papel", x === TODOS ? undefined : x)}>
-            <SelectTrigger className="h-9 w-[180px]" aria-label="Função"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todas as funções</SelectItem>
-              {PAPEIS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={v.categoria ?? TODOS} onValueChange={(x) => definir("categoria", x === TODOS ? undefined : x)}>
-            <SelectTrigger className="h-9 w-[190px]" aria-label="Categoria"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todas as categorias</SelectItem>
-              {CATEGORIAS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={v.tela ?? TODOS} onValueChange={(x) => definir("tela", x === TODOS ? undefined : x)}>
-            <SelectTrigger className="h-9 w-[170px]" aria-label="Tela"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todas as telas</SelectItem>
-              {(opcoes.data?.telas ?? []).map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={v.evento ?? TODOS} onValueChange={(x) => definir("evento", x === TODOS ? undefined : x)}>
-            <SelectTrigger className="h-9 w-[170px]" aria-label="Evento"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Todos os eventos</SelectItem>
-              {(opcoes.data?.eventos ?? []).map((e) => <SelectItem key={e.id} value={e.id}>{e.nome ?? "Evento"}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <Select value={v.resultado ?? TODOS} onValueChange={(x) => definir("resultado", x === TODOS ? undefined : x)}>
-            <SelectTrigger className="h-9 w-[140px]" aria-label="Resultado"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value={TODOS}>Sucesso e erro</SelectItem>
-              {RESULTADOS.map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <Button type="button" variant={v.resultado === "erro" ? "default" : "outline"} size="sm" className="h-9" onClick={() => definir("resultado", v.resultado === "erro" ? undefined : "erro")}>
+            Só falhas
+          </Button>
           <div className="relative min-w-[200px] flex-1">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar registro, e-mail ou campo" aria-label="Buscar" className="h-9 pl-9" />
+            <Input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar" aria-label="Buscar" className="h-9 pl-9" />
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 text-sm">
@@ -251,7 +236,7 @@ export default function Logs() {
             </button>
           ))}
           {chips.length > 0 && (
-            <button type="button" className="text-xs text-muted-foreground underline-offset-4 hover:underline" onClick={() => mudar({ periodo: filtros.periodo, de: filtros.de, ate: filtros.ate, valores: {} })}>
+            <button type="button" className="text-xs text-muted-foreground underline-offset-4 hover:underline" onClick={() => mudar({ periodo: filtros.periodo, de: filtros.de, ate: filtros.ate, valores: aba === "automacoes" ? { papel: "automacao" } : {} })}>
               Limpar filtros
             </button>
           )}
@@ -349,7 +334,7 @@ export default function Logs() {
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   if (vida) mudar({ periodo: "tudo", valores: { entidade: l.entidade, entidade_id: l.entidade_id! } });
-                                  else mudar({ ...filtros, valores: { pessoa: `proc:${l.actor_processo}` } });
+                                  else mudar({ ...filtros, valores: { papel: "automacao", pessoa: `proc:${l.actor_processo}` } });
                                 }}
                               >
                                 {vida ? <History className="h-4 w-4" /> : <Workflow className="h-4 w-4" />}
