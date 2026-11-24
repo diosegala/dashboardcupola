@@ -108,8 +108,11 @@ export default function Coupons() {
   const pizza = useMemo(() => {
     const top = visiveis.slice(0, 5).map((c) => ({ label: couponLabel(c.code), codes: couponCodes(c.code), value: c.uses }));
     const resto = visiveis.slice(5).reduce((s, c) => s + c.uses, 0);
-    return resto > 0 ? [...top, { label: "Outros", value: resto }] : top;
-  }, [visiveis]);
+    const base = resto > 0 ? [...top, { label: "Outros", value: resto }] : top;
+    // Em "Todos", a fatia "Sem cupom" mostra as vendas da Sympla sem código. Faturados já estão no cupom de quem vendeu.
+    return grupoAtivo === "todos" && !termo && semCupom.usos > 0 ? [...base, { label: "Sem cupom", value: semCupom.usos, semCupom: true }] : base;
+  }, [visiveis, grupoAtivo, termo, semCupom.usos]);
+  const corFatia = (p: (typeof pizza)[number], i: number) => ("semCupom" in p ? "hsl(var(--border))" : CORES[i % CORES.length]);
   const totalPizza = pizza.reduce((s, p) => s + p.value, 0);
 
   if (isSeller) return <Navigate to="/" replace />;
@@ -178,7 +181,7 @@ export default function Coupons() {
                     <ResponsiveContainer width="100%" height="100%">
                       <PieChart>
                         <Pie data={pizza} dataKey="value" nameKey="label" innerRadius="62%" outerRadius="88%" paddingAngle={2} stroke="none" isAnimationActive={false}>
-                          {pizza.map((p, i) => <Cell key={p.label} fill={CORES[i % CORES.length]} />)}
+                          {pizza.map((p, i) => <Cell key={p.label} fill={corFatia(p, i)} />)}
                         </Pie>
                       </PieChart>
                     </ResponsiveContainer>
@@ -193,7 +196,7 @@ export default function Coupons() {
                     {pizza.map((p, i) => (
                       <li key={p.label} className="flex items-center justify-between gap-2">
                         <span className="flex min-w-0 items-center gap-2">
-                          <i className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: CORES[i % CORES.length] }} />
+                          <i className="inline-block h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ background: corFatia(p, i) }} />
                           <span className="truncate" title={"codes" in p && p.codes ? `Cupom: ${p.codes}` : p.label}>{p.label}</span>
                         </span>
                         <b className="tabular-nums">{int(p.value)}</b>
