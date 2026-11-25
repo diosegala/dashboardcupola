@@ -9,7 +9,8 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { InfoTip } from "@/components/InfoTip";
 import { Chip } from "@/components/Chip";
 import { useEvent } from "@/hooks/useEvent";
-import { useEventBatches } from "@/hooks/useEventBatches";
+import { PRE_VENDA, batchOf } from "@/lib/batches";
+import { useEventBatches, usePresalePrice } from "@/hooks/useEventBatches";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { descontoPonderado, descontoSimples, resumoDesconto, taxaDaSympla, type Soma, type VendaDesconto } from "@/lib/lotPricing";
 import { canalDe } from "@/lib/salesChannel";
@@ -113,7 +114,7 @@ function TooltipTempo({ active, payload }: any) {
       <span className="block">Realizado: {brl(s.pago)}</span>
     </div>
   );
-  return <div className="rounded-xl border bg-popover p-3 text-xs text-popover-foreground shadow-md"><b>{rotuloMes(d.mes)}</b>{bloco("No mês", d.soma)}{bloco("Acumulado", d.acumuladaSoma)}</div>;
+  return <div className="rounded-xl border bg-popover p-3 text-xs text-popover-foreground shadow-md"><b>{rotuloMes(d.mes)}</b>{bloco("Acumulado", d.acumuladaSoma)}</div>;
 }
 
 // Desconto frente à tabela oficial: cinco leituras independentes, todas no período filtrado no topo.
@@ -132,20 +133,14 @@ export function DiscountCard({ tickets, className }: { tickets: Ticket[]; classN
       return new Map<string, number>(((data ?? []) as any[]).filter((r) => r.ticket_sale_price != null).map((r) => [String(r.sympla_order_id), Number(r.ticket_sale_price)]));
     },
   });
-  const preVenda = useQuery({
-    queryKey: ["preco-pre-venda", event.id],
-    enabled: !!event.id,
-    queryFn: async () => {
-      const { data } = await (supabase as any).from("events").select("presale_price").eq("id", event.id).maybeSingle();
-      return data?.presale_price != null ? Number(data.presale_price) : null;
-    },
-  });
+  const preVenda = usePresalePrice(event.id);
 
   const analise = useMemo(() => {
     const partes = splitTickets(tickets);
     const paraVenda = (t: Ticket): VendaDesconto => {
       const q = t.quantity || 0;
       const unit = precos.data?.get(String(t.sympla_order_id));
+      const liquido = t.source === "pipedrive" || t.total_price == null ? null : Number(t.total_price);
       return {
         produto: t.ticket_type,
         quantidade: q,
@@ -153,13 +148,14 @@ export function DiscountCard({ tickets, className }: { tickets: Ticket[]; classN
         fonte: t.source === "pipedrive" ? "pipedrive" : "sympla",
         canal: canalDe(t),
         vendidoEm: t.sold_at,
-        valorLiquido: t.source === "pipedrive" || t.total_price == null ? null : Number(t.total_price),
+        valorLiquido: liquido,
       };
     };
     const doEvento = lotes.filter((l) => l.event_id === event.id) as any[];
-    const r = resumoDesconto(partes.paying.map(paraVenda), doEvento, preVenda.data);
-    // A taxa considera também a visita avulsa paga; ela só não entra no desconto.
-    const comTaxa = [...partes.paidSympla, ...partes.visits.filter((t) => t.source !== "pipedrive")].map(paraVenda);
+    // A visita avulsa paga entra no desconto e na taxa: o dinheiro entrou, com preço próprio na tabela do lote.
+    // A pré-venda fica fora: a conta começa no Lote 0.
+    const r = resumoDesconto([...partes.paying, ...partes.visits].filter((t) => batchOf(t.ticket_type) !== PRE_VENDA).map(paraVenda), doEvento, preVenda.data);
+    const comTaxa = [...partes.paidSympla, ...partes.visits.filter((t) => t.source !== "pipedrive")].filter((t) => batchOf(t.ticket_type) !== PRE_VENDA).map(paraVenda);
     return {
       r,
       taxa: taxaDaSympla(comTaxa),
@@ -210,9 +206,9 @@ export function DiscountCard({ tickets, className }: { tickets: Ticket[]; classN
           </div>
         )}
         <Tabs value={aba} onValueChange={setAba}>
-          <TabsList className="mb-5 flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl p-1" aria-label="Visões do desconto médio">
-            {[['resumo', 'Resumo'], ['lote', 'Por lote'], ['canal', 'Por canal'], ['tempo', 'No tempo'], ['fora', 'Fora do cálculo']].map(([value, label]) => (
-              <TabsTrigger key={value} value={value} className="shrink-0 px-3 py-2 text-xs">{label}</TabsTrigger>
+          <TabsList className="mb-5 flex h-auto w-full justify-start gap-1 overflow-x-auto rounded-xl p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden" aria-label="Visões do desconto médio">
+            {[['resumo', 'Resumo'], ['lote', 'Por lote'], ['canal', 'Por canal'], ['tempo', 'Acumulado'], ['fora', 'Fora do cálculo']].map(([value, label]) => (
+              <TabsTrigger key={value} value={value} className="flex-1 shrink-0 px-3 py-2 text-xs">{label}</TabsTrigger>
             ))}
           </TabsList>
 
@@ -222,8 +218,7 @@ export function DiscountCard({ tickets, className }: { tickets: Ticket[]; classN
               <div className="text-4xl font-semibold tabular-nums">{pctTxt(descontoPonderado(analise.r.total))}</div>
             </Conta>
             <Conta soma={analise.r.total} className="w-fit space-y-2 text-sm">
-              <p>Deixamos de faturar <b className="font-semibold">{brl(analise.r.total.cheio - analise.r.total.pago)}</b></p>
-              <p>Pela tabela, as vendas valeriam <b className="font-semibold">{brl(analise.r.total.cheio)}</b></p>
+              <p>Desconto concedido <b className="font-semibold">{brl(analise.r.total.cheio - analise.r.total.pago)}</b></p>
             </Conta>
             <div className="grid gap-3 sm:grid-cols-2">
               <Fonte nome="Sympla" soma={analise.r.sympla} />
@@ -257,9 +252,8 @@ export function DiscountCard({ tickets, className }: { tickets: Ticket[]; classN
           </TabsContent>
 
           <TabsContent value="tempo" className="mt-0">
-            <TituloAba titulo="No tempo" texto={infoTempo} />
+            <TituloAba titulo="Acumulado" texto={infoTempo} />
             <div className="mb-3 flex gap-5 text-xs text-muted-foreground">
-              <span className="flex items-center gap-2"><i className="h-0.5 w-5 bg-data-blue" /> No mês</span>
               <span className="flex items-center gap-2"><i className="h-0.5 w-5 bg-chart-3" /> Acumulado</span>
             </div>
             {grafico.length ? (
@@ -269,7 +263,6 @@ export function DiscountCard({ tickets, className }: { tickets: Ticket[]; classN
                   <XAxis dataKey="rotulo" tick={{ fontSize: 11 }} className="fill-muted-foreground" />
                   <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `${Math.round(v)}%`} className="fill-muted-foreground" />
                   <ChartTooltip content={<TooltipTempo />} />
-                  <Line type="monotone" dataKey="noMes" name="No mês" stroke="hsl(var(--data-blue))" strokeWidth={2.5} dot={{ r: 3 }} activeDot={{ r: 5 }} />
                   <Line type="monotone" dataKey="acumulado" name="Acumulado" stroke="hsl(var(--chart-3))" strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
                 </LineChart>
               </ResponsiveContainer>

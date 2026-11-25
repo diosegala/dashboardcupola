@@ -278,6 +278,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         goals={goals}
         allTimeTickets={tickets}
         previousYearTickets={previousTickets}
+        range={emPeriodo}
         className="col-span-12 lg:col-span-6"
       />
 

@@ -7,6 +7,9 @@ import { Chip } from "@/components/Chip";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { useCompare } from "@/hooks/useCompare";
 import { resumoLotes } from "@/lib/batchSummary";
+import { precoDeTabelaDoLote } from "@/lib/lotPricing";
+import { useEvent } from "@/hooks/useEvent";
+import { useEventBatches, usePresalePrice } from "@/hooks/useEventBatches";
 import { LoteSelos, dataCurta } from "./BatchStatus";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +23,7 @@ interface SalesSectionProps {
   goals: any[];
   allTimeTickets?: Ticket[];
   previousYearTickets?: Ticket[];
-  // Sem o card em volta: usado como aba "Por lote" dentro de "Lote vigente".
+  // Sem o card em volta: usado como aba "Detalhes" dentro do card Lotes.
   embedded?: boolean;
 }
 
@@ -28,6 +31,11 @@ interface SalesSectionProps {
 export function SalesSection({ goals, allTimeTickets = [], previousYearTickets = [], embedded = false }: SalesSectionProps) {
   const { ativo: comparar, rotulo } = useCompare();
 
+  const { event } = useEvent();
+  const { data: cadastro = [] } = useEventBatches();
+  const { data: precoPreVenda } = usePresalePrice(event.id);
+  // Preço de tabela do lote (Padrão), a mesma fonte do Desconto médio: Configurações › Lotes.
+  const precoDe = (lote: string) => precoDeTabelaDoLote(lote, cadastro.filter((b) => b.event_id === event.id) as any[], precoPreVenda);
   const { lotes, loteAtual } = useMemo(() => resumoLotes(goals, allTimeTickets, previousYearTickets), [allTimeTickets, previousYearTickets, goals]);
   // Abre na página do lote vigente, que já vem primeiro na lista comum.
   const posVigente = lotes.findIndex((l) => l.lote === loteAtual);
@@ -47,7 +55,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
             <th className="px-3 py-2 text-right font-medium">Preço</th>
             <th className="px-3 py-2 text-right font-medium">Vendidos</th>
             {mostrarAnterior && <th className="px-3 py-2 text-right font-medium" title={`Quanto o mesmo lote vendeu no evento de ${rotulo}`}>Em {rotulo}</th>}
-            <th className="px-3 py-2 text-right font-medium">Saldo</th>
+            <th className="px-3 py-2 text-right font-medium">Faltam</th>
             <th className="px-3 py-2 text-left font-medium">% vendido</th>
             <th className="px-3 py-2 text-right font-medium">Receita</th>
           </tr>
@@ -65,7 +73,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                     <LoteSelos lote={l} vigente={vigente} pequeno />
                   </span>
                 </td>
-                <td className="px-3 py-2.5 text-right">{l.preco !== null ? brl(l.preco) : "—"}</td>
+                <td className="px-3 py-2.5 text-right">{precoDe(l.lote) !== null ? brl(precoDe(l.lote)!) : "—"}</td>
                 <td className="px-3 py-2.5 text-right font-semibold">{int(l.pagantes)}</td>
                 {mostrarAnterior && <td className="px-3 py-2.5 text-right text-muted-foreground">{l.anterior !== null ? int(l.anterior) : "—"}</td>}
                 <td className="px-3 py-2.5 text-right">{saldo !== null ? int(saldo) : "—"}</td>
@@ -94,7 +102,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
     </div>
   );
   const legenda = (
-    <p className="text-xs text-muted-foreground">Saldo e % vendido usam a meta "Ingressos do lote" da aba Metas. Preço: valor mais comum pago sem cupom.</p>
+    <p className="text-xs text-muted-foreground">Faltam e % vendido usam a meta "Ingressos do lote" da aba Metas. Preço: Padrão de cada lote em Configurações, Lotes.</p>
   );
 
   // Dentro de um card estreito, cada lote vira um bloco: os números quebram linha em vez de vazar ou cortar.
@@ -130,8 +138,8 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
                   </div>
                 )}
                 <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-xs text-muted-foreground">
-                  <span>Preço <b className="font-medium text-foreground">{l.preco !== null ? brl(l.preco) : "—"}</b></span>
-                  {saldo !== null && <span>Saldo <b className="font-medium text-foreground">{int(saldo)}</b></span>}
+                  <span>Preço <b className="font-medium text-foreground">{precoDe(l.lote) !== null ? brl(precoDe(l.lote)!) : "—"}</b></span>
+                  {saldo !== null && <span>Faltam <b className="font-medium text-foreground">{int(saldo)}</b></span>}
                   <span>
                     Receita <b className="font-medium text-foreground">{brl(l.receita)}</b>
                     {l.metaReceita ? ` (${Math.round((l.receita / l.metaReceita) * 100)}% de ${brl(l.metaReceita)})` : ""}

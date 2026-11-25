@@ -99,8 +99,8 @@ export const METRIC_INFO: Record<string, string> = {
   "Receita Total": "Soma do valor dos ingressos vendidos no período selecionado.",
   "Ticket Médio": "Receita do período dividida pela quantidade de ingressos vendidos no mesmo período.",
   "Progresso por Lote": "Ingressos vendidos em cada lote comparados à meta do lote.",
-  "Lote vigente":
-    "Lote à venda agora: começa na primeira venda com o nome dele na Sympla e vale até a primeira venda do lote seguinte. Contam ingressos pagantes do lote; a meta vem de 'Ingressos do lote' na aba Metas. Na aba Por lote: preço, vendidos, saldo, % vendido e receita de cada lote, do mais novo para o mais antigo, 3 por página, com o vigente em destaque. " + LOTE_DO_FATURADO + " " + VALOR_LIQUIDO_SYMPLA,
+  Lotes:
+    "Tudo sobre os lotes de ingressos, em três abas.\n\nVigente: o lote à venda agora, com vendidos, meta do lote, quanto falta e receita.\n\nDetalhes: todos os lotes com preço, vendidos, quanto falta, % vendido e receita.\n\nComparativo: a média de ingressos vendidos por dia útil em cada lote, para comparar lotes de durações diferentes. É a única aba que segue o filtro de data do topo.\n\nA meta de cada lote vem de 'Ingressos do lote' na aba Metas, e o preço de Configurações, Lotes. " + LOTE_DO_FATURADO + " " + VALOR_LIQUIDO_SYMPLA,
   "Vendas por lote":
     "Pagantes e receita de cada lote (Pré-venda, Lote 0, Lote 1…). Com meta do lote, aparece a marca da meta. Com a chave de comparação ligada, a linha tracejada mostra o mesmo lote do evento anterior, inteiro. " + LOTE_DO_FATURADO,
   "Vendas por tipo de ingresso":

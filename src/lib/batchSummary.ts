@@ -1,6 +1,5 @@
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { batchOf, batchOrder, lotesParaLista } from "@/lib/batches";
-import { fullPrices } from "@/lib/lotPrice";
 import { batchCalendar, hojeBrasilia, loteVigente, situacao, type BatchDates, type Situacao } from "@/lib/batchCalendar";
 
 export interface Lote {
@@ -8,7 +7,6 @@ export interface Lote {
   pagantes: number;
   receita: number;
   meta: number | null;
-  preco: number | null;
   metaReceita: number | null;
   anterior: number | null;
   anteriorReceita: number | null;
@@ -65,7 +63,6 @@ export function resumoLotes(goals: any[], allTimeTickets: Ticket[], previousYear
       const meta = metas.get(lote) ?? null;
       return { situacao: c ? situacao(c, hoje) : null, metaAtingida: !!meta && pagantes >= meta, inicio: c?.start_date ?? null, fim: c?.end_date ?? null };
     };
-    const { byBatch: precos } = fullPrices(allTimeTickets);
     const lotes: Lote[] = Array.from(nomes)
       .sort((a, b) => batchOrder(a) - batchOrder(b))
       .map((lote) => ({
@@ -73,7 +70,6 @@ export function resumoLotes(goals: any[], allTimeTickets: Ticket[], previousYear
         pagantes: atual.get(lote)?.pagantes ?? 0,
         receita: atual.get(lote)?.receita ?? 0,
         meta: metas.get(lote) ?? null,
-        preco: precos.get(lote) ?? null,
         metaReceita: metasReceita.get(lote) ?? null,
         anterior: anterior.get(lote)?.pagantes ?? null,
         anteriorReceita: anterior.get(lote)?.receita ?? null,

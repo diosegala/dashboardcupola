@@ -112,3 +112,48 @@ export function nivelDoRitmo(ritmo: number | null, necessario: number | null, fa
   if (p >= 0.5) return "risco";
   return "critico";
 }
+
+// Comparativo entre lotes: vendidos de cada lote (pelo nome do produto, a mesma regra do quadro Lotes) divididos pelos
+// dias úteis em que o lote esteve à venda, para lotes de durações diferentes ficarem na mesma régua.
+// O período do topo recorta as vendas e os dias; o lote vigente conta até hoje.
+export interface LoteComparado {
+  lote: string;
+  inicio: string;
+  fim: string;
+  vendidos: number;
+  diasUteis: number;
+  diasCorridos: number;
+  diasUteisDoLote: number;
+  media: number | null;
+  emAndamento: boolean;
+}
+export function comparativoLotes(
+  lotes: { lote: string; inicio: string | null; fim: string | null }[],
+  vendas: (VendaPagante & { lote: string | null })[],
+  hoje: string,
+  periodo?: { inicio: string; fim: string } | null,
+): LoteComparado[] {
+  const corridos = (de: string, ate: string) => (de > ate ? 0 : Math.round((data(ate).getTime() - data(de).getTime()) / 86400000) + 1);
+  return lotes
+    .filter((l) => l.inicio && l.fim)
+    .map((l) => {
+      let de = l.inicio!, ate = l.fim! < hoje ? l.fim! : hoje;
+      if (periodo) {
+        if (periodo.inicio > de) de = periodo.inicio;
+        if (periodo.fim < ate) ate = periodo.fim;
+      }
+      const vendidos = vendas.reduce((s, v) => {
+        if (v.lote !== l.lote || !v.sold_at) return s;
+        const dia = diaBrasilia(v.sold_at);
+        return periodo && (dia < periodo.inicio || dia > periodo.fim) ? s : s + (v.quantity || 0);
+      }, 0);
+      const dias = diasUteis(de, ate);
+      return {
+        lote: l.lote, inicio: l.inicio!, fim: l.fim!, vendidos, diasUteis: dias, diasCorridos: corridos(de, ate),
+        diasUteisDoLote: diasUteis(l.inicio!, l.fim!),
+        media: dias > 0 ? vendidos / dias : null,
+        emAndamento: l.inicio! <= hoje && hoje <= l.fim!,
+      };
+    })
+    .filter((l) => l.diasCorridos > 0);
+}

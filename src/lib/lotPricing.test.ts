@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tipoDePreco, valorCheio, type LotePreco } from "./lotPricing";
+import { precoDeTabelaDoLote, tipoDePreco, valorCheio, type LotePreco } from "./lotPricing";
 
 const lotes: LotePreco[] = [
   { name: "Lote 0", price_standard: 989, price_vip: 2089, price_visit: 2099, price_standard_visit: 2988, price_vip_visit: 4088, price_group_standard: 890, price_group_vip: 1880 },
@@ -40,10 +40,10 @@ describe("desconto médio", () => {
     expect(r.total.pago).toBe(949);
     expect(descontoPonderado(r.total)).toBe(0);
   });
-  it("visita avulsa não entra no desconto", () => {
-    const r = resumoDesconto([{ produto: "Lote 0 | Visita (dia 19)", quantidade: 3, pago: 3000, fonte: "sympla" }], lotes);
-    expect(r.total.cheio).toBe(0);
-    expect(r.total.vendas).toBe(0);
+  it("visita avulsa paga entra no desconto com o preço de visita do lote", () => {
+    const r = resumoDesconto([{ produto: "Lote 0 | Visita (dia 19)", quantidade: 1, pago: 2099, fonte: "sympla" }], lotes);
+    expect(r.total.cheio).toBe(2099);
+    expect(r.total.vendas).toBe(1);
   });
   it("cortesias e descontos de 100% não entram na base", () => {
     const r = resumoDesconto([{ produto: "Lote 0 | Padrão (dias 20 e 21)", quantidade: 1, pago: 0, fonte: "sympla" }], lotes);
@@ -81,5 +81,13 @@ describe("nomes reais do Summit 27", () => {
     expect(valorCheio("Lote 0 | Ingresso VIP (dias 20 e 21)", lotes)).toBe(2089);
     expect(valorCheio("Lote 0 | Ingresso Padrão (dias 20 e 21)", lotes)).toBe(989);
     expect(valorCheio("Pré-Venda 2027 | Ingresso Padrão (21 e 22/05)", lotes, 949)).toBe(949);
+  });
+});
+
+describe("preço de tabela do lote", () => {
+  it("preço do lote vem do Padrão cadastrado; pré-venda do preço próprio", () => {
+    expect(precoDeTabelaDoLote("Lote 1", [{ name: "Lote 1", price_standard: 1109 }], null)).toBe(1109);
+    expect(precoDeTabelaDoLote("Lote 2", [{ name: "Lote 1", price_standard: 1109 }], null)).toBeNull();
+    expect(precoDeTabelaDoLote("Pré-venda", [], 949)).toBe(949);
   });
 });
