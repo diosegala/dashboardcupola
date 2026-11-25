@@ -44,7 +44,7 @@ export function VisitsCard({ tickets, className }: { tickets: Ticket[]; classNam
     queryFn: async () => {
       const mapa = new Map<string, CampoFormulario[]>();
       for (let i = 0; i < pedidosDeVisita.length; i += 100) {
-        const { data, error } = await supabase
+        const { data, error } = await (supabase as any)
           .from("ticket_sales_details")
           .select("sympla_order_id, form:participant_data->custom_form")
           .in("sympla_order_id", pedidosDeVisita.slice(i, i + 100));
