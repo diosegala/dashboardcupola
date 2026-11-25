@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -14,6 +14,11 @@ import {
 import type { EventRow } from "@/hooks/useEvent";
 import { EVENT_BATCHES_KEY, useEventBatches } from "@/hooks/useEventBatches";
 import { traduzirErro } from "@/lib/mensagensErro";
+import { CAMPOS_PRECO } from "@/lib/lotPricing";
+
+type Precos = Record<(typeof CAMPOS_PRECO)[number]["campo"], string>;
+const vazio = () => Object.fromEntries(CAMPOS_PRECO.map((c) => [c.campo, ""])) as Precos;
+const num = (v: string) => (v.trim() === "" ? null : Number(v.replace(",", ".")));
 
 interface Linha {
   id?: string;
@@ -21,6 +26,7 @@ interface Linha {
   start_date: string;
   end_date: string;
   sort_order: number;
+  precos: Precos;
 }
 
 // Problemas de datas: término antes do início, período sobreposto a outro lote ou data faltando.
@@ -48,14 +54,14 @@ export function BatchesManager({ event, open, onClose }: { event: EventRow | nul
     setLinhas(
       (data ?? [])
         .filter((b) => b.event_id === eventId)
-        .map((b) => ({ id: b.id, name: b.name, start_date: b.start_date ?? "", end_date: b.end_date ?? "", sort_order: b.sort_order ?? 0 })),
+        .map((b) => ({ id: b.id, name: b.name, start_date: b.start_date ?? "", end_date: b.end_date ?? "", sort_order: b.sort_order ?? 0, precos: Object.fromEntries(CAMPOS_PRECO.map((c) => [c.campo, (b as any)[c.campo] != null ? String((b as any)[c.campo]) : ""])) as Precos })),
     );
   }, [data, eventId, open]);
 
   const atualizar = () => queryClient.invalidateQueries({ queryKey: EVENT_BATCHES_KEY });
   const salvar = useMutation({
     mutationFn: async (l: Linha) => {
-      const row = { event_id: eventId, name: l.name.trim(), start_date: l.start_date || null, end_date: l.end_date || null, sort_order: l.sort_order };
+      const row = { event_id: eventId, name: l.name.trim(), start_date: l.start_date || null, end_date: l.end_date || null, sort_order: l.sort_order, ...Object.fromEntries(CAMPOS_PRECO.map((c) => [c.campo, num(l.precos[c.campo])])) };
       const { error } = l.id ? await supabase.from("event_batches").update(row).eq("id", l.id) : await supabase.from("event_batches").insert(row);
       if (error) throw error;
     },
@@ -71,6 +77,17 @@ export function BatchesManager({ event, open, onClose }: { event: EventRow | nul
     onError: (e: Error) => toast.error(traduzirErro(e)),
   });
 
+  const mudaPreco = (i: number, campo: keyof Precos, v: string) => setLinhas((ls) => ls.map((l, j) => (j === i ? { ...l, precos: { ...l.precos, [campo]: v } } : l)));
+  const [preVenda, setPreVenda] = useState("");
+  useEffect(() => { setPreVenda((event as any)?.presale_price != null ? String((event as any).presale_price) : ""); }, [event, open]);
+  const salvarPreVenda = useMutation({
+    mutationFn: async () => {
+      const { error } = await supabase.from("events").update({ presale_price: num(preVenda) } as any).eq("id", eventId);
+      if (error) throw error;
+    },
+    onSuccess: () => { toast.success("Preço da pré-venda salvo."); queryClient.invalidateQueries(); },
+    onError: (e: Error) => toast.error(traduzirErro(e)),
+  });
   const muda = (i: number, campo: keyof Linha, v: string) => setLinhas((ls) => ls.map((l, j) => (j === i ? { ...l, [campo]: v } : l)));
   const avisos = problemas(linhas);
   const proximo = linhas.length ? Math.max(...linhas.map((l) => l.sort_order)) + 1 : 0;
@@ -81,7 +98,7 @@ export function BatchesManager({ event, open, onClose }: { event: EventRow | nul
         <DialogHeader>
           <DialogTitle>Lotes de {event?.name}</DialogTitle>
           <DialogDescription>
-            Início e término de cada lote, incluídos no período. O lote vigente troca à meia-noite (Brasília) do dia de início.
+            Início, término e preços oficiais (valor do comprador, com a taxa) de cada lote. As datas entram no período. O lote vigente troca à meia-noite (Brasília) do dia de início.
             Fora de qualquer lote, vale o próximo a começar.
           </DialogDescription>
         </DialogHeader>
@@ -97,7 +114,8 @@ export function BatchesManager({ event, open, onClose }: { event: EventRow | nul
             </TableHeader>
             <TableBody>
               {linhas.map((l, i) => (
-                <TableRow key={l.id ?? `novo-${i}`}>
+                <Fragment key={l.id ?? `novo-${i}`}>
+                <TableRow className="border-b-0">
                   <TableCell><Input className="h-9 w-[130px]" value={l.name} onChange={(e) => muda(i, "name", e.target.value)} /></TableCell>
                   <TableCell><Input type="date" className="h-9 w-[160px]" value={l.start_date} onChange={(e) => muda(i, "start_date", e.target.value)} /></TableCell>
                   <TableCell><Input type="date" className="h-9 w-[160px]" value={l.end_date} onChange={(e) => muda(i, "end_date", e.target.value)} /></TableCell>
@@ -129,13 +147,35 @@ export function BatchesManager({ event, open, onClose }: { event: EventRow | nul
                     </div>
                   </TableCell>
                 </TableRow>
+                <TableRow>
+                  <TableCell colSpan={4} className="pt-0">
+                    <div className="grid grid-cols-4 gap-2 sm:grid-cols-7">
+                      {CAMPOS_PRECO.map((c) => (
+                        <label key={c.campo} className="text-[11px] text-muted-foreground">
+                          {c.rotulo}
+                          <Input inputMode="decimal" placeholder="R$" className="mt-0.5 h-8" value={l.precos[c.campo]} onChange={(e) => mudaPreco(i, c.campo, e.target.value.replace(/[^\d.,]/g, ""))} />
+                        </label>
+                      ))}
+                    </div>
+                  </TableCell>
+                </TableRow>
+                </Fragment>
               ))}
             </TableBody>
           </Table>
         </div>
         <div>
-          <Button variant="outline" size="sm" disabled={!eventId} onClick={() => setLinhas((ls) => [...ls, { name: `Lote ${proximo}`, start_date: "", end_date: "", sort_order: proximo }])}>
+          <Button variant="outline" size="sm" disabled={!eventId} onClick={() => setLinhas((ls) => [...ls, { name: `Lote ${proximo}`, start_date: "", end_date: "", sort_order: proximo, precos: vazio() }])}>
             <Plus className="mr-1 h-4 w-4" /> Adicionar lote
+          </Button>
+        </div>
+        <div className="flex items-end gap-2 border-t pt-3">
+          <label className="text-xs text-muted-foreground">
+            Preço da pré-venda (fora dos lotes)
+            <Input inputMode="decimal" placeholder="R$" className="mt-1 h-9 w-[160px]" value={preVenda} onChange={(e) => setPreVenda(e.target.value.replace(/[^\d.,]/g, ""))} />
+          </label>
+          <Button size="icon" variant="ghost" aria-label="Salvar preço da pré-venda" disabled={!eventId || salvarPreVenda.isPending} onClick={() => salvarPreVenda.mutate()}>
+            <Save className="h-4 w-4" />
           </Button>
         </div>
       </DialogContent>

@@ -17,3 +17,5 @@
 - Ticket type comes only from explicit name patterns in `src/lib/ticketKinds.ts` (`knownTicketKind`); unmatched Sympla products raise a dashboard alert instead of being guessed, and standalone visits form their own `visitas` category outside paying/goal/pace/people but inside event revenue.
 - Sales statement buyer grouping is presentation-only in `salesStatement.ts`, after filters and separated by source, batch and status; retain original orders for details and sale totals so grouping never changes accounting.
 - The Visitas presenciais card counts visits only through `src/lib/visitBoard.ts` (pure, tested): kind comes from `knownTicketKind`, finality answers are normalized there and never hardcoded, and an unrecognized question or near-duplicate answers raise a warning instead of being guessed.
+
+- Official lot prices (buyer value) live on `event_batches` price columns and `events.presale_price`; product→price mapping is explicit in `src/lib/lotPricing.ts` (pure, tested), so unmapped products never get a guessed reference.

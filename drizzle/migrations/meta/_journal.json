@@ -120,6 +120,13 @@
       "when": 1795291456125,
       "tag": "0016_logs_resumo_exclusoes",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1795623129315,
+      "tag": "0017_lot_prices",
+      "breakpoints": true
     }
   ]
 }

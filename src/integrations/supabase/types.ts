@@ -833,6 +833,13 @@ export type Database = {
           event_id: string
           id: string
           name: string
+          price_group_standard: number | null
+          price_group_vip: number | null
+          price_standard: number | null
+          price_standard_visit: number | null
+          price_vip: number | null
+          price_vip_visit: number | null
+          price_visit: number | null
           sort_order: number
           start_date: string | null
         }
@@ -842,6 +849,13 @@ export type Database = {
           event_id: string
           id?: string
           name: string
+          price_group_standard?: number | null
+          price_group_vip?: number | null
+          price_standard?: number | null
+          price_standard_visit?: number | null
+          price_vip?: number | null
+          price_vip_visit?: number | null
+          price_visit?: number | null
           sort_order?: number
           start_date?: string | null
         }
@@ -851,6 +865,13 @@ export type Database = {
           event_id?: string
           id?: string
           name?: string
+          price_group_standard?: number | null
+          price_group_vip?: number | null
+          price_standard?: number | null
+          price_standard_visit?: number | null
+          price_vip?: number | null
+          price_vip_visit?: number | null
+          price_visit?: number | null
           sort_order?: number
           start_date?: string | null
         }
@@ -948,6 +969,7 @@ export type Database = {
           is_active: boolean
           name: string
           paying_goal: number | null
+          presale_price: number | null
           previous_event_slug: string | null
           slug: string
           start_date: string | null
@@ -960,6 +982,7 @@ export type Database = {
           is_active?: boolean
           name: string
           paying_goal?: number | null
+          presale_price?: number | null
           previous_event_slug?: string | null
           slug: string
           start_date?: string | null
@@ -972,6 +995,7 @@ export type Database = {
           is_active?: boolean
           name?: string
           paying_goal?: number | null
+          presale_price?: number | null
           previous_event_slug?: string | null
           slug?: string
           start_date?: string | null

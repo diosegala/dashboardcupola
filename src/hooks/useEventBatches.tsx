@@ -8,6 +8,13 @@ import { setBatchCalendar, setCurrentBatchEvent, type BatchDates } from "@/lib/b
 export interface BatchRow extends BatchDates {
   id: string;
   event_id: string;
+  price_standard?: number | null;
+  price_vip?: number | null;
+  price_visit?: number | null;
+  price_standard_visit?: number | null;
+  price_vip_visit?: number | null;
+  price_group_standard?: number | null;
+  price_group_vip?: number | null;
 }
 
 export const EVENT_BATCHES_KEY = ["event-batches"];
@@ -22,7 +29,7 @@ export function useEventBatches() {
     queryFn: async (): Promise<BatchRow[]> => {
       const { data, error } = await supabase
         .from("event_batches")
-        .select("id, event_id, name, start_date, end_date, sort_order")
+        .select("id, event_id, name, start_date, end_date, sort_order, price_standard, price_vip, price_visit, price_standard_visit, price_vip_visit, price_group_standard, price_group_vip")
         .order("sort_order");
       if (error) throw error;
       return (data ?? []) as BatchRow[];
