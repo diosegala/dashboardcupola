@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { agruparVendas, motivoDoStatus, nomeDoPagamento, vendasDoExtrato, type Venda } from "./salesStatement";
+import { agruparComprador, agruparVendas, motivoDoStatus, nomeDoPagamento, vendasDoExtrato, type Venda } from "./salesStatement";
 
 describe("extrato de vendas", () => {
   const sympla = (extra: object) => ({ source: "sympla", quantity: 1, status: "approved", sold_at: "2026-11-07T10:20:24Z", ...extra }) as never;
@@ -114,5 +114,42 @@ describe("visita avulsa no extrato", () => {
     expect(v.quantidade).toBe(0);
     expect(v.valor).toBe(6181.38);
     expect(v.ingressos).toContain("Visita avulsa");
+  });
+});
+
+describe("compras agrupadas no extrato", () => {
+  const pedido = (order_id: string, quantity: number, ticket_type: string, total_price: number, buyer_name = "Pedro Souza") =>
+    ({ source: "sympla", order_id, buyer_name, quantity, ticket_type, total_price, sold_at: "2026-11-24T12:00:00Z", status: "APPROVED" }) as never;
+
+  it("soma 1 e 2 visitas em 3, mantendo zero participantes e os dois pedidos com seus valores", () => {
+    const originais = agruparVendas([
+      pedido("V1", 1, "Lote 1 | Visita (dia 19)", 2060.46),
+      pedido("V2", 2, "Lote 1 | Visita (dia 19)", 4120.92),
+    ], []);
+    const agrupadas = agruparComprador(originais);
+    expect(agrupadas).toHaveLength(1);
+    expect(agrupadas[0].quantidadesPorTipo?.["Visita presencial"]).toBe(3);
+    expect(agrupadas[0].quantidade).toBe(0);
+    expect(agrupadas[0].valor).toBe(6181.38);
+    expect(agrupadas[0].vendas?.map((v) => v.codigo)).toEqual(["V1", "V2"]);
+  });
+
+  it("soma os demais tipos sem converter visitas em participantes e preserva o total financeiro", () => {
+    const agrupadas = agruparComprador(agruparVendas([
+      pedido("P1", 1, "Lote 1 | Padrão", 900),
+      pedido("P2", 2, "Lote 1 | Padrão", 1800),
+      pedido("V1", 3, "Lote 1 | Visita (dia 19)", 600),
+    ], []));
+    expect(agrupadas).toHaveLength(1);
+    expect(agrupadas[0].quantidadesPorTipo).toMatchObject({ "Padrão": 3, "Visita presencial": 3 });
+    expect(agrupadas[0].quantidade).toBe(3);
+    expect(agrupadas[0].valor).toBe(3300);
+    expect(agrupadas[0].vendas).toHaveLength(3);
+  });
+
+  it("não mistura compradores, lotes, origens nem pagamentos pendentes com aprovados", () => {
+    const base = agruparVendas([pedido("P1", 1, "Lote 1 | Padrão", 900)], [])[0];
+    const vendas = [base, { ...base, chave: "outro", cliente: "Alice" }, { ...base, chave: "lote", lote: "Lote 0" }, { ...base, chave: "origem", faturado: true }, { ...base, chave: "pendente", status: "Pendente" }];
+    expect(agruparComprador(vendas)).toHaveLength(5);
   });
 });

@@ -1,5 +1,7 @@
 # Roadmap
 
+- [x] Agrupar compras da mesma pessoa no extrato, preservando quantidades, valores, pedidos e totais.
+
 - [x] Vendas por e-mail — etapa 1: guardar utm_content (Sympla) e preencher pedidos antigos
 - [x] Vendas por e-mail — etapa 2: regra automática de ligação (exata/confiável/provável/sugestão) com testes
 - [x] Vendas por e-mail — etapa 3: lista conferida pela Emillyn

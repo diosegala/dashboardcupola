@@ -32,6 +32,8 @@ export interface Venda {
   texto: string;
   // Aguardando há mais de 7 dias sem aprovar: tratado como cancelado.
   expirado?: boolean;
+  quantidadesPorTipo?: Partial<Record<TicketKind, number>>;
+  vendas?: Venda[];
 }
 
 const PAGAMENTO: Record<string, string> = { PIX: "Pix", CREDIT_CARD: "Cartão de crédito", BOLETO: "Boleto", DEBIT_CARD: "Cartão de débito" };
@@ -91,6 +93,7 @@ export function agruparVendas(pagantes: Ticket[], calendario = batchCalendar()):
         lote,
         cliente,
         ingressos,
+        quantidadesPorTipo: Object.fromEntries(porTipo),
         quantidade: itens.filter((x) => ticketKind(x.ticket_type) !== "Visita presencial").reduce((s, x) => s + (x.quantity || 0), 0),
         valor: Math.round(itens.reduce((s, x) => s + Number(x.total_price || 0), 0) * 100) / 100,
         codigo,
@@ -105,6 +108,41 @@ export function agruparVendas(pagantes: Ticket[], calendario = batchCalendar()):
       };
     })
     .sort((a, b) => String(b.data ?? "").localeCompare(String(a.data ?? "")));
+}
+
+// Agrupamento somente de apresentação; os pedidos originais continuam disponíveis nos detalhes e nos totais.
+export function agruparComprador(vendas: Venda[]): Venda[] {
+  const grupos = new Map<string, Venda[]>();
+  for (const v of vendas) {
+    const nome = v.cliente.trim().replace(/\s+/g, " ").toLocaleLowerCase("pt-BR");
+    const identificado = nome && !["sem nome", "comprador não informado"].includes(nome);
+    const chave = JSON.stringify([identificado ? nome : v.chave, v.faturado, v.lote, v.status, Boolean(v.expirado)]);
+    const grupo = grupos.get(chave) ?? [];
+    grupo.push(v);
+    grupos.set(chave, grupo);
+  }
+  return [...grupos.values()].map((itens) => {
+    const primeira = itens[0];
+    if (itens.length === 1) return primeira;
+    const tipos: Partial<Record<TicketKind, number>> = {};
+    for (const v of itens) {
+      for (const k of TICKET_KINDS) tipos[k] = (tipos[k] ?? 0) + (v.quantidadesPorTipo?.[k] ?? 0);
+    }
+    const ingressos = TICKET_KINDS.filter((k) => tipos[k]).map((k) =>
+      k === "Visita presencial" ? `${tipos[k]} Visita avulsa (sem participante)` : `${tipos[k]} ${k}`,
+    ).join(" · ");
+    return {
+      ...primeira,
+      chave: `grupo-${itens.map((v) => v.chave).join("|")}`,
+      quantidade: itens.reduce((s, v) => s + v.quantidade, 0),
+      valor: Math.round(itens.reduce((s, v) => s + v.valor, 0) * 100) / 100,
+      ingressos: ingressos || primeira.ingressos,
+      quantidadesPorTipo: tipos,
+      tiposCompletos: [...new Set(itens.flatMap((v) => v.tiposCompletos))],
+      texto: itens.map((v) => v.texto).join(" "),
+      vendas: itens,
+    };
+  });
 }
 
 // Etiqueta do status da Sympla, só para o que não está aprovado.

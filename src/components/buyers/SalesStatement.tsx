@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { lotesParaLista } from "@/lib/batches";
-import { vendasDoExtrato, grupoDe, motivoDoStatus, type Venda } from "@/lib/salesStatement";
+import { vendasDoExtrato, agruparComprador, grupoDe, motivoDoStatus, type Venda } from "@/lib/salesStatement";
 import { VALOR_LIQUIDO_SYMPLA } from "@/lib/metricInfo";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +41,19 @@ const COR_STATUS: Record<string, string> = {
 
 // Detalhe da venda, aberto ao clicar na linha: o que identifica a venda e de onde ela veio.
 function Detalhe({ v }: { v: Venda }) {
+  if (v.vendas) return (
+    <div className="px-3 pb-3">
+      {v.vendas.map((venda) => (
+        <div key={venda.chave}>
+          <p className="py-2 text-xs font-medium">
+            {venda.data ? format(new Date(venda.data), "dd/MM/yyyy") : "—"}
+            {" · "}{venda.ingressos}{" · "}{brl(venda.valor)}
+          </p>
+          <Detalhe v={venda} />
+        </div>
+      ))}
+    </div>
+  );
   const itens: [string, React.ReactNode][] = [
     [
       v.faturado ? "Negócio" : "Pedido na Sympla",
@@ -73,7 +86,7 @@ function Detalhe({ v }: { v: Venda }) {
   );
 }
 
-// Extrato: uma linha por venda (pedido da Sympla ou negócio faturado), da mais recente para a mais antiga.
+// Extrato: pedidos agrupados por comprador, origem, lote e status; totais continuam por venda real.
 // Vendas canceladas, estornadas ou aguardando pagamento aparecem com etiqueta e ficam fora dos totais.
 export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: Ticket[]; pedidosSemIngresso?: { order_data: any }[] }) {
   const [aberto, setAberto] = useState(false);
@@ -96,6 +109,7 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
       (!termo || v.texto.includes(termo)),
   );
   const pagas = visiveis.filter((v) => !v.status);
+  const agrupadas = agruparComprador(visiveis);
   const ingressos = pagas.reduce((s, v) => s + v.quantidade, 0);
   const receita = pagas.reduce((s, v) => s + v.valor, 0);
   const aguardando = visiveis.filter((v) => grupoDe(v) === "aguardando");
@@ -173,14 +187,15 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
             {visiveis.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma venda encontrada.</p>
             ) : (
-              visiveis.slice(0, limite).map((v) => {
+              agrupadas.slice(0, limite).map((v) => {
                 const estaAberta = aberta === v.chave;
                 return (
                   <div key={v.chave} className={cn("border-t", estaAberta && "bg-secondary/60")}>
-                    <button
+                    <Button
+                      variant="ghost"
                       type="button"
                       onClick={() => setAberta(estaAberta ? null : v.chave)}
-                      className={cn(GRADE, "w-full px-3 py-2 text-left transition-colors duration-150 hover:bg-secondary/60", v.status && "text-muted-foreground")}
+                      className={cn(GRADE, "h-auto w-full rounded-none px-3 py-2 text-left text-[13px] font-normal whitespace-normal transition-colors duration-150 hover:bg-secondary/60", v.status && "text-muted-foreground")}
                     >
                       <span className="min-w-0">
                         <span className={cn("block truncate font-medium", !v.status && "text-foreground")} title={v.cliente}>{v.cliente}</span>
@@ -197,24 +212,25 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
                             </Tooltip>
                           )}
                           {v.data ? format(new Date(v.data), "dd/MM/yyyy") : "—"}
+                          {v.vendas && <span>{int(v.vendas.length)} vendas</span>}
                         </span>
                       </span>
-                      <span className="truncate" title={v.ingressos}>{v.ingressos}</span>
+                      <span className="min-w-0 break-words text-left" title={v.ingressos}>{v.ingressos}</span>
                       <span className="hidden whitespace-nowrap sm:block">{v.lote}</span>
                       <span className={cn("flex items-center justify-end gap-1.5 whitespace-nowrap", v.status && "line-through decoration-muted-foreground/50")}>
                         {brl(v.valor)}
                         <ChevronDown className={cn("h-3.5 w-3.5 shrink-0 text-muted-foreground transition-transform", estaAberta && "rotate-180")} />
                       </span>
-                    </button>
+                    </Button>
                     {estaAberta && <Detalhe v={v} />}
                   </div>
                 );
               })
             )}
           </div>
-          {visiveis.length > limite && (
+          {agrupadas.length > limite && (
             <Button variant="ghost" size="sm" onClick={() => setLimite((n) => n + POR_PAGINA)} className="mt-2 w-full rounded-full text-xs">
-              Ver mais {int(Math.min(POR_PAGINA, visiveis.length - limite))} de {int(visiveis.length - limite)} restantes
+              Ver mais {int(Math.min(POR_PAGINA, agrupadas.length - limite))} de {int(agrupadas.length - limite)} restantes
             </Button>
           )}
           <p className="mt-3 text-xs text-muted-foreground">
