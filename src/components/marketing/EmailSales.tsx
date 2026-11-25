@@ -64,7 +64,7 @@ export function useEmailAttribution(emails: any[], tickets: Ticket[]) {
   const decisions = useEmailDecisions();
   return useMemo(() => {
     const vendas: EmailSaleRow[] = splitTickets(tickets)
-      .paying.filter((t) => canalDe(t) === "E-mail marketing")
+      .financial.filter((t) => canalDe(t) === "E-mail marketing")
       .map((t, i) => ({
         id: String(t.sympla_order_id ?? t.deal_id ?? i),
         utmContent: t.utm_content ?? null,

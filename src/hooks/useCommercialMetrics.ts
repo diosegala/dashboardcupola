@@ -70,7 +70,10 @@ export function splitTickets(tickets: Ticket[]) {
     const paying = [...paidSympla, ...invoiced];
     // Visitas avulsas pagas: entram só na receita do evento (fora de pagantes, meta, ritmo e ticket médio).
     const visits = approved.filter((t) => cat(t) === "visitas");
-    return { paidSympla, invoiced, bonus, paying, visits };
+    // Base dos quadros de valor: pagantes mais as visitas avulsas com quantidade 0, para o valor somar
+    // e a contagem de ingressos e pessoas não mudar.
+    const financial = [...paying, ...visits.map((t) => ({ ...t, quantity: 0 }))];
+    return { paidSympla, invoiced, bonus, paying, visits, financial };
 }
 
 // Indicadores da aba Comercial, sempre sobre todas as vendas do evento atual (não dependem do período).

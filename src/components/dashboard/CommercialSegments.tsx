@@ -212,7 +212,7 @@ interface CommercialSegmentsProps {
 
 // Forma de pagamento e cupons. A origem da venda (UTM) está na aba Marketing; o perfil de quem compra fica na página Compradores.
 export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsProps) {
-  const { paying, bonus } = useMemo(() => splitTickets(tickets), [tickets]);
+  const { paying: payingIngressos, bonus, financial: paying } = useMemo(() => splitTickets(tickets), [tickets]);
   const { profile } = useAuth();
   const meusCupons = useMyTeamCoupons();
   const ranking = useMemo(() => buildTeamRanking(paying), [paying]);
@@ -237,7 +237,7 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
   // Cupons agrupados pelo código, com o desconto e o tipo enviados pela Sympla.
   const cupons = useMemo(() => {
     const map = new Map<string, { code: string; discount: string | null; kind: CouponKind; group: CouponGroup; uses: number }>();
-    [...paying, ...bonus].forEach((t) => {
+    [...payingIngressos, ...bonus].forEach((t) => {
       const c = parseCoupon(t.coupon_code);
       if (!c) return;
       const atual = map.get(c.code) ?? { ...c, uses: 0 };
@@ -245,7 +245,7 @@ export function CommercialSegments({ tickets, goals = [] }: CommercialSegmentsPr
       map.set(c.code, atual);
     });
     return Array.from(map.values()).sort((a, b) => b.uses - a.uses);
-  }, [paying, bonus]);
+  }, [payingIngressos, bonus]);
 
   // Filtro por grupo: só mostra os grupos que têm cupom usado.
   const [grupo, setGrupo] = useState<CouponGroup | "todos">("todos");

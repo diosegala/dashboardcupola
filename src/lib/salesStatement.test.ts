@@ -107,3 +107,12 @@ describe("motivo do status explicado na etiqueta", () => {
     expect(motivoDoStatus(v[0], agora)).not.toContain("boleto_bancario");
   });
 });
+
+describe("visita avulsa no extrato", () => {
+  it("aparece com valor e 0 participante", () => {
+    const [v] = agruparVendas([{ sympla_order_id: "1", order_id: "P1", ticket_type: "Lote 1 | Visita (dia 19)", quantity: 3, total_price: 6181.38, status: "APPROVED", sold_at: "2026-11-24T12:14:09Z" } as any], []);
+    expect(v.quantidade).toBe(0);
+    expect(v.valor).toBe(6181.38);
+    expect(v.ingressos).toContain("Visita avulsa");
+  });
+});

@@ -182,8 +182,8 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
 
   // Descontos concedidos: cupons parciais + cortesias pelo preço cheio do lote, % sobre a receita bruta.
   const descontosComercial = useMemo(() => {
-    const { paying, bonus } = splitTickets(doPeriodo);
-    const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
+    const { paying, bonus, financial } = splitTickets(doPeriodo);
+    const receita = financial.reduce((s, t) => s + Number(t.total_price || 0), 0);
     return commercialDiscounts([...paying, ...bonus], receita);
   }, [doPeriodo]);
   // Ingressos de negócios abertos no CRM: não contam, aparecem listrados na pista dos pagantes.

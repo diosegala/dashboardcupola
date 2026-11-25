@@ -1,3 +1,4 @@
+import { ticketKind } from "@/lib/ticketKinds";
 import { InfoTip } from "@/components/InfoTip";
 import { Fragment, useMemo } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -125,7 +126,8 @@ function calcActual(
     case "funnel_bofu_messages":
       return sum(filteredMeta, "messages");
     case "funnel_bofu_sales":
-      return sum(filteredTickets, "quantity");
+      // Visita avulsa não é ingresso: fica fora da contagem, mas soma na receita abaixo.
+      return sum(filteredTickets.filter((t) => ticketKind(t.ticket_type) !== "Visita presencial"), "quantity");
     case "funnel_bofu_revenue":
       return sum(filteredTickets, "total_price");
     default:

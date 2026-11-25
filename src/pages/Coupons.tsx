@@ -59,7 +59,8 @@ export default function Coupons() {
   const [grupo, setGrupo] = useState<CouponGroup | "todos">("todos");
   const [busca, setBusca] = useState("");
 
-  const { paying, bonus } = useMemo(() => splitTickets(vendas.data ?? []), [vendas.data]);
+  // Valores incluem a visita avulsa (com quantidade 0, para não contar como uso de ingresso).
+  const { financial: paying, bonus } = useMemo(() => splitTickets(vendas.data ?? []), [vendas.data]);
   const ranking = useMemo(() => buildTeamRanking(paying), [paying]);
 
   const cupons = useMemo(() => {

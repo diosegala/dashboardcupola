@@ -68,7 +68,10 @@ export function agruparVendas(pagantes: Ticket[], calendario = batchCalendar()):
       const faturado = t.source === "pipedrive";
       const porTipo = new Map<TicketKind, number>();
       itens.forEach((x) => porTipo.set(ticketKind(x.ticket_type), (porTipo.get(ticketKind(x.ticket_type)) ?? 0) + (x.quantity || 0)));
-      const ingressos = TICKET_KINDS.filter((k) => porTipo.get(k)).map((k) => `${porTipo.get(k)} ${k}`).join(" · ");
+      // Visita avulsa não dá acesso ao evento: aparece com receita, mas com 0 participante.
+      const ingressos = TICKET_KINDS.filter((k) => porTipo.get(k))
+        .map((k) => (k === "Visita presencial" ? `${porTipo.get(k)} Visita avulsa (sem participante)` : `${porTipo.get(k)} ${k}`))
+        .join(" · ");
       const codigoCupom = parseCoupon(t.coupon_code)?.code ?? null;
       const cupom = codigoCupom ? couponLabel(canonicalCoupon(codigoCupom)) : null;
       const codigo = (faturado ? t.deal_id : t.order_id ?? t.sympla_order_id) ?? null;
@@ -88,7 +91,7 @@ export function agruparVendas(pagantes: Ticket[], calendario = batchCalendar()):
         lote,
         cliente,
         ingressos,
-        quantidade: itens.reduce((s, x) => s + (x.quantity || 0), 0),
+        quantidade: itens.filter((x) => ticketKind(x.ticket_type) !== "Visita presencial").reduce((s, x) => s + (x.quantity || 0), 0),
         valor: Math.round(itens.reduce((s, x) => s + Number(x.total_price || 0), 0) * 100) / 100,
         codigo,
         linkNegocio: faturado && t.crm_account && t.deal_id ? `https://${t.crm_account}.pipedrive.com/deal/${t.deal_id}` : null,

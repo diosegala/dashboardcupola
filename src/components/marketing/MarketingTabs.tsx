@@ -138,13 +138,13 @@ function campaignOptions(linhas: any[]): Campaign[] {
 // ---------- Visão geral ----------
 // "Vendas por canal" (gráfico de barras) fica na aba Comercial; aqui segue só a tabela da aba Links.
 function Overview({ adMetrics, emailCampaigns, tickets, goals, range }: MarketingTabsProps) {
-  const { paying } = useMemo(() => splitTickets(tickets), [tickets]);
+  const { paying, financial } = useMemo(() => splitTickets(tickets), [tickets]);
   const midia = adTotals(adMetrics.filter((a) => a.source === "meta" || a.source === "google_ads"));
   const sympla = paying.filter((t) => t.source !== "pipedrive");
   const ingressosSympla = sympla.reduce((s, t) => s + (t.quantity || 0), 0);
   const comLink = sympla.filter((t) => utmLabel(t.utm_source)).reduce((s, t) => s + (t.quantity || 0), 0);
   const pagantes = paying.reduce((s, t) => s + (t.quantity || 0), 0);
-  const receita = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
+  const receita = financial.reduce((s, t) => s + Number(t.total_price || 0), 0);
 
   return (
     <div className="space-y-6">
@@ -726,7 +726,8 @@ function LinksTab({ tickets, allTickets, goals }: MarketingTabsProps) {
 
   // Vendas por canal somam Sympla e faturados (faturado conta para a Equipe CUPOLA); os links e a cobertura de UTM são só Sympla.
   const base = recorte === PERIODO ? tickets : recorte === EVENTO ? allTickets : allTickets.filter((t) => batchOf(t.ticket_type) === recorte);
-  const { paying } = splitTickets(base);
+  // Valores por canal e link incluem a visita avulsa (quantidade 0: não soma ingressos).
+  const { financial: paying } = splitTickets(base);
   const sympla = paying.filter((t) => t.source !== "pipedrive");
   const totalSympla = sympla.reduce((s, t) => s + (t.quantity || 0), 0);
   const total = paying.reduce((s, t) => s + (t.quantity || 0), 0);
