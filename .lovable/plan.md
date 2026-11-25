@@ -1,35 +1,36 @@
-# Desconto médio por lote: diagnóstico e recomendação
+# Desconto médio por lote, etapa 1: preços oficiais no cadastro de lotes
 
-## Parte 1. Diagnóstico
+## Conferência das datas
+As 9 datas da sua tabela são **iguais** às do cadastro do Summit 27, do Lote 0 (03/11/2026 a 08/11/2026) ao Lote 8 (07/05/2027 a 21/05/2027). Não encontrei nenhuma divergência.
 
-**a) De onde vem o valor cheio hoje.** O quadro "Descontos concedidos" não usa um preço cheio cadastrado. Ele lê o percentual escrito no nome do cupom (ex.: ALINE10 = 10%) e faz a conta de trás para frente sobre o valor pago: pago ÷ (1 − 10%) − pago. Cupom em valor fixo usa o valor fixo. Já existe uma função de "preço cheio do lote", que pega o preço mais comum das vendas sem cupom de cada produto. Mas ela é usada só para dar valor às cortesias, não para o desconto.
+## Faixas de grupo na Sympla (ponto em aberto)
+Só existem vendas de grupo no Lote 0 e no Lote 1:
+- **Lote 0:** "10% OFF - 2 a 5 - Padrão" (17 vendas), "10% OFF - 2 a 5 Ingressos Padrão" (22) e "15% OFF - 6 a 10 Ingressos Padrão" (8). Os dois primeiros parecem a mesma faixa com nomes diferentes. O terceiro é uma segunda faixa, com 15%.
+- **Lote 1:** "10% OFF - a partir de 3 - Padrão" (21) e "10% OFF - a partir de 3 - VIP" (4). É uma faixa só.
+- **Lote 2 em diante:** ainda não há vendas de grupo. Por isso não consigo ver quais faixas estão cadastradas na Sympla para esses lotes.
 
-**b) Produtos de grupo da Sympla ("10% OFF a partir de 3 - Padrão").** Não entram. O cálculo só olha cupons aplicados. Os produtos de grupo têm preço próprio e sem cupom. Por isso o desconto deles fica invisível hoje. No Lote 1, por exemplo, o "10% OFF a partir de 3 - Padrão" sai a R$ 935 e o "Ingresso padrão" sai a R$ 1.099. Também ficam de fora os cupons de 100%, de propósito, porque podem ser resgates de faturados.
+Sugestão: manter um campo de grupo por tipo. O valor cheio do desconto já vem do Valor padrão ou do Valor VIP, então a faixa de 15% aparece como desconto maior sozinha.
 
-**c) Faturados do Pipedrive.** Entram só se o comercial preencher o desconto na linha do produto no negócio do Pipedrive. Como os 7 negócios estão sem esse campo, o desconto deles conta zero. O painel não compara o valor do faturado com nenhum preço de tabela.
+## Ponto de atenção antes da carga
+O valor que a Sympla envia por venda parece estar **sem a taxa**. No Lote 0, o "10% OFF 2 a 5" chega a R$ 833,93, e a sua tabela diz R$ 890. Isso dá cerca de 6,7% de diferença. Se for isso, comparar a tabela (com taxa) com o valor da venda (sem taxa) criaria um desconto falso em todas as vendas. Na etapa 2, antes de montar o quadro, vou confirmar o cálculo com vendas reais sem cupom e propor como igualar as bases. Isso não muda esta etapa.
 
-**d) Dá para calcular por lote?** Sim. Toda venda da Sympla tem o lote no nome do produto, e os faturados recebem lote pela data. O que falta é uma referência confiável de preço cheio para cada tipo de ingresso em cada lote.
+## O que construo agora
+1. Sete campos de preço em cada lote, com valores em reais, todos opcionais: Padrão, VIP, Visita, Padrão + visita, VIP + visita, Grupo padrão (a partir de 3) e Grupo VIP (a partir de 3).
+2. Na tela **Configurações › Lotes**, os campos ficam editáveis ao lado das datas, salvos do mesmo jeito. Só admin pode editar.
+3. **Carga inicial** dos 9 lotes do Summit 27 com os valores da sua tabela.
+4. **Preço da pré-venda:** R$ 949 para "Pré-Venda 2027 | Ingresso Padrão", guardado como um ajuste do evento, fora dos lotes.
+5. Regra de equivalência entre produto e campo, que fica isolada e testada. Inclui os nomes duplicados por renomeação, como "Padrão + Visita" e "Combo Padrão", e as duas escritas do "10% OFF 2 a 5". Um produto que não se encaixa fica fora do desconto e aparece no aviso de produto sem classificação. A regra nunca tenta adivinhar pelo nome parecido.
 
-## Parte 3. Recomendação: caminho misto
+## Confirmação sobre os cupons de 100%
+Hoje eles já entram como **cortesia** no quadro de ingressos emitidos e no de cortesias, e continuam aparecendo lá. Na etapa 2 eu confiro isso na tela, com números.
 
-- **Sympla, automático (Caminho B):** o valor cheio de cada venda é o preço do produto base do mesmo lote e do mesmo tipo. Para Padrão, o "Ingresso padrão". Para VIP, o "Ingresso VIP". Para Combo, o combo base. Esse preço vem do valor mais comum das vendas sem cupom daquele produto, com o mesmo cálculo que já usamos para as cortesias. Assim o desconto de grupo entra sozinho, porque o "10% OFF" é comparado com o "Ingresso padrão" do lote.
-- **Faturados, pelo mesmo preço de referência:** o valor cheio é o preço do produto base do lote vigente na data do negócio, multiplicado pela quantidade. O desconto é a diferença para o valor fechado. Assim não dependemos de o comercial preencher o campo no Pipedrive.
-- **Configurações, só quando necessário (Caminho A como reserva):** se um lote ou tipo não tiver nenhuma venda sem cupom para servir de referência, o card avisa "sem preço de referência". Nesse caso, um admin poderá informar o valor cheio. Esse campo extra só entra se você aprovar, porque muda o banco.
-
-O cadastro manual puro não funciona bem: cada lote tem de 5 a 10 produtos, e você teria que manter todos à mão. O automático puro falha nos lotes em que todo mundo usou cupom.
-
-## Parte 2. O quadro (depois da sua aprovação)
-
-- Novo card **"Desconto médio"**, colocado logo depois do quadro de canal.
-- No topo, o percentual acumulado do evento. Abaixo, uma linha por lote com o percentual, a quantidade de ingressos e o valor de desconto. Os faturados aparecem marcados.
-- **Média ponderada pelo valor:** desconto total ÷ valor cheio total. Seguindo o seu exemplo (50%, 0% e 20% em ingressos de mesmo preço), a média dá 23%. A média simples por ingresso aparece no "i".
-- Ficam fora: cortesias, cupons de 100% e visitas avulsas. O card segue o filtro de período.
-- O cálculo fica isolado e testado, com casos tirados das vendas reais.
+## Etapa 2 (só depois da sua aprovação desta etapa)
+Quadro **Desconto médio** colocado depois do quadro de canal, com três médias ponderadas pelo valor: total (em destaque), Sympla e faturado. Tem a quebra por lote e a média simples no "i".
 
 ## Fora do escopo
-Cadastro de lotes, atribuição de lote, regra de dias úteis, quadro de visitas e separação entre pagantes e cortesias. O quadro atual de "Descontos concedidos" não muda, a menos que você peça.
+Datas e atribuição de lote, regra de dias úteis, quadro de visitas e separação entre pagantes e cortesias.
 
-## Decisões para você
-1. Confirmar o caminho misto.
-2. Média ponderada pelo valor (recomendado) ou média simples por ingresso.
-3. Cupons de 100% fora do cálculo, como hoje?
+## Técnico
+- Migração: colunas numéricas que podem ficar vazias em `event_batches` (`price_standard`, `price_vip`, `price_visit`, `price_standard_visit`, `price_vip_visit`, `price_group_standard`, `price_group_vip`) e `presale_price` em `events`. A auditoria por linha já cobre a tabela. A carga inicial é feita por UPDATE.
+- `src/lib/lotPricing.ts` (puro, com testes): `tipoDePreco(nomeProduto)` e `valorCheio(venda, lotes)`.
+- Edição em `Settings` › Lotes, usando o mesmo componente de salvar das datas.
