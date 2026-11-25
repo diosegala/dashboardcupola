@@ -19,8 +19,10 @@ export interface RitmoPeriodo {
 }
 
 // Núcleo genérico: qualquer recorte de datas de calendário (serve também para o mesmo período do ano anterior).
-export function ritmoNoPeriodo(vendas: VendaPagante[], inicio: string, fim: string, hoje: string, visao: VisaoRitmo): RitmoPeriodo {
+// `todas`: conta todas as vendas pagas recebidas, sem filtrar por data (Evento todo nunca descarta venda fora de lote).
+export function ritmoNoPeriodo(vendas: VendaPagante[], inicio: string, fim: string, hoje: string, visao: VisaoRitmo, todas = false): RitmoPeriodo {
   const pagantes = vendas.reduce((s, v) => {
+    if (todas) return s + (v.quantity || 0);
     if (!v.sold_at) return s;
     const dia = diaBrasilia(v.sold_at);
     return dia >= inicio && dia <= fim && dia <= hoje ? s + (v.quantity || 0) : s;
@@ -33,16 +35,16 @@ export function ritmoNoPeriodo(vendas: VendaPagante[], inicio: string, fim: stri
   return { situacao, pagantes, dias, ritmo, diasRestantes };
 }
 
-// Abas do ritmo: lotes já iniciados (até o vigente), sem repetir a mesma faixa de datas.
+// Opções do ritmo, em ordem cronológica: só lotes já iniciados e sem repetir período (datas sobrepostas ficam com o primeiro).
 export function lotesDoRitmo(lotes: BatchDates[], hoje: string): BatchDates[] {
-  const vistos = new Set<string>();
-  return lotes.filter((l) => {
-    if (!l.start_date || !l.end_date || l.start_date > hoje) return false;
-    const chave = `${l.start_date}|${l.end_date}`;
-    if (vistos.has(chave)) return false;
-    vistos.add(chave);
-    return true;
-  });
+  const ordem = [...lotes].sort((x, y) => (x.sort_order ?? 0) - (y.sort_order ?? 0) || (x.start_date ?? "").localeCompare(y.start_date ?? ""));
+  const aceitos: BatchDates[] = [];
+  for (const l of ordem) {
+    if (!l.start_date || !l.end_date || l.start_date > hoje) continue;
+    if (aceitos.some((a) => l.start_date! <= a.end_date! && a.start_date! <= l.end_date!)) continue;
+    aceitos.push(l);
+  }
+  return aceitos;
 }
 
 // Ritmo necessário: o que falta da meta ÷ dias úteis que faltam na seleção.

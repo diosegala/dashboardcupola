@@ -40,4 +40,16 @@ describe("ritmo por lote", () => {
     ], "2026-11-25");
     expect(l.map((x) => x.name)).toEqual(["Pré-venda", "Lote 1"]);
   });
+  it("ordem cronológica e períodos sobrepostos aparecem uma vez só", () => {
+    const l = lotesDoRitmo([
+      { name: "Lote 1", start_date: "2026-11-09", end_date: "2026-11-25", sort_order: 2 },
+      { name: "Pré-venda", start_date: "2026-05-01", end_date: "2026-06-30", sort_order: 0 },
+      { name: "Lote 0", start_date: "2026-06-15", end_date: "2026-11-08", sort_order: 1 },
+    ], "2026-11-25");
+    expect(l.map((x) => x.name)).toEqual(["Pré-venda", "Lote 1"]);
+  });
+  it("Evento todo conta todas as vendas pagas, mesmo fora de qualquer lote", () => {
+    const r = ritmoNoPeriodo([...vendas, { sold_at: "2026-05-22T15:00:00Z", quantity: 18 }], "2026-11-09", "2026-11-20", "2026-11-13", "ate_hoje", true);
+    expect(r.pagantes).toBe(28);
+  });
 });

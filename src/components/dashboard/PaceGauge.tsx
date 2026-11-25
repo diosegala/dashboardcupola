@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { addDays } from "date-fns";
 import { Tabs, TabsTrigger } from "@/components/ui/tabs";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SlidingTabsList } from "./SlidingTabsList";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import { resumoLotes } from "@/lib/batchSummary";
@@ -28,6 +29,8 @@ interface PaceGaugeProps {
   eventDate: Date;
   // Evento todo: meta de pagantes do evento (tela Metas) e ritmo do ano anterior na mesma época.
   metaEvento: number | null;
+  // Período escolhido no topo: o card não segue o filtro e mostra o selo "Evento inteiro".
+  filtrado?: boolean;
   ritmoAnterior?: number | null;
   className?: string;
 }
@@ -45,7 +48,7 @@ const point = (frac: number, r = R) => {
 const arcLength = Math.PI * R;
 
 // Velocímetro do ritmo por seleção (lote ou evento todo) e visão (até hoje ou total).
-export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior, className }: PaceGaugeProps) {
+export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior, filtrado, className }: PaceGaugeProps) {
   const hoje = hojeBrasilia();
   const calendario = batchCalendar();
   const faltaData = faltamDatas(calendario);
@@ -69,7 +72,7 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
       fim = diaBrasilia(addDays(eventDate, -1));
       meta = metaEvento;
     }
-    const r = ritmoNoPeriodo(pagos, inicio, fim, hoje, visao);
+    const r = ritmoNoPeriodo(pagos, inicio, fim, hoje, visao, !lote);
     // Meta conta todos os pagantes da seleção (inclusive os sem data), como no card de lotes.
     const pagantesMeta = lote ? resumoLotes(goals, tickets, []).lotes.find((l) => l.lote === lote.name)?.pagantes ?? r.pagantes : pagos.reduce((s, t) => s + (t.quantity || 0), 0);
     const n = ritmoNecessario(meta, pagantesMeta, r.diasRestantes);
@@ -111,27 +114,25 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
     <Card className={cn("flex flex-col gap-2 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
       <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
         Ritmo de vendas <InfoTip title="Ritmo de vendas" />
+        {filtrado && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Evento inteiro</span>}
       </div>
-      <Tabs value={selecao} onValueChange={setEscolha}>
-        <SlidingTabsList value={selecao} className="h-auto flex-wrap justify-start">
-          {opcoes.map((o) => (
-            <TabsTrigger key={o.name} value={o.name} className="relative z-[1] px-2.5 py-1 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
-              {o.name}
-            </TabsTrigger>
-          ))}
-          <TabsTrigger value={EVENTO} className="relative z-[1] px-2.5 py-1 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
-            Evento todo
-          </TabsTrigger>
-        </SlidingTabsList>
-      </Tabs>
-      <Tabs value={visao} onValueChange={(v) => setVisao(v as VisaoRitmo)}>
-        <SlidingTabsList value={visao} className="h-8">
-          <TabsTrigger value="ate_hoje" className="relative z-[1] px-2.5 py-1 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">Até hoje</TabsTrigger>
-          <TabsTrigger value="total" className="relative z-[1] px-2.5 py-1 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">Total</TabsTrigger>
-        </SlidingTabsList>
-      </Tabs>
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={selecao} onValueChange={setEscolha}>
+          <SelectTrigger className="h-9 w-[140px] text-xs" aria-label="Lote do ritmo"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {opcoes.map((o) => <SelectItem key={o.name} value={o.name}>{o.name}</SelectItem>)}
+            <SelectItem value={EVENTO}>Evento todo</SelectItem>
+          </SelectContent>
+        </Select>
+        <Tabs value={visao} onValueChange={(v) => setVisao(v as VisaoRitmo)}>
+          <SlidingTabsList value={visao} className="h-auto flex-wrap">
+            <TabsTrigger value="ate_hoje" className="relative z-[1] px-2.5 py-1 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">Consolidado até hoje</TabsTrigger>
+            <TabsTrigger value="total" className="relative z-[1] px-2.5 py-1 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">{lote ? "Lote inteiro" : "Período inteiro"}</TabsTrigger>
+          </SlidingTabsList>
+        </Tabs>
+      </div>
       <span className="text-xs text-muted-foreground">
-        Medindo: <b className="font-semibold text-foreground">{nomeSelecao}</b> · {visao === "ate_hoje" ? "até hoje" : "período inteiro"}
+        Medindo: <b className="font-semibold text-foreground">{nomeSelecao}</b> · {visao === "ate_hoje" ? "consolidado até hoje" : lote ? "lote inteiro" : "período inteiro"}
       </span>
       {faltaData && <AvisoDatas compacto />}
       <div className="flex flex-1 flex-col justify-between gap-4">

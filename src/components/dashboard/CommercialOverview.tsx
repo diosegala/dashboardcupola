@@ -283,6 +283,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         goals={goals}
         eventDate={eventParams?.eventDate ?? EVENT_DATE}
         metaEvento={m.goal}
+        filtrado={filtrado}
         ritmoAnterior={m.anterior?.currentPace}
       />
       {/* Receita acumulada e Descontos concedidos num único card: ticket médio e pagantes lado a lado, descontos no rodapé. */}
