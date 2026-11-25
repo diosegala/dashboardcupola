@@ -134,6 +134,13 @@
       "when": 1795628665794,
       "tag": "0018_buyer_prices_for_viewers",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1795631225344,
+      "tag": "0019_correct_legacy_buyer_price_read",
+      "breakpoints": true
     }
   ]
 }

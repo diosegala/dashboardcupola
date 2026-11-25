@@ -93,6 +93,7 @@ export function resumoDesconto(vendas: VendaDesconto[], lotes: LotePreco[], prec
     if (q <= 0) return;
     const nome = String(v.produto ?? "(sem nome)");
     const t = tipoDePreco(v.produto);
+    if (v.pago === 0 || t?.campo === "price_visit") return;
     if (!t) return faltou(nome, q, "Produto sem equivalência na tabela de preços");
     const unit = valorCheio(v.produto, lotes, precoPreVenda);
     if (unit == null) return faltou(nome, q, `Sem preço oficial cadastrado em ${t.lote ?? "Pré-venda"}`);
@@ -102,8 +103,9 @@ export function resumoDesconto(vendas: VendaDesconto[], lotes: LotePreco[], prec
     add(r.total);
     add(v.fonte === "pipedrive" ? r.faturado : r.sympla);
     const lote = t.lote ?? "Pré-venda";
-    if (!lotesMap.has(lote)) lotesMap.set(lote, novaSoma());
-    add(lotesMap.get(lote)!);
+    const somaLote = lotesMap.get(lote) ?? novaSoma();
+    lotesMap.set(lote, somaLote);
+    add(somaLote);
   });
   const ordem = (l: string) => (l === "Pré-venda" ? -1 : Number(l.replace(/\D/g, "")) || 0);
   r.porLote = [...lotesMap].map(([lote, soma]) => ({ lote, soma })).sort((a, b) => ordem(a.lote) - ordem(b.lote));

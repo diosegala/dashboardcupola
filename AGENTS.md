@@ -19,3 +19,4 @@
 - The Visitas presenciais card counts visits only through `src/lib/visitBoard.ts` (pure, tested): kind comes from `knownTicketKind`, finality answers are normalized there and never hardcoded, and an unrecognized question or near-duplicate answers raise a warning instead of being guessed.
 
 - Official lot prices (buyer value) live on `event_batches` price columns and `events.presale_price`; product→price mapping is explicit in `src/lib/lotPricing.ts` (pure, tested), so unmapped products never get a guessed reference.
+- Buyer-price reads use `get_buyer_prices`: legacy net-valued participant fields resolve only against complete equal-price order totals; ambiguous values remain unavailable, preserving settled sales and the existing revenue basis.

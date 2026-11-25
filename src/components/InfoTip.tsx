@@ -9,11 +9,12 @@ interface InfoTipProps {
   title: string;
   text?: string;
   className?: string;
+  contentClassName?: string;
 }
 
 // Botão "i" discreto: 35% de opacidade, 60% com o card em hover e 100% no próprio botão.
 // Abre no hover, no foco do teclado e no toque.
-export function InfoTip({ title, text, className }: InfoTipProps) {
+export function InfoTip({ title, text, className, contentClassName }: InfoTipProps) {
   const [open, setOpen] = useState(false);
   const definicao = text ?? METRIC_INFO[title];
   if (!definicao) return null;
@@ -41,7 +42,7 @@ export function InfoTip({ title, text, className }: InfoTipProps) {
         <TooltipContent
           side="top"
           collisionPadding={12}
-          className={cn("whitespace-pre-line break-words", definicao.length > 600 ? "max-w-[380px] text-[12px]" : "max-w-[260px] text-[13px]", "rounded-xl border-0 bg-foreground px-3.5 py-3 text-left font-normal normal-case leading-[1.45] tracking-normal text-background shadow-[0_12px_32px_-8px_rgba(0,0,0,0.35)]")}
+          className={cn("whitespace-pre-line break-words", definicao.length > 600 ? "max-w-[380px] text-[12px]" : "max-w-[260px] text-[13px]", "rounded-xl border-0 bg-foreground px-3.5 py-3 text-left font-normal normal-case leading-[1.45] tracking-normal text-background shadow-[0_12px_32px_-8px_rgba(0,0,0,0.35)]", contentClassName)}
         >
           <b className="mb-1 block font-semibold">{title}</b>
           {definicao}

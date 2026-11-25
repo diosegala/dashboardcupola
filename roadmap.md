@@ -1,4 +1,8 @@
 # Roadmap
+- [ ] Conferir base do desconto em todos os produtos e corrigir taxa indevida sem alterar receita.
+- [ ] Conferir filtro de período e visualizador no quadro Desconto médio.
+- [ ] Explicar base e conta do desconto no quadro e no ícone de informação.
+- [ ] Abrir patrocínios um a um, somente para conferência.
 
 - [x] Agrupar compras da mesma pessoa no extrato, preservando quantidades, valores, pedidos e totais.
 

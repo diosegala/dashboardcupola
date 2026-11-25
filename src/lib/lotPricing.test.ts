@@ -35,6 +35,21 @@ describe("lotPricing", () => {
 
 import { resumoDesconto, descontoPonderado } from "./lotPricing";
 describe("desconto médio", () => {
+  it("pré-venda compara R$ 949 do comprador e não R$ 889,21 líquidos", () => {
+    const r = resumoDesconto([{ produto: "Pré-Venda 2027 | Ingresso Padrão (21 e 22/05)", quantidade: 1, pago: 949, fonte: "sympla" }], lotes, 949);
+    expect(r.total.pago).toBe(949);
+    expect(descontoPonderado(r.total)).toBe(0);
+  });
+  it("visita avulsa não entra no desconto", () => {
+    const r = resumoDesconto([{ produto: "Lote 0 | Visita (dia 19)", quantidade: 3, pago: 3000, fonte: "sympla" }], lotes);
+    expect(r.total.cheio).toBe(0);
+    expect(r.total.vendas).toBe(0);
+  });
+  it("cortesias e descontos de 100% não entram na base", () => {
+    const r = resumoDesconto([{ produto: "Lote 0 | Padrão (dias 20 e 21)", quantidade: 1, pago: 0, fonte: "sympla" }], lotes);
+    expect(r.total.cheio).toBe(0);
+    expect(r.total.vendas).toBe(0);
+  });
   it("Sympla sem cupom pelo valor do comprador dá 0% (R$ 989 = tabela)", () => {
     const r = resumoDesconto([{ produto: "Lote 0 | Padrão (dias 20 e 21)", quantidade: 1, pago: 989, fonte: "sympla" }], lotes);
     expect(descontoPonderado(r.total)).toBe(0);

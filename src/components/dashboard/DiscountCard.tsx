@@ -38,8 +38,8 @@ export function DiscountCard({ tickets, className }: { tickets: Ticket[]; classN
   });
 
   const r = useMemo(() => {
-    const { paying, visits } = splitTickets(tickets);
-    const vendas: VendaDesconto[] = [...paying, ...visits].map((t) => {
+    const { paying } = splitTickets(tickets);
+    const vendas: VendaDesconto[] = paying.map((t) => {
       const q = t.quantity || 0;
       if (t.source === "pipedrive") return { produto: t.ticket_type, quantidade: q, pago: Number(t.total_price || 0), fonte: "pipedrive" };
       const unit = precos.data?.get(String(t.sympla_order_id));
@@ -61,7 +61,7 @@ export function DiscountCard({ tickets, className }: { tickets: Ticket[]; classN
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">{TITULO} <InfoTip title={TITULO} /></CardTitle>
+        <CardTitle className="flex items-center gap-2">{TITULO} <InfoTip title={TITULO} contentClassName="max-h-[var(--radix-tooltip-content-available-height)] overflow-y-auto" /></CardTitle>
         <p className="mt-1 text-xs text-muted-foreground">Quanto as vendas ficaram abaixo da tabela oficial do lote</p>
       </CardHeader>
       <CardContent className="grid gap-6 lg:grid-cols-2">
@@ -69,8 +69,9 @@ export function DiscountCard({ tickets, className }: { tickets: Ticket[]; classN
           <div>
             <div className="text-4xl font-semibold tabular-nums">{pctTxt(descontoPonderado(r.total))}</div>
             <p className="text-xs text-muted-foreground">
-              {brl(r.total.cheio - r.total.pago)} abaixo da tabela · média simples {pctTxt(descontoSimples(r.total))}
+              {brl(r.total.cheio - r.total.pago)} de desconto sobre {brl(r.total.cheio)} de valor de tabela
             </p>
+            <p className="mt-1 text-xs text-muted-foreground">Média simples entre vendas: {pctTxt(descontoSimples(r.total))}</p>
           </div>
           {linha("Sympla", r.sympla)}
           {linha("Faturado", r.faturado)}
