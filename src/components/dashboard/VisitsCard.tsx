@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
 import { AlertTriangle, ArrowRight } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,12 +66,19 @@ export function VisitsCard({ tickets, className }: { tickets: Ticket[]; classNam
   return (
     <Card className={className}>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          {TITULO} <InfoTip title={TITULO} />
-        </CardTitle>
+        <div className="flex items-center justify-between gap-2">
+          <CardTitle className="flex items-center gap-2">
+            {TITULO} <InfoTip title={TITULO} />
+          </CardTitle>
+          {quadro.avulsas > 0 && (
+            <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-full px-2 text-xs" onClick={() => window.dispatchEvent(new Event(ABRIR_EXTRATO_VISITAS))}>
+              Quem comprou <ArrowRight className="h-3 w-3" />
+            </Button>
+          )}
+        </div>
         <p className="mt-1 text-xs text-muted-foreground">Visitas vendidas no período, de onde vieram e a finalidade escolhida no formulário</p>
       </CardHeader>
-      <CardContent className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <CardContent className="grid gap-6">
         <div className="space-y-5">
           <div>
             <div className="flex items-baseline gap-2">
@@ -129,34 +135,6 @@ export function VisitsCard({ tickets, className }: { tickets: Ticket[]; classNam
           </div>
         </div>
 
-        <div className="lg:border-l lg:pl-6">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <p className="text-[13px] font-semibold text-foreground/75">Quem comprou visita avulsa</p>
-            {quadro.avulsas > 0 && (
-              <Button variant="ghost" size="sm" className="h-7 gap-1 rounded-full px-2 text-xs" onClick={() => window.dispatchEvent(new Event(ABRIR_EXTRATO_VISITAS))}>
-                Ver no extrato <ArrowRight className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-          {quadro.compradores.length === 0 ? (
-            <p className="text-xs text-muted-foreground">Nenhuma visita avulsa no período.</p>
-          ) : (
-            <ul className="divide-y">
-              {quadro.compradores.map((c) => (
-                <li key={`${c.email ?? c.nome}`} className="py-2.5 text-[13px]">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <span className="truncate font-medium">{c.nome}</span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">{int(c.quantidade)} {c.quantidade === 1 ? "visita" : "visitas"}</span>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    {[c.empresa, c.data ? format(new Date(c.data), "dd/MM/yyyy") : null].filter(Boolean).join(" · ")}
-                  </p>
-                  <p className="mt-0.5 text-xs">{c.finalidades.map((f) => `${f.rotulo} ${int(f.total)}`).join(", ")}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
       </CardContent>
     </Card>
   );

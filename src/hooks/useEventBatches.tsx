@@ -37,6 +37,18 @@ export function useEventBatches() {
   });
 }
 
+// Preço da pré-venda (fora dos lotes), cadastrado em Configurações › Lotes.
+export function usePresalePrice(eventId: string | null | undefined) {
+  return useQuery({
+    queryKey: ["preco-pre-venda", eventId],
+    enabled: !!eventId,
+    queryFn: async (): Promise<number | null> => {
+      const { data } = await (supabase as any).from("events").select("presale_price").eq("id", eventId).maybeSingle();
+      return data?.presale_price != null ? Number(data.presale_price) : null;
+    },
+  });
+}
+
 // Versão do calendário: entra na chave das vendas para o lote de cada venda ser recalculado quando as datas mudam.
 let VERSAO = "";
 export const batchCalendarVersion = () => VERSAO;

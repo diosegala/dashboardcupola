@@ -42,7 +42,7 @@ describe("quadro de desconto", () => {
     expect(taxa.percentual).toBeCloseTo(0.063);
   });
 
-  it("separa sorteio, resgate de faturado, credencial e visita avulsa", () => {
+  it("separa sorteio, resgate de faturado e credencial; visita avulsa paga entra no cálculo", () => {
     const r = foraDoDesconto([
       { status: "APPROVED", quantity: 2, total_price: 0, coupon_code: "100.00% - GANHADOR_ANITA", ticket_type: "Lote 0 | Padrão" },
       { status: "APPROVED", quantity: 3, total_price: 0, coupon_code: "100.00% - COPAAZUL100", redeems: "D1", ticket_type: "Lote 0 | Padrão" },
@@ -52,7 +52,7 @@ describe("quadro de desconto", () => {
     expect(r.find((x) => x.id === "cortesias")?.quantidade).toBe(2);
     expect(r.find((x) => x.id === "resgates")?.quantidade).toBe(3);
     expect(r.find((x) => x.id === "gratuitos")?.quantidade).toBe(1);
-    expect(r.find((x) => x.id === "visitas")?.quantidade).toBe(3);
+    expect(r.find((x) => x.id === "visitas")).toBeUndefined();
   });
 
   it("alerta o CRM por negócio, sem duplicar duas linhas do mesmo negócio", () => {

@@ -63,6 +63,14 @@ export function valorCheio(produto: string | null | undefined, lotes: LotePreco[
   return v != null && v > 0 ? Number(v) : null;
 }
 
+// Preço de tabela que representa o lote: o Padrão do cadastro (Pré-venda usa o preço da pré-venda). null sem cadastro.
+export function precoDeTabelaDoLote(lote: string, lotes: LotePreco[], precoPreVenda?: number | null): number | null {
+  if (lote === "Pré-venda") return precoPreVenda != null && precoPreVenda > 0 ? Number(precoPreVenda) : null;
+  const v = lotes.find((l) => l.name === lote)?.price_standard;
+  return v != null && v > 0 ? Number(v) : null;
+}
+
+
 // ---------- Desconto médio ----------
 // Sympla: compara o valor do comprador (ticket_sale_price, com a taxa absorvida) com a tabela do lote.
 // Faturado: compara o valor fechado da linha do negócio com a tabela. Nunca usa o valor líquido.
@@ -117,7 +125,7 @@ export function resumoDesconto(vendas: VendaDesconto[], lotes: LotePreco[], prec
     if (q <= 0) return;
     const nome = String(v.produto ?? "(sem nome)");
     const t = tipoDePreco(v.produto);
-    if (v.pago === 0 || t?.campo === "price_visit") return;
+    if (v.pago === 0) return;
     if (!t) return faltou(nome, q, "Produto sem equivalência na tabela de preços");
     const unit = valorCheio(v.produto, lotes, precoPreVenda);
     if (unit == null) return faltou(nome, q, `Sem preço oficial cadastrado em ${t.lote ?? "Pré-venda"}`);

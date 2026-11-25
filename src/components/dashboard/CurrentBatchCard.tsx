@@ -12,6 +12,8 @@ import { batchOf } from "@/lib/batches";
 import { progressoLote, resumoLotes } from "@/lib/batchSummary";
 import { cn } from "@/lib/utils";
 import { AvisoDatas, LoteSelos, dataCurta } from "./BatchStatus";
+import { LotesComparados } from "./LotesComparados";
+import type { DateRange } from "react-day-picker";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
@@ -20,6 +22,8 @@ interface Props {
   goals: any[];
   allTimeTickets?: Ticket[];
   previousYearTickets?: Ticket[];
+  // Período do topo: só a aba Comparativo o respeita.
+  range?: DateRange | null;
   className?: string;
 }
 
@@ -27,10 +31,10 @@ const R = 52;
 const C = 2 * Math.PI * R;
 
 // Destaque do lote à venda agora: vendidos x meta do lote, saldo, receita e vendas recentes.
-export function CurrentBatchCard({ goals, allTimeTickets = [], previousYearTickets = [], className }: Props) {
+export function CurrentBatchCard({ goals, allTimeTickets = [], previousYearTickets = [], range, className }: Props) {
   const { ativo: comparar } = useCompare();
   // Primeira aba: sempre o lote à venda agora. Segunda: todos os lotes (veio do card Ingressos emitidos).
-  const [visao, setVisao] = useState<"vigente" | "lotes">("vigente");
+  const [visao, setVisao] = useState<"vigente" | "lotes" | "comparativo">("vigente");
   const dados = useMemo(() => {
     const { lotes, loteAtual, faltamDatas } = resumoLotes(goals, allTimeTickets, previousYearTickets);
     const lote = lotes.find((l) => l.lote === loteAtual) ?? null;
@@ -53,20 +57,25 @@ export function CurrentBatchCard({ goals, allTimeTickets = [], previousYearTicke
     <Card className={cn("flex min-w-0 flex-col gap-4 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
-          Lote vigente <InfoTip title="Lote vigente" />
+          Lotes <InfoTip title="Lotes" />
         </div>
-        <Tabs value={visao} onValueChange={(v) => setVisao(v as "vigente" | "lotes")}>
+        <Tabs value={visao} onValueChange={(v) => setVisao(v as "vigente" | "lotes" | "comparativo")}>
           <SlidingTabsList value={visao} className="h-9">
             <TabsTrigger value="vigente" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
-              Lote vigente
+              Vigente
             </TabsTrigger>
             <TabsTrigger value="lotes" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
-              Por lote
+              Detalhes
+            </TabsTrigger>
+            <TabsTrigger value="comparativo" className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
+              Comparativo
             </TabsTrigger>
           </SlidingTabsList>
         </Tabs>
       </div>
-      {visao === "lotes" ? (
+      {visao === "comparativo" ? (
+        <LotesComparados goals={goals} tickets={allTimeTickets} range={range} />
+      ) : visao === "lotes" ? (
         <SalesSection embedded goals={goals} allTimeTickets={allTimeTickets} previousYearTickets={previousYearTickets} />
       ) : dados?.faltamDatas ? (
         <AvisoDatas />
@@ -106,7 +115,7 @@ function Conteudo({ lote, vHoje, v7, comparar }: { lote: ReturnType<typeof resum
         {pct !== null ? (
           <>
             <Item rotulo="% vendido" valor={`${Math.round(pct * 100)}%`} />
-            <Item rotulo="Saldo" valor={int(saldo as number)} />
+            <Item rotulo="Faltam" valor={int(saldo as number)} />
           </>
         ) : (
           <p className="col-span-2 text-xs text-muted-foreground">Defina a meta do lote na aba Metas</p>

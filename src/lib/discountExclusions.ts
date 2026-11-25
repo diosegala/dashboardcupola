@@ -36,15 +36,13 @@ export function foraDoDesconto(tickets: TicketDesconto[]): ItemForaDesconto[] {
     const credencial = ticketKind(t.ticket_type ?? "") === "Credenciais" || !!parseCoupon(t.coupon_code)?.code.startsWith("CRED");
     if (categoria === "resgates") {
       add("resgates", "Resgate de negócio faturado", q, "O ingresso já foi pago no faturado; o cupom de 100% serve só para emitir na Sympla.");
-    } else if (categoria === "visitas") {
-      add("visitas", "Visita avulsa", q, "Não dá acesso ao evento e tem preço próprio.");
     } else if (categoria === "cortesias" && !credencial) {
       add("cortesias", "Sorteio ou cortesia", q, "Ingresso dado, sem cobrança; não é uma venda com desconto.");
     } else if (categoria === "credenciais" || categoria === "gratuitos" || credencial) {
       add("gratuitos", "Credencial ou gratuidade", q, "Ingresso sem cobrança; não é uma venda com desconto.");
     }
   });
-  const ordem = ["resgates", "cortesias", "gratuitos", "visitas"];
+  const ordem = ["resgates", "cortesias", "gratuitos"];
   return ordem.map((id) => grupos.get(id)).filter((x): x is ItemForaDesconto => !!x);
 }
 

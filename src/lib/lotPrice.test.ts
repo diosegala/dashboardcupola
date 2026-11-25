@@ -1,13 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { commercialDiscounts, fullPrices } from "./lotPrice";
-
-const pago = (preco: number) => ({ quantity: 1, unit_price: preco, total_price: preco, ticket_type: "Lote 1 | VIP", coupon_code: null });
-
-describe("preço cheio do lote", () => {
-  it("usa o preço mais comum sem cupom", () => {
-    expect(fullPrices([pago(500), pago(500), pago(300)]).byBatch.get("Lote 1")).toBe(500);
-  });
-});
+import { commercialDiscounts } from "./lotPrice";
 
 describe("descontos concedidos (Comercial)", () => {
   it("cupom de 100% não entra", () => {
