@@ -72,7 +72,7 @@ export function agruparVendas(pagantes: Ticket[], calendario = batchCalendar()):
       itens.forEach((x) => porTipo.set(ticketKind(x.ticket_type), (porTipo.get(ticketKind(x.ticket_type)) ?? 0) + (x.quantity || 0)));
       // Visita avulsa não dá acesso ao evento: aparece com receita, mas com 0 participante.
       const ingressos = TICKET_KINDS.filter((k) => porTipo.get(k))
-        .map((k) => (k === "Visita presencial" ? `${porTipo.get(k)} Visita avulsa (sem participante)` : `${porTipo.get(k)} ${k}`))
+        .map((k) => `${porTipo.get(k)} ${k === "Visita presencial" ? "Visita avulsa" : k}`)
         .join(" · ");
       const codigoCupom = parseCoupon(t.coupon_code)?.code ?? null;
       const cupom = codigoCupom ? couponLabel(canonicalCoupon(codigoCupom)) : null;
@@ -129,7 +129,7 @@ export function agruparComprador(vendas: Venda[]): Venda[] {
       for (const k of TICKET_KINDS) tipos[k] = (tipos[k] ?? 0) + (v.quantidadesPorTipo?.[k] ?? 0);
     }
     const ingressos = TICKET_KINDS.filter((k) => tipos[k]).map((k) =>
-      k === "Visita presencial" ? `${tipos[k]} Visita avulsa (sem participante)` : `${tipos[k]} ${k}`,
+      `${tipos[k]} ${k === "Visita presencial" ? "Visita avulsa" : k}`,
     ).join(" · ");
     return {
       ...primeira,
