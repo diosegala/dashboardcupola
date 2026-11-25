@@ -1676,6 +1676,14 @@ export type Database = {
           slug: string
         }[]
       }
+      get_buyer_prices: {
+        Args: { p_event_id: string }
+        Returns: {
+          order_id: string
+          sympla_order_id: string
+          ticket_sale_price: number
+        }[]
+      }
       get_buyer_rows: {
         Args: { p_slug: string }
         Returns: {

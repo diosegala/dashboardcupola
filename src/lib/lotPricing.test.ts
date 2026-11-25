@@ -32,3 +32,39 @@ describe("lotPricing", () => {
     expect(valorCheio("Lote 9 | Padrão (dias 20 e 21)", lotes)).toBeNull();
   });
 });
+
+import { resumoDesconto, descontoPonderado } from "./lotPricing";
+describe("desconto médio", () => {
+  it("Sympla sem cupom pelo valor do comprador dá 0% (R$ 989 = tabela)", () => {
+    const r = resumoDesconto([{ produto: "Lote 0 | Padrão (dias 20 e 21)", quantidade: 1, pago: 989, fonte: "sympla" }], lotes);
+    expect(descontoPonderado(r.total)).toBe(0);
+  });
+  it("faturado compara o valor fechado com a tabela do lote", () => {
+    const r = resumoDesconto([{ produto: "Lote 1 | Ingresso Padrão", quantidade: 2, pago: 1996.2, fonte: "pipedrive" }], lotes);
+    expect(descontoPonderado(r.faturado)).toBeCloseTo(0.1, 5);
+    expect(r.sympla.vendas).toBe(0);
+  });
+  it("média ponderada pelo valor", () => {
+    const r = resumoDesconto([
+      { produto: "Lote 0 | Padrão (dias 20 e 21)", quantidade: 1, pago: 989, fonte: "sympla" },
+      { produto: "Lote 0 | VIP (dias 20 e 21)", quantidade: 1, pago: 1044.5, fonte: "sympla" },
+    ], lotes);
+    expect(descontoPonderado(r.total)).toBeCloseTo(1044.5 / 3078, 5);
+  });
+  it("produto sem equivalência não entra no cálculo e vai para o aviso", () => {
+    const r = resumoDesconto([{ produto: "Lote 1 | Ingresso Estudante", quantidade: 3, pago: 500, fonte: "sympla" }], lotes);
+    expect(r.total.vendas).toBe(0);
+    expect(r.semReferencia).toEqual([{ nome: "Lote 1 | Ingresso Estudante", quantidade: 3, motivo: "Produto sem equivalência na tabela de preços" }]);
+  });
+  it("lote sem preço cadastrado também vai para o aviso", () => {
+    const r = resumoDesconto([{ produto: "Lote 5 | Padrão (dias 20 e 21)", quantidade: 1, pago: 1500, fonte: "sympla" }], lotes);
+    expect(r.semReferencia[0].motivo).toContain("Lote 5");
+  });
+});
+describe("nomes reais do Summit 27", () => {
+  it("escritas com 'Ingresso' e a pré-venda com datas", () => {
+    expect(valorCheio("Lote 0 | Ingresso VIP (dias 20 e 21)", lotes)).toBe(2089);
+    expect(valorCheio("Lote 0 | Ingresso Padrão (dias 20 e 21)", lotes)).toBe(989);
+    expect(valorCheio("Pré-Venda 2027 | Ingresso Padrão (21 e 22/05)", lotes, 949)).toBe(949);
+  });
+});

@@ -39,6 +39,7 @@ import { useCompare } from "@/hooks/useCompare";
 import { eventGoal } from "@/lib/goalMetrics";
 import { ChartLegend } from "./charts/ChartLegend";
 import { ChannelGoalsCard } from "./ChannelGoalsCard";
+import { DiscountCard } from "./DiscountCard";
 import { resumoLotes } from "@/lib/batchSummary";
 import { hojeBrasilia } from "@/lib/batchCalendar";
 import { PREVIOUS_YEAR_KEY, previousYearLineProps, useSeriesVisibility } from "./charts/chartSeries";
@@ -396,6 +397,9 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
 
       {/* Vendas por canal (veio da aba Marketing): segue o período escolhido. */}
       <ChannelGoalsCard tickets={doPeriodo} allTickets={tickets} goals={goals} />
+
+      {/* Desconto médio frente à tabela oficial do lote. Segue o período do topo. */}
+      <DiscountCard tickets={doPeriodo} className="col-span-12" />
 
       {/* Linha 3: pagantes acumulados x trajetória */}
       <Card className="col-span-12">
