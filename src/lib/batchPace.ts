@@ -62,3 +62,39 @@ export function statusDoRitmo(ritmo: number | null, necessario: number | null, f
   if (ritmo >= necessario) return "on_track";
   return "below";
 }
+
+// Marco inicial do Evento todo: dia (Brasília) da venda paga mais antiga. Sem vendas datadas: null.
+export function marcoInicial(vendas: VendaPagante[]): string | null {
+  let m: string | null = null;
+  for (const v of vendas) {
+    if (!v.sold_at || !(v.quantity || 0)) continue;
+    const d = diaBrasilia(v.sold_at);
+    if (m === null || d < m) m = d;
+  }
+  return m;
+}
+
+// Pagantes fora de qualquer lote cadastrado (sem data ou com data fora de todos os períodos).
+// `inicio`/`fim` opcionais limitam ao recorte (Período filtrado).
+export function pagantesForaDeLote(vendas: VendaPagante[], lotes: BatchDates[], inicio?: string, fim?: string): number {
+  return vendas.reduce((s, v) => {
+    if (!v.sold_at) return inicio ? s : s + (v.quantity || 0);
+    const d = diaBrasilia(v.sold_at);
+    if (inicio && (d < inicio || (fim && d > fim))) return s;
+    const dentro = lotes.some((l) => l.start_date && l.end_date && l.start_date <= d && d <= l.end_date);
+    return dentro ? s : s + (v.quantity || 0);
+  }, 0);
+}
+
+// Dia de calendário deslocado (AAAA-MM-DD), sem fuso.
+export function somarDias(dia: string, n: number): string {
+  const d = data(dia);
+  d.setDate(d.getDate() + n);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+// Lote imediatamente anterior na lista do ritmo; o primeiro não tem anterior (null).
+export function loteAnterior(opcoes: BatchDates[], nome: string): BatchDates | null {
+  const i = opcoes.findIndex((o) => o.name === nome);
+  return i > 0 ? opcoes[i - 1] : null;
+}

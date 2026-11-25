@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 import { addDays } from "date-fns";
-import { Tabs, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { SlidingTabsList } from "./SlidingTabsList";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
+import type { DateRange } from "@/hooks/useDashboardData";
 import { resumoLotes } from "@/lib/batchSummary";
 import { batchCalendar, diaBrasilia, faltamDatas, hojeBrasilia, loteVigente } from "@/lib/batchCalendar";
-import { lotesDoRitmo, ritmoNecessario, ritmoNoPeriodo, statusDoRitmo, type VisaoRitmo } from "@/lib/batchPace";
+import { loteAnterior, lotesDoRitmo, marcoInicial, pagantesForaDeLote, ritmoNecessario, ritmoNoPeriodo, somarDias, statusDoRitmo } from "@/lib/batchPace";
 import { Card } from "@/components/ui/card";
 import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
@@ -16,6 +15,7 @@ import { CompareLine } from "@/components/CompareLine";
 import { AvisoDatas } from "./BatchStatus";
 
 const EVENTO = "__evento";
+const PERIODO = "__periodo";
 const CHIP: Record<string, { label: string; variant: ChipVariant }> = {
   achieved: { label: "Meta atingida", variant: "paid" },
   above: { label: "Acima do ritmo", variant: "ok" },
@@ -27,15 +27,20 @@ interface PaceGaugeProps {
   tickets: Ticket[];
   goals: any[];
   eventDate: Date;
-  // Evento todo: meta de pagantes do evento (tela Metas) e ritmo do ano anterior na mesma época.
+  // Meta de pagantes do evento (tela Metas) e ritmo do ano anterior na mesma época (só no Evento todo).
   metaEvento: number | null;
-  // Período escolhido no topo: o card não segue o filtro e mostra o selo "Evento inteiro".
+  // Período escolhido no topo: vira a opção "Período filtrado" e o card abre nela.
   filtrado?: boolean;
+  range?: DateRange;
   ritmoAnterior?: number | null;
   className?: string;
 }
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
+const num = (n: number) => n.toLocaleString("pt-BR");
+const ddmm = (dia: string) => `${dia.slice(8, 10)}/${dia.slice(5, 7)}`;
+const ddmmaaaa = (dia: string) => `${ddmm(dia)}/${dia.slice(0, 4)}`;
+const du = (n: number) => `${num(n)} ${n === 1 ? "dia útil" : "dias úteis"}`;
 
 // Meio círculo de 180° (da esquerda para a direita), raio R, centro (CX, CY).
 const R = 80;
@@ -47,49 +52,67 @@ const point = (frac: number, r = R) => {
 };
 const arcLength = Math.PI * R;
 
-// Velocímetro do ritmo por seleção (lote ou evento todo) e visão (até hoje ou total).
-export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior, filtrado, className }: PaceGaugeProps) {
+// Velocímetro do ritmo por recorte (período filtrado, lote ou evento todo), sempre consolidado até hoje.
+export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior, filtrado, range, className }: PaceGaugeProps) {
   const hoje = hojeBrasilia();
   const calendario = batchCalendar();
   const faltaData = faltamDatas(calendario);
   const opcoes = useMemo(() => (faltaData ? [] : lotesDoRitmo(calendario, hoje)), [calendario, faltaData, hoje]);
   const vigente = faltaData ? null : loteVigente(calendario, hoje).lote;
+  const periodo = filtrado && range ? { inicio: diaBrasilia(range.from), fim: diaBrasilia(range.to) } : null;
+  const chavePeriodo = periodo ? `${periodo.inicio}|${periodo.fim}` : "";
   const [escolha, setEscolha] = useState<string | null>(null);
-  const [visao, setVisao] = useState<VisaoRitmo>("ate_hoje");
-  const padrao = vigente && opcoes.some((o) => o.name === vigente) ? vigente : EVENTO;
-  const selecao = escolha && (escolha === EVENTO || opcoes.some((o) => o.name === escolha)) ? escolha : padrao;
+  // Ao filtrar (ou limpar) o período no topo, o card volta para o padrão.
+  useEffect(() => setEscolha(null), [chavePeriodo]);
+  const padrao = periodo ? PERIODO : vigente && opcoes.some((o) => o.name === vigente) ? vigente : EVENTO;
+  const valida = (v: string) => v === EVENTO || (v === PERIODO && !!periodo) || opcoes.some((o) => o.name === v);
+  const selecao = escolha && valida(escolha) ? escolha : padrao;
   const lote = opcoes.find((o) => o.name === selecao) ?? null;
+  const emPeriodo = selecao === PERIODO && periodo ? periodo : null;
+  // Lista: período filtrado, lote vigente, demais lotes (cronológico), evento todo.
+  const lista = useMemo(() => {
+    const v = opcoes.filter((o) => o.name === vigente);
+    return [...v, ...opcoes.filter((o) => o.name !== vigente)];
+  }, [opcoes, vigente]);
 
   const pagos = useMemo(() => splitTickets(tickets).paying, [tickets]);
   const calc = useMemo(() => {
-    let inicio: string, fim: string, meta: number | null;
-    if (lote) {
-      inicio = lote.start_date!;
-      fim = lote.end_date!;
-      meta = resumoLotes(goals, tickets, []).lotes.find((l) => l.lote === lote.name)?.meta ?? null;
-    } else {
-      inicio = pagos.reduce((m, t) => (t.sold_at && diaBrasilia(t.sold_at) < m ? diaBrasilia(t.sold_at) : m), hoje);
-      fim = diaBrasilia(addDays(eventDate, -1));
-      meta = metaEvento;
-    }
-    const r = ritmoNoPeriodo(pagos, inicio, fim, hoje, visao, !lote);
-    // Meta conta todos os pagantes da seleção (inclusive os sem data), como no card de lotes.
-    const pagantesMeta = lote ? resumoLotes(goals, tickets, []).lotes.find((l) => l.lote === lote.name)?.pagantes ?? r.pagantes : pagos.reduce((s, t) => s + (t.quantity || 0), 0);
-    const n = ritmoNecessario(meta, pagantesMeta, r.diasRestantes);
-    return { ...r, ...n, status: statusDoRitmo(r.ritmo, n.necessario, n.faltam) };
-  }, [lote, pagos, goals, tickets, hoje, visao, eventDate, metaEvento]);
+    const resumo = resumoLotes(goals, tickets, []).lotes;
+    const vespera = diaBrasilia(addDays(eventDate, -1));
+    const marco = marcoInicial(pagos) ?? hoje;
+    const totalPagantes = pagos.reduce((s, t) => s + (t.quantity || 0), 0);
+    // Evento todo: do marco (venda paga mais antiga) até a véspera, todas as vendas pagas.
+    const evento = ritmoNoPeriodo(pagos, marco, vespera, hoje, "ate_hoje", true);
+    const nEvento = ritmoNecessario(metaEvento, totalPagantes, evento.diasRestantes);
 
-  const nomeSelecao = lote ? lote.name : "Evento todo";
-  const currentPace = calc.ritmo ?? 0;
-  const requiredPace = calc.necessario;
-  const naoIniciado = calc.situacao === "nao_iniciado";
+    let r = evento, n = nEvento, metaLote: number | null = null;
+    if (lote) {
+      r = ritmoNoPeriodo(pagos, lote.start_date!, lote.end_date!, hoje, "ate_hoje");
+      const l = resumo.find((x) => x.lote === lote.name);
+      metaLote = l?.meta ?? null;
+      n = ritmoNecessario(metaLote, l?.pagantes ?? r.pagantes, r.diasRestantes);
+    } else if (emPeriodo) {
+      r = ritmoNoPeriodo(pagos, emPeriodo.inicio, emPeriodo.fim, hoje, "ate_hoje");
+    }
+    const ant = lote ? loteAnterior(opcoes, lote.name) : null;
+    const rAnt = ant ? ritmoNoPeriodo(pagos, ant.start_date!, ant.end_date!, hoje, "ate_hoje").ritmo : null;
+    const semana = ritmoNoPeriodo(pagos, somarDias(hoje, -6), hoje, hoje, "ate_hoje");
+    const fora = lote ? 0 : emPeriodo ? pagantesForaDeLote(pagos, calendario, emPeriodo.inicio, emPeriodo.fim) : pagantesForaDeLote(pagos, calendario);
+    // Velocímetro: compara com o necessário do recorte (lote com meta) ou do evento.
+    const comparar = lote && metaLote ? n : nEvento;
+    return { r, n, nEvento, evento, metaLote, marco, ant, rAnt, semana, fora, comparar, status: statusDoRitmo(r.ritmo, comparar.necessario, comparar.faltam) };
+  }, [lote, emPeriodo, opcoes, pagos, goals, tickets, hoje, eventDate, metaEvento, calendario]);
+
+  const nome = lote ? lote.name : emPeriodo ? "período filtrado" : "evento";
+  const currentPace = calc.r.ritmo ?? 0;
+  const requiredPace = calc.comparar.necessario;
   const dif = requiredPace !== null ? currentPace - requiredPace : 0;
   const base = calc.status ? CHIP[calc.status] : null;
   const chip = base && (calc.status === "above" || calc.status === "below")
     ? { ...base, label: `${base.label} · ${dif > 0 ? "+" : "−"}${Math.abs(dif).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}/dia` }
     : base;
-  const quando = visao === "total" && calc.situacao !== "encerrado" ? (lote ? "no lote inteiro" : "no período inteiro") : "até hoje";
-  const fonte = `${calc.pagantes.toLocaleString("pt-BR")} pagantes ÷ ${calc.dias.toLocaleString("pt-BR")} ${calc.dias === 1 ? "dia útil" : "dias úteis"} ${lote ? `do ${lote.name}` : "do evento"} ${quando}`;
+  const fonte = `${num(calc.r.pagantes)} pagantes ÷ ${du(calc.r.dias)}${!lote && !emPeriodo ? ` desde ${ddmmaaaa(calc.marco)}` : ""}`;
+  const variacao = calc.rAnt && calc.rAnt > 0 ? (currentPace / calc.rAnt - 1) * 100 : null;
 
   // Escala vai até o dobro do necessário (ou até o atual, se passar disso).
   const temMeta = requiredPace !== null;
@@ -109,31 +132,21 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
   const marcaIn = point(necessarioFrac, R - 14);
   const marcaOut = point(necessarioFrac, R + 14);
   const rotulo = point(necessarioFrac, R + 26);
+  const loteComMeta = !!lote && calc.n.necessario !== null;
 
   return (
     <Card className={cn("flex flex-col gap-2 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
       <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
         Ritmo de vendas <InfoTip title="Ritmo de vendas" />
-        {filtrado && <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Evento inteiro</span>}
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Select value={selecao} onValueChange={setEscolha}>
-          <SelectTrigger className="h-9 w-[140px] text-xs" aria-label="Lote do ritmo"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {opcoes.map((o) => <SelectItem key={o.name} value={o.name}>{o.name}</SelectItem>)}
-            <SelectItem value={EVENTO}>Evento todo</SelectItem>
-          </SelectContent>
-        </Select>
-        <Tabs value={visao} onValueChange={(v) => setVisao(v as VisaoRitmo)}>
-          <SlidingTabsList value={visao} className="h-auto flex-wrap">
-            <TabsTrigger value="ate_hoje" className="relative z-[1] px-2.5 py-1 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">Consolidado até hoje</TabsTrigger>
-            <TabsTrigger value="total" className="relative z-[1] px-2.5 py-1 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">{lote ? "Lote inteiro" : "Período inteiro"}</TabsTrigger>
-          </SlidingTabsList>
-        </Tabs>
-      </div>
-      <span className="text-xs text-muted-foreground">
-        Medindo: <b className="font-semibold text-foreground">{nomeSelecao}</b> · {visao === "ate_hoje" ? "consolidado até hoje" : lote ? "lote inteiro" : "período inteiro"}
-      </span>
+      <Select value={selecao} onValueChange={setEscolha}>
+        <SelectTrigger className="h-9 w-full max-w-[240px] text-xs" aria-label="Recorte do ritmo"><SelectValue /></SelectTrigger>
+        <SelectContent>
+          {periodo && <SelectItem value={PERIODO}>Período filtrado · {ddmm(periodo.inicio)} a {ddmm(periodo.fim)}</SelectItem>}
+          {lista.map((o) => <SelectItem key={o.name} value={o.name}>{o.name}{o.name === vigente ? " (vigente)" : ""}</SelectItem>)}
+          <SelectItem value={EVENTO}>Evento todo</SelectItem>
+        </SelectContent>
+      </Select>
       {faltaData && <AvisoDatas compacto />}
       <div className="flex flex-1 flex-col justify-between gap-4">
         <svg viewBox="0 -28 200 144" className="mx-auto h-auto w-full max-w-[200px] shrink-0" role="img" aria-label={`Ritmo atual ${fmt(currentPace)} por dia útil${temMeta ? `; necessário ${fmt(requiredPace as number)}` : ""}`}>
@@ -165,24 +178,51 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
         </svg>
         <div className="flex min-w-0 flex-col gap-3 border-t border-border pt-4 text-sm">
           <div className="flex min-w-0 flex-col gap-0.5">
-            <span className="text-xs font-semibold text-muted-foreground">Ritmo {lote ? `do ${lote.name}` : "do evento"}</span>
-            <span><b className="font-semibold text-foreground">{fmt(currentPace)}</b> <span className="text-muted-foreground">por dia útil</span></span>
+            <span className="text-xs font-semibold text-muted-foreground">Ritmo do {nome}</span>
+            <span className="flex flex-wrap items-baseline gap-x-2">
+              <span><b className="font-semibold text-foreground">{fmt(currentPace)}</b> <span className="text-muted-foreground">por dia útil</span></span>
+              {calc.ant && calc.rAnt !== null && (
+                <span className="text-xs text-muted-foreground">
+                  {calc.ant.name}: {fmt(calc.rAnt)}/dia{variacao !== null && <> · <b className={cn("font-semibold", variacao >= 0 ? "text-ok" : "text-warn")}>{variacao >= 0 ? "+" : "−"}{Math.abs(variacao).toLocaleString("pt-BR", { maximumFractionDigits: 0 })}%</b></>}
+                </span>
+              )}
+            </span>
             <span className="text-xs text-muted-foreground">{fonte}</span>
+            {!lote && calc.fora > 0 && <span className="text-xs text-muted-foreground">{num(calc.fora)} pagantes fora de lote cadastrado</span>}
           </div>
-          {temMeta ? (
-            <div className="flex min-w-0 flex-col gap-0.5">
-              <span className="text-xs font-semibold text-muted-foreground">Ritmo necessário {lote ? `no ${lote.name}` : "no evento"}</span>
-              <span><b className="font-semibold text-foreground"><CountUp value={Math.ceil(requiredPace as number)} format={(n) => fmt(Math.round(n))} /></b> <span className="text-muted-foreground">por dia útil</span></span>
-              <span className="text-xs text-muted-foreground">{calc.faltam.toLocaleString("pt-BR")} faltam ÷ {calc.diasRestantes.toLocaleString("pt-BR")} dias úteis {lote ? "até o fim do lote" : "até o evento"}</span>
-            </div>
-          ) : (
-            <span className="text-xs text-muted-foreground">{lote ? "Defina a meta do lote na aba Metas" : "Defina a meta de pagantes na aba Metas"}</span>
-          )}
-          {!lote && <CompareLine anterior={ritmoAnterior} atual={currentPace} formato={(n) => `${fmt(n)}/dia`} quando="nesta época" />}
+          {!lote && !emPeriodo && <CompareLine anterior={ritmoAnterior} atual={currentPace} formato={(n) => `${fmt(n)}/dia`} quando="nesta época" />}
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-xs font-semibold text-muted-foreground">Ritmo dos últimos 7 dias · independe da seleção</span>
+            <span><b className="font-semibold text-foreground">{fmt(calc.semana.ritmo ?? 0)}</b> <span className="text-muted-foreground">por dia útil</span></span>
+            <span className="text-xs text-muted-foreground">{num(calc.semana.pagantes)} pagantes ÷ {du(calc.semana.dias)}</span>
+          </div>
+          <div className="flex min-w-0 flex-col gap-0.5">
+            <span className="text-xs font-semibold text-muted-foreground">Ritmo necessário {lote ? `no ${lote.name}` : "no evento"}</span>
+            {loteComMeta ? (
+              <>
+                <span><b className="font-semibold text-foreground"><CountUp value={Math.ceil(calc.n.necessario as number)} format={(n) => fmt(Math.round(n))} /></b> <span className="text-muted-foreground">por dia útil para bater a meta do {lote!.name}</span></span>
+                <span className="text-xs text-muted-foreground">faltam {num(calc.n.faltam)} ÷ {du(calc.r.diasRestantes)} restantes no lote</span>
+              </>
+            ) : lote ? (
+              <span className="text-xs text-muted-foreground">{lote.name} sem meta cadastrada</span>
+            ) : null}
+            {calc.nEvento.necessario !== null ? (
+              lote ? (
+                <span className="mt-1 text-xs text-muted-foreground">Para a meta do evento: <b className="font-semibold text-foreground">{fmt(Math.ceil(calc.nEvento.necessario))}</b> por dia útil · faltam {num(calc.nEvento.faltam)} ÷ {du(calc.evento.diasRestantes)} até o evento</span>
+              ) : (
+                <>
+                  <span><b className="font-semibold text-foreground"><CountUp value={Math.ceil(calc.nEvento.necessario)} format={(n) => fmt(Math.round(n))} /></b> <span className="text-muted-foreground">por dia útil para bater a meta do evento</span></span>
+                  <span className="text-xs text-muted-foreground">faltam {num(calc.nEvento.faltam)} ÷ {du(calc.evento.diasRestantes)} até o evento</span>
+                </>
+              )
+            ) : (
+              <span className="text-xs text-muted-foreground">Defina a meta de pagantes na aba Metas</span>
+            )}
+          </div>
           {chip && (
             <span className="flex flex-wrap items-center gap-1.5">
               <Chip variant={chip.variant}>{chip.label}</Chip>
-              <span className="text-xs text-muted-foreground">{lote ? `meta do ${lote.name}` : "meta do evento"}</span>
+              <span className="text-xs text-muted-foreground">{loteComMeta ? `meta do ${lote!.name}` : "meta do evento"}</span>
             </span>
           )}
         </div>

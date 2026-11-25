@@ -53,3 +53,32 @@ describe("ritmo por lote", () => {
     expect(r.pagantes).toBe(28);
   });
 });
+
+import { marcoInicial, pagantesForaDeLote, loteAnterior, somarDias } from "./batchPace";
+
+describe("ritmo do evento todo e vendas fora de lote", () => {
+  const lotes = [
+    { name: "Lote 0", start_date: "2026-11-03", end_date: "2026-11-08", sort_order: 0 },
+    { name: "Lote 1", start_date: "2026-11-09", end_date: "2026-11-25", sort_order: 1 },
+  ] as any;
+  const vs = [
+    { sold_at: "2026-05-22T20:46:00Z", quantity: 14 },
+    { sold_at: "2026-10-30T15:00:00Z", quantity: 50 },
+    { sold_at: "2026-11-10T15:00:00Z", quantity: 3 },
+  ];
+  it("o marco é a venda paga mais antiga e acompanha uma venda anterior que entrar", () => {
+    expect(marcoInicial(vs)).toBe("2026-05-22");
+    expect(marcoInicial([...vs, { sold_at: "2026-04-01T15:00:00Z", quantity: 1 }])).toBe("2026-04-01");
+  });
+  it("conta os pagantes fora de lote cadastrado (14 da pré-venda + 50 faturados = 64)", () => {
+    expect(pagantesForaDeLote(vs, lotes)).toBe(64);
+    expect(pagantesForaDeLote(vs, lotes, "2026-10-01", "2026-11-25")).toBe(50);
+  });
+  it("o primeiro lote não tem lote anterior", () => {
+    expect(loteAnterior(lotes, "Lote 0")).toBeNull();
+    expect(loteAnterior(lotes, "Lote 1")?.name).toBe("Lote 0");
+  });
+  it("últimos 7 dias corridos começam 6 dias antes de hoje", () => {
+    expect(somarDias("2026-11-25", -6)).toBe("2026-11-19");
+  });
+});

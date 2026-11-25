@@ -41,7 +41,7 @@ export function InfoTip({ title, text, className }: InfoTipProps) {
         <TooltipContent
           side="top"
           collisionPadding={12}
-          className="max-w-[260px] whitespace-normal break-words rounded-xl border-0 bg-foreground px-3.5 py-3 text-left text-[13px] font-normal normal-case leading-[1.45] tracking-normal text-background shadow-[0_12px_32px_-8px_rgba(0,0,0,0.35)]"
+          className={cn("whitespace-pre-line break-words", definicao.length > 600 ? "max-w-[380px] text-[12px]" : "max-w-[260px] text-[13px]", "rounded-xl border-0 bg-foreground px-3.5 py-3 text-left font-normal normal-case leading-[1.45] tracking-normal text-background shadow-[0_12px_32px_-8px_rgba(0,0,0,0.35)]")}
         >
           <b className="mb-1 block font-semibold">{title}</b>
           {definicao}
