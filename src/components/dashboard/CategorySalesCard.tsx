@@ -84,7 +84,7 @@ export function CategorySalesCard({ paying, lote, className }: { paying: Ticket[
                     {hover === l.categoria && detalhe(l) && <span className="mt-1 block pl-[18px] text-xs font-normal text-muted-foreground">{detalhe(l)}</span>}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{int(l.ingressos)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{ehVisita(l) ? "fora do total" : pct(l.ingressos)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{ehVisita(l) ? "-\n" : pct(l.ingressos)}</TableCell>
                   <TableCell className="text-right tabular-nums">{int(l.pedidos)}</TableCell>
                   <TableCell className="text-right tabular-nums">{brl(l.valor)}</TableCell>
                   <TableCell className="text-right tabular-nums">{l.media != null ? brl(l.media) : "—"}</TableCell>
