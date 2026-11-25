@@ -92,7 +92,8 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
       r = ritmoNoPeriodo(pagos, lote.start_date!, lote.end_date!, hoje, "ate_hoje");
       const l = resumo.find((x) => x.lote === lote.name);
       metaLote = l?.meta ?? null;
-      n = ritmoNecessario(metaLote, l?.pagantes ?? r.pagantes, r.diasRestantes);
+      // Mesmos pagantes do ritmo atual: pelas datas do lote, com os faturados.
+      n = ritmoNecessario(metaLote, r.pagantes, r.diasRestantes);
     } else if (emPeriodo) {
       r = ritmoNoPeriodo(pagos, emPeriodo.inicio, emPeriodo.fim, hoje, "ate_hoje");
     }
@@ -241,7 +242,8 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
             {loteComMeta ? (
               <>
                 <span><b className="font-semibold text-foreground"><CountUp value={Math.ceil(calc.n.necessario as number)} format={(n) => fmt(Math.round(n))} /></b> <span className="text-muted-foreground">por dia útil para bater a meta do {lote!.name}</span></span>
-                <span className="text-xs text-muted-foreground">faltam {num(calc.n.faltam)} ÷ {du(calc.r.diasRestantes)} restantes no lote</span>
+                <span className="text-xs text-muted-foreground">{num(calc.metaLote ?? 0)} de meta − {num(calc.r.pagantes)} vendidos = {num(calc.n.faltam)} faltam ÷ {du(calc.r.diasRestantes)} restantes no lote</span>
+                {lote!.end_date === hoje && calc.n.faltam > 0 && <span className="text-xs text-muted-foreground">O {lote!.name} termina hoje: o necessário vale só para hoje.</span>}
               </>
             ) : lote ? (
               <span className="text-xs text-muted-foreground">{lote.name} sem meta cadastrada</span>

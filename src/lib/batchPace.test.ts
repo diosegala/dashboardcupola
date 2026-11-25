@@ -94,3 +94,16 @@ describe("nivelDoRitmo", () => {
     expect(nivelDoRitmo(1, null, 10)).toBeNull();
   });
 });
+
+import { ritmoNoPeriodo as _rp, ritmoNecessario as _rn } from "./batchPace";
+describe("ritmo necessário do lote", () => {
+  it("faturado dentro das datas do lote reduz o que falta", () => {
+    const vendas = [
+      { sold_at: "2026-11-10T15:00:00Z", quantity: 44, ticket_type: "Lote 1 | Padrão" },
+      { sold_at: "2026-11-12T15:00:00Z", quantity: 31, ticket_type: "Ingressos Summit", source: "pipedrive" },
+    ] as any[];
+    const r = _rp(vendas, "2026-11-09", "2026-11-25", "2026-11-25", "ate_hoje");
+    expect(r.pagantes).toBe(75);
+    expect(_rn(165, r.pagantes, r.diasRestantes).faltam).toBe(90);
+  });
+});
