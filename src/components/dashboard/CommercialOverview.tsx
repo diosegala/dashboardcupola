@@ -20,6 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CountUp } from "@/components/CountUp";
 import { IssuedTicketsCard, LOTE_EVENTO } from "./IssuedTicketsCard";
 import { CategorySalesCard } from "./CategorySalesCard";
+import { VisitsCard } from "./VisitsCard";
 import { batchOf } from "@/lib/batches";
 import { unclassifiedProducts } from "@/lib/ticketKinds";
 import { PaceGauge } from "./PaceGauge";
@@ -389,6 +390,9 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
 
       {/* Complementa Ingressos emitidos: o que foi vendido, por tipo, com o mesmo filtro de lote. */}
       <CategorySalesCard paying={pagosPorTipo} lote={lotePorTipo} className="col-span-12" />
+
+      {/* Visitas presenciais (avulsa e de combo), com a finalidade do formulário. Segue o período do topo. */}
+      <VisitsCard tickets={doPeriodo} className="col-span-12" />
 
       {/* Vendas por canal (veio da aba Marketing): segue o período escolhido. */}
       <ChannelGoalsCard tickets={doPeriodo} allTickets={tickets} goals={goals} />

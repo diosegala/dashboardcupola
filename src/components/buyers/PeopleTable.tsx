@@ -15,7 +15,7 @@ const int = (n: number) => n.toLocaleString("pt-BR");
 const PAGE = 100;
 
 export type Escopo = "neste" | "fora" | "todos";
-type Marca = "recorrente" | "cupom" | "pendente";
+type Marca = "recorrente" | "cupom" | "pendente" | "visita";
 
 const APROVADO = new Set(["APPROVED", "A"]);
 const SITUACAO: Record<string, { label: string; variant: "warn" | "bad" | "neutral" }> = {
@@ -40,11 +40,13 @@ interface PeopleTableProps {
   escopoInicial?: Escopo;
   // Só quem participou do evento selecionado: sem abas de escopo nem filtros de outros eventos (equipe de vendas).
   soEsteEvento?: boolean;
+  // Quem comprou visita avulsa neste evento: e-mail ou nome (minúsculo, sem acento) → quantidade de visitas.
+  visitasAvulsas?: Map<string, number>;
 }
 
 // Lista de pessoas com filtros: quem veio neste evento, quem ainda não veio, clientes recorrentes de qualquer evento
 // CUPOLA, quem participou de um evento específico e quem usou cupom.
-export function PeopleTable({ people, eventos, eventSlug, restrito = false, escopoInicial = "neste", soEsteEvento = false }: PeopleTableProps) {
+export function PeopleTable({ people, eventos, eventSlug, restrito = false, escopoInicial = "neste", soEsteEvento = false, visitasAvulsas }: PeopleTableProps) {
   const [participouDe, setParticipouDe] = useState("qualquer");
   const [busca, setBusca] = useState("");
   const [escopo, setEscopo] = useState<Escopo>(soEsteEvento ? "neste" : escopoInicial);
@@ -68,9 +70,11 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
           )
           .filter((c, i, arr) => arr.findIndex((x) => x.code === c.code && x.evento === c.evento) === i);
         const pendencias = Array.from(neste?.statuses ?? []).filter((s) => !APROVADO.has(s));
-        return { p, neste: !!neste, recorrente: eventosDaPessoa.length >= 2, eventosDaPessoa, cupons, pendencias };
+        const chaveNome = p.name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+        const visitas = visitasAvulsas ? (p.emails.map((e) => visitasAvulsas.get(e.toLowerCase())).find(Boolean) ?? visitasAvulsas.get(chaveNome) ?? 0) : 0;
+        return { p, visitas, neste: !!neste, recorrente: eventosDaPessoa.length >= 2, eventosDaPessoa, cupons, pendencias };
       }),
-    [people, eventSlug],
+    [people, eventSlug, visitasAvulsas],
   );
 
   // Busca por contato: a equipe digita e-mail ou telefone e o banco devolve a chave do que foi digitado.
@@ -110,7 +114,8 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
     (participouDe === "qualquer" || !!l.p.events[participouDe]) &&
     (!marcas.has("recorrente") || l.recorrente) &&
     (!marcas.has("cupom") || l.cupons.length > 0) &&
-    (!marcas.has("pendente") || l.pendencias.length > 0);
+    (!marcas.has("pendente") || l.pendencias.length > 0) &&
+    (!marcas.has("visita") || l.visitas > 0);
   const casaEscopo = (l: (typeof linhas)[number], e: Escopo) => e === "todos" || (e === "neste") === l.neste;
 
   // Buscando, procura em todos; sem busca, vale o escopo escolhido.
@@ -129,7 +134,7 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
       (l) =>
         casaEscopo(l, escopo) &&
         (participouDe === "qualquer" || !!l.p.events[participouDe]) &&
-        (m === "recorrente" ? l.recorrente : m === "cupom" ? l.cupons.length > 0 : l.pendencias.length > 0),
+        (m === "recorrente" ? l.recorrente : m === "cupom" ? l.cupons.length > 0 : m === "visita" ? l.visitas > 0 : l.pendencias.length > 0),
     ).length;
 
   const trocarMarca = (m: Marca) => {
@@ -152,6 +157,7 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
     ...(soEsteEvento ? [] : ([["recorrente", "Clientes recorrentes"]] as [Marca, string][])),
     ["cupom", "Usaram cupom"],
     ...(restrito ? [] : ([["pendente", "Pedido pendente"]] as [Marca, string][])),
+    ...(visitasAvulsas && visitasAvulsas.size > 0 ? ([["visita", "Visita avulsa"]] as [Marca, string][]) : []),
   ];
   const mostrarPedido = marcas.has("pendente");
 
@@ -245,12 +251,13 @@ export function PeopleTable({ people, eventos, eventSlug, restrito = false, esco
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lista.slice(0, limite).map(({ p, eventosDaPessoa, cupons, pendencias }) => (
+                {lista.slice(0, limite).map(({ p, visitas, eventosDaPessoa, cupons, pendencias }) => (
                   <TableRow key={p.id}>
                     <TableCell className="font-medium">
                       <span className="flex items-center gap-1.5">
                         <span className="block max-w-[170px] truncate">{p.name}</span>
                         {p.invoiced && <Chip variant="blue" className="shrink-0">Faturado</Chip>}
+                        {visitas > 0 && <Chip variant="lavender" className="shrink-0">{visitas === 1 ? "Visita avulsa" : `${visitas} visitas avulsas`}</Chip>}
                       </span>
                       {restrito && pareceContato && contatoConfere(p) && (
                         <Chip variant="blue" className="ml-2">Contato confere</Chip>

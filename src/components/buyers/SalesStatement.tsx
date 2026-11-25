@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ChevronDown, ExternalLink, Search } from "lucide-react";
 import { Card } from "@/components/ui/card";
@@ -27,6 +27,9 @@ const STATUS = [
   { key: "canceladas", label: "Canceladas" },
 ] as const;
 const TODOS = "__todos";
+// Pedido do quadro de visitas: abrir o extrato já filtrado em visita avulsa.
+export const ABRIR_EXTRATO_VISITAS = "extrato:visita-avulsa";
+export const temVisitaAvulsa = (v: Venda): boolean => v.ingressos.includes("Visita avulsa") || !!v.vendas?.some(temVisitaAvulsa);
 const POR_PAGINA = 25;
 // Mesmas colunas no cabeçalho e nas linhas: venda, ingressos, (lote a partir de sm) e valor. Ocupa a largura toda.
 const GRADE = "grid grid-cols-[minmax(0,1fr)_96px_92px] sm:grid-cols-[minmax(0,1fr)_120px_72px_104px] items-center gap-x-3";
@@ -96,6 +99,16 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
   const [busca, setBusca] = useState("");
   const [aberta, setAberta] = useState<string | null>(null);
   const [limite, setLimite] = useState(POR_PAGINA);
+  const [soVisita, setSoVisita] = useState(false);
+  const caixa = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const abrir = () => {
+      setAberto(true); setSoVisita(true); setOrigem("todas"); setLote(TODOS); setSituacao("todos"); setBusca(""); setLimite(POR_PAGINA);
+      requestAnimationFrame(() => caixa.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    };
+    window.addEventListener(ABRIR_EXTRATO_VISITAS, abrir);
+    return () => window.removeEventListener(ABRIR_EXTRATO_VISITAS, abrir);
+  }, []);
 
   const vendas = useMemo(() => vendasDoExtrato((({ paying, visits }) => [...paying, ...visits])(splitTickets(tickets)), tickets, pedidosSemIngresso), [tickets, pedidosSemIngresso]);
   const lotes = useMemo(() => lotesParaLista(vendas.map((v) => v.lote).filter((l) => l !== "—")), [vendas]);
@@ -106,6 +119,7 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
       (origem === "todas" || (origem === "faturado") === v.faturado) &&
       (lote === TODOS || v.lote === lote) &&
       (situacao === "todos" || grupoDe(v) === situacao) &&
+      (!soVisita || temVisitaAvulsa(v)) &&
       (!termo || v.texto.includes(termo)),
   );
   const pagas = visiveis.filter((v) => !v.status);
@@ -119,7 +133,7 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
 
   return (
     <Collapsible open={aberto} onOpenChange={setAberto}>
-      <Card className="p-4">
+      <Card ref={caixa} className="scroll-mt-4 p-4">
         <CollapsibleTrigger className="flex w-full items-center justify-between gap-3 text-left">
           <div>
             <p className="text-sm font-semibold">Extrato de vendas</p>
@@ -169,6 +183,14 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
                 <SelectItem value={TODOS}>Todos os lotes</SelectItem>
               </SelectContent>
             </Select>
+            <button
+              type="button"
+              aria-pressed={soVisita}
+              onClick={() => filtrar(setSoVisita)(!soVisita)}
+              className={cn("h-9 rounded-full border px-3 text-xs font-semibold transition-colors duration-150", soVisita ? "border-foreground bg-foreground text-background" : "bg-card text-muted-foreground hover:text-foreground")}
+            >
+              Visita avulsa
+            </button>
             <Select value={situacao} onValueChange={(x) => filtrar(setSituacao)(x as typeof situacao)}>
               <SelectTrigger className={cn("h-9 w-[160px] rounded-full bg-card text-xs", situacao !== "todos" && "border-foreground")}><SelectValue /></SelectTrigger>
               <SelectContent>

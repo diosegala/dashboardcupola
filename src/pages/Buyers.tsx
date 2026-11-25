@@ -14,6 +14,7 @@ import { useAllTimeTicketSales, useFormAnswerCounts } from "@/hooks/useDashboard
 import { useBuyersData } from "@/hooks/useBuyersData";
 import { eventRef } from "@/lib/buyers";
 import { faturadosDasVendas, invoicedPeople } from "@/lib/currentBuyers";
+import { origemDaVisita } from "@/lib/visitBoard";
 
 const int = (n: number) => n.toLocaleString("pt-BR");
 
@@ -49,6 +50,17 @@ function FullBuyers() {
     const { faturados: inv, resgatados } = faturadosDasVendas((perfilTickets.data ?? []) as any[]);
     return invoicedPeople(inv, resgatados, eventRef(event));
   }, [perfilTickets.data, event]);
+  // Quem comprou visita avulsa (aprovada) neste evento, por e-mail e por nome, para o selo e o filtro da lista.
+  const visitasAvulsas = useMemo(() => {
+    const mapa = new Map<string, number>();
+    ((perfilTickets.data ?? []) as any[]).forEach((t) => {
+      if (String(t.status ?? "").toLowerCase() !== "approved" || origemDaVisita(t.ticket_type) !== "avulsa") return;
+      const q = t.quantity || 0;
+      const nome = String(t.buyer_name ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+      [String(t.buyer_email ?? "").trim().toLowerCase(), nome].filter(Boolean).forEach((k) => mapa.set(k, (mapa.get(k) ?? 0) + q));
+    });
+    return mapa;
+  }, [perfilTickets.data]);
   const pessoasDaLista = useMemo(() => [...people, ...faturados], [people, faturados]);
 
   // Números do evento selecionado; "já vieram" é quem também aparece em algum evento anterior.
@@ -115,7 +127,7 @@ function FullBuyers() {
             {dados.isLoading ? (
               <Skeleton className="h-96" />
             ) : (
-              <PeopleTable people={pessoasDaLista} eventos={eventos} eventSlug={event.slug} />
+              <PeopleTable people={pessoasDaLista} eventos={eventos} eventSlug={event.slug} visitasAvulsas={visitasAvulsas} />
             )}
           </TabsContent>
         )}
