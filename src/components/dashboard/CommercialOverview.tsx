@@ -22,6 +22,7 @@ import { IssuedTicketsCard, LOTE_EVENTO } from "./IssuedTicketsCard";
 import { CategorySalesCard } from "./CategorySalesCard";
 import { batchOf } from "@/lib/batches";
 import { PaceGauge } from "./PaceGauge";
+import { EVENT_DATE } from "@/lib/eventConfig";
 import { SlidingTabsList } from "./SlidingTabsList";
 import { WeekdayView } from "./charts/WeekdayView";
 import { BusinessDaysView } from "./BusinessDaysView";
@@ -173,16 +174,6 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   const mostrarAnterior = comparar && m.hasPrevious;
   // Só separa as fontes nos gráficos quando já existe venda faturada internamente.
   const temInterno = m.invoicedCount > 0;
-  // Lote vigente do ritmo: mesma regra do card "Lote vigente" (datas da configuração de lotes, horário de Brasília).
-  const loteRitmo = useMemo(() => {
-    const { lotes, loteAtual, faltamDatas } = resumoLotes(goals, tickets, []);
-    if (faltamDatas) return { faltamDatas: true as const };
-    const l = lotes.find((x) => x.lote === loteAtual);
-    if (!l) return null;
-    const hoje = hojeBrasilia();
-    const dias = l.fim ? Math.max(0, Math.round((Date.parse(l.fim) - Date.parse(l.inicio && l.inicio > hoje ? l.inicio : hoje)) / 86400000) + 1) : 0;
-    return { nome: l.lote, dias, faltam: l.meta ? Math.max(l.meta - l.pagantes, 0) : null };
-  }, [goals, tickets]);
 
   // Descontos concedidos: cupons parciais + cortesias pelo preço cheio do lote, % sobre a receita bruta.
   const descontosComercial = useMemo(() => {
@@ -288,13 +279,11 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
       />
       <PaceGauge
         className="col-span-12 md:col-span-6 lg:col-span-3"
-        currentPace={m.currentPace}
-        requiredPace={m.requiredPace}
-        remainingDays={m.remainingDays}
-        chip={chip}
+        tickets={tickets}
+        goals={goals}
+        eventDate={eventParams?.eventDate ?? EVENT_DATE}
+        metaEvento={m.goal}
         ritmoAnterior={m.anterior?.currentPace}
-        faltam={m.missing}
-        lote={loteRitmo}
       />
       {/* Receita acumulada e Descontos concedidos num único card: ticket médio e pagantes lado a lado, descontos no rodapé. */}
       <Card className="col-span-12 flex flex-col gap-4 p-5 hover:-translate-y-[3px] hover:border-line-strong md:col-span-6 lg:col-span-4">
