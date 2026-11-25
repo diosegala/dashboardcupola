@@ -23,7 +23,8 @@ export interface Lote {
 // Soma pagantes e receita por lote (Pré-venda, Lote 0, Lote 1…), juntando os nomes que mudam a cada ano.
 export function porLote(tickets: Ticket[]) {
   const map = new Map<string, { pagantes: number; receita: number; ultimaVenda: string }>();
-  splitTickets(tickets).paying.forEach((t) => {
+  // Receita do lote inclui a visita avulsa (quantidade 0: não soma pagantes).
+  splitTickets(tickets).financial.forEach((t) => {
     const lote = batchOf(t.ticket_type);
     if (!lote) return;
     const atual = map.get(lote) ?? { pagantes: 0, receita: 0, ultimaVenda: "" };

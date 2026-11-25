@@ -217,8 +217,9 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   const mesesIngressos = useMemo(() => {
     const atuais = splitTickets(doPeriodo);
     return ticketMonthly({
-      sympla: [...atuais.paidSympla, ...atuais.visits.filter((t) => t.source !== "pipedrive")],
-      faturados: [...atuais.invoiced, ...atuais.visits.filter((t) => t.source === "pipedrive")],
+      // Visita avulsa soma no valor do mês com quantidade 0 (não conta como ingresso).
+      sympla: [...atuais.paidSympla, ...atuais.visits.filter((t) => t.source !== "pipedrive").map((t) => ({ ...t, quantity: 0 }))],
+      faturados: [...atuais.invoiced, ...atuais.visits.filter((t) => t.source === "pipedrive").map((t) => ({ ...t, quantity: 0 }))],
       anterior: splitTickets(filtrado ? previousPeriodTickets : previousTickets).paying,
       fim: fimMeses,
       hoje: hojeMes,

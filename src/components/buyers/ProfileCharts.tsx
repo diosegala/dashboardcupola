@@ -1,3 +1,4 @@
+import { ticketKind } from "@/lib/ticketKinds";
 import { useMemo } from "react";
 import { Card } from "@/components/ui/card";
 import { InfoTip } from "@/components/InfoTip";
@@ -95,7 +96,7 @@ function Destaque({ titulo, valor, sufixo, cor, atraso }: { titulo: string; valo
 // Perfil de quem vai ao evento: só totais, sem dados pessoais. Cada pergunta do formulário ganha um gráfico
 // escolhido pelo jeito das respostas; perguntas novas de qualquer evento entram sozinhas.
 export function ProfileCharts({ tickets, formAnswers, people, companies, eventos, eventSlug }: ProfileChartsProps) {
-  const aprovados = useMemo(() => tickets.filter((t) => isApproved(t.status)), [tickets]);
+  const aprovados = useMemo(() => tickets.filter((t) => isApproved(t.status) && ticketKind(t.ticket_type) !== "Visita presencial"), [tickets]);
   const participantes = useMemo(() => aprovados.reduce((s, t) => s + (t.quantity || 0), 0), [aprovados]);
   const porUf = useMemo(() => {
     const map: Record<string, number> = {};
