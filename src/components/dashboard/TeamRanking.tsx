@@ -10,8 +10,8 @@ import { InfoTip } from "@/components/InfoTip";
 import type { Ticket } from "@/hooks/useCommercialMetrics";
 import { isOutsideRanking, getCouponPeople, outsideTeamBySeller, parseCoupon, personBySeller, teamMemberName } from "@/lib/coupons";
 import { couponForSeller } from "@/lib/invoicedTickets";
-import { PRE_VENDA, batchOf, batchOrder } from "@/lib/batches";
-import { batchCalendar, loteVigente, type BatchDates } from "@/lib/batchCalendar";
+import { PRE_VENDA, batchOf, lotesParaLista } from "@/lib/batches";
+import { batchCalendar, hojeBrasilia, loteVigente, type BatchDates } from "@/lib/batchCalendar";
 import { cn } from "@/lib/utils";
 
 const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
@@ -92,16 +92,22 @@ export function buildTeamRanking(paying: Ticket[], extraCoupons: string[] = [], 
   // Com datas cadastradas em Configurações › Lotes, o lote atual é o do calendário (troca à meia-noite de Brasília),
   // mesmo antes da primeira venda dele. Sem calendário, segue o lote da venda mais recente.
   const doCalendario = loteVigente(calendario).lote;
-  if (doCalendario) loteAtual = doCalendario;
+  if (doCalendario) {
+    const cadastro = calendario.find((l) => l.name === doCalendario);
+    // Entre lotes, loteVigente aponta o próximo; ele só entra na lista no dia de início.
+    loteAtual = !cadastro?.start_date || cadastro.start_date <= hojeBrasilia() ? doCalendario : null;
+  }
   if (loteAtual && !porLote.has(loteAtual)) porLote.set(loteAtual, new Map());
-  const lotes = Array.from(porLote.entries())
-    .map(([lote, pessoas]) => ({
+  const ordem = lotesParaLista(Array.from(porLote.keys()), loteAtual, calendario);
+  const lotes = ordem.map((lote) => {
+    const pessoas = porLote.get(lote) ?? new Map<string, Vendedor>();
+    return {
       lote,
       ranking: Array.from(pessoas.values())
         .filter((v) => v.vendas > 0)
         .sort((a, b) => b.vendas - a.vendas || a.nome.localeCompare(b.nome)),
-    }))
-    .sort((a, b) => batchOrder(a.lote) - batchOrder(b.lote));
+    };
+  });
 
   // Campeões: quem liderou cada lote já encerrado (empates contam para todos).
   const map = new Map<string, { nome: string; cupons: string[]; lotes: string[] }>();
@@ -169,68 +175,35 @@ function NomeComCupom({ nome, cupons, className }: { nome: string; cupons: strin
   );
 }
 
-// Quantos lotes futuros aparecem esmaecidos na linha do tempo.
-const LOTES_A_FRENTE = 3;
-
-// Linha do tempo dos lotes: Pré-venda, Lote 0, Lote 1… Os já encerrados (clicáveis) ficam à esquerda, o atual em destaque
-// e os próximos esmaecidos à direita. A linha cresce sozinha: mostra sempre até o atual mais os próximos.
-function LinhaDoTempo({ atual, selecionado, onSelect }: { atual: string; selecionado: string; onSelect: (lote: string) => void }) {
-  const n = batchOrder(atual);
-  const itens = Array.from({ length: n + 2 + LOTES_A_FRENTE }, (_, k) => {
-    const i = k - 1;
-    return {
-      lote: i === -1 ? PRE_VENDA : `Lote ${i}`,
-      estado: i < n ? ("passado" as const) : i === n ? ("atual" as const) : ("futuro" as const),
-    };
-  });
-
+// Lista comum: vigente primeiro e somente lotes já iniciados. Não há futuros esmaecidos.
+function LinhaDoTempo({ lotes, atual, selecionado, onSelect }: { lotes: string[]; atual: string; selecionado: string; onSelect: (lote: string) => void }) {
   return (
-    <div role="group" aria-label="Linha do tempo dos lotes" className="-mx-1 flex items-center overflow-x-auto px-1 py-2">
-      {itens.map((it, i) => (
-        <div key={it.lote} className="flex shrink-0 items-center">
-          {i > 0 && <span className={cn("w-5", it.estado === "futuro" ? "border-t border-dashed border-border" : "h-px bg-border")} />}
-          {it.estado === "passado" && (
-            <button
-              type="button"
-              onClick={() => onSelect(it.lote)}
-              aria-pressed={selecionado === it.lote}
-              className={cn(
-                "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors duration-150",
-                selecionado === it.lote ? "border-foreground bg-foreground text-background" : "bg-card text-foreground hover:bg-secondary",
-              )}
-            >
-              {it.lote}
-            </button>
-          )}
-          {it.estado === "atual" && (
+    <div role="group" aria-label="Lotes do ranking" className="-mx-1 flex items-center overflow-x-auto px-1 py-2">
+      {lotes.map((lote, i) => {
+        const atualEste = lote === atual;
+        return (
+          <div key={lote} className="flex shrink-0 items-center">
+            {i > 0 && <span className="h-px w-5 bg-border" />}
             <Tooltip delayDuration={80}>
               <TooltipTrigger asChild>
                 <button
                   type="button"
-                  onClick={() => onSelect(it.lote)}
-                  aria-pressed={selecionado === it.lote}
+                  onClick={() => onSelect(lote)}
+                  aria-pressed={selecionado === lote}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground transition-shadow duration-150",
-                    selecionado === it.lote ? "ring-2 ring-foreground/80 ring-offset-2 ring-offset-card" : "opacity-90 hover:opacity-100",
+                    "rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors duration-150",
+                    atualEste && "border-primary bg-primary text-primary-foreground",
+                    !atualEste && (selecionado === lote ? "border-foreground bg-foreground text-background" : "bg-card text-foreground hover:bg-secondary"),
                   )}
                 >
-                  <span className="relative flex h-2 w-2">
-                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary-foreground/50 motion-reduce:animate-none" />
-                    <span className="relative inline-flex h-2 w-2 rounded-full bg-primary-foreground" />
-                  </span>
-                  {it.lote}
+                  {lote}{atualEste ? " · vigente" : ""}
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Este é o lote atual: as vendas de agora entram nele. Quando o próximo lote abrir, o destaque passa para ele.</TooltipContent>
+              {atualEste && <TooltipContent>Este é o lote atual: as vendas de agora entram nele.</TooltipContent>}
             </Tooltip>
-          )}
-          {it.estado === "futuro" && (
-            <span aria-disabled="true" title="Ainda não abriu" className="cursor-not-allowed select-none rounded-full border border-dashed px-3.5 py-1.5 text-xs font-medium text-muted-foreground opacity-45">
-              {it.lote}
-            </span>
-          )}
-        </div>
-      ))}
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -290,7 +263,7 @@ export function TeamRanking({ data, eu: euProp, metaPorPessoa, className, gerenc
       </CardHeader>
       <CardContent className="grid gap-6">
         <div>
-          <LinhaDoTempo atual={atual} selecionado={selecionado} onSelect={escolher} />
+          <LinhaDoTempo lotes={lotes.map((l) => l.lote)} atual={atual} selecionado={selecionado} onSelect={escolher} />
           {meta && (
             <div className="mb-2 mt-1 flex items-center justify-end gap-1.5 text-xs text-muted-foreground">
               <i className="inline-block h-3 w-[2px] rounded-full bg-foreground/45" /> Meta de {int(meta)} por pessoa

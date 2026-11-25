@@ -12,7 +12,7 @@ describe("ranking da equipe segue o calendário de lotes", () => {
       { name: "Lote 1", start_date: hoje, end_date: "2099-12-31" },
     ]);
     expect(r.loteAtual).toBe("Lote 1");
-    expect(r.lotes.map((l) => l.lote)).toEqual(["Lote 0", "Lote 1"]);
+    expect(r.lotes.map((l) => l.lote)).toEqual(["Lote 1", "Lote 0"]);
     expect(r.campeoes.map((c) => c.lotes)).toEqual([["Lote 0"]]);
   });
 });

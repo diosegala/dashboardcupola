@@ -29,8 +29,8 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
   const { ativo: comparar, rotulo } = useCompare();
 
   const { lotes, loteAtual } = useMemo(() => resumoLotes(goals, allTimeTickets, previousYearTickets), [allTimeTickets, previousYearTickets, goals]);
-  // Abre na página do lote vigente (a lista vem do mais novo para o mais antigo).
-  const posVigente = [...lotes].reverse().findIndex((l) => l.lote === loteAtual);
+  // Abre na página do lote vigente, que já vem primeiro na lista comum.
+  const posVigente = lotes.findIndex((l) => l.lote === loteAtual);
   const [paginaEscolhida, setPagina] = useState<number | null>(null);
   const pagina = paginaEscolhida ?? Math.max(0, Math.floor(posVigente / POR_PAGINA));
 
@@ -101,8 +101,7 @@ export function SalesSection({ goals, allTimeTickets = [], previousYearTickets =
   if (embedded) {
     const totalPaginas = Math.max(1, Math.ceil(lotes.length / POR_PAGINA));
     const atual = Math.min(pagina, totalPaginas - 1);
-    // O lote mais novo sempre no topo.
-    const visiveis = [...lotes].reverse().slice(atual * POR_PAGINA, (atual + 1) * POR_PAGINA);
+    const visiveis = lotes.slice(atual * POR_PAGINA, (atual + 1) * POR_PAGINA);
     return (
       <div className="space-y-3">
         <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border">

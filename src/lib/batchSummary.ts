@@ -1,5 +1,5 @@
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
-import { batchOf, batchOrder } from "@/lib/batches";
+import { batchOf, batchOrder, lotesParaLista } from "@/lib/batches";
 import { fullPrices } from "@/lib/lotPrice";
 import { batchCalendar, hojeBrasilia, loteVigente, situacao, type BatchDates, type Situacao } from "@/lib/batchCalendar";
 
@@ -79,9 +79,11 @@ export function resumoLotes(goals: any[], allTimeTickets: Ticket[], previousYear
         anteriorReceita: anterior.get(lote)?.receita ?? null,
         ...doCalendario(lote),
       }));
-    // Lotes futuros só entram quando a data de início chegar (o vigente sempre aparece, mesmo se ainda for começar).
-    const visiveis = lotes.filter((l) => l.situacao !== "nao_iniciado" || l.lote === loteAtual);
-    return { lotes: visiveis, loteAtual, faltamDatas: vig.faltamDatas };
+    // Lotes futuros ficam fora até o dia de início. O vigente abre a lista; os demais vêm do mais recente ao mais antigo.
+    const visiveis = lotes.filter((l) => l.situacao !== "nao_iniciado");
+    const ordem = lotesParaLista(visiveis.map((l) => l.lote), loteAtual, calendario, hoje);
+    const ordenados = ordem.map((nome) => visiveis.find((l) => l.lote === nome)).filter((l): l is Lote => !!l);
+    return { lotes: ordenados, loteAtual, faltamDatas: vig.faltamDatas };
 }
 
 // Progresso de um lote em relação à meta: % vendido e saldo (null sem meta).

@@ -71,7 +71,8 @@ export function GoalEditor({ open, def, goal, eventEnd, eventId, saving, onClose
   const calendario = [PRE_VENDA, ...(cadastrados.length ? cadastrados : Array.from({ length: 9 }, (_, i) => `Lote ${i}`))];
   const lotesDoCalendario = [...new Set([...calendario, ...(lotes.map(batchOf).filter(Boolean) as string[])])].sort((a, b) => batchOrder(a) - batchOrder(b));
   // Metas por lote (ingressos, receita, canal) usam o lote inteiro, igual aos cards do painel.
-  const opcoesLote = lotesParaLista(lotesDoCalendario);
+  // Diferente dos quadros, o planejamento precisa permitir metas para lotes que ainda não começaram.
+  const opcoesLote = lotesParaLista(lotesDoCalendario, undefined, undefined, undefined, true);
 
   useEffect(() => {
     if (!open) return;

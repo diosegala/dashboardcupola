@@ -1,5 +1,7 @@
 // Preço oficial (valor do comprador) de cada produto da Sympla, lido do cadastro de lotes.
 // Regra explícita por nome: produto sem equivalência fica fora do cálculo de desconto (nunca por semelhança).
+import { diaBrasilia } from "@/lib/batchCalendar";
+import { CANAIS, SEM_CANAL } from "@/lib/salesChannel";
 
 export type CampoPreco =
   | "price_standard" | "price_vip" | "price_visit" | "price_standard_visit"
@@ -61,32 +63,54 @@ export function valorCheio(produto: string | null | undefined, lotes: LotePreco[
   return v != null && v > 0 ? Number(v) : null;
 }
 
-// ---------- Desconto médio (etapa 2) ----------
+// ---------- Desconto médio ----------
 // Sympla: compara o valor do comprador (ticket_sale_price, com a taxa absorvida) com a tabela do lote.
 // Faturado: compara o valor fechado da linha do negócio com a tabela. Nunca usa o valor líquido.
-export type VendaDesconto = { produto: string | null | undefined; quantidade: number; pago: number | null; fonte: "sympla" | "pipedrive" };
-export type Soma = { pago: number; cheio: number; vendas: number; percentuais: number[] };
+export type VendaDesconto = {
+  produto: string | null | undefined;
+  quantidade: number;
+  pago: number | null;
+  fonte: "sympla" | "pipedrive";
+  canal?: string;
+  vendidoEm?: string | null;
+  // Valor líquido só para medir a taxa em separado; nunca entra na conta do desconto.
+  valorLiquido?: number | null;
+};
+export type Soma = { pago: number; cheio: number; vendas: number; ingressos: number; percentuais: number[] };
+export type MesDesconto = { mes: string; soma: Soma; acumulada: Soma };
 export type ResumoDesconto = {
   total: Soma; sympla: Soma; faturado: Soma;
   porLote: { lote: string; soma: Soma }[];
+  porCanal: { canal: string; soma: Soma }[];
+  porMes: MesDesconto[];
   semReferencia: { nome: string; quantidade: number; motivo: string }[];
 };
 
-const novaSoma = (): Soma => ({ pago: 0, cheio: 0, vendas: 0, percentuais: [] });
+const novaSoma = (): Soma => ({ pago: 0, cheio: 0, vendas: 0, ingressos: 0, percentuais: [] });
+const copiaSoma = (s: Soma): Soma => ({ ...s, percentuais: [...s.percentuais] });
 // Média ponderada pelo valor: 1 − pago ÷ cheio. null sem base.
 export const descontoPonderado = (s: Soma) => (s.cheio > 0 ? 1 - s.pago / s.cheio : null);
 // Média simples: média dos descontos de cada venda.
 export const descontoSimples = (s: Soma) => (s.percentuais.length ? s.percentuais.reduce((a, b) => a + b, 0) / s.percentuais.length : null);
 
 export function resumoDesconto(vendas: VendaDesconto[], lotes: LotePreco[], precoPreVenda?: number | null): ResumoDesconto {
-  const r: ResumoDesconto = { total: novaSoma(), sympla: novaSoma(), faturado: novaSoma(), porLote: [], semReferencia: [] };
+  const r: ResumoDesconto = { total: novaSoma(), sympla: novaSoma(), faturado: novaSoma(), porLote: [], porCanal: [], porMes: [], semReferencia: [] };
   const lotesMap = new Map<string, Soma>();
+  const canaisMap = new Map<string, Soma>();
+  const mesesMap = new Map<string, Soma>();
   const sem = new Map<string, { nome: string; quantidade: number; motivo: string }>();
   const faltou = (nome: string, q: number, motivo: string) => {
     const k = `${nome}|${motivo}`;
     const atual = sem.get(k) ?? { nome, quantidade: 0, motivo };
     atual.quantidade += q;
     sem.set(k, atual);
+  };
+  const add = (s: Soma, pago: number, cheio: number, q: number) => {
+    s.pago += pago;
+    s.cheio += cheio;
+    s.vendas += 1;
+    s.ingressos += q;
+    s.percentuais.push(1 - pago / cheio);
   };
   vendas.forEach((v) => {
     const q = v.quantidade || 0;
@@ -99,16 +123,57 @@ export function resumoDesconto(vendas: VendaDesconto[], lotes: LotePreco[], prec
     if (unit == null) return faltou(nome, q, `Sem preço oficial cadastrado em ${t.lote ?? "Pré-venda"}`);
     if (v.pago == null) return faltou(nome, q, "Sem valor do comprador na importação");
     const cheio = unit * q;
-    const add = (s: Soma) => { s.pago += v.pago as number; s.cheio += cheio; s.vendas += 1; s.percentuais.push(1 - (v.pago as number) / cheio); };
-    add(r.total);
-    add(v.fonte === "pipedrive" ? r.faturado : r.sympla);
+    add(r.total, v.pago, cheio, q);
+    add(v.fonte === "pipedrive" ? r.faturado : r.sympla, v.pago, cheio, q);
     const lote = t.lote ?? "Pré-venda";
     const somaLote = lotesMap.get(lote) ?? novaSoma();
     lotesMap.set(lote, somaLote);
-    add(somaLote);
+    add(somaLote, v.pago, cheio, q);
+    if (v.canal) {
+      const somaCanal = canaisMap.get(v.canal) ?? novaSoma();
+      canaisMap.set(v.canal, somaCanal);
+      add(somaCanal, v.pago, cheio, q);
+    }
+    if (v.vendidoEm) {
+      const mes = diaBrasilia(v.vendidoEm).slice(0, 7);
+      const somaMes = mesesMap.get(mes) ?? novaSoma();
+      mesesMap.set(mes, somaMes);
+      add(somaMes, v.pago, cheio, q);
+    }
   });
   const ordem = (l: string) => (l === "Pré-venda" ? -1 : Number(l.replace(/\D/g, "")) || 0);
   r.porLote = [...lotesMap].map(([lote, soma]) => ({ lote, soma })).sort((a, b) => ordem(a.lote) - ordem(b.lote));
+  const ordemCanais = [...CANAIS, SEM_CANAL] as string[];
+  r.porCanal = [...canaisMap]
+    .map(([canal, soma]) => ({ canal, soma }))
+    .sort((a, b) => ordemCanais.indexOf(a.canal) - ordemCanais.indexOf(b.canal));
+  const acumulada = novaSoma();
+  r.porMes = [...mesesMap].sort(([a], [b]) => a.localeCompare(b)).map(([mes, soma]) => {
+    const atual = copiaSoma(acumulada);
+    atual.pago += soma.pago;
+    atual.cheio += soma.cheio;
+    atual.vendas += soma.vendas;
+    atual.ingressos += soma.ingressos;
+    atual.percentuais.push(...soma.percentuais);
+    Object.assign(acumulada, atual);
+    return { mes, soma, acumulada: copiaSoma(atual) };
+  });
   r.semReferencia = [...sem.values()];
   return r;
+}
+
+// Taxa da Sympla em separado: valor do comprador menos valor líquido, sem entrar no desconto.
+// O percentual usa como base tudo o que os clientes pagaram nos ingressos com valor confirmado.
+export function taxaDaSympla(vendas: VendaDesconto[]) {
+  let taxa = 0, base = 0, semValor = 0;
+  vendas.forEach((v) => {
+    if (v.fonte !== "sympla") return;
+    if (v.pago == null || v.valorLiquido == null) {
+      semValor += v.quantidade || 0;
+      return;
+    }
+    base += v.pago;
+    taxa += Math.max(0, v.pago - v.valorLiquido);
+  });
+  return { taxa, base, percentual: base > 0 ? taxa / base : null, semValor };
 }

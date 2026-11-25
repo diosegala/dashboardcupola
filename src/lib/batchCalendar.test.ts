@@ -32,6 +32,7 @@ describe("lote vigente pelas datas", () => {
     expect(r.loteAtual).toBe("Lote 1");
     expect(r.lotes.find((l) => l.lote === "Lote 1")?.metaAtingida).toBe(true);
     expect(r.lotes.find((l) => l.lote === "Lote 2")).toBeUndefined();
-    expect(resumoLotes([], [], [], LOTES, "2026-11-26").lotes.map((l) => l.lote)).toContain("Lote 2");
+    expect(resumoLotes([], [], [], LOTES, "2026-11-26").lotes.map((l) => l.lote)).not.toContain("Lote 2");
+    expect(resumoLotes([], [], [], LOTES, "2026-11-27").lotes.map((l) => l.lote)).toContain("Lote 2");
   });
 });

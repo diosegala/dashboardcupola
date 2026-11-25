@@ -36,7 +36,7 @@ export function ChannelGoalsCard({ tickets, allTickets, goals }: Props) {
     return lotesParaLista(Array.from(s), loteAtual);
   }, [allTickets, goals, resumo, loteAtual]);
   const [escolha, setEscolha] = useState<string | null>(null);
-  const recorte = escolha ?? loteAtual ?? EVENTO;
+  const recorte = escolha ?? (loteAtual && lotes.includes(loteAtual) ? loteAtual : EVENTO);
   const lote = recorte === EVENTO ? null : recorte;
 
   const linhas = useMemo(() => {

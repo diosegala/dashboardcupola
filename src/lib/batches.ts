@@ -1,4 +1,4 @@
-import { batchCalendar, diaBrasilia, loteNaData, loteVigente, type BatchDates } from "@/lib/batchCalendar";
+import { batchCalendar, diaBrasilia, hojeBrasilia, loteNaData, loteVigente, type BatchDates } from "@/lib/batchCalendar";
 // Lote do ingresso a partir do nome da Sympla: "Lote 7 | Ingresso VIP" → "Lote 7"; "Pré-Venda 2027 | ..." → "Pré-venda".
 // A pré-venda vem antes do Lote 0: a ordem de venda é Pré-venda, Lote 0, Lote 1, Lote 2…
 
@@ -66,14 +66,22 @@ export function withBatchByDate<T extends { sold_at?: string | null; batch_at?: 
   });
 }
 
-// Ordem das listas suspensas de lotes: o vigente primeiro, depois os anteriores do mais recente para o mais antigo e,
-// por último, os próximos em ordem. Sem vigente (calendário sem datas), do mais recente para o mais antigo.
-export function lotesParaLista(lotes: string[], vigente: string | null = loteVigente(batchCalendar()).lote): string[] {
-  const unicos = [...new Set(lotes.filter(Boolean))];
+// Ordem comum das listas de lotes: vigente primeiro, depois os anteriores do mais recente para o mais antigo.
+// Lote com início futuro não aparece; entra sozinho no dia de abertura (horário de Brasília).
+export function lotesParaLista(
+  lotes: string[],
+  vigente: string | null = loteVigente(batchCalendar()).lote,
+  calendario: BatchDates[] = batchCalendar(),
+  hoje = hojeBrasilia(),
+  incluirFuturos = false,
+): string[] {
+  const futuros = new Set(incluirFuturos ? [] : calendario.filter((l) => l.start_date && l.start_date > hoje).map((l) => l.name));
+  const unicos = [...new Set(lotes.filter(Boolean))].filter((l) => !futuros.has(l));
+  const atual = vigente && unicos.includes(vigente) && !futuros.has(vigente) ? vigente : null;
   const ordem = (l: string) => batchOrder(l);
-  if (!vigente || !unicos.includes(vigente)) return unicos.sort((a, b) => ordem(b) - ordem(a));
-  const v = ordem(vigente);
+  if (!atual) return unicos.sort((a, b) => ordem(b) - ordem(a));
+  const v = ordem(atual);
   const anteriores = unicos.filter((l) => ordem(l) < v).sort((a, b) => ordem(b) - ordem(a));
-  const proximos = unicos.filter((l) => l !== vigente && ordem(l) >= v).sort((a, b) => ordem(a) - ordem(b));
-  return [vigente, ...anteriores, ...proximos];
+  const posterioresIniciados = unicos.filter((l) => l !== atual && ordem(l) > v).sort((a, b) => ordem(a) - ordem(b));
+  return [atual, ...anteriores, ...posterioresIniciados];
 }

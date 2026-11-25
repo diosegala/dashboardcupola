@@ -61,7 +61,7 @@ export const METRIC_INFO: Record<string, string> = {
   Cupons:
     "Cupons usados nos ingressos emitidos, separados por grupo: Faturados (negócios ganhos no Pipedrive, por vendedor), Resgate (GANHADOR ou RESGATE), Palestrantes, Equipe CUPOLA (nome + 5, com 5% de desconto) e Parceiros e outros.",
   "Ranking da equipe":
-    "Pagantes vendidos com o cupom de cada pessoa da equipe CUPOLA, lote a lote. Na linha do tempo, o lote atual (o da venda mais recente) abre sozinho; os lotes anteriores podem ser consultados e os próximos aparecem esmaecidos. Os 3 primeiros ficam em destaque e Ver mais abre os demais. Passe o mouse no nome para ver o cupom. Quem está marcado como fora do ranking não entra, mesmo vendendo.",
+    "Pagantes vendidos com o cupom de cada pessoa da equipe CUPOLA, lote a lote. Na linha do tempo, o lote atual abre primeiro; os lotes anteriores podem ser consultados e os futuros só entram no dia de início. Os 3 primeiros ficam em destaque e Ver mais abre os demais. Passe o mouse no nome para ver o cupom. Quem está marcado como fora do ranking não entra, mesmo vendendo.",
 
   // Página Configurações
   "Cupons dela":
