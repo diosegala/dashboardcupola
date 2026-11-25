@@ -39,7 +39,9 @@ function Th({ children, right = false }: { children: string; right?: boolean }) 
 export function CategorySalesCard({ paying, lote, className }: { paying: Ticket[]; lote?: string | null; className?: string }) {
   const linhas = useMemo(() => salesByCategory(paying), [paying]);
   const [hover, setHover] = useState<string | null>(null);
-  const total = linhas.reduce((s, l) => s + l.ingressos, 0);
+  // Visita avulsa não dá acesso ao evento: aparece na tabela, mas fora da barra, do total e do %.
+  const ehVisita = (l: CategoryRow) => l.categoria === "Visita avulsa";
+  const total = linhas.filter((l) => !ehVisita(l)).reduce((s, l) => s + l.ingressos, 0);
   if (total === 0) return null;
   const pct = (v: number) => `${((v / total) * 100).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
 
@@ -55,7 +57,7 @@ export function CategorySalesCard({ paying, lote, className }: { paying: Ticket[
       </CardHeader>
       <CardContent className="space-y-3">
         <div className="flex h-4 w-full overflow-hidden rounded-full bg-secondary">
-          {linhas.map((l, n) => (
+          {linhas.map((l, n) => ehVisita(l) ? null : (
             <i key={l.categoria} onMouseEnter={() => setHover(l.categoria)} onMouseLeave={() => setHover(null)} className={cn("block h-full transition-opacity duration-150", hover && hover !== l.categoria && "opacity-35")} style={{ width: `${(l.ingressos / total) * 100}%`, background: CORES[n] }} />
           ))}
         </div>
@@ -82,7 +84,7 @@ export function CategorySalesCard({ paying, lote, className }: { paying: Ticket[
                     {hover === l.categoria && detalhe(l) && <span className="mt-1 block pl-[18px] text-xs font-normal text-muted-foreground">{detalhe(l)}</span>}
                   </TableCell>
                   <TableCell className="text-right tabular-nums">{int(l.ingressos)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{pct(l.ingressos)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{ehVisita(l) ? "fora do total" : pct(l.ingressos)}</TableCell>
                   <TableCell className="text-right tabular-nums">{int(l.pedidos)}</TableCell>
                   <TableCell className="text-right tabular-nums">{brl(l.valor)}</TableCell>
                   <TableCell className="text-right tabular-nums">{l.media != null ? brl(l.media) : "—"}</TableCell>

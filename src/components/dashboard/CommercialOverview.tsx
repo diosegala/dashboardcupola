@@ -21,6 +21,7 @@ import { CountUp } from "@/components/CountUp";
 import { IssuedTicketsCard, LOTE_EVENTO } from "./IssuedTicketsCard";
 import { CategorySalesCard } from "./CategorySalesCard";
 import { batchOf } from "@/lib/batches";
+import { unclassifiedProducts } from "@/lib/ticketKinds";
 import { PaceGauge } from "./PaceGauge";
 import { EVENT_DATE } from "@/lib/eventConfig";
 import { SlidingTabsList } from "./SlidingTabsList";
@@ -141,9 +142,10 @@ function EventoInteiro({ escuro }: { escuro?: boolean }) {
 }
 
 function totais(lista: any[]) {
-  const { paying, bonus } = splitTickets(lista);
+  const { paying, bonus, visits } = splitTickets(lista);
   const qtd = (l: any[]) => l.reduce((s, t) => s + (t.quantity || 0), 0);
-  return { payingCount: qtd(paying), issuedCount: qtd(paying) + qtd(bonus), revenue: paying.reduce((s, t) => s + Number(t.total_price || 0), 0) };
+  const valor = (l: any[]) => l.reduce((s, t) => s + Number(t.total_price || 0), 0);
+  return { payingCount: qtd(paying), issuedCount: qtd(paying) + qtd(bonus), revenue: valor(paying) + valor(visits), ticketRevenue: valor(paying) };
 }
 
 export function CommercialOverview({ tickets, periodTickets, previousPeriodTickets = [], filtrado = false, range, goals, previousTickets = [], eventParams }: CommercialOverviewProps) {
@@ -153,6 +155,9 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   const p = useMemo(() => totais(doPeriodo), [doPeriodo]);
   const pAnterior = useMemo(() => (previousPeriodTickets.length ? totais(previousPeriodTickets) : null), [previousPeriodTickets]);
   const receita = filtrado ? p.revenue : m.revenue;
+  // Ticket médio só dos ingressos: a visita avulsa fica fora para não inflar o número.
+  const receitaIngressos = filtrado ? p.ticketRevenue : m.ticketRevenue;
+  const semClassificacao = useMemo(() => unclassifiedProducts(tickets), [tickets]);
   const pagantes = filtrado ? p.payingCount : m.payingCount;
   const weeklySeries = useSeriesVisibility();
   const revenueSeries = useSeriesVisibility();
@@ -193,7 +198,8 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   const [loteEmitidos, setLoteEmitidos] = useState(LOTE_EVENTO);
   const lotePorTipo = loteEmitidos === LOTE_EVENTO ? null : loteEmitidos;
   const pagosPorTipo = useMemo(() => {
-    const pagos = splitTickets(doPeriodo).paying;
+    const { paying, visits } = splitTickets(doPeriodo);
+    const pagos = [...paying, ...visits];
     return lotePorTipo ? pagos.filter((t) => batchOf(t.ticket_type) === lotePorTipo) : pagos;
   }, [doPeriodo, lotePorTipo]);
   const patrocinio = useSponsorshipSales();
@@ -211,8 +217,8 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   const mesesIngressos = useMemo(() => {
     const atuais = splitTickets(doPeriodo);
     return ticketMonthly({
-      sympla: atuais.paidSympla,
-      faturados: atuais.invoiced,
+      sympla: [...atuais.paidSympla, ...atuais.visits.filter((t) => t.source !== "pipedrive")],
+      faturados: [...atuais.invoiced, ...atuais.visits.filter((t) => t.source === "pipedrive")],
       anterior: splitTickets(filtrado ? previousPeriodTickets : previousTickets).paying,
       fim: fimMeses,
       hoje: hojeMes,
@@ -245,6 +251,13 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
 
   return (
     <div className="grid grid-cols-12 gap-[14px]">
+      {/* Produto novo ou renomeado na Sympla que nenhuma regra reconhece: avisa em vez de adivinhar o tipo. */}
+      {semClassificacao.length > 0 && (
+        <div role="alert" className="col-span-12 rounded-2xl border border-warning/40 bg-warning/10 px-4 py-3 text-sm">
+          <b className="font-semibold">Produto da Sympla sem classificação.</b>{" "}
+          {semClassificacao.map((p) => `"${p.nome}" (${p.quantidade})`).join(", ")}. Por enquanto conta como Padrão. Avise o administrador para revisar a regra de tipos.
+        </div>
+      )}
       {/* Linha 1: pagantes e lote vigente */}
       <PayingTicketsCard
         className="col-span-12 lg:col-span-6"
@@ -330,8 +343,8 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         <div className="grid grid-cols-2 gap-2">
           <div className="rounded-2xl bg-secondary/60 px-3.5 py-3">
             <div className="text-[11px] text-muted-foreground">Ticket médio{soIngressos}</div>
-            <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{brl(pagantes > 0 ? receita / pagantes : 0)}</div>
-            {metaTicket && pagantes > 0 && <GoalMeter className="mt-2" actual={receita / pagantes} target={Number(metaTicket.target_value)} unit="brl" comparacao="minimo" />}
+            <div className="mt-0.5 text-lg font-semibold tabular-nums tracking-[-0.02em]">{brl(pagantes > 0 ? receitaIngressos / pagantes : 0)}</div>
+            {metaTicket && pagantes > 0 && <GoalMeter className="mt-2" actual={receitaIngressos / pagantes} target={Number(metaTicket.target_value)} unit="brl" comparacao="minimo" />}
           </div>
           <div className="rounded-2xl bg-secondary/60 px-3.5 py-3">
             <div className="text-[11px] text-muted-foreground">Ingressos pagantes</div>

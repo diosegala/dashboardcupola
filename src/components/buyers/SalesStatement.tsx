@@ -84,7 +84,7 @@ export function SalesStatement({ tickets, pedidosSemIngresso = [] }: { tickets: 
   const [aberta, setAberta] = useState<string | null>(null);
   const [limite, setLimite] = useState(POR_PAGINA);
 
-  const vendas = useMemo(() => vendasDoExtrato(splitTickets(tickets).paying, tickets, pedidosSemIngresso), [tickets, pedidosSemIngresso]);
+  const vendas = useMemo(() => vendasDoExtrato((({ paying, visits }) => [...paying, ...visits])(splitTickets(tickets)), tickets, pedidosSemIngresso), [tickets, pedidosSemIngresso]);
   const lotes = useMemo(() => lotesParaLista(vendas.map((v) => v.lote).filter((l) => l !== "—")), [vendas]);
 
   const termo = busca.trim().toLowerCase();

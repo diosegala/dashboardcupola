@@ -68,7 +68,9 @@ export function splitTickets(tickets: Ticket[]) {
     // Bonificados: não somam na meta nem na receita.
     const bonus = approved.filter((t) => ["cortesias", "credenciais", "gratuitos"].includes(cat(t)));
     const paying = [...paidSympla, ...invoiced];
-    return { paidSympla, invoiced, bonus, paying };
+    // Visitas avulsas pagas: entram só na receita do evento (fora de pagantes, meta, ritmo e ticket médio).
+    const visits = approved.filter((t) => cat(t) === "visitas");
+    return { paidSympla, invoiced, bonus, paying, visits };
 }
 
 // Indicadores da aba Comercial, sempre sobre todas as vendas do evento atual (não dependem do período).
@@ -85,13 +87,15 @@ export function useCommercialMetrics(
 ) {
   return useMemo(() => {
     const today = startOfDay(new Date());
-    const { paidSympla, invoiced, bonus, paying } = splitTickets(tickets);
+    const { paidSympla, invoiced, bonus, paying, visits } = splitTickets(tickets);
 
     const paidSymplaCount = paidSympla.reduce((s, t) => s + qty(t), 0);
     const invoicedCount = invoiced.reduce((s, t) => s + qty(t), 0);
     const bonusCount = bonus.reduce((s, t) => s + qty(t), 0);
     const payingCount = paidSymplaCount + invoicedCount;
-    const revenue = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
+    // Receita dos ingressos (base do ticket médio) e receita do evento, que soma as visitas avulsas.
+    const ticketRevenue = paying.reduce((s, t) => s + Number(t.total_price || 0), 0);
+    const revenue = ticketRevenue + visits.reduce((s, t) => s + Number(t.total_price || 0), 0);
 
     // Meta de pagantes só existe se foi definida na tela Metas; sem ela, nada de meta aparece nos gráficos.
     const goalRow = eventGoal(goals, PAYING_GOAL_KEY);
@@ -208,7 +212,7 @@ export function useCommercialMetrics(
     const anterior = hasPrevious
       ? {
           payingCount: prevPaying.reduce((s, t) => s + qty(t), 0),
-          revenue: prevPaying.reduce((s, t) => s + Number(t.total_price || 0), 0),
+          revenue: [...prevPaying, ...ateMesmaData(anteriores.visits)].reduce((s, t) => s + Number(t.total_price || 0), 0),
           issuedCount: [...anteriores.paying, ...anteriores.bonus].filter((t) => t.sold_at && dayKey(new Date(t.sold_at)) <= limiteAnterior).reduce((s, t) => s + qty(t), 0),
           currentPace: prevPaceDays.reduce((s, d) => s + (prevByDay.get(dayKey(d)) || 0), 0) / CURRENT_PACE_DAYS,
           // Vendas pagantes por dia, já na data equivalente deste ano (aaaa-mm-dd).
@@ -226,6 +230,7 @@ export function useCommercialMetrics(
       bonusCount,
       missing,
       revenue,
+      ticketRevenue,
       progress: goal ? Math.min(payingCount / goal, 1) : 0,
       remainingDays,
       requiredPace,
