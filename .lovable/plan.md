@@ -24,7 +24,11 @@ O valor que a Sympla envia por venda parece estar **sem a taxa**. No Lote 0, o "
 ## Confirmação sobre os cupons de 100%
 Hoje eles já entram como **cortesia** no quadro de ingressos emitidos e no de cortesias, e continuam aparecendo lá. Na etapa 2 eu confiro isso na tela, com números.
 
-## Etapa 2 (só depois da sua aprovação desta etapa)
+## Decisões já confirmadas
+- Um campo de grupo por tipo. "10% OFF 2 a 5 - Padrão" e "10% OFF 2 a 5 Ingressos Padrão" são o mesmo produto.
+- A base do desconto (comprador ou a receber) e a receita bruta ou líquida ficam para você decidir antes da etapa 2.
+
+## Etapa 2 (só depois da sua decisão sobre a taxa)
 Quadro **Desconto médio** colocado depois do quadro de canal, com três médias ponderadas pelo valor: total (em destaque), Sympla e faturado. Tem a quebra por lote e a média simples no "i".
 
 ## Fora do escopo
