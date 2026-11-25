@@ -82,3 +82,15 @@ describe("ritmo do evento todo e vendas fora de lote", () => {
     expect(somarDias("2026-11-25", -6)).toBe("2026-11-19");
   });
 });
+
+import { nivelDoRitmo } from "./batchPace";
+describe("nivelDoRitmo", () => {
+  it("classifica pela cobertura do necessário", () => {
+    expect(nivelDoRitmo(15, 15, 10)).toBe("ok");
+    expect(nivelDoRitmo(12, 15, 10)).toBe("atencao");
+    expect(nivelDoRitmo(8, 15, 10)).toBe("risco");
+    expect(nivelDoRitmo(1.9, 15, 10)).toBe("critico");
+    expect(nivelDoRitmo(0, 15, 0)).toBe("meta");
+    expect(nivelDoRitmo(1, null, 10)).toBeNull();
+  });
+});

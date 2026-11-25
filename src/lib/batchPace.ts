@@ -98,3 +98,17 @@ export function loteAnterior(opcoes: BatchDates[], nome: string): BatchDates | n
   const i = opcoes.findIndex((o) => o.name === nome);
   return i > 0 ? opcoes[i - 1] : null;
 }
+
+// Nível de urgência do ritmo: quanto do necessário o ritmo atual cobre.
+// ≥100% no ritmo · 80–99% atenção · 50–79% risco · <50% crítico.
+export type NivelRitmo = "meta" | "ok" | "atencao" | "risco" | "critico";
+export function nivelDoRitmo(ritmo: number | null, necessario: number | null, faltam: number): NivelRitmo | null {
+  if (ritmo === null || necessario === null) return null;
+  if (faltam === 0) return "meta";
+  if (necessario <= 0) return "ok";
+  const p = ritmo / necessario;
+  if (p >= 1) return "ok";
+  if (p >= 0.8) return "atencao";
+  if (p >= 0.5) return "risco";
+  return "critico";
+}

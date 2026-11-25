@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { addDays } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -5,7 +6,7 @@ import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import type { DateRange } from "@/hooks/useDashboardData";
 import { resumoLotes } from "@/lib/batchSummary";
 import { batchCalendar, diaBrasilia, faltamDatas, hojeBrasilia, loteVigente } from "@/lib/batchCalendar";
-import { loteAnterior, lotesDoRitmo, marcoInicial, pagantesForaDeLote, ritmoNecessario, ritmoNoPeriodo, somarDias, statusDoRitmo } from "@/lib/batchPace";
+import { nivelDoRitmo, loteAnterior, lotesDoRitmo, marcoInicial, pagantesForaDeLote, ritmoNecessario, ritmoNoPeriodo, somarDias, statusDoRitmo } from "@/lib/batchPace";
 import { Card } from "@/components/ui/card";
 import { Chip, type ChipVariant } from "@/components/Chip";
 import { InfoTip } from "@/components/InfoTip";
@@ -120,7 +121,18 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
   const atualFrac = Math.min(currentPace / max, 1);
   const necessarioFrac = temMeta ? Math.min((requiredPace as number) / max, 1) : 0;
   const noRitmo = temMeta && currentPace >= (requiredPace as number);
-  const corArco = !temMeta ? "hsl(var(--data-blue))" : noRitmo ? "hsl(var(--ok))" : "hsl(var(--warn))";
+  const nivel = nivelDoRitmo(currentPace, requiredPace, calc.comparar.faltam);
+  const cor = nivel === "critico" || nivel === "risco" ? "bad" : nivel === "atencao" ? "warn" : nivel ? "ok" : null;
+  const corArco = !temMeta || !cor ? "hsl(var(--data-blue))" : `hsl(var(--${cor}))`;
+  const cobre = temMeta && (requiredPace as number) > 0 ? Math.round((currentPace / (requiredPace as number)) * 100) : null;
+  const vezes = temMeta && currentPace > 0 ? (requiredPace as number) / currentPace : null;
+  const alerta = nivel === "critico"
+    ? { titulo: "Risco crítico de não bater a meta", cls: "border-bad bg-bad text-primary-foreground" }
+    : nivel === "risco"
+    ? { titulo: "Ritmo muito abaixo do necessário", cls: "border-bad/40 bg-bad-bg text-bad" }
+    : nivel === "atencao"
+    ? { titulo: "Atenção: ritmo um pouco abaixo", cls: "border-warn/40 bg-warn-bg text-warn" }
+    : null;
 
   // Preenche ao aparecer (1,2 s), como o anel da meta.
   const [frac, setFrac] = useState(0);
@@ -148,6 +160,16 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
         </SelectContent>
       </Select>
       {faltaData && <AvisoDatas compacto />}
+      {alerta && cobre !== null && (
+        <div role="alert" className={cn("flex items-start gap-2 rounded-xl border px-3 py-2 text-xs", alerta.cls, nivel === "critico" && "motion-safe:animate-pulse")}>
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+          <span>
+            <b className="font-semibold">{alerta.titulo}.</b>{" "}
+            O ritmo atual cobre só {cobre}% do necessário
+            {vezes && vezes >= 1.5 ? ` — é preciso vender ${vezes.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}× mais por dia útil` : ""}.
+          </span>
+        </div>
+      )}
       <div className="flex flex-1 flex-col justify-between gap-4">
         <svg viewBox="0 -28 200 144" className="mx-auto h-auto w-full max-w-[200px] shrink-0" role="img" aria-label={`Ritmo atual ${fmt(currentPace)} por dia útil${temMeta ? `; necessário ${fmt(requiredPace as number)}` : ""}`}>
           <path d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`} fill="none" stroke="hsl(var(--secondary))" strokeWidth="16" strokeLinecap="round" />
@@ -169,7 +191,7 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
               </text>
             </>
           )}
-          <text x={CX} y={CY - 22} textAnchor="middle" className="fill-foreground text-[30px] font-semibold tracking-[-0.035em]">
+          <text x={CX} y={CY - 22} textAnchor="middle" className={cn("text-[30px] tracking-[-0.035em]", cor === "bad" ? "fill-bad" : cor === "warn" ? "fill-warn" : "fill-foreground")} style={{ fontWeight: 600 }} >
             {fmt(currentPace)}
           </text>
           <text x={CX} y={CY - 4} textAnchor="middle" className="fill-muted-foreground text-[10px]">
@@ -221,7 +243,7 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
           </div>
           {chip && (
             <span className="flex flex-wrap items-center gap-1.5">
-              <Chip variant={chip.variant}>{chip.label}</Chip>
+              <Chip variant={nivel === "critico" || nivel === "risco" ? "bad" : chip.variant}>{chip.label}</Chip>
               <span className="text-xs text-muted-foreground">{loteComMeta ? `meta do ${lote!.name}` : "meta do evento"}</span>
             </span>
           )}
