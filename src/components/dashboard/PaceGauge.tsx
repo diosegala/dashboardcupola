@@ -1,6 +1,7 @@
-import { AlertTriangle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { addDays } from "date-fns";
+import * as TooltipPrimitive from "@radix-ui/react-tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import type { DateRange } from "@/hooks/useDashboardData";
@@ -126,12 +127,15 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
   const corArco = !temMeta || !cor ? "hsl(var(--data-blue))" : `hsl(var(--${cor}))`;
   const cobre = temMeta && (requiredPace as number) > 0 ? Math.round((currentPace / (requiredPace as number)) * 100) : null;
   const vezes = temMeta && currentPace > 0 ? (requiredPace as number) / currentPace : null;
+  // Faixa discreta: só o título curto à vista; a conta completa aparece no hover.
+  const explicacao = `No ${nome}, o ritmo atual cobre só ${cobre}% do necessário`
+    + (vezes && vezes >= 1.5 ? ` — é preciso vender ${fmt(vezes)}× mais por dia útil` : "") + ".";
   const alerta = nivel === "critico"
-    ? { titulo: "Risco crítico de não bater a meta", cls: "border-bad bg-bad text-primary-foreground" }
+    ? { titulo: "Risco crítico de não bater a meta", cls: "border-l-bad bg-bad-bg text-bad", peso: "font-semibold" }
     : nivel === "risco"
-    ? { titulo: "Ritmo muito abaixo do necessário", cls: "border-bad/40 bg-bad-bg text-bad" }
+    ? { titulo: "Ritmo muito abaixo do necessário", cls: "border-l-bad bg-bad-bg text-bad", peso: "font-medium" }
     : nivel === "atencao"
-    ? { titulo: "Atenção: ritmo um pouco abaixo", cls: "border-warn/40 bg-warn-bg text-warn" }
+    ? { titulo: "Atenção: ritmo um pouco abaixo", cls: "border-l-warn bg-warn-bg text-warn", peso: "font-medium" }
     : null;
 
   // Preenche ao aparecer (1,2 s), como o anel da meta.
@@ -161,14 +165,28 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
       </Select>
       {faltaData && <AvisoDatas compacto />}
       {alerta && cobre !== null && (
-        <div role="alert" className={cn("flex items-start gap-2 rounded-xl border px-3 py-2 text-xs", alerta.cls, nivel === "critico" && "motion-safe:animate-pulse")}>
-          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-          <span>
-            <b className="font-semibold">{alerta.titulo}.</b>{" "}
-            O ritmo atual cobre só {cobre}% do necessário
-            {vezes && vezes >= 1.5 ? ` — é preciso vender ${vezes.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}× mais por dia útil` : ""}.
-          </span>
-        </div>
+        <Tooltip delayDuration={80}>
+          <TooltipTrigger asChild>
+            <div
+              tabIndex={0}
+              aria-label={`${alerta.titulo}. ${explicacao}`}
+              className={cn("flex w-fit cursor-help items-center gap-1.5 rounded-r-md border-l-2 px-2 py-[5px] text-[11px] leading-none outline-none focus-visible:ring-1 focus-visible:ring-ring", alerta.cls)}
+            >
+              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-current" aria-hidden />
+              <span className={cn("truncate", alerta.peso)}>{alerta.titulo}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipPrimitive.Portal>
+            <TooltipContent
+              side="top"
+              collisionPadding={12}
+              className="max-w-[320px] whitespace-pre-line break-words rounded-xl border-0 bg-foreground px-3.5 py-2.5 text-left text-[12px] font-normal normal-case leading-[1.45] tracking-normal text-background shadow-[0_12px_32px_-8px_rgba(0,0,0,0.35)]"
+            >
+              <b className="mb-1 block font-semibold">{alerta.titulo}</b>
+              {explicacao}
+            </TooltipContent>
+          </TooltipPrimitive.Portal>
+        </Tooltip>
       )}
       <div className="flex flex-1 flex-col justify-between gap-4">
         <svg viewBox="0 -28 200 144" className="mx-auto h-auto w-full max-w-[200px] shrink-0" role="img" aria-label={`Ritmo atual ${fmt(currentPace)} por dia útil${temMeta ? `; necessário ${fmt(requiredPace as number)}` : ""}`}>
