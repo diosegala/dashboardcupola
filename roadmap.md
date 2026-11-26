@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Corrigir a contagem do i para Educação, sem patrocínios/cotas; testar e conferir na prévia.
 - [x] Corrigir Em andamento para Negociação/Fechamento e destacar cards únicos no i; testar na prévia.
 - [x] Conferir base do desconto em todos os produtos e corrigir taxa indevida sem alterar receita.
 - [x] Conferir filtro de período e visualizador no quadro Desconto médio.

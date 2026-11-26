@@ -8,7 +8,7 @@ import { withBatchByDate } from "@/lib/batches";
 import { batchCalendar } from "@/lib/batchCalendar";
 import { batchCalendarVersion } from "@/hooks/useEventBatches";
 import { fetchAllPages } from "@/lib/fetchPages";
-import { contarCardsEtapa } from "@/lib/crmStageCards";
+import { contarCardsEtapa, funisDeIngressos } from "@/lib/crmStageCards";
 
 export interface DateRange {
   from: Date;
@@ -58,30 +58,31 @@ export function useDeals(range: DateRange) {
   });
 }
 
-// Cards do Summit abertos no CRM, contados pelo funil (cada card uma vez), nas etapas Negociação e Fechamento.
-// Lê os negócios abertos dos funis configurados para o evento, com os produtos de cada um.
+// Cards de Educação: somente os funis configurados como ingressos, sem depender de produtos.
 export function useCrmStageCards(eventId: string) {
   return useQuery({
-    queryKey: ["crm_stage_cards", eventId],
+    queryKey: ["crm_stage_cards", "ingressos", eventId],
     enabled: !!eventId,
     queryFn: async () => {
-      const { data: cfg } = await supabase
+      const { data: cfg, error: configError } = await supabase
         .from("sponsorship_config")
         .select("crm_account, pipelines")
         .eq("event_id", eventId)
         .maybeSingle();
+      if (configError) throw configError;
       const account = cfg?.crm_account?.trim() ?? null;
-      const funis = ((cfg?.pipelines as any[]) ?? []).map((p) => Number(p.pipeline_pd_id)).filter(Boolean);
+      const funis = funisDeIngressos(cfg?.pipelines);
       if (!account || !funis.length) return { negociacao: 0, fechamento: 0, total: 0 };
-      const { data, error } = await supabase
+      const data = await fetchAllPages((from, to) => supabase
         .from("deals")
-        .select("id, stage_name, deal_products(name, is_enabled)")
+        .select("id, stage_name, pipeline_pd_id, status, is_deleted")
         .eq("crm_account", account)
         .in("pipeline_pd_id", funis)
         .eq("status", "open")
-        .eq("is_deleted", false);
-      if (error) throw error;
-      return contarCardsEtapa((data ?? []) as any);
+        .eq("is_deleted", false)
+        .order("id")
+        .range(from, to), { throwOnError: true });
+      return contarCardsEtapa(data, funis);
     },
   });
 }
