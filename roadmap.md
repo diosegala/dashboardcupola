@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Reconciliar os 23 ingressos em Negociação/Fechamento de Educação; aguarda captura dos cards, pois a base atual só traz 2 ingressos abertos em Patrocínios e nenhum do Summit nessas etapas de Educação. Cards ficam apenas no i; não fixar contagem manual.
 - [x] Corrigir a contagem do i para Educação, sem patrocínios/cotas; testar e conferir na prévia.
 - [x] Corrigir Em andamento para Negociação/Fechamento e destacar cards únicos no i; testar na prévia.
 - [x] Conferir base do desconto em todos os produtos e corrigir taxa indevida sem alterar receita.
