@@ -1,34 +1,10 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useContext, useEffect, useState, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useQueryClient } from "@tanstack/react-query";
 import { clearPeriod } from "@/hooks/usePeriod";
 import { registrarAtividade } from "@/lib/registrarAtividade";
 import type { User, Session } from "@supabase/supabase-js";
-
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  loading: boolean;
-  isAdmin: boolean;
-  // Admin ou visualizador: vê todos os dados (só admin edita).
-  canViewAll: boolean;
-  // Equipe de vendas: vê só o ranking de cupons e a lista de compradores.
-  isSeller: boolean;
-  // Administrador vendo o painel como a equipe vê.
-  viewingAsSeller: boolean;
-  setViewingAsSeller: (v: boolean) => void;
-  profile: { name: string | null } | null;
-  signOut: () => Promise<void>;
-  // Relê o nome depois que a pessoa salva o perfil.
-  refreshProfile: () => Promise<void>;
-  role: "admin" | "viewer" | "seller" | null;
-  // A função já foi lida do banco ao menos uma vez nesta sessão.
-  rolesLoaded: boolean;
-  // Admin que usa "Ver como a equipe"; os demais admins veem "Ver meu ranking" (mesma tela, com a própria posição).
-  teamView: boolean;
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import { AuthContext } from "./authContext";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient();

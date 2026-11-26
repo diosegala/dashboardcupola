@@ -1,4 +1,5 @@
 # Architecture rules
+- Authentication context lives in the dependency-free `authContext` module and retains its identity through HMR; provider and consumers must share it so partial preview updates cannot disconnect access checks.
 - The in-progress tickets card uses `crmInProgress` for both ticket quantities and distinct deal counts, restricted to open Negotiation/Closing stages, so product lines and Leads cannot inflate CRM card counts.
 - The stage-card tooltip uses `crmStageCards` over paginated deals from event pipelines marked `ingressos`, independently of product lines; never substitute ticket-linked counts when the stage count is zero or unavailable.
 - Keep Pipedrive read-only HTTP transport and pure rules under `supabase/functions/_shared`; all three endpoints use one `CrmWriter` so sync and webhook mapping cannot diverge.
