@@ -8,6 +8,7 @@ import { withBatchByDate } from "@/lib/batches";
 import { batchCalendar } from "@/lib/batchCalendar";
 import { batchCalendarVersion } from "@/hooks/useEventBatches";
 import { fetchAllPages } from "@/lib/fetchPages";
+import { contarCardsEtapa } from "@/lib/crmStageCards";
 
 export interface DateRange {
   from: Date;
@@ -53,6 +54,34 @@ export function useDeals(range: DateRange) {
         .lte("created_at_source", range.to.toISOString());
       if (error) throw error;
       return data ?? [];
+    },
+  });
+}
+
+// Cards do Summit abertos no CRM, contados pelo funil (cada card uma vez), nas etapas Negociação e Fechamento.
+// Lê os negócios abertos dos funis configurados para o evento, com os produtos de cada um.
+export function useCrmStageCards(eventId: string) {
+  return useQuery({
+    queryKey: ["crm_stage_cards", eventId],
+    enabled: !!eventId,
+    queryFn: async () => {
+      const { data: cfg } = await supabase
+        .from("sponsorship_config")
+        .select("crm_account, pipelines")
+        .eq("event_id", eventId)
+        .maybeSingle();
+      const account = cfg?.crm_account?.trim() ?? null;
+      const funis = ((cfg?.pipelines as any[]) ?? []).map((p) => Number(p.pipeline_pd_id)).filter(Boolean);
+      if (!account || !funis.length) return { negociacao: 0, fechamento: 0, total: 0 };
+      const { data, error } = await supabase
+        .from("deals")
+        .select("id, stage_name, deal_products(name, is_enabled)")
+        .eq("crm_account", account)
+        .in("pipeline_pd_id", funis)
+        .eq("status", "open")
+        .eq("is_deleted", false);
+      if (error) throw error;
+      return contarCardsEtapa((data ?? []) as any);
     },
   });
 }

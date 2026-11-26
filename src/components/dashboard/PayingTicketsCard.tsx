@@ -15,6 +15,8 @@ interface Props {
   // quando o negócio é ganho, passam para faturados. Só o faturado interno passa pelo CRM, a Sympla não.
   emNegociacao: number;
   cardsEmNegociacao: number;
+  // Cards do Summit abertos no CRM, contados pelo funil (cada card uma vez), nas etapas Negociação e Fechamento.
+  cardsEtapa?: { negociacao: number; fechamento: number; total: number } | null;
   meta: number | null;
   anterior?: number | null;
   rotuloAnterior: string;
@@ -24,8 +26,11 @@ interface Props {
 
 // Ingressos pagantes no visual do card de Receita de patrocínio: número grande, pista com Sympla, faturados e
 // em negociação, marcas da meta e do ano anterior, e os números de apoio embaixo.
-export function PayingTicketsCard({ sympla, faturados, emNegociacao, cardsEmNegociacao, meta, anterior, rotuloAnterior, extra, className }: Props) {
+export function PayingTicketsCard({ sympla, faturados, emNegociacao, cardsEmNegociacao, cardsEtapa, meta, anterior, rotuloAnterior, extra, className }: Props) {
   const [cheio, setCheio] = useState(false);
+  // A contagem do funil (cada card uma vez) vem do CRM; sem ela, usa os cards que já têm ingresso.
+  const etapa = cardsEtapa && cardsEtapa.total > 0 ? cardsEtapa : null;
+  const cardsFunil = etapa?.total ?? cardsEmNegociacao;
   useEffect(() => {
     const id = requestAnimationFrame(() => setCheio(true));
     return () => cancelAnimationFrame(id);
@@ -115,8 +120,12 @@ export function PayingTicketsCard({ sympla, faturados, emNegociacao, cardsEmNego
           titulo="Em andamento"
           valor={emNegociacao}
           rodape="abertos no CRM"
-          emphasis={`${int(cardsEmNegociacao)} ${cardsEmNegociacao === 1 ? "card" : "cards"} no Pipedrive`}
-          info={`${int(emNegociacao)} ingressos nesses negócios abertos, nas etapas Negociação e Fechamento. Cada card conta uma vez, mesmo com vários produtos. Leads e outras etapas ficam fora. Ainda não contam na meta; quando o negócio é ganho, passam para Faturados.`}
+          emphasis={`${int(cardsFunil)} ${cardsFunil === 1 ? "card" : "cards"} nas etapas Negociação e Fechamento`}
+          info={
+            etapa
+              ? `${int(etapa.total)} cards do Summit abertos no Pipedrive: ${int(etapa.negociacao)} em Negociação, ${int(etapa.fechamento)} em Fechamento. O número acima só conta os ingressos já cadastrados nesses cards (${int(emNegociacao)} em ${int(cardsEmNegociacao)} ${cardsEmNegociacao === 1 ? "card" : "cards"}). Ainda não contam na meta; quando o negócio é ganho, passam para Faturados.`
+              : `${int(emNegociacao)} ingressos nesses negócios abertos, nas etapas Negociação e Fechamento. Cada card conta uma vez, mesmo com vários produtos. Leads e outras etapas ficam fora. Ainda não contam na meta; quando o negócio é ganho, passam para Faturados.`
+          }
         />
       </div>
     </Card>
