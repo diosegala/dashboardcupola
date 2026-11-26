@@ -14,6 +14,7 @@ import {
   ticketKey,
 } from "../_shared/sympla-rules.ts";
 
+import { utmDoPedido, utmHerdada, temUtm, type Utm } from "./utmInherit.ts";
 const isApproved = (status: string) => status.toLowerCase() === "approved";
 
 // Pedidos conferidos um a um por sincronização (o que passar disso fica para a próxima e aparece no aviso).
@@ -268,8 +269,26 @@ Deno.serve(async (req) => {
 
     // 5. Upsert each participant as individual ticket (deduplicate by sympla_order_id)
     const rowMap = new Map<string, any>();
+    // Pedido pago sem UTM herda a da tentativa mais recente do mesmo e-mail (até 72h antes, qualquer status).
+    // Recalculado a cada sincronização, então também corrige o histórico do evento.
+    const poolUtm = [...todosOsStatus, ...Array.from(ordersById.values())];
+    const utmCache = new Map<string, Utm>();
+    let utmHerdadas = 0;
+    const utmDaLinha = (order: any, p: any): Utm => {
+      const id = String(p.order_id ?? "");
+      if (utmCache.has(id)) return utmCache.get(id)!;
+      const propria = utmDoPedido(order);
+      let utm = propria;
+      if (order && isApprovedOrder(order) && !temUtm(propria)) {
+        const herdada = utmHerdada({ ...order, buyer_email: order.buyer_email ?? p.email }, poolUtm);
+        if (herdada) { utm = herdada; utmHerdadas++; }
+      }
+      utmCache.set(id, utm);
+      return utm;
+    };
     merged.forEach(({ key, p }) => {
       const order = ordersById.get(String(p.order_id ?? ""));
+      const utm = utmDaLinha(order, p);
       const coupon = order?.discount_code ?? order?.coupon_code ?? p.discount_code ?? null;
       rowMap.set(key, {
         sympla_order_id: key,
@@ -293,14 +312,12 @@ Deno.serve(async (req) => {
         buyer_company: formAnswerExact(p, ["empresa", "nome da empresa"]),
         buyer_role: formAnswerExact(p, ["cargo"]),
         payment_method: order?.transaction_type ?? order?.payment_method ?? null,
-        utm_source: order?.utm?.utm_source ?? order?.utm_data?.utm_source ?? null,
-        utm_medium: order?.utm?.utm_medium ?? order?.utm_data?.utm_medium ?? null,
-        utm_campaign: order?.utm?.utm_campaign ?? order?.utm_data?.utm_campaign ?? null,
-        utm_content: order?.utm?.utm_content ?? order?.utm_data?.utm_content ?? null,
+        ...utm,
         synced_at: new Date().toISOString(),
       });
     });
     const rows = Array.from(rowMap.values());
+    console.log("sync-sympla - pedidos pagos com UTM herdada:", utmHerdadas);
 
     // Só participantes reais: a quantidade e o tipo vêm da Sympla, nunca de estimativa. Pedido aprovado cujo comprador
     // ainda não preencheu os nomes entra quando os participantes aparecem; até lá fica na lista de pedidos a acompanhar.
