@@ -14,6 +14,7 @@ interface Props {
   // Faturamento em andamento: ingressos de negócios abertos no CRM (negociação, fechamento). Não contam na meta;
   // quando o negócio é ganho, passam para faturados. Só o faturado interno passa pelo CRM, a Sympla não.
   emNegociacao: number;
+  cardsEmNegociacao: number;
   meta: number | null;
   anterior?: number | null;
   rotuloAnterior: string;
@@ -23,7 +24,7 @@ interface Props {
 
 // Ingressos pagantes no visual do card de Receita de patrocínio: número grande, pista com Sympla, faturados e
 // em negociação, marcas da meta e do ano anterior, e os números de apoio embaixo.
-export function PayingTicketsCard({ sympla, faturados, emNegociacao, meta, anterior, rotuloAnterior, extra, className }: Props) {
+export function PayingTicketsCard({ sympla, faturados, emNegociacao, cardsEmNegociacao, meta, anterior, rotuloAnterior, extra, className }: Props) {
   const [cheio, setCheio] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setCheio(true));
@@ -114,7 +115,8 @@ export function PayingTicketsCard({ sympla, faturados, emNegociacao, meta, anter
           titulo="Em andamento"
           valor={emNegociacao}
           rodape="abertos no CRM"
-          info="Ingressos de negócios ainda abertos no funil de ingressos do Pipedrive (negociação, fechamento). Ainda não contam na meta; quando o negócio é ganho, passam para Faturados."
+          emphasis={`${int(cardsEmNegociacao)} ${cardsEmNegociacao === 1 ? "card" : "cards"} no Pipedrive`}
+          info={`${int(emNegociacao)} ingressos nesses negócios abertos, nas etapas Negociação e Fechamento. Cada card conta uma vez, mesmo com vários produtos. Leads e outras etapas ficam fora. Ainda não contam na meta; quando o negócio é ganho, passam para Faturados.`}
         />
       </div>
     </Card>
@@ -122,14 +124,14 @@ export function PayingTicketsCard({ sympla, faturados, emNegociacao, meta, anter
 }
 
 // Uma linha por fonte: cor, nome e explicação curta à esquerda, número à direita. Sempre alinhadas, em qualquer tela.
-function Apoio({ titulo, valor, cor, listrado, info, rodape }: { titulo: string; valor: number; cor?: string; listrado?: boolean; info?: string; rodape?: string }) {
+function Apoio({ titulo, valor, cor, listrado, info, emphasis, rodape }: { titulo: string; valor: number; cor?: string; listrado?: boolean; info?: string; emphasis?: string; rodape?: string }) {
   return (
     <div className="flex items-center justify-between gap-3 py-2.5">
       <div className="flex min-w-0 items-center gap-2 text-[13px] text-[#D6D2C8]">
         <i className={cn("inline-block h-2 w-4 shrink-0 rounded-full", listrado ? "sp-stripes" : cor)} />
         <span className="font-medium">{titulo}</span>
         {rodape && <span className="truncate text-[11px] text-[#9A9FA7]">{rodape}</span>}
-        {info && <InfoTip title={titulo} text={info} className="shrink-0 text-[#9A9FA7]" />}
+        {info && <InfoTip title={titulo} text={info} emphasis={emphasis} className="shrink-0 text-[#9A9FA7]" />}
       </div>
       <div className="shrink-0 text-lg font-semibold tabular-nums tracking-[-0.02em]">
         <CountUp value={valor} format={int} />

@@ -1,4 +1,5 @@
 # Architecture rules
+- The in-progress tickets card uses `crmInProgress` for both ticket quantities and distinct deal counts, restricted to open Negotiation/Closing stages, so product lines and Leads cannot inflate CRM card counts.
 - Keep Pipedrive read-only HTTP transport and pure rules under `supabase/functions/_shared`; all three endpoints use one `CrmWriter` so sync and webhook mapping cannot diverge.
 - Persist Pipedrive checkpoints only after durable page writes and hydration, and advance the deals watermark only after complete reconciliation; replay remains idempotent after interruption.
 - Manual CRM calls require verified admin claims, webhooks require constant-time Basic validation, and scheduled CRM calls require timestamped HMAC validation; unauthenticated sync requests must never bypass authorization.

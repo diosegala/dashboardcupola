@@ -13,6 +13,7 @@ import { useEffect, useMemo, useState } from "react";
 import { brl as brlCompleto, useCouponTotals } from "./CouponKpis";
 import { METRIC_INFO } from "@/lib/metricInfo";
 import { ticketCategory } from "@/lib/ticketCategory";
+import { crmInProgress } from "@/lib/crmInProgress";
 import { PayingTicketsCard } from "./PayingTicketsCard";
 import { CRM_DISCOUNT_HINT, crmDiscountCoverage } from "@/lib/invoicedTickets";
 import { commercialDiscounts } from "@/lib/lotPrice";
@@ -189,7 +190,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
     return commercialDiscounts([...paying, ...bonus], receita);
   }, [doPeriodo]);
   // Ingressos de negócios abertos no CRM: não contam, aparecem listrados na pista dos pagantes.
-  const emNegociacaoCrm = useMemo(() => tickets.filter((t) => ticketCategory(t) === "negociacao").reduce((s, t) => s + (t.quantity || 0), 0), [tickets]);
+  const emNegociacaoCrm = useMemo(() => crmInProgress(tickets), [tickets]);
   const coberturaCrm = useMemo(() => crmDiscountCoverage(doPeriodo), [doPeriodo]);
   const mostrarDescontos = useCouponTotals(doPeriodo).comCupom > 0 || coberturaCrm.negocios > 0;
 
@@ -266,7 +267,8 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         className="col-span-12 lg:col-span-6"
         sympla={m.paidSymplaCount}
         faturados={m.invoicedCount}
-        emNegociacao={emNegociacaoCrm}
+        emNegociacao={emNegociacaoCrm.ingressos}
+        cardsEmNegociacao={emNegociacaoCrm.cards}
         meta={m.goal}
         anterior={mostrarAnterior ? m.anterior?.payingCount ?? null : null}
         rotuloAnterior={rotulo}
