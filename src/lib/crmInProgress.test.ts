@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { crmInProgress } from "./crmInProgress";
+import { crmInProgress, isCrmInProgress } from "./crmInProgress";
 
 const open = { source: "pipedrive", status: "crm_open", funil_ingressos: true };
 
@@ -34,5 +34,13 @@ describe("CRM em andamento", () => {
       { ...open, funil_ingressos: false, deal_id: "37590", stage_name: "Negociação", quantity: 2 },
       { ...open, deal_id: "x", stage_name: "Fechamento", quantity: 4 },
     ])).toEqual({ ingressos: 4, cards: 1, conferir: [] });
+  });
+  it("o bloco de Ingressos emitidos usa a mesma regra: Blocoterm (Patrocínios) e Leads ficam fora", () => {
+    const linhas = [
+      { ...open, funil_ingressos: false, deal_id: "37590", stage_name: "Negociação", quantity: 2 },
+      { ...open, deal_id: "37729", stage_name: "Lead", quantity: 1 },
+      { ...open, deal_id: "x", stage_name: "Fechamento", quantity: 4 },
+    ];
+    expect(linhas.filter(isCrmInProgress).map((t) => t.deal_id)).toEqual(["x"]);
   });
 });

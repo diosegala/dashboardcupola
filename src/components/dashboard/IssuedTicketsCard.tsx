@@ -11,6 +11,7 @@ import { CompareLine } from "@/components/CompareLine";
 import { DIAS_PARA_CONFERIR, pendingPayments } from "@/lib/pendingPayments";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { batchOf, lotesParaLista } from "@/lib/batches";
+import { isCrmInProgress } from "@/lib/crmInProgress";
 
 // Recorte "evento todo" do filtro de lote (compartilhado com o card Vendas por tipo de ingresso).
 export const LOTE_EVENTO = "__evento";
@@ -55,7 +56,7 @@ function porCategoria(todos: Ticket[]): Fatia[] {
 function FaturadosNoCrm({ tickets }: { tickets: Ticket[] }) {
   const ganhos = tickets.filter((t) => ticketCategory(t) === "faturados").reduce((s, t) => s + qty(t), 0);
   const resgatados = tickets.filter((t) => ticketCategory(t) === "resgates").reduce((s, t) => s + qty(t), 0);
-  const abertos = tickets.filter((t) => ticketCategory(t) === "negociacao");
+  const abertos = tickets.filter(isCrmInProgress);
   const parcelados = new Set(tickets.filter((t) => ticketCategory(t) === "faturados" && t.installments).map((t) => t.deal_id)).size;
   const conferir = new Set(tickets.filter((t) => t.source === "pipedrive" && t.conferir).map((t) => t.deal_id)).size;
   // Todo faturado ganho precisa de vendedor para contar no ranking; some sozinho quando o Pipedrive for preenchido.
