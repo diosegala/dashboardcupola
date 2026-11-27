@@ -169,7 +169,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
   // Selo com a diferença entre o ritmo atual e o necessário.
   const difRitmo = m.requiredPace !== null ? m.currentPace - m.requiredPace : 0;
   const chip = chipBase && (m.paceStatus === "above" || m.paceStatus === "below")
-    ? { ...chipBase, label: `${chipBase.label} · ${difRitmo > 0 ? "+" : "−"}${Math.abs(difRitmo).toLocaleString("pt-BR", { maximumFractionDigits: 1 })}/dia` }
+    ? { ...chipBase, label: `${chipBase.label} · ${difRitmo > 0 ? "+" : "−"}${Math.round(Math.abs(difRitmo)).toLocaleString("pt-BR")}/dia` }
     : chipBase;
   // Metas do evento definidas na tela Metas (sem elas, os cards ficam só com os números).
   const metaReceita = eventGoal(goals, "revenue");
@@ -269,6 +269,7 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         faturados={m.invoicedCount}
         emNegociacao={emNegociacaoCrm.ingressos}
         cardsEmNegociacao={emNegociacaoCrm.cards}
+        conferirEmNegociacao={emNegociacaoCrm.conferir}
         meta={m.goal}
         anterior={mostrarAnterior ? m.anterior?.payingCount ?? null : null}
         rotuloAnterior={rotulo}

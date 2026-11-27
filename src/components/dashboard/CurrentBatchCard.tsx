@@ -139,13 +139,13 @@ function Item({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
   );
 }
 
-// Faturados sem o lote no nome do card: o painel adivinha o lote pela data de criação do card, o que erra quando a
-// negociação começou antes da virada de lote. Some sozinho quando todos os cards trazem o lote no nome.
+// Cards do Summit ainda abertos no funil de ingressos sem o lote no nome. Vale daqui para frente: os já ganhos não
+// entram. Some sozinho quando o nome do card traz o lote (o nome vence a data de criação do card).
 function AvisoLoteNoNome({ tickets }: { tickets: Ticket[] }) {
   const faltam = useMemo(() => {
     const vistos = new Map<string, { nome: string; link: string | null }>();
     tickets.forEach((t) => {
-      if (t.source !== "pipedrive" || t.status !== "approved" || t.lote_no_titulo || !t.deal_id || vistos.has(t.deal_id)) return;
+      if (t.source !== "pipedrive" || t.status !== "crm_open" || !t.funil_ingressos || t.lote_no_titulo || !t.deal_id || vistos.has(t.deal_id)) return;
       vistos.set(t.deal_id, { nome: t.company || t.deal_title || `Negócio ${t.deal_id}`, link: t.crm_account ? `https://${t.crm_account}.pipedrive.com/deal/${t.deal_id}` : null });
     });
     return [...vistos.entries()];
@@ -153,9 +153,8 @@ function AvisoLoteNoNome({ tickets }: { tickets: Ticket[] }) {
   if (!faltam.length) return null;
   return (
     <p className="border-t border-line pt-3 text-xs leading-relaxed text-warn">
-      Para investigar no CRM: escreva o lote negociado no nome do card, como em “[SUM] Empresa | 03 ingressos (Lote 1)”.
-      Sem isso, o painel usa o lote do dia em que o card foi criado, e a venda negociada antes da virada pode cair no lote
-      seguinte. Faltam:{" "}
+      Para investigar no CRM: falta o lote no nome {faltam.length === 1 ? "deste card" : "destes cards"}, como em “[SUM] Empresa | 03 ingressos (Lote 2)”.
+      Assim a venda fica no lote negociado, mesmo se fechar depois da virada:{" "}
       {faltam.map(([id, n], i) => (
         <span key={id}>
           {i > 0 && " · "}

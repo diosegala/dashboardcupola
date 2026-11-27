@@ -180,7 +180,8 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
       const itens = porNegocio.get(d.id) ?? [];
       // Sem produto de ingresso no negócio: usa o título (quantidade e tipo) e o valor do negócio.
       const doTitulo = !itens.length;
-      if (doTitulo && !(titulo.ehSummit && titulo.temIngresso)) return [];
+      // Card aberto [SUM] sem produto e sem quantidade no nome também entra (1 ingresso, para conferir), para não sumir de Em andamento.
+      if (doTitulo && !(titulo.ehSummit && (titulo.temIngresso || (d.status === "open" && /\[\s*sum/i.test(d.title ?? ""))))) return [];
       const linhas: Omit<InvoicedLine, "deal_id">[] = doTitulo
         ? tituloEmLinhas(titulo.itens, Number(d.value ?? 0))
         : itens.map(corrigeLinha);

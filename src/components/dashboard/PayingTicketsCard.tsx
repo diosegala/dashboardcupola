@@ -16,6 +16,8 @@ interface Props {
   emNegociacao: number;
   // Cards distintos desses ingressos (aparece em destaque no i).
   cardsEmNegociacao: number;
+  // Cards em andamento sem quantidade clara no CRM (contados como 1 ingresso).
+  conferirEmNegociacao?: { nome: string; link: string | null }[];
   meta: number | null;
   anterior?: number | null;
   rotuloAnterior: string;
@@ -25,7 +27,7 @@ interface Props {
 
 // Ingressos pagantes no visual do card de Receita de patrocínio: número grande, pista com Sympla, faturados e
 // em negociação, marcas da meta e do ano anterior, e os números de apoio embaixo.
-export function PayingTicketsCard({ sympla, faturados, emNegociacao, cardsEmNegociacao, meta, anterior, rotuloAnterior, extra, className }: Props) {
+export function PayingTicketsCard({ sympla, faturados, emNegociacao, cardsEmNegociacao, conferirEmNegociacao = [], meta, anterior, rotuloAnterior, extra, className }: Props) {
   const [cheio, setCheio] = useState(false);
   useEffect(() => {
     const id = requestAnimationFrame(() => setCheio(true));
@@ -120,6 +122,17 @@ export function PayingTicketsCard({ sympla, faturados, emNegociacao, cardsEmNego
           info={`Ingressos do Summit em cards abertos do funil Educação no Pipedrive, nas etapas Negociação e Fechamento: ${int(emNegociacao)} ${emNegociacao === 1 ? "ingresso" : "ingressos"} em ${int(cardsEmNegociacao)} ${cardsEmNegociacao === 1 ? "card" : "cards"}. Cada card conta uma vez. Patrocínios e cotas, Leads e outras etapas ficam fora. Ainda não contam na meta; quando o negócio é ganho, passam para Faturados.`}
         />
       </div>
+      {conferirEmNegociacao.length > 0 && (
+        <p className="text-xs leading-relaxed text-warn">
+          Para investigar no CRM: sem quantidade de ingressos no card (contado como 1):{" "}
+          {conferirEmNegociacao.map((n, i) => (
+            <span key={i}>
+              {i > 0 && " · "}
+              {n.link ? <a href={n.link} target="_blank" rel="noreferrer" className="underline underline-offset-2">{n.nome}</a> : n.nome}
+            </span>
+          ))}
+        </p>
+      )}
     </Card>
   );
 }

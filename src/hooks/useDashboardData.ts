@@ -206,7 +206,7 @@ async function fetchInvoicedRaw(symplaEventId: string): Promise<InvoicedRaw> {
   const porTitulo = funis.length && account
     ? fetchAllPages((from, to) =>
         supabase.from("deals").select(DEAL_COLUMNS).eq("crm_account", account).in("pipeline_pd_id", funis)
-          .in("status", ["won", "open"]).eq("is_deleted", false).ilike("title", "%ingress%").order("id").range(from, to) as any)
+          .in("status", ["won", "open"]).eq("is_deleted", false).or("title.ilike.%ingress%,title.ilike.%[SUM]%").order("id").range(from, to) as any)
     : Promise.resolve([] as any[]);
   const { data: produtos } = await daConta(supabase.from("crm_products").select("pd_id, name").eq("kind", "product"));
   const ids = (produtos ?? []).filter((p) => isTicketProduct(p.name)).map((p) => p.pd_id);

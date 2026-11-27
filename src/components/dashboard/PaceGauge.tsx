@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { addDays } from "date-fns";
 import * as TooltipPrimitive from "@radix-ui/react-tooltip";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Tabs, TabsTrigger } from "@/components/ui/tabs";
+import { SlidingTabsList } from "./SlidingTabsList";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { splitTickets, type Ticket } from "@/hooks/useCommercialMetrics";
 import type { DateRange } from "@/hooks/useDashboardData";
@@ -32,6 +34,7 @@ interface PaceGaugeProps {
 
 const fmt = (n: number) => n.toLocaleString("pt-BR", { maximumFractionDigits: 1 });
 const num = (n: number) => n.toLocaleString("pt-BR");
+const int = (n: number) => Math.round(n).toLocaleString("pt-BR");
 const ddmm = (dia: string) => `${dia.slice(8, 10)}/${dia.slice(5, 7)}`;
 const ddmmaaaa = (dia: string) => `${ddmm(dia)}/${dia.slice(0, 4)}`;
 const du = (n: number) => `${num(n)} ${n === 1 ? "dia útil" : "dias úteis"}`;
@@ -131,10 +134,6 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
 
   // Preenche ao aparecer (1,2 s), como o anel da meta.
   const [frac, setFrac] = useState(0);
-  useEffect(() => {
-    const id = requestAnimationFrame(() => setFrac(atualFrac));
-    return () => cancelAnimationFrame(id);
-  }, [atualFrac]);
 
   const marcaIn = point(necessarioFrac, R - 14);
   const marcaOut = point(necessarioFrac, R + 14);
@@ -148,21 +147,76 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
   const diasRecorte = lote ? calc.r.diasRestantes : calc.evento.diasRestantes;
   const projecao = calc.semana.ritmo !== null ? Math.round((lote ? calc.r.pagantes : calc.evento.pagantes) + calc.semana.ritmo * diasRecorte) : null;
 
+  // Chave de perspectiva: abre sempre no Dia. Lote e Evento mostram quanto falta até o fim de cada um.
+  const [visao, setVisao] = useState<Visao>("dia");
+  const vendidosRecorte = calc.r.pagantes;
+  const ateLote = lote ? ` até ${ddmm(lote.end_date!)}` : "";
+  // Velocímetro de acordo com a chave: ritmo por dia (Dia) ou vendidos x meta (Lote, Evento).
+  const g = visao === "dia"
+    ? { valor: currentPace, legenda: "ingressos por dia", marca: temMeta ? `Precisa ${int(Math.ceil(requiredPace as number))}` : null, alvo: null as number | null }
+    : visao === "lote"
+    ? { valor: vendidosRecorte, legenda: lote && calc.metaLote ? `vendidos de ${num(calc.metaLote)}` : "vendidos", marca: null, alvo: lote ? calc.metaLote : null }
+    : { valor: calc.evento.pagantes, legenda: metaEvento ? `vendidos de ${num(metaEvento)}` : "vendidos", marca: null, alvo: metaEvento };
+  const gFrac = visao === "dia" ? atualFrac : Math.min(g.valor / Math.max(g.alvo ?? 0, g.valor, 1), 1);
+  const gCor = visao === "dia" ? corArco : "hsl(var(--data-blue))";
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setFrac(gFrac));
+    return () => cancelAnimationFrame(id);
+  }, [gFrac]);
+  const linhas: { rotulo: string; valor: React.ReactNode }[] =
+    visao === "dia"
+      ? [
+          ...(temMeta && calc.comparar.faltam > 0 ? [{ rotulo: "Precisa vender", valor: <><Num v={Math.ceil(requiredPace as number)} /> por dia{lote ? ateLote : " até o evento"}</> }] : []),
+          { rotulo: "Vendendo", valor: <><Num v={currentPace} /> por dia{calc.ant && calc.rAnt !== null ? <span className="font-normal text-muted-foreground"> · {calc.ant.name}: <Num v={calc.rAnt} /></span> : null}</> },
+          { rotulo: "Últimos 7 dias", valor: <><Num v={calc.semana.ritmo ?? 0} /> por dia</> },
+        ]
+      : visao === "lote"
+      ? !lote
+        ? [{ rotulo: emPeriodo ? "No período" : "Escolha um lote", valor: emPeriodo ? <><Num v={vendidosRecorte} /> vendidos</> : "na caixa acima" }]
+        : calc.metaLote === null
+        ? [{ rotulo: "Meta do lote", valor: "não definida (aba Metas)" }]
+        : [
+            { rotulo: "Faltam", valor: calc.n.faltam > 0 ? <><Num v={calc.n.faltam} /> ingressos{ateLote}</> : "meta batida" },
+            ...(projecao !== null && calc.n.faltam > 0 ? [{ rotulo: "Nesse ritmo", valor: <>termina com cerca de <Num v={projecao} /></> }] : []),
+          ]
+      : metaEvento === null
+      ? [{ rotulo: "Meta do evento", valor: "não definida (aba Metas)" }]
+      : [
+          { rotulo: "Faltam", valor: calc.nEvento.faltam > 0 ? <><Num v={calc.nEvento.faltam} /> ingressos até o evento</> : "meta batida" },
+          ...(calc.nEvento.necessario !== null && calc.nEvento.faltam > 0 ? [{ rotulo: "Precisa vender", valor: <><Num v={Math.ceil(calc.nEvento.necessario)} /> por dia</> }] : []),
+        ];
+  const marcaIn2 = point(necessarioFrac, R - 14);
+  const marcaOut2 = point(necessarioFrac, R + 14);
+  const rotulo2 = point(necessarioFrac, R + 26);
+
   return (
-    <Card className={cn("flex flex-col gap-2 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
-      <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
-        Ritmo de vendas <InfoTip title="Ritmo de vendas" />
+    <Card className={cn("flex flex-col gap-3 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-foreground/75">
+          Ritmo de vendas <InfoTip title="Ritmo de vendas" />
+        </div>
+        <Tabs value={visao} onValueChange={(v) => setVisao(v as Visao)}>
+          <SlidingTabsList value={visao} className="h-9">
+            {(["dia", "lote", "evento"] as const).map((v) => (
+              <TabsTrigger key={v} value={v} className="relative z-[1] px-3 py-1.5 text-xs data-[state=active]:bg-transparent data-[state=active]:text-background">
+                {v === "dia" ? "Dia" : v === "lote" ? "Lote" : "Evento"}
+              </TabsTrigger>
+            ))}
+          </SlidingTabsList>
+        </Tabs>
       </div>
-      <Select value={selecao} onValueChange={setEscolha}>
-        <SelectTrigger className="h-9 w-full max-w-[240px] text-xs" aria-label="Recorte do ritmo"><SelectValue /></SelectTrigger>
-        <SelectContent>
-          {periodo && <SelectItem value={PERIODO}>Período filtrado · {ddmm(periodo.inicio)} a {ddmm(periodo.fim)}</SelectItem>}
-          {lista.map((o) => <SelectItem key={o.name} value={o.name}>{o.name}{o.name === vigente ? " (vigente)" : ""}</SelectItem>)}
-          <SelectItem value={EVENTO}>Evento todo</SelectItem>
-        </SelectContent>
-      </Select>
+      {visao !== "evento" && (
+        <Select value={selecao} onValueChange={setEscolha}>
+          <SelectTrigger className="h-9 w-full max-w-[240px] text-xs" aria-label="Recorte do ritmo"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {periodo && <SelectItem value={PERIODO}>Período filtrado · {ddmm(periodo.inicio)} a {ddmm(periodo.fim)}</SelectItem>}
+            {lista.map((o) => <SelectItem key={o.name} value={o.name}>{o.name}{o.name === vigente ? " (vigente)" : ""}</SelectItem>)}
+            <SelectItem value={EVENTO}>Evento todo</SelectItem>
+          </SelectContent>
+        </Select>
+      )}
       {faltaData && <AvisoDatas compacto />}
-      {alerta && cobre !== null && (
+      {visao === "dia" && alerta && cobre !== null && (
         <Tooltip delayDuration={80}>
           <TooltipTrigger asChild>
             <div
@@ -187,76 +241,52 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
         </Tooltip>
       )}
       <div className="flex flex-1 flex-col justify-between gap-4">
-        <svg viewBox="0 -28 200 144" className="mx-auto h-auto w-full max-w-[200px] shrink-0" role="img" aria-label={`Ritmo atual ${fmt(currentPace)} por dia útil${temMeta ? `; necessário ${fmt(requiredPace as number)}` : ""}`}>
+        <svg viewBox="0 -28 200 144" className="mx-auto h-auto w-full max-w-[200px] shrink-0" role="img" aria-label={`${int(g.valor)} ${g.legenda}`}>
           <path d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`} fill="none" stroke="hsl(var(--secondary))" strokeWidth="16" strokeLinecap="round" />
           <path
             d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`}
             fill="none"
-            stroke={corArco}
+            stroke={gCor}
             strokeWidth="16"
             strokeLinecap="round"
             strokeDasharray={arcLength}
             strokeDashoffset={arcLength * (1 - frac)}
             className="transition-[stroke-dashoffset] duration-[1200ms] ease-cupola motion-reduce:transition-none"
           />
-          {temMeta && (
+          {g.marca && (
             <>
-              <line x1={marcaIn.x} y1={marcaIn.y} x2={marcaOut.x} y2={marcaOut.y} stroke="hsl(var(--foreground))" strokeWidth="3" strokeLinecap="round" />
-              <text x={rotulo.x} y={rotulo.y} textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-[10px] font-semibold">
-                Precisa {fmt(Math.ceil(requiredPace as number))}
+              <line x1={marcaIn2.x} y1={marcaIn2.y} x2={marcaOut2.x} y2={marcaOut2.y} stroke="hsl(var(--foreground))" strokeWidth="3" strokeLinecap="round" />
+              <text x={rotulo2.x} y={rotulo2.y} textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-[10px] font-semibold">
+                {g.marca}
               </text>
             </>
           )}
-          <text x={CX} y={CY - 22} textAnchor="middle" className={cn("text-[30px] tracking-[-0.035em]", cor === "bad" ? "fill-bad" : cor === "warn" ? "fill-warn" : "fill-foreground")} style={{ fontWeight: 600 }} >
-            {fmt(currentPace)}
+          <text x={CX} y={CY - 22} textAnchor="middle" className={cn("cursor-help text-[30px] tracking-[-0.035em]", visao === "dia" && cor === "bad" ? "fill-bad" : visao === "dia" && cor === "warn" ? "fill-warn" : "fill-foreground")} style={{ fontWeight: 600 }}>
+            <title>{exato(g.valor)}</title>
+            {int(g.valor)}
           </text>
           <text x={CX} y={CY - 4} textAnchor="middle" className="fill-muted-foreground text-[10px]">
-            por dia útil, em média
+            {g.legenda}
           </text>
         </svg>
-        <div className="flex min-w-0 flex-col gap-4 border-t border-border pt-4 text-sm leading-relaxed">
-          <Bloco titulo={metaDoRecorte ? `Para bater a meta ${alvo}` : "Meta"}>
-            {metaDoRecorte === null ? (
-              <p className="text-muted-foreground">{lote ? `O ${lote.name} não tem meta de ingressos. Defina na aba Metas.` : "Defina a meta de ingressos do evento na aba Metas."}</p>
-            ) : faltamRecorte === 0 ? (
-              <p>A meta {alvo} ({num(metaDoRecorte)} ingressos) já foi batida.</p>
-            ) : diasRecorte <= 1 ? (
-              <p>Faltam <b className="font-semibold">{num(faltamRecorte)} ingressos</b> para a meta {alvo} ({num(metaDoRecorte)}). {lote ? `Hoje é o último dia útil do lote: seria preciso vender todos hoje.` : "Resta só hoje."}</p>
-            ) : (
-              <p>Faltam <b className="font-semibold">{num(faltamRecorte)} ingressos</b> para a meta {alvo} ({num(metaDoRecorte)}). É preciso vender <b className="font-semibold">{fmt(Math.ceil(necRecorte))} por dia útil</b> nos {du(diasRecorte)} que restam{lote ? `, até ${ddmm(lote.end_date!)}` : " até o evento"}{necRecorte * 21 >= 1 && diasRecorte > 21 ? `, cerca de ${num(Math.round(necRecorte * 21))} por mês` : ""}.</p>
-            )}
-          </Bloco>
-          <Bloco titulo="Até agora">
-            <p>
-              {lote ? `O ${lote.name}` : emPeriodo ? "No período filtrado, foram" : "O evento"} {lote || !emPeriodo ? "vendeu " : ""}<b className="font-semibold">{num(calc.r.pagantes)} ingressos</b> em {du(calc.r.dias)}{!lote && !emPeriodo ? ` desde ${ddmmaaaa(calc.marco)}` : ""}: média de <b className="font-semibold">{fmt(currentPace)} por dia útil</b>.
-              {calc.ant && calc.rAnt !== null ? ` O lote anterior, ${calc.ant.name}, teve média de ${fmt(calc.rAnt)} por dia útil.` : ""}
-            </p>
-            <p className="text-xs text-muted-foreground">Vendas de fim de semana entram no total; a média é por dia útil.</p>
-            {!lote && calc.fora > 0 && <p className="text-xs text-muted-foreground">{num(calc.fora)} ingressos vendidos fora das datas de qualquer lote.</p>}
-          </Bloco>
-          {!lote && !emPeriodo && <CompareLine anterior={ritmoAnterior} atual={currentPace} formato={(n) => `${fmt(n)}/dia`} quando="nesta época" />}
-          <Bloco titulo="Últimos 7 dias">
-            <p>
-              Foram <b className="font-semibold">{num(calc.semana.pagantes)} ingressos</b> em {du(calc.semana.dias)}, média de {fmt(calc.semana.ritmo ?? 0)} por dia útil.
-              {projecao !== null && metaDoRecorte ? ` Se esse ritmo continuar, ${lote ? `o ${lote.name}` : "o evento"} termina com cerca de ${num(projecao)} dos ${num(metaDoRecorte)} ingressos da meta.` : ""}
-            </p>
-          </Bloco>
-          {lote && calc.nEvento.necessario !== null && calc.nEvento.faltam > 0 && (
-            <Bloco titulo="Meta do evento">
-              <p>Faltam {num(calc.nEvento.faltam)} ingressos para a meta do evento ({num(metaEvento ?? 0)}): {fmt(Math.ceil(calc.nEvento.necessario))} por dia útil nos {du(calc.evento.diasRestantes)} até o evento, cerca de {num(Math.round(calc.nEvento.necessario * 21))} por mês.</p>
-            </Bloco>
-          )}
-        </div>
+        <dl className="flex min-w-0 flex-col divide-y divide-border border-t border-border text-sm">
+          {linhas.map((l) => (
+            <div key={l.rotulo} className="flex items-baseline justify-between gap-3 py-2">
+              <dt className="shrink-0 text-xs text-muted-foreground">{l.rotulo}</dt>
+              <dd className="min-w-0 text-right font-medium tabular-nums">{l.valor}</dd>
+            </div>
+          ))}
+        </dl>
+        {visao === "dia" && !lote && !emPeriodo && <CompareLine anterior={ritmoAnterior} atual={currentPace} formato={(n) => `${int(n)}/dia`} quando="nesta época" />}
       </div>
     </Card>
   );
 }
 
-function Bloco({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return (
-    <div className="flex min-w-0 flex-col gap-1">
-      <span className="text-xs font-semibold text-muted-foreground">{titulo}</span>
-      {children}
-    </div>
-  );
+type Visao = "dia" | "lote" | "evento";
+
+// Número inteiro à vista (não existe meio ingresso); o valor exato aparece ao passar o mouse.
+const exato = (n: number) => `Valor exato: ${n.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}`;
+function Num({ v }: { v: number }) {
+  return <span title={Number.isInteger(v) ? undefined : exato(v)} className={Number.isInteger(v) ? undefined : "cursor-help"}>{int(v)}</span>;
 }
