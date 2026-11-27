@@ -84,6 +84,7 @@ export function CurrentBatchCard({ goals, allTimeTickets = [], previousYearTicke
       ) : (
         <Conteudo lote={dados.lote} vHoje={dados.vHoje} v7={dados.v7} comparar={comparar} />
       )}
+      <AvisoLoteNoNome tickets={allTimeTickets} />
     </Card>
   );
 }
@@ -135,5 +136,32 @@ function Item({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
       <span className="text-xs font-semibold text-muted-foreground">{rotulo}</span>
       <b className="font-semibold tabular-nums text-foreground">{valor}</b>
     </div>
+  );
+}
+
+// Faturados sem o lote no nome do card: o painel adivinha o lote pela data de criação do card, o que erra quando a
+// negociação começou antes da virada de lote. Some sozinho quando todos os cards trazem o lote no nome.
+function AvisoLoteNoNome({ tickets }: { tickets: Ticket[] }) {
+  const faltam = useMemo(() => {
+    const vistos = new Map<string, { nome: string; link: string | null }>();
+    tickets.forEach((t) => {
+      if (t.source !== "pipedrive" || t.status !== "approved" || t.lote_no_titulo || !t.deal_id || vistos.has(t.deal_id)) return;
+      vistos.set(t.deal_id, { nome: t.company || t.deal_title || `Negócio ${t.deal_id}`, link: t.crm_account ? `https://${t.crm_account}.pipedrive.com/deal/${t.deal_id}` : null });
+    });
+    return [...vistos.entries()];
+  }, [tickets]);
+  if (!faltam.length) return null;
+  return (
+    <p className="border-t border-line pt-3 text-xs leading-relaxed text-warn">
+      Para investigar no CRM: escreva o lote negociado no nome do card, como em “[SUM] Empresa | 03 ingressos (Lote 1)”.
+      Sem isso, o painel usa o lote do dia em que o card foi criado, e a venda negociada antes da virada pode cair no lote
+      seguinte. Faltam:{" "}
+      {faltam.map(([id, n], i) => (
+        <span key={id}>
+          {i > 0 && " · "}
+          {n.link ? <a href={n.link} target="_blank" rel="noreferrer" className="underline underline-offset-2">{n.nome}</a> : n.nome}
+        </span>
+      ))}
+    </p>
   );
 }

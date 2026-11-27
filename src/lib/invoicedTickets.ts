@@ -159,9 +159,16 @@ function tituloEmLinhas(itens: { quantidade: number; tipo: string }[], valor: nu
   return lista.map((i) => ({ name: i.tipo, quantity: i.quantidade, item_price: Math.round((valor / total) * 100) / 100, sum: Math.round(((valor * i.quantidade) / total) * 100) / 100 }));
 }
 
-// Lote fixado por negócio, quando o comercial acertou o preço de um lote e o card só foi criado depois da virada.
+// Lote negociado escrito no nome do card: "[SUM] Empresa | 03 ingressos (Lote 1)". É o que vale para o lote do faturado.
+export function loteDoTitulo(title: unknown): string | null {
+  const m = String(title ?? "").match(/lote\s*(\d+)/i);
+  return m ? `Lote ${Number(m[1])}` : null;
+}
+
+// Lote fixado por negócio antes do padrão no nome do card. O nome do card, quando tiver o lote, vence.
 // Anagê Imóveis (#38531): card criado em 26/11/2026, 1º dia do Lote 2, mas negociado no Lote 1.
 export const LOTE_DO_NEGOCIO: Record<string, string> = { "38531": "Lote 1" };
+const loteFixo = (d: { title: string | null; pipedrive_deal_id: string }) => loteDoTitulo(d.title) ?? LOTE_DO_NEGOCIO[d.pipedrive_deal_id] ?? null;
 
 export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], symplaSales: { sold_at: string | null; ticket_type?: string | null }[]) {
   const porNegocio = new Map<string, InvoicedLine[]>();
@@ -202,7 +209,8 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
         // Lote do faturado: vale a data em que o negócio foi criado/acordado, mesmo que o ganho no CRM caia
         // depois da virada de lote (o preço já era do lote anterior).
         batch_at: d.created_at_source ?? quando,
-        batch_fixed: LOTE_DO_NEGOCIO[d.pipedrive_deal_id] ?? null,
+        batch_fixed: loteFixo(d),
+        lote_no_titulo: !!loteDoTitulo(d.title),
         pipeline_pd_id: d.pipeline_pd_id ?? null,
         // Data de cada parcela paga: não vem do CRM (o ganho já indica contrato assinado ou 1ª parcela paga).
         paid_at: null as string | null,
@@ -217,7 +225,7 @@ export function invoicedToTickets(deals: InvoicedDeal[], lines: InvoicedLine[], 
         // Na origem da venda (Marketing) o faturado aparece como venda direta: nem sempre é da equipe do ranking
         // (o site pede para grandes quantidades chamarem o comercial).
         utm_source: INVOICED_CHANNEL,
-        ticket_type: `${LOTE_DO_NEGOCIO[d.pipedrive_deal_id] ?? batchAt(d.created_at_source ?? quando, symplaSales)} | ${tipoDe(l.name)}`,
+        ticket_type: `${loteFixo(d) ?? batchAt(d.created_at_source ?? quando, symplaSales)} | ${tipoDe(l.name)}`,
         seller: vendedor,
         seller_name: sellerFirstName(vendedor),
         company: d.org_name || titulo.empresa,
