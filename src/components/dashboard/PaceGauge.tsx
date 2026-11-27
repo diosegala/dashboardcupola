@@ -15,6 +15,7 @@ import { InfoTip } from "@/components/InfoTip";
 import { cn } from "@/lib/utils";
 import { CompareLine } from "@/components/CompareLine";
 import { AvisoDatas } from "./BatchStatus";
+import { escalaDoRitmo } from "@/lib/paceScale";
 
 const EVENTO = "__evento";
 const PERIODO = "__periodo";
@@ -103,18 +104,23 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
     const fora = lote ? 0 : emPeriodo ? pagantesForaDeLote(pagos, calendario, emPeriodo.inicio, emPeriodo.fim) : pagantesForaDeLote(pagos, calendario);
     // Velocímetro: compara com o necessário do recorte (lote com meta) ou do evento.
     const comparar = lote && metaLote ? n : nEvento;
-    return { r, n, nEvento, evento, metaLote, marco, ant, rAnt, semana, fora, comparar, status: statusDoRitmo(r.ritmo, comparar.necessario, comparar.faltam) };
+    // Mesma referência visual ao alternar lotes; não muda nenhuma meta ou contagem.
+    const referencias = opcoes.map((o) => {
+      const base = resumo.find((x) => x.lote === o.name);
+      const dias = o.start_date && o.end_date
+        ? ritmoNoPeriodo([], o.start_date, o.end_date, hoje, "ate_hoje").diasRestantes : 0;
+      return { meta: base?.meta ?? 0, necessario: ritmoNecessario(base?.meta ?? null, base?.pagantes ?? 0, dias).necessario ?? 0 };
+    });
+    const escalaDia = Math.max(nEvento.necessario ?? 0, ...referencias.map((x) => x.necessario));
+    const escalaLote = Math.max(0, ...referencias.map((x) => x.meta));
+    return { r, n, nEvento, evento, metaLote, marco, ant, rAnt, semana, fora, comparar, escalaDia, escalaLote, status: statusDoRitmo(r.ritmo, comparar.necessario, comparar.faltam) };
   }, [lote, emPeriodo, opcoes, pagos, goals, tickets, hoje, eventDate, metaEvento, calendario]);
 
   const nome = lote ? lote.name : emPeriodo ? "período filtrado" : "evento";
   const currentPace = calc.r.ritmo ?? 0;
   const requiredPace = calc.comparar.necessario;
 
-  // Escala vai até o dobro do necessário (ou até o atual, se passar disso).
   const temMeta = requiredPace !== null;
-  const max = temMeta ? Math.max((requiredPace as number) * 2, currentPace * 1.1, 1) : Math.max(currentPace * 1.4, 1);
-  const atualFrac = Math.min(currentPace / max, 1);
-  const necessarioFrac = temMeta ? Math.min((requiredPace as number) / max, 1) : 0;
   const noRitmo = temMeta && currentPace >= (requiredPace as number);
   const nivel = nivelDoRitmo(currentPace, requiredPace, calc.comparar.faltam);
   const cor = nivel === "critico" || nivel === "risco" ? "bad" : nivel === "atencao" ? "warn" : nivel ? "ok" : null;
@@ -135,9 +141,6 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
   // Preenche ao aparecer (1,2 s), como o anel da meta.
   const [frac, setFrac] = useState(0);
 
-  const marcaIn = point(necessarioFrac, R - 14);
-  const marcaOut = point(necessarioFrac, R + 14);
-  const rotulo = point(necessarioFrac, R + 26);
   const loteComMeta = !!lote && calc.n.necessario !== null;
   // Recorte da meta: a do lote quando escolhido e com meta; senão a do evento.
   const metaDoRecorte = lote ? (loteComMeta ? calc.metaLote : null) : metaEvento;
@@ -157,10 +160,10 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
     : visao === "lote"
     ? { valor: vendidosRecorte, legenda: lote && calc.metaLote ? `vendidos de ${num(calc.metaLote)}` : "vendidos", marca: lote && calc.metaLote !== null ? `Precisa ${num(calc.metaLote)}` : null, alvo: lote ? calc.metaLote : null }
     : { valor: calc.evento.pagantes, legenda: metaEvento ? `vendidos de ${num(metaEvento)}` : "vendidos", marca: metaEvento !== null ? `Precisa ${num(metaEvento)}` : null, alvo: metaEvento };
-  // Todas as visões usam a mesma escala visual: o dobro da meta, ou o realizado se maior.
-  const gMax = Math.max((g.alvo ?? 0) * 2, g.valor * 1.1, 1);
-  const gFrac = visao === "dia" ? atualFrac : Math.min(g.valor / gMax, 1);
-  const gMarcaFrac = visao === "dia" ? necessarioFrac : Math.min((g.alvo ?? 0) / gMax, 1);
+  const escala = escalaDoRitmo(g.valor, visao === "dia" ? requiredPace : g.alvo,
+    visao === "dia" ? calc.escalaDia : visao === "lote" ? calc.escalaLote : 0);
+  const gFrac = escala.realizado;
+  const gMarcaFrac = escala.marcador ?? 0;
   const gCor = visao === "dia" ? corArco : "hsl(var(--data-blue))";
   useEffect(() => {
     const id = requestAnimationFrame(() => setFrac(gFrac));
@@ -244,7 +247,7 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
         </Tooltip>
       )}
       <div className="flex flex-1 flex-col justify-between gap-4">
-        <svg viewBox="0 -28 200 144" className="mx-auto h-auto w-full max-w-[200px] shrink-0" role="img" aria-label={`${int(g.valor)} ${g.legenda}`}>
+        <svg viewBox="-20 -28 240 150" className="mx-auto h-auto w-full max-w-[240px] shrink-0" role="img" aria-label={`${int(g.valor)} ${g.legenda}; escala de 0 a ${fmt(escala.maximo)}${g.marca ? `; ${g.marca}` : ""}`}>
           <path d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`} fill="none" stroke="hsl(var(--secondary))" strokeWidth="16" strokeLinecap="round" />
           <path
             d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`}
@@ -271,6 +274,8 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
           <text x={CX} y={CY - 4} textAnchor="middle" className="fill-muted-foreground text-[10px]">
             {g.legenda}
           </text>
+          <text x={CX - R} y={CY + 22} textAnchor="middle" className="fill-muted-foreground text-[9px]">0</text>
+          <text x={CX + R} y={CY + 22} textAnchor="middle" className="fill-muted-foreground text-[9px]">{fmt(escala.maximo)}</text>
         </svg>
         <dl className="flex min-w-0 flex-col divide-y divide-border border-t border-border text-sm">
           {linhas.map((l) => (

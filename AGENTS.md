@@ -1,4 +1,5 @@
 # Architecture rules
+- Pace gauge domains use the tested presentation-only `paceScale` with shared batch references and visible bounds, so target markers are proportional rather than pinned to the midpoint.
 - Authentication context lives in the dependency-free `authContext` module and retains its identity through HMR; provider and consumers must share it so partial preview updates cannot disconnect access checks.
 - "Em andamento" uses only `crmInProgress`: Summit ticket lines of open deals in the event's `ingressos` pipeline (Educação), stages Negociação/Fechamento; its tooltip shows the distinct deal count from the same source. Sponsorship pipelines, Leads and non-Summit products (mentorias, imersões) never enter.
 - Per-deal batch overrides live in `LOTE_DO_NEGOCIO` (invoicedTickets) and win over the date rule.
