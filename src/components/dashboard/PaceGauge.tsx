@@ -155,9 +155,12 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
   const g = visao === "dia"
     ? { valor: currentPace, legenda: "ingressos por dia", marca: temMeta ? `Precisa ${int(Math.ceil(requiredPace as number))}` : null, alvo: null as number | null }
     : visao === "lote"
-    ? { valor: vendidosRecorte, legenda: lote && calc.metaLote ? `vendidos de ${num(calc.metaLote)}` : "vendidos", marca: null, alvo: lote ? calc.metaLote : null }
-    : { valor: calc.evento.pagantes, legenda: metaEvento ? `vendidos de ${num(metaEvento)}` : "vendidos", marca: null, alvo: metaEvento };
-  const gFrac = visao === "dia" ? atualFrac : Math.min(g.valor / Math.max(g.alvo ?? 0, g.valor, 1), 1);
+    ? { valor: vendidosRecorte, legenda: lote && calc.metaLote ? `vendidos de ${num(calc.metaLote)}` : "vendidos", marca: lote && calc.metaLote !== null ? `Precisa ${num(calc.metaLote)}` : null, alvo: lote ? calc.metaLote : null }
+    : { valor: calc.evento.pagantes, legenda: metaEvento ? `vendidos de ${num(metaEvento)}` : "vendidos", marca: metaEvento !== null ? `Precisa ${num(metaEvento)}` : null, alvo: metaEvento };
+  // Todas as visões usam a mesma escala visual: o dobro da meta, ou o realizado se maior.
+  const gMax = Math.max((g.alvo ?? 0) * 2, g.valor * 1.1, 1);
+  const gFrac = visao === "dia" ? atualFrac : Math.min(g.valor / gMax, 1);
+  const gMarcaFrac = visao === "dia" ? necessarioFrac : Math.min((g.alvo ?? 0) / gMax, 1);
   const gCor = visao === "dia" ? corArco : "hsl(var(--data-blue))";
   useEffect(() => {
     const id = requestAnimationFrame(() => setFrac(gFrac));
@@ -185,9 +188,9 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
           { rotulo: "Faltam", valor: calc.nEvento.faltam > 0 ? <><Num v={calc.nEvento.faltam} /> ingressos até o evento</> : "meta batida" },
           ...(calc.nEvento.necessario !== null && calc.nEvento.faltam > 0 ? [{ rotulo: "Precisa vender", valor: <><Num v={Math.ceil(calc.nEvento.necessario)} /> por dia</> }] : []),
         ];
-  const marcaIn2 = point(necessarioFrac, R - 14);
-  const marcaOut2 = point(necessarioFrac, R + 14);
-  const rotulo2 = point(necessarioFrac, R + 26);
+  const marcaIn2 = point(gMarcaFrac, R - 14);
+  const marcaOut2 = point(gMarcaFrac, R + 14);
+  const rotulo2 = point(gMarcaFrac, R + 26);
 
   return (
     <Card className={cn("flex flex-col gap-3 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
