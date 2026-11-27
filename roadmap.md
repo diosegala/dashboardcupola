@@ -19,3 +19,5 @@
 - [x] Desconto médio: separar taxa da Sympla, exclusões e alertas do CRM
 - [x] Listas de lotes: vigente primeiro e futuros somente a partir do início
 - [x] Testar cálculos, prévia e interações das novas abas
+- [x] Ritmo de vendas: rótulo "Precisa" nunca cortado nem sobreposto ao arco (duas linhas, viewBox com folga)
+

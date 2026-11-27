@@ -15,7 +15,7 @@ import { InfoTip } from "@/components/InfoTip";
 import { cn } from "@/lib/utils";
 import { CompareLine } from "@/components/CompareLine";
 import { AvisoDatas } from "./BatchStatus";
-import { escalaDoRitmo } from "@/lib/paceScale";
+import { escalaDoRitmo, GAUGE, rotuloDoMarcador } from "@/lib/paceScale";
 
 const EVENTO = "__evento";
 const PERIODO = "__periodo";
@@ -41,9 +41,9 @@ const ddmmaaaa = (dia: string) => `${ddmm(dia)}/${dia.slice(0, 4)}`;
 const du = (n: number) => `${num(n)} ${n === 1 ? "dia útil" : "dias úteis"}`;
 
 // Meio círculo de 180° (da esquerda para a direita), raio R, centro (CX, CY).
-const R = 80;
-const CX = 100;
-const CY = 96;
+const R = GAUGE.r;
+const CX = GAUGE.cx;
+const CY = GAUGE.cy;
 const point = (frac: number, r = R) => {
   const a = Math.PI * (1 - frac);
   return { x: CX + r * Math.cos(a), y: CY - r * Math.sin(a) };
@@ -156,10 +156,10 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
   const ateLote = lote ? ` até ${ddmm(lote.end_date!)}` : "";
   // Velocímetro de acordo com a chave: ritmo por dia (Dia) ou vendidos x meta (Lote, Evento).
   const g = visao === "dia"
-    ? { valor: currentPace, legenda: "ingressos por dia", marca: temMeta ? `Precisa ${int(Math.ceil(requiredPace as number))}` : null, alvo: null as number | null }
+    ? { valor: currentPace, legenda: "ingressos por dia", marca: temMeta ? { titulo: "Precisa", valor: int(Math.ceil(requiredPace as number)) } : null, alvo: null as number | null }
     : visao === "lote"
-    ? { valor: vendidosRecorte, legenda: lote && calc.metaLote ? `vendidos de ${num(calc.metaLote)}` : "vendidos", marca: lote && calc.metaLote !== null ? `Precisa ${num(calc.metaLote)}` : null, alvo: lote ? calc.metaLote : null }
-    : { valor: calc.evento.pagantes, legenda: metaEvento ? `vendidos de ${num(metaEvento)}` : "vendidos", marca: metaEvento !== null ? `Precisa ${num(metaEvento)}` : null, alvo: metaEvento };
+    ? { valor: vendidosRecorte, legenda: lote && calc.metaLote ? `vendidos de ${num(calc.metaLote)}` : "vendidos", marca: lote && calc.metaLote !== null ? { titulo: "Precisa", valor: num(calc.metaLote) } : null, alvo: lote ? calc.metaLote : null }
+    : { valor: calc.evento.pagantes, legenda: metaEvento ? `vendidos de ${num(metaEvento)}` : "vendidos", marca: metaEvento !== null ? { titulo: "Precisa", valor: num(metaEvento) } : null, alvo: metaEvento };
   const escala = escalaDoRitmo(g.valor, visao === "dia" ? requiredPace : g.alvo,
     visao === "dia" ? calc.escalaDia : visao === "lote" ? calc.escalaLote : 0);
   const gFrac = escala.realizado;
@@ -193,7 +193,7 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
         ];
   const marcaIn2 = point(gMarcaFrac, R - 14);
   const marcaOut2 = point(gMarcaFrac, R + 14);
-  const rotulo2 = point(gMarcaFrac, R + 26);
+  const rot = g.marca ? rotuloDoMarcador(gMarcaFrac, g.marca.titulo, g.marca.valor) : null;
 
   return (
     <Card className={cn("flex flex-col gap-3 p-5 hover:-translate-y-[3px] hover:border-line-strong", className)}>
@@ -247,7 +247,7 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
         </Tooltip>
       )}
       <div className="flex flex-1 flex-col justify-between gap-4">
-        <svg viewBox="-20 -28 240 150" className="mx-auto h-auto w-full max-w-[240px] shrink-0" role="img" aria-label={`${int(g.valor)} ${g.legenda}; escala de 0 a ${fmt(escala.maximo)}${g.marca ? `; ${g.marca}` : ""}`}>
+        <svg viewBox={`${GAUGE.vb.x} ${GAUGE.vb.y} ${GAUGE.vb.w} ${GAUGE.vb.h}`} className="mx-auto h-auto w-full max-w-[268px] shrink-0" role="img" aria-label={`${int(g.valor)} ${g.legenda}; escala de 0 a ${fmt(escala.maximo)}${g.marca ? `; ${g.marca.titulo} ${g.marca.valor}` : ""}`}>
           <path d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`} fill="none" stroke="hsl(var(--secondary))" strokeWidth="16" strokeLinecap="round" />
           <path
             d={`M ${CX - R} ${CY} A ${R} ${R} 0 0 1 ${CX + R} ${CY}`}
@@ -259,11 +259,14 @@ export function PaceGauge({ tickets, goals, eventDate, metaEvento, ritmoAnterior
             strokeDashoffset={arcLength * (1 - frac)}
             className="transition-[stroke-dashoffset] duration-[1200ms] ease-cupola motion-reduce:transition-none"
           />
-          {g.marca && (
+          {g.marca && rot && (
             <>
               <line x1={marcaIn2.x} y1={marcaIn2.y} x2={marcaOut2.x} y2={marcaOut2.y} stroke="hsl(var(--foreground))" strokeWidth="3" strokeLinecap="round" />
-              <text x={rotulo2.x} y={rotulo2.y} textAnchor="middle" dominantBaseline="middle" className="fill-foreground text-[10px] font-semibold">
-                {g.marca}
+              <text x={rot.x} y={rot.baselines.titulo} textAnchor="middle" className="fill-muted-foreground text-[9px]">
+                {g.marca.titulo}
+              </text>
+              <text x={rot.x} y={rot.baselines.valor} textAnchor="middle" className="fill-foreground text-[11px] font-semibold tabular-nums">
+                {g.marca.valor}
               </text>
             </>
           )}
