@@ -49,7 +49,7 @@ import { RevenueMiniChart, type FonteReceita } from "./RevenueMiniChart";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useEvent } from "@/hooks/useEvent";
 import { useSponsorshipSales } from "@/hooks/useSponsorshipSales";
-import { useCrmStageCards, useSymplaOrdersWithoutTickets, type DateRange } from "@/hooks/useDashboardData";
+import { useSymplaOrdersWithoutTickets, type DateRange } from "@/hooks/useDashboardData";
 import { inPeriod, previousYear } from "@/lib/period";
 import { mesBrasilia, monthlyRevenueGoals, sponsorMonthly, ticketMonthly, totalMonthly } from "@/lib/monthlyRevenue";
 import { format } from "date-fns";
@@ -196,8 +196,6 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
 
   // Visão mês a mês: ingressos e patrocínios do evento do topo, respeitando o período escolhido.
   const { event } = useEvent();
-  // Cards do Summit abertos no CRM, contados pelo funil: a quantidade que aparece no Pipedrive.
-  const cardsEtapa = useCrmStageCards(event.id);
   const pedidosSemIngresso = useSymplaOrdersWithoutTickets(event.sympla_event_id ?? "");
   // Filtro de lote de Ingressos emitidos, que vale também para Vendas por tipo de ingresso.
   const [loteEmitidos, setLoteEmitidos] = useState(LOTE_EVENTO);
@@ -271,7 +269,6 @@ export function CommercialOverview({ tickets, periodTickets, previousPeriodTicke
         faturados={m.invoicedCount}
         emNegociacao={emNegociacaoCrm.ingressos}
         cardsEmNegociacao={emNegociacaoCrm.cards}
-        cardsEtapa={cardsEtapa.data}
         meta={m.goal}
         anterior={mostrarAnterior ? m.anterior?.payingCount ?? null : null}
         rotuloAnterior={rotulo}
