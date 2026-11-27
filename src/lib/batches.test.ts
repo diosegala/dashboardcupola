@@ -26,6 +26,15 @@ describe("faturado na virada de lote", () => {
     const [t] = withBatchByDate([{ ticket_type: "Lote 1 | Ingresso VIP", sold_at: "2026-11-09T12:21:12Z", batch_at: "2026-11-06T19:45:13Z", source: "pipedrive" }], cal);
     expect(t.ticket_type).toBe("Lote 0 | Ingresso VIP");
   });
+
+  it("lote fixado no negócio vence a data (Anagê no Lote 1)", () => {
+    const cal = [
+      { name: "Lote 1", start_date: "2026-11-09", end_date: "2026-11-25" },
+      { name: "Lote 2", start_date: "2026-11-26", end_date: "2026-12-17" },
+    ];
+    const [t] = withBatchByDate([{ ticket_type: "Lote 1 | Ingresso Padrão", sold_at: "2026-11-26T20:44:04Z", batch_at: "2026-11-26T11:15:38Z", batch_fixed: "Lote 1", source: "pipedrive" }], cal);
+    expect(t.ticket_type).toBe("Lote 1 | Ingresso Padrão");
+  });
 });
 
 describe("ordem das listas de lotes", () => {

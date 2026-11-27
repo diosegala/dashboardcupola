@@ -49,7 +49,7 @@ export function LotesComparados({ goals, tickets, range }: { goals: any[]; ticke
                         {l.lote}
                         {l.emAndamento && <span className="ml-2 text-xs font-normal text-muted-foreground">em andamento, dia útil {num(l.diasUteis)} de {num(l.diasUteisDoLote)}</span>}
                       </span>
-                      <span className="shrink-0 tabular-nums"><b className="font-semibold">{l.media === null ? "—" : fmt(l.media)}</b> <span className="text-xs text-muted-foreground">por dia útil</span></span>
+                      <span className="shrink-0 tabular-nums"><b className="font-semibold" title={l.media === null ? undefined : `Valor exato: ${fmt(l.media)}`}>{l.media === null ? "—" : Math.round(l.media).toLocaleString("pt-BR")}</b> <span className="text-xs text-muted-foreground">por dia</span></span>
                     </div>
                     <div className="h-2.5 rounded-full bg-secondary">
                       <i
@@ -65,7 +65,7 @@ export function LotesComparados({ goals, tickets, range }: { goals: any[]; ticke
                   <span className="block">Período: {dataCurta(l.inicio)} a {dataCurta(l.fim)}</span>
                   <span className="block">Ingressos vendidos: {num(l.vendidos)}</span>
                   <span className="block">Dias contados: {dias(l.diasCorridos, false)}, sendo {dias(l.diasUteis)}</span>
-                  <span className="block">Média: {l.media === null ? "—" : fmt(l.media)} por dia útil</span>
+                  <span className="block">Média: {l.media === null ? "—" : fmt(l.media)} por dia útil (valor exato)</span>
                 </TooltipContent>
               </Tooltip>
             );

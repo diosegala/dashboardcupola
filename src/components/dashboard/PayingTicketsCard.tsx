@@ -14,9 +14,10 @@ interface Props {
   // Faturamento em andamento: ingressos de negócios abertos no CRM (negociação, fechamento). Não contam na meta;
   // quando o negócio é ganho, passam para faturados. Só o faturado interno passa pelo CRM, a Sympla não.
   emNegociacao: number;
+  // Cards distintos desses ingressos (aparece em destaque no i).
   cardsEmNegociacao: number;
-  // Cards abertos de Educação, contados uma vez nas etapas Negociação e Fechamento.
-  cardsEtapa?: { negociacao: number; fechamento: number; total: number } | null;
+  // Cards em andamento sem quantidade clara no CRM (contados como 1 ingresso).
+  conferirEmNegociacao?: { nome: string; link: string | null }[];
   meta: number | null;
   anterior?: number | null;
   rotuloAnterior: string;
@@ -26,10 +27,8 @@ interface Props {
 
 // Ingressos pagantes no visual do card de Receita de patrocínio: número grande, pista com Sympla, faturados e
 // em negociação, marcas da meta e do ano anterior, e os números de apoio embaixo.
-export function PayingTicketsCard({ sympla, faturados, emNegociacao, cardsEmNegociacao, cardsEtapa, meta, anterior, rotuloAnterior, extra, className }: Props) {
+export function PayingTicketsCard({ sympla, faturados, emNegociacao, cardsEmNegociacao, conferirEmNegociacao = [], meta, anterior, rotuloAnterior, extra, className }: Props) {
   const [cheio, setCheio] = useState(false);
-  // Zero é uma contagem válida; nunca substituir por cards de produtos de outro funil.
-  const etapa = cardsEtapa ?? null;
   useEffect(() => {
     const id = requestAnimationFrame(() => setCheio(true));
     return () => cancelAnimationFrame(id);
@@ -119,14 +118,21 @@ export function PayingTicketsCard({ sympla, faturados, emNegociacao, cardsEmNego
           titulo="Em andamento"
           valor={emNegociacao}
           rodape="abertos no CRM"
-          emphasis={etapa ? `${int(etapa.total)} ${etapa.total === 1 ? "card" : "cards"} em Educação` : "Contagem de Educação indisponível"}
-          info={
-            etapa
-              ? `Funil Educação no Pipedrive: ${int(etapa.negociacao)} em Negociação e ${int(etapa.fechamento)} em Fechamento. Cada card aberto conta uma vez, mesmo sem produto cadastrado. Patrocínios, cotas, Leads e outras etapas ficam fora desta contagem. A linha Em andamento mostra ingressos, não cards: ${int(emNegociacao)} ingressos em ${int(cardsEmNegociacao)} ${cardsEmNegociacao === 1 ? "card" : "cards"}. Ainda não contam na meta; quando o negócio é ganho, passam para Faturados.`
-              : `Não foi possível obter a contagem de cards de Educação. A linha mostra ${int(emNegociacao)} ingressos em andamento, não a quantidade de cards. Patrocínios e cotas não entram na contagem de Educação.`
-          }
+          emphasis={`${int(cardsEmNegociacao)} ${cardsEmNegociacao === 1 ? "card" : "cards"} em Negociação e Fechamento`}
+          info={`Ingressos do Summit em cards abertos do funil Educação no Pipedrive, nas etapas Negociação e Fechamento: ${int(emNegociacao)} ${emNegociacao === 1 ? "ingresso" : "ingressos"} em ${int(cardsEmNegociacao)} ${cardsEmNegociacao === 1 ? "card" : "cards"}. Cada card conta uma vez. Patrocínios e cotas, Leads e outras etapas ficam fora. Ainda não contam na meta; quando o negócio é ganho, passam para Faturados.`}
         />
       </div>
+      {conferirEmNegociacao.length > 0 && (
+        <p className="text-xs leading-relaxed text-warn">
+          Para investigar no CRM: sem quantidade de ingressos no card (contado como 1):{" "}
+          {conferirEmNegociacao.map((n, i) => (
+            <span key={i}>
+              {i > 0 && " · "}
+              {n.link ? <a href={n.link} target="_blank" rel="noreferrer" className="underline underline-offset-2">{n.nome}</a> : n.nome}
+            </span>
+          ))}
+        </p>
+      )}
     </Card>
   );
 }

@@ -8,7 +8,6 @@ import { withBatchByDate } from "@/lib/batches";
 import { batchCalendar } from "@/lib/batchCalendar";
 import { batchCalendarVersion } from "@/hooks/useEventBatches";
 import { fetchAllPages } from "@/lib/fetchPages";
-import { contarCardsEtapa, funisDeIngressos } from "@/lib/crmStageCards";
 
 export interface DateRange {
   from: Date;
@@ -54,35 +53,6 @@ export function useDeals(range: DateRange) {
         .lte("created_at_source", range.to.toISOString());
       if (error) throw error;
       return data ?? [];
-    },
-  });
-}
-
-// Cards de Educação: somente os funis configurados como ingressos, sem depender de produtos.
-export function useCrmStageCards(eventId: string) {
-  return useQuery({
-    queryKey: ["crm_stage_cards", "ingressos", eventId],
-    enabled: !!eventId,
-    queryFn: async () => {
-      const { data: cfg, error: configError } = await supabase
-        .from("sponsorship_config")
-        .select("crm_account, pipelines")
-        .eq("event_id", eventId)
-        .maybeSingle();
-      if (configError) throw configError;
-      const account = cfg?.crm_account?.trim() ?? null;
-      const funis = funisDeIngressos(cfg?.pipelines);
-      if (!account || !funis.length) return { negociacao: 0, fechamento: 0, total: 0 };
-      const data = await fetchAllPages((from, to) => supabase
-        .from("deals")
-        .select("id, stage_name, pipeline_pd_id, status, is_deleted")
-        .eq("crm_account", account)
-        .in("pipeline_pd_id", funis)
-        .eq("status", "open")
-        .eq("is_deleted", false)
-        .order("id")
-        .range(from, to), { throwOnError: true });
-      return contarCardsEtapa(data, funis);
     },
   });
 }
@@ -210,7 +180,7 @@ export function useFormAnswerCounts(eventId: string) {
 // produto, título "[SUM] ... | N ingressos"), entre o fim do evento anterior e o fim deste (o produto é o mesmo todo ano).
 // Ganhos contam como venda; abertos ficam "em negociação". Quem não pode ler o CRM recebe lista vazia.
 const DEAL_COLUMNS = "id, pipedrive_deal_id, title, status, stage_name, org_name, value, won_at, created_at_source, custom_fields, pipeline_pd_id";
-type InvoicedRaw = { deals: any[]; linhas: any[]; account: string | null } | null;
+type InvoicedRaw = { deals: any[]; linhas: any[]; account: string | null; funis: number[] } | null;
 // Só a leitura do CRM: roda junto com a leitura das vendas da Sympla, sem esperar por ela.
 async function fetchInvoicedRaw(symplaEventId: string): Promise<InvoicedRaw> {
   const { data: ev } = await supabase.from("events").select("id, end_date").eq("sympla_event_id", symplaEventId).maybeSingle();
@@ -236,7 +206,7 @@ async function fetchInvoicedRaw(symplaEventId: string): Promise<InvoicedRaw> {
   const porTitulo = funis.length && account
     ? fetchAllPages((from, to) =>
         supabase.from("deals").select(DEAL_COLUMNS).eq("crm_account", account).in("pipeline_pd_id", funis)
-          .in("status", ["won", "open"]).eq("is_deleted", false).ilike("title", "%ingress%").order("id").range(from, to) as any)
+          .in("status", ["won", "open"]).eq("is_deleted", false).or("title.ilike.%ingress%,title.ilike.%[SUM]%").order("id").range(from, to) as any)
     : Promise.resolve([] as any[]);
   const { data: produtos } = await daConta(supabase.from("crm_products").select("pd_id, name").eq("kind", "product"));
   const ids = (produtos ?? []).filter((p) => isTicketProduct(p.name)).map((p) => p.pd_id);
@@ -261,7 +231,7 @@ async function fetchInvoicedRaw(symplaEventId: string): Promise<InvoicedRaw> {
   if (respostas.some((r) => r.error)) return null;
   respostas.forEach((r) => (r.data ?? []).forEach((d) => negocios.set(d.id, d)));
   (await porTitulo).forEach((d: any) => negocios.has(d.id) || negocios.set(d.id, d));
-  return { deals: [...negocios.values()].filter(doEvento), linhas, account };
+  return { deals: [...negocios.values()].filter(doEvento), linhas, account, funis };
 }
 
 // Empresas que já fecharam patrocínio: os nomes delas costumam virar cupom. Quem não lê o CRM recebe lista vazia.
@@ -281,7 +251,12 @@ async function fetchSponsorCompanies(symplaEventId: string): Promise<string[]> {
 function invoicedFromRaw(raw: InvoicedRaw, symplaSales: any[]) {
   if (!raw) return [];
   // Conta do Pipedrive em cada ingresso, para o painel abrir o negócio no CRM.
-  return invoicedToTickets(raw.deals, raw.linhas, symplaSales).map((t) => ({ ...t, crm_account: raw.account }));
+  return invoicedToTickets(raw.deals, raw.linhas, symplaSales).map((t) => ({
+    ...t,
+    crm_account: raw.account,
+    // Funil de ingressos (Educação) do evento: só ele entra em Em andamento; Patrocínios e cotas ficam fora.
+    funil_ingressos: raw.funis.includes(Number(t.pipeline_pd_id)),
+  }));
 }
 
 // Todas as vendas do evento: Sympla + faturados internamente (Pipedrive), no mesmo formato.

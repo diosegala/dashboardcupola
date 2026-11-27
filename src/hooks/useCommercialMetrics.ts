@@ -37,6 +37,10 @@ export interface Ticket {
   seller_name?: string | null;
   deal_id?: string;
   deal_title?: string | null;
+  // Nome do card traz o lote negociado ("(Lote 1)").
+  lote_no_titulo?: boolean;
+  // Card do funil de ingressos (Educação) do evento.
+  funil_ingressos?: boolean;
   // Domínio da conta do Pipedrive (parte antes de .pipedrive.com), para o link do negócio.
   crm_account?: string | null;
   // Negócio aberto: etapa no funil (ex.: Fechamento). Empresa do negócio, para casar com o cupom de resgate.

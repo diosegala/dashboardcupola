@@ -84,6 +84,7 @@ export function CurrentBatchCard({ goals, allTimeTickets = [], previousYearTicke
       ) : (
         <Conteudo lote={dados.lote} vHoje={dados.vHoje} v7={dados.v7} comparar={comparar} />
       )}
+      <AvisoLoteNoNome tickets={allTimeTickets} />
     </Card>
   );
 }
@@ -135,5 +136,31 @@ function Item({ rotulo, valor }: { rotulo: string; valor: React.ReactNode }) {
       <span className="text-xs font-semibold text-muted-foreground">{rotulo}</span>
       <b className="font-semibold tabular-nums text-foreground">{valor}</b>
     </div>
+  );
+}
+
+// Cards do Summit ainda abertos no funil de ingressos sem o lote no nome. Vale daqui para frente: os já ganhos não
+// entram. Some sozinho quando o nome do card traz o lote (o nome vence a data de criação do card).
+function AvisoLoteNoNome({ tickets }: { tickets: Ticket[] }) {
+  const faltam = useMemo(() => {
+    const vistos = new Map<string, { nome: string; link: string | null }>();
+    tickets.forEach((t) => {
+      if (t.source !== "pipedrive" || t.status !== "crm_open" || !t.funil_ingressos || t.lote_no_titulo || !t.deal_id || vistos.has(t.deal_id)) return;
+      vistos.set(t.deal_id, { nome: t.company || t.deal_title || `Negócio ${t.deal_id}`, link: t.crm_account ? `https://${t.crm_account}.pipedrive.com/deal/${t.deal_id}` : null });
+    });
+    return [...vistos.entries()];
+  }, [tickets]);
+  if (!faltam.length) return null;
+  return (
+    <p className="border-t border-line pt-3 text-xs leading-relaxed text-warn">
+      Para investigar no CRM: falta o lote no nome {faltam.length === 1 ? "deste card" : "destes cards"}, como em “[SUM] Empresa | 03 ingressos (Lote 2)”.
+      Assim a venda fica no lote negociado, mesmo se fechar depois da virada:{" "}
+      {faltam.map(([id, n], i) => (
+        <span key={id}>
+          {i > 0 && " · "}
+          {n.link ? <a href={n.link} target="_blank" rel="noreferrer" className="underline underline-offset-2">{n.nome}</a> : n.nome}
+        </span>
+      ))}
+    </p>
   );
 }
